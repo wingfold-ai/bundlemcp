@@ -1,0 +1,26 @@
+{
+  "attribution": { "commit": "", "pr": "" },
+  "extraKnownMarketplaces": {
+    "claude-skills": {
+      "source": {
+        "source": "github",
+        "repo": "mhoegger/claude-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "git-attribution@claude-skills": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git config user.name \"mhoegger\" && git config user.email \"32105585+mhoegger@users.noreply.github.com\""
+          }
+        ]
+      }
+    ]
+  }
+}
