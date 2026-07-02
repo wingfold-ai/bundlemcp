@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
 from bundlemcp.api.routers import api_keys, bundles, endpoints, servers, users
+from bundlemcp.bootstrap import run_bootstrap
 from bundlemcp.gateway import mcp_endpoint
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
@@ -87,6 +88,7 @@ def create_app(
         )
         app.state.admin_sessions = AdminSessionStore(app.state.redis)
         app.state.oidc_provider = oidc_provider or build_provider(settings)
+        await run_bootstrap(app.state.session_factory, settings)  # spec 41
 
         async def _purge_loop() -> None:  # OAS-8/SEC-8
             import asyncio

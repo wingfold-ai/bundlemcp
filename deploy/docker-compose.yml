@@ -1,0 +1,78 @@
+# bundlemcp dev/reference stack (ARC-13). TLS is the operator's proxy concern
+# in production (spec 71 DEP-3); here the gateway is exposed directly.
+#
+# Egress note (SEC-2): compose service hostnames resolve to private IPs, which
+# the default egress policy allows; loopback/metadata ranges stay blocked.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: bundlemcp
+      POSTGRES_PASSWORD: bundlemcp
+      POSTGRES_DB: bundlemcp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bundlemcp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo ok >&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  echo-mcp:
+    build: ../examples/echo-mcp
+    expose:
+      - "9000"
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: services/gateway/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      BUNDLEMCP_DATABASE_URL: postgresql+asyncpg://bundlemcp:bundlemcp@postgres:5432/bundlemcp
+      BUNDLEMCP_REDIS_URL: redis://redis:6379/0
+      BUNDLEMCP_PUBLIC_URL: ${BUNDLEMCP_PUBLIC_URL:-http://localhost:8000}
+      BUNDLEMCP_OIDC_DISCOVERY_URL: http://keycloak:8080/realms/bundlemcp/.well-known/openid-configuration
+      BUNDLEMCP_OIDC_CLIENT_ID: bundlemcp-gateway
+      BUNDLEMCP_OIDC_CLIENT_SECRET: ${BUNDLEMCP_OIDC_CLIENT_SECRET:-dev-gateway-secret}
+      BUNDLEMCP_ADMIN_EMAILS: '["admin@example.com"]'
+      BUNDLEMCP_INITIAL_SERVICE_KEY: ${BUNDLEMCP_INITIAL_SERVICE_KEY:-bmcp_sk_devservicekey000000000000000000000000}
+      BUNDLEMCP_BOOTSTRAP_FILE: /app/deploy/seed.yaml
+    volumes:
+      - ../deploy/seed.yaml:/app/deploy/seed.yaml:ro
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

@@ -1,0 +1,19 @@
+# Demo bootstrap (spec 41 / DOC-3): a fresh compose install is never empty.
+# Registers the echo-mcp example, bundles it, and exposes an api_key endpoint.
+servers:
+  - name: echo
+    description: Demo echo MCP server
+    url: http://echo-mcp:9000/mcp
+
+bundles:
+  - name: demo
+    description: Demo bundle aggregating the echo server
+    servers:
+      - echo
+
+endpoints:
+  - name: demo
+    bundle_name: demo
+    profile: default
+    auth_modes:
+      - api_key
