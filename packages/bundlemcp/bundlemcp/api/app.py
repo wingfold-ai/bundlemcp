@@ -9,10 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
 from bundlemcp.api.routers import api_keys, bundles, endpoints, servers
+from bundlemcp.gateway import mcp_endpoint
+from bundlemcp.gateway.audit import AuditWriter
+from bundlemcp.gateway.discovery import DiscoveryService
+from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
+from bundlemcp.gateway.metering import load_metering_hook
+from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
 from bundlemcp.models import ApiKey, ApiKeyKind
 from bundlemcp.security import display_prefix, hash_token
 from bundlemcp.settings import Settings, get_settings
 from bundlemcp.store import create_engine, create_redis, session_factory
+from bundlemcp.store.sessions import SessionStore
 
 log = structlog.get_logger(__name__)
 
@@ -46,6 +53,7 @@ def create_app(
     *,
     engine: AsyncEngine | None = None,
     redis: Redis | None = None,
+    client_factory: ClientFactory | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
 
@@ -56,7 +64,21 @@ def create_app(
         app.state.session_factory = session_factory(app.state.engine)
         app.state.redis = redis or create_redis(settings.redis_url)
         await _ensure_initial_service_key(app, settings)
+
+        factory = client_factory or default_client_factory(settings)
+        app.state.discovery = DiscoveryService(app.state.session_factory, factory)
+        audit = AuditWriter(app.state.session_factory)
+        await audit.start()
+        metering = load_metering_hook(settings.metering_hook)
+        metering.fail_open = settings.metering_hook_fail_open  # type: ignore[attr-defined]
+        app.state.gateway = GatewayRuntime(
+            session_store=SessionStore(app.state.redis),
+            metering=metering,
+            audit=audit,
+            client_factory=factory,
+        )
         yield
+        await audit.stop()
         await app.state.engine.dispose()
         await app.state.redis.aclose()
 
@@ -70,6 +92,7 @@ def create_app(
 
     for router in (servers.router, bundles.router, endpoints.router, api_keys.router):
         app.include_router(router, prefix=API_PREFIX)
+    app.include_router(mcp_endpoint.router)  # public /{endpoint}/mcp (EP-1)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict:
