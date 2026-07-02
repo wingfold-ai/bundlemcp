@@ -40,9 +40,11 @@ class Settings(BaseSettings):
     metering_hook: str | None = None
     metering_hook_fail_open: bool = False
 
-    # Bootstrap (spec 41)
+    # Bootstrap (spec 41). initial_service_key provisions one service API key on
+    # first boot when no service key exists (BOOT-3-style, value from env/secret).
     bootstrap_file: str | None = None
     bootstrap_strict: bool = False
+    initial_service_key: str | None = None
 
     log_level: str = "INFO"
 
