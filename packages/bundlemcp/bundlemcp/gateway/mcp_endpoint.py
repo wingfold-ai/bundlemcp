@@ -140,11 +140,14 @@ def _forward_headers(
 class GatewayRuntime:
     """Per-app gateway wiring (attached to app.state.gateway)."""
 
-    def __init__(self, *, session_store, metering, audit, client_factory) -> None:
+    def __init__(
+        self, *, session_store, metering, audit, client_factory, runtime_config=None
+    ) -> None:
         self.sessions: SessionStore = session_store
         self.metering = metering
         self.audit = audit
         self.client_factory = client_factory
+        self.runtime_config = runtime_config  # spec 02 Config accessors (PROT-2 values)
 
 
 async def _handle_initialize(

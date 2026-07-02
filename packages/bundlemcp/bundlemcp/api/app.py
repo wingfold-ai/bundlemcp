@@ -8,13 +8,14 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
-from bundlemcp.api.routers import api_keys, bundles, endpoints, servers, users
+from bundlemcp.api.routers import api_keys, bundles, config, endpoints, servers, users
 from bundlemcp.bootstrap import run_bootstrap
 from bundlemcp.gateway import mcp_endpoint
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
 from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
 from bundlemcp.gateway.metering import load_metering_hook
+from bundlemcp.gateway.runtime_config import RuntimeConfig
 from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
 from bundlemcp.models import ApiKey, ApiKeyKind
 from bundlemcp.oauth import authorize as oauth_authorize
@@ -27,6 +28,7 @@ from bundlemcp.oauth.oidc import OidcProvider, build_provider
 from bundlemcp.security import display_prefix, hash_token
 from bundlemcp.settings import Settings, get_settings
 from bundlemcp.store import create_engine, create_redis, session_factory
+from bundlemcp.store.invalidation import InvalidationSubscriber
 from bundlemcp.store.sessions import SessionStore
 
 log = structlog.get_logger(__name__)
@@ -80,15 +82,30 @@ def create_app(
         await audit.start()
         metering = load_metering_hook(settings.metering_hook)
         metering.fail_open = settings.metering_hook_fail_open  # type: ignore[attr-defined]
+        runtime_config = RuntimeConfig(app.state.session_factory)
+        app.state.runtime_config = runtime_config
         app.state.gateway = GatewayRuntime(
             session_store=SessionStore(app.state.redis),
             metering=metering,
             audit=audit,
             client_factory=factory,
+            runtime_config=runtime_config,
         )
         app.state.admin_sessions = AdminSessionStore(app.state.redis)
         app.state.oidc_provider = oidc_provider or build_provider(settings)
         await run_bootstrap(app.state.session_factory, settings)  # spec 41
+
+        # STP-2: one subscriber per replica; runtime-config cache hangs off it
+        subscriber = InvalidationSubscriber(app.state.redis)
+        app.state.invalidation = subscriber
+
+        async def _on_invalidation(event) -> None:
+            if event.entity_type == "config":
+                await runtime_config.flush()
+
+        subscriber.on_event(_on_invalidation)
+        subscriber.on_reconnect_flush(runtime_config.flush)
+        await subscriber.start()
 
         async def _purge_loop() -> None:  # OAS-8/SEC-8
             import asyncio
@@ -107,6 +124,7 @@ def create_app(
         purge_task = asyncio.create_task(_purge_loop())
         yield
         purge_task.cancel()
+        await subscriber.stop()
         await audit.stop()
         await app.state.engine.dispose()
         await app.state.redis.aclose()
@@ -119,7 +137,13 @@ def create_app(
         docs_url=f"{API_PREFIX}/docs",
     )
 
-    for router in (servers.router, bundles.router, endpoints.router, api_keys.router):
+    for router in (
+        servers.router,
+        bundles.router,
+        endpoints.router,
+        api_keys.router,
+        config.router,
+    ):
         app.include_router(router, prefix=API_PREFIX)
     # OAuth server routes at root for .well-known discovery (spec 20)
     for router in (
