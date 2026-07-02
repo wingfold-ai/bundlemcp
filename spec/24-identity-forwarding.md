@@ -33,7 +33,10 @@ servers (seo-gsc, hyperframes) already rely on.
   connection carrying user A's forwarded authorization MUST never serve
   user B's request ([30-session-management.md](30-session-management.md) —
   connection reuse is keyed by identity when forwarding is active; metamcp
-  solved this by bypassing idle-session reuse for such servers).
+  solved this by bypassing idle-session reuse for such servers). The binding
+  key MUST incorporate a hash of the **forwarded header values**, not just
+  the resolved `sub` — the same user presenting different credentials (e.g.
+  on two endpoints) gets distinct upstream bindings.
 
 ## Out of scope
 

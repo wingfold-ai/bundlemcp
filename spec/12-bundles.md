@@ -15,13 +15,17 @@ to the owning upstream by parsing the prefix.
   ordered set of member servers. The `description` is served as the MCP
   `instructions` field of the virtual server.
 - **BND-2** Tool naming: every exposed tool is `<server_name>__<tool_name>`
-  (double underscore separator). Server names are already slug-safe
-  ([DOM-4](02-domain-model.md)); the combination is guaranteed unique because
-  `(server, tool)` is unique. Prefixing happens before overrides
-  ([13-tool-management.md](13-tool-management.md)) are applied.
-- **BND-3** Call routing MUST parse the prefix, resolve the member server,
-  verify the tool is enabled in this bundle, and forward the call with the
-  original (un-prefixed, un-overridden) tool name.
+  (double underscore separator). Server names are slug-safe and MUST NOT
+  contain `__` ([DOM-4](02-domain-model.md)), so parsing is unambiguous even
+  when the upstream tool name itself contains `__`: **split on the first
+  `__`** — everything after it is the tool name. The combination is
+  guaranteed unique because `(server, tool)` is unique. Prefixing happens
+  before overrides ([13-tool-management.md](13-tool-management.md)) are
+  applied.
+- **BND-3** Call routing MUST parse the prefix (first-`__` rule, or resolve an
+  override name via its `BundleTool` mapping first — [TM-3](13-tool-management.md)),
+  resolve the member server, verify the tool is enabled in this bundle, and
+  forward the call with the original (un-prefixed, un-overridden) tool name.
 - **BND-4** `BundleServer.enabled=false` removes all of a server's tools from
   the bundle's `tools/list` and blocks calls to them, without deleting the
   membership or its `BundleTool` curation.
@@ -35,8 +39,16 @@ to the owning upstream by parsing the prefix.
   up changes on their next `tools/list` and SHOULD receive a
   `notifications/tools/list_changed` when the serving session supports it.
 - **BND-8** Resources and prompts of member servers are passed through with
-  the same prefixing scheme where names collide; v1 treats tools as the
-  curated surface and resources/prompts as best-effort passthrough.
+  the same prefixing scheme where names collide; tools are the curated
+  surface, resources/prompts are uncurated passthrough (routing incl.
+  `resources/read`, `prompts/get`, and completions per
+  [PROT-9](32-protocol-passthrough.md)).
+- **BND-9** The capability set the bundle advertises at `initialize` is
+  computed per [PROT-11](32-protocol-passthrough.md).
+- **BND-10** Bundle `name` is the natural key for export/bootstrap upserts
+  ([EXP-3](42-export-import.md), [BOOT-2](41-bootstrap.md)) — the UI/API MUST
+  warn on rename that external automation keyed on the old name will treat it
+  as a new bundle.
 
 ## Out of scope
 
@@ -45,5 +57,6 @@ to the owning upstream by parsing the prefix.
 
 ## Open questions
 
-- Whether `BND-8` passthrough for prompts/resources is worth keeping in v1 at
-  all, or bundles should be tools-only until a use case appears.
+- ~~Whether `BND-8` passthrough for prompts/resources is worth keeping in v1.~~
+  **Resolved:** kept — consistent with the full-fidelity proxy decision
+  ([32-protocol-passthrough.md](32-protocol-passthrough.md), ADR-0008).

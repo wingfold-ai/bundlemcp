@@ -39,6 +39,14 @@ constrain auth modes and transform the tool surface. First shipping profiles:
 - **PROF-5** Adding a new profile is a code change implementing a small
   interface (constrain-auth + transform-tools); profiles are listed by the
   management API so the UI stays data-driven.
+- **PROF-6** Profile × auth-mode validation matrix (enforced on endpoint
+  create/update):
+
+  | Profile | Allowed `auth_modes` |
+  |---|---|
+  | `claude` | exactly `[oauth]` |
+  | `chatgpt` | must include `oauth` or `api_key`; bare `[none]` rejected |
+  | `default` | any valid combination per [EP-3](14-endpoints.md) |
 
 ## Out of scope
 

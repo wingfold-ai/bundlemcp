@@ -34,6 +34,11 @@ layer's billing.
 - **AUD-6** UI page with filters (time range, endpoint, bundle, server, tool,
   caller, status) and CSV export; same filters on
   `GET /api/v1/audit-records` ([API-5](40-management-api.md)).
+- **AUD-7** The audit log is the metering **reconciliation source**
+  ([MID-3](31-middleware.md)): for every invocation whose pre-call hook
+  succeeded, an audit record with a terminal status MUST eventually exist
+  (or the invocation is identifiable as lost) — this is what lets a billing
+  consumer detect debits that never completed.
 
 ## Out of scope
 

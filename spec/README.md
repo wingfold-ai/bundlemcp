@@ -57,6 +57,8 @@ acceptable. Shared structure:
 |---|---|
 | [30-session-management.md](30-session-management.md) | Restart-safe, replica-agnostic MCP sessions |
 | [31-middleware.md](31-middleware.md) | Tool-call middleware chain + metering hook |
+| [32-protocol-passthrough.md](32-protocol-passthrough.md) | Full bidirectional MCP proxy (progress, cancellation, sampling, elicitation) |
+| [33-state-propagation.md](33-state-propagation.md) | Cross-replica config invalidation |
 | [40-management-api.md](40-management-api.md) | Service-authenticated REST management API |
 | [41-bootstrap.md](41-bootstrap.md) | Idempotent startup provisioning |
 | [42-export-import.md](42-export-import.md) | Config export/import |
@@ -69,6 +71,14 @@ acceptable. Shared structure:
 | [52-live-logs.md](52-live-logs.md) | Live log stream in the UI |
 | [53-inspector.md](53-inspector.md) | Built-in MCP inspector |
 | [60-admin-ui.md](60-admin-ui.md) | Nuxt 4 admin frontend |
+| [61-docs-and-onboarding.md](61-docs-and-onboarding.md) | User-facing docs, client guides, demo seed |
+| [62-architecture-documentation.md](62-architecture-documentation.md) | arc42 + ADRs + LikeC4 (docs/ tree) |
+
+### Cross-cutting
+| Spec | Contents |
+|---|---|
+| [70-security.md](70-security.md) | Threat model, SSRF egress policy, CORS/CSRF, limits |
+| [71-deployment.md](71-deployment.md) | Public URL/proxy trust, migrations, upgrades, backups, CI/CD |
 
 ## Decision log — deliberately dropped from metamcp
 
@@ -85,6 +95,15 @@ recorded here so nobody re-proposes them without new evidence.
 | **Admin tools over MCP** (~40 `metamcp-admin__*` tools) | The management REST API covers automation; agents can call REST. |
 | **i18n** | English-only admin UI. |
 | **Local password accounts** (better-auth style) | Admin login is OIDC-only; bundlemcp never stores passwords. |
+| **Marketplace/search page** (metamcp's registry-browse UI) | bundlemcp is not a marketplace (00-overview non-goal); servers arrive via API/UI/bootstrap. |
+| **`/oauth/userinfo` endpoint** | Introspection's `sub` covers all known consumers; no OIDC-provider surface ([20-oauth-server.md](20-oauth-server.md) out-of-scope). |
+
+## Roadmap — deferred, not dropped
+
+| Item | Status |
+|---|---|
+| **metamcp migration importer** — one-shot CLI reading a metamcp Postgres DB and mapping servers→registry, namespaces→bundles (+curation), endpoints→endpoints | Deferred by decision (2026-07). Revisit when bundlemcp reaches feature parity; until then migration is manual/bootstrap-file based. |
+| **ChatGPT `search`/`fetch` connector profile** | Possible fourth endpoint profile ([15-endpoint-profiles.md](15-endpoint-profiles.md) out-of-scope). |
 
 ## Prior art
 

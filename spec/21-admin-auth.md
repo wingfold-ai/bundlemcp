@@ -14,16 +14,27 @@ login. This deletes the entire class of auth code that caused pain in metamcp.
 - **ADM-1** Config (`BUNDLEMCP_OIDC_*`): discovery URL, client id, client
   secret. The gateway performs the standard OIDC authorization-code flow and
   establishes its own session (signed httpOnly cookie; session record in
-  Redis with configurable lifetime).
+  Redis with configurable lifetime). Cookie `Domain`/`Secure`/`SameSite`
+  derive from the public URL and CSRF policy
+  ([DEP-1](71-deployment.md), [SEC-4](70-security.md)).
 - **ADM-2** First login auto-provisions a `User` from `(issuer, sub)` with
   email/display name from claims ([02-domain-model.md](02-domain-model.md)).
   The same user store backs OAuth-server logins ([OAS-3](20-oauth-server.md)) —
   one identity per human, whether they arrive via the admin UI or a
   connector authorize flow.
 - **ADM-3** Admin role: users listed in `BUNDLEMCP_ADMIN_EMAILS` (or matching
-  a configured claim, e.g. a group/role claim) get `is_admin=true` on
-  provision. Only admins can access the management UI/API; non-admin users
-  exist only as endpoint consumers (OAuth tokens, upstream token owners).
+  a configured claim, e.g. a group/role claim) get `is_admin=true`. The role
+  is **re-evaluated on every login** — demotion in the IdP takes effect at
+  the next login, promotion likewise; never frozen at first provision. Only
+  admins can access the management UI/API; non-admin users exist only as
+  endpoint consumers (OAuth tokens, upstream token owners).
+- **ADM-6 Deprovisioning:** admin sessions have a max age forcing periodic
+  re-login (IdP re-check); an admin (or the management API) can **deactivate
+  a user**, which immediately revokes their admin sessions, issued OAuth
+  tokens ([20-oauth-server.md](20-oauth-server.md)), consents, and upstream
+  OAuth tokens ([23-upstream-oauth.md](23-upstream-oauth.md)). A user deleted
+  or disabled at the IdP thus loses access at the latest when their session/
+  token lifetimes force renewal — and immediately when deactivated here.
 - **ADM-4** There is no local password login, no signup page, and no
   password-reset flow — by design, not omission. `docker-compose.yml` ships a
   lightweight dev IdP ([ARC-13](01-architecture.md)) so standalone use needs

@@ -27,7 +27,9 @@ surface. It is a pure client of the management API
   - **Audit** — filterable table + CSV ([AUD-6](50-audit-log.md)).
   - **Live logs** — stream view ([52-live-logs.md](52-live-logs.md)).
   - **Inspector** — ([53-inspector.md](53-inspector.md)).
-  - **Users** — list of provisioned users, admin flag display.
+  - **Users** — list of provisioned users, admin flag display, deactivate
+    action ([ADM-6](21-admin-auth.md)), per-user OAuth consents with revoke
+    ([OAS-11](20-oauth-server.md)).
   - **Settings** — runtime `Config` editing, export/import
     ([EXP-6](42-export-import.md)).
 - **UI-2** Auth: OIDC login redirect ([21-admin-auth.md](21-admin-auth.md));

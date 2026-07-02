@@ -31,6 +31,11 @@ taught that observability can't be an afterthought.
   (FastAPI/SQLAlchemy/redis auto-instrumentation + a span per upstream tool
   call), enabled via standard `OTEL_*` env vars; off by default and zero-cost
   when disabled.
+- **OBS-6 Overhead budget**: the gateway's added latency on a `tools/call`
+  (client→gateway→upstream vs. direct upstream call) SHOULD stay under
+  **50 ms p95** in the integration environment; the integration suite
+  measures and reports it so regressions are visible (a report, not a hard
+  gate, in v1).
 
 ## Out of scope
 

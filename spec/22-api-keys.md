@@ -20,12 +20,14 @@ service access ([40-management-api.md](40-management-api.md)).
 - **KEY-3** Accepted via `Authorization: Bearer bmcp_sk_…` or `X-API-Key`
   header on endpoints with `api_key` in `auth_modes`
   ([EP-3](14-endpoints.md)). **Never via query parameter** (decision log).
-- **KEY-4** Deactivation (`is_active=false`) and deletion take effect
-  immediately; `last_used_at` is maintained (coarse, e.g. ≥1/min writes) for
-  the UI.
+- **KEY-4** Deactivation (`is_active=false`) and deletion take effect within
+  the cross-replica propagation budget ([STP-3/STP-4](33-state-propagation.md)
+  — an invalidation event, not a cache TTL); `last_used_at` is maintained
+  (coarse, e.g. ≥1/min writes) for the UI.
 - **KEY-5** Key validation is a constant-time hash comparison backed by
-  Postgres with a short Redis cache; failures feed the auth rate limiter
-  ([RATE-5](16-rate-limiting.md)).
+  Postgres with a validation cache that is permitted **only** because
+  deactivation publishes STP invalidation events; failures feed the auth
+  rate limiter ([RATE-5](16-rate-limiting.md)).
 
 ## Out of scope
 

@@ -28,6 +28,14 @@ own traffic" limitation.
 - **RATE-5** Authentication failures are rate-limited separately (fixed
   gateway-wide policy, Redis-backed) to slow credential scanning — carry-over
   of metamcp's auth rate limiter.
+- **RATE-6 Redis-outage stance:** traffic limits (RATE-1) **fail open** with a
+  loud metric + WARN log (an endpoint may opt into fail-closed via its
+  `rate_limit` config); the auth-failure limiter (RATE-5) also fails open but
+  raises a dedicated alarm metric — availability over throttling, never
+  silently.
+- **RATE-7** Client IP for the `none`-auth fallback derives from the
+  trusted-proxy policy ([DEP-2](71-deployment.md)); windows use Redis server
+  time ([ARC-15](01-architecture.md)).
 
 ## Out of scope
 

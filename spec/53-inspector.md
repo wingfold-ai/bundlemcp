@@ -17,13 +17,14 @@ inspector.
   the browser), (b) any bundlemcp endpoint (exercising the full public path:
   profile, curation, middleware), (c) an arbitrary URL + headers entered
   ad hoc.
-- **INS-2** Capabilities: initialize + capability display, `tools/list`
-  (with schema view), `tools/call` with a form generated from the input
-  schema (Pydantic/JSON-Schema driven) and raw-JSON fallback, response +
-  error display, request timing.
+- **INS-2** Capabilities: initialize + capability display, `ping`,
+  `tools/list` (with schema view), `tools/call` with a form generated from
+  the input schema (Pydantic/JSON-Schema driven) and raw-JSON fallback,
+  response + error display (incl. progress events), request timing.
 - **INS-3** The browser never talks to upstreams directly: the management API
   proxies inspector traffic (admin-authenticated, [API-2](40-management-api.md)),
-  so stored secrets stay server-side and CORS stays closed.
+  so stored secrets stay server-side and CORS stays closed. Ad-hoc URL
+  targets pass the egress policy ([SEC-1/SEC-2](70-security.md)).
 - **INS-4** Inspector calls against **endpoints** go through the real public
   path and are audited like any client ([AUD-1](50-audit-log.md)); calls
   against raw servers are marked `source=inspector` in logs and are NOT
@@ -31,8 +32,10 @@ inspector.
 
 ## Out of scope
 
-- Resources/prompts browsing in v1 (tools first; add if [BND-8](12-bundles.md)
-  passthrough survives).
+- Resources/prompts browsing in v1 (tools first; BND-8 passthrough survived
+  the scope review, so this is a natural later addition).
+- Roots/sampling test panels (metamcp's inspector had them; consciously
+  skipped).
 - Saved inspector configurations/collections.
 
 ## Open questions

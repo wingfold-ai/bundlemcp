@@ -30,6 +30,8 @@ fully configured gateway from config alone, no UI clicks.
   editable in the UI afterwards; bootstrap does not "own" or re-lock them
   (last write wins, no reconciliation loop — that's a registrar-style
   external agent's job via the API).
+- **BOOT-6** The dev compose stack ships a demo bootstrap file
+  ([DOC-3](61-docs-and-onboarding.md)) so a fresh install starts non-empty.
 
 ## Out of scope
 

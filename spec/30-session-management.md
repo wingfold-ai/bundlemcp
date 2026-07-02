@@ -17,8 +17,14 @@ Redis, any replica can serve it, and restarts are non-events.
 
 - **SES-1** On `initialize`, create a session record in Redis keyed by the
   issued `Mcp-Session-Id`: endpoint, bundle, resolved caller identity,
-  negotiated protocol version/capabilities, timestamps. TTL = configurable
-  session lifetime, refreshed on activity.
+  negotiated protocol version/capabilities, timestamps, and a record-schema
+  `version` field ([DEP-6](71-deployment.md)). TTL = configurable session
+  lifetime, refreshed on activity (a `ping` counts —
+  [PROT-8](32-protocol-passthrough.md)).
+- **SES-1a** Concurrent updates to one session record (e.g. two requests
+  lazily binding different servers, SES-6) MUST be atomic — optimistic
+  check-and-set (WATCH/Lua) or a short per-session lock; lost updates are a
+  correctness bug, not an accepted race.
 - **SES-2** Any replica MUST be able to serve any request carrying a valid
   session id by loading this record — no process-local session registry may
   be required for request handling ([ARC-9](01-architecture.md)).
@@ -54,14 +60,38 @@ Redis, any replica can serve it, and restarts are non-events.
   identity-free pooled sessions first. No pre-warming complexity in v1;
   measure cold-start first, optimize later.
 - **SES-9** Config changes to a server invalidate its pooled upstream
-  sessions ([SRV-6](10-server-registry.md)) via Redis pub/sub so all replicas
-  drop their transports.
+  sessions ([SRV-6](10-server-registry.md)) via the invalidation event
+  stream ([33-state-propagation.md](33-state-propagation.md)) so all
+  replicas drop their transports.
+
+### Cross-replica delivery
+
+- **SES-13** Live streams (a client's GET event stream, an in-flight call's
+  response stream) are pinned to the replica holding them; everything else is
+  not. Messages that must reach a specific stream from another replica —
+  cancellations, list-changed notifications, server→client requests and
+  their responses ([32-protocol-passthrough.md](32-protocol-passthrough.md))
+  — are routed via Redis pub/sub channels keyed by session id, delivered by
+  the replica holding the stream. A message for a session with no live
+  stream anywhere fails fast with a structured error (or is dropped, for
+  notifications).
+
+### Degradation matrix
+
+- **SES-14** Explicit outage behavior (replaces any "graceful" hand-waving):
+
+  | Failure | Behavior |
+  |---|---|
+  | **Redis down** | Session-dependent MCP requests → 503 + `Retry-After` (no false 404s); after recovery, records with intact TTLs resume, otherwise clients re-`initialize`. Rate limits per [RATE-6](16-rate-limiting.md). Admin UI logins unavailable; `readyz` false. |
+  | **Postgres down** | Existing sessions keep serving from cached config/tool data where possible; token/key validation fails closed (401/503); config mutations and audit writes fail (audit queue buffers per [AUD-3](50-audit-log.md)); `readyz` false. |
+  | **Single replica dies** | Its pinned streams drop; clients retry/reconnect and any replica serves them (SES-2); in-flight calls on that replica surface as retryable errors. |
 
 ### Lifecycle & shutdown
 
 - **SES-10** A periodic sweeper expires idle sessions (Redis TTL is the
   backstop; the sweeper handles bindings/metrics). Session lifetime is
-  runtime-configurable (`Config`), default 24h.
+  runtime-configurable (`Config`), default 24h; `null` disables idle expiry
+  (sessions live until explicitly terminated — metamcp parity).
 - **SES-11** Graceful shutdown: stop accepting new requests, drain in-flight
   ones (bounded), exit. Session records persist in Redis — clients continue
   on other replicas or after restart without re-initializing.

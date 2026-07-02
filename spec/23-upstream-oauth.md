@@ -38,7 +38,13 @@ instead of sharing one credential.
   (connected/expired/error + account hint) only.
 - **UPO-6** `per_user` calls MUST resolve the caller identity from the request
   context ([EP-6](14-endpoints.md)); an unauthenticated (`none`-auth) endpoint
-  cannot serve `per_user` upstream servers — validated at endpoint creation.
+  cannot serve `per_user` upstream servers. The invariant is enforced at
+  **every** mutation that could violate it: endpoint create/update, bundle
+  membership changes, and switching a server's `identity_mode`.
+- **UPO-7** Upstreams that verify forwarded bearers against
+  `/oauth/introspect` ([FWD-4](24-identity-forwarding.md)) authenticate to it
+  with their own `service`-kind API key ([KEY-2](22-api-keys.md)) provisioned
+  by the admin — introspection is never anonymous ([OAS-5](20-oauth-server.md)).
 
 ## Out of scope
 

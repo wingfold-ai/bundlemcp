@@ -63,7 +63,14 @@ introspection — the key the application layer bills against.
 ### OAuthClient / OAuthAuthorizationCode / OAuthAccessToken — [20-oauth-server.md](20-oauth-server.md)
 bundlemcp's own OAuth 2.1 server state (dynamically registered clients,
 10-minute single-use PKCE codes, opaque access tokens with rotating refresh
-tokens). Token values stored **hashed**.
+tokens). Token values stored **hashed**. Codes and tokens carry an
+`endpoint_id` **audience** ([OAS-10](20-oauth-server.md)) binding them to the
+endpoint they were authorized for.
+
+### OAuthConsent — [20-oauth-server.md](20-oauth-server.md)
+Persistent user consent: `user_id`, `client_id`, `endpoint_id`, `granted_at`,
+`revoked_at` (nullable). Unique `(user_id, client_id, endpoint_id)`. The
+authorize flow skips the consent screen while an unrevoked row exists.
 
 ### ApiKey — [22-api-keys.md](22-api-keys.md)
 `id`, `name`, `key_hash` (+ `key_prefix` for display), `endpoint_ids` (json
@@ -110,6 +117,10 @@ Endpoint  1──n AuditRecord (denormalized names retained after deletes)
   so they are stored encrypted at rest rather than hashed).
 - **DOM-4** `name` fields used in URLs or tool prefixes MUST enforce
   `^[a-zA-Z0-9_-]+$` at the Pydantic layer and in a DB constraint.
+  **Server names** additionally MUST NOT contain `__` (double underscore), so
+  prefixed tool names parse unambiguously ([BND-2](12-bundles.md)).
+- **DOM-5** Config-class entities participate in cross-replica cache
+  invalidation per [33-state-propagation.md](33-state-propagation.md).
 
 ## Out of scope
 
@@ -118,4 +129,5 @@ Endpoint  1──n AuditRecord (denormalized names retained after deletes)
 ## Open questions
 
 - Encryption mechanism for upstream tokens at rest (app-level Fernet key vs.
-  pgcrypto) — decide at implementation.
+  pgcrypto) — decide at implementation. Key provisioning/rotation is specced
+  in [DEP-9](71-deployment.md).

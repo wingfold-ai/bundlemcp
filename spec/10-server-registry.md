@@ -34,7 +34,15 @@ resolution, Node+Python runtime images).
   request carries an explicit `force` flag that acknowledges client-visible
   tool names will change.
 - **SRV-6** Config changes (url/headers/auth) MUST invalidate any pooled
-  upstream connections for that server ([30-session-management.md](30-session-management.md)).
+  upstream connections for that server via the config-invalidation event
+  stream ([33-state-propagation.md](33-state-propagation.md),
+  [30-session-management.md](30-session-management.md)).
+- **SRV-8** All gateway-initiated requests to server URLs (probes, discovery,
+  live calls) pass the egress policy ([SEC-1/SEC-2](70-security.md)).
+- **SRV-9** Optional background health polling: a global flag +
+  interval (`Config`) pings registered servers so `health_status` stays fresh
+  even for servers not currently receiving traffic; off by default
+  (opportunistic updates per SRV-4 remain the baseline).
 
 ## The stdio pattern (documentation, not code)
 

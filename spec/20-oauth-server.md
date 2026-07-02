@@ -43,15 +43,34 @@ application layer can resolve a stable `sub`.
 - **OAS-9** The full claude.ai happy path MUST be covered by an integration
   test: register → authorize (OIDC login) → code → token → MCP initialize →
   tools/list → tools/call → refresh → introspect.
+- **OAS-10 Endpoint-bound tokens (RFC 8707):** the authorize and token
+  requests accept a `resource` parameter identifying the target endpoint
+  (its canonical `/{endpoint_name}/mcp` URL); issued codes and tokens are
+  bound to that endpoint as **audience** (`OAuthAccessToken.endpoint_id`,
+  [02-domain-model.md](02-domain-model.md)) and are accepted **only there**
+  ([EP-3a](14-endpoints.md)). Requests without `resource` default to the
+  endpoint whose protected-resource metadata initiated the flow; a token is
+  never valid across endpoints. Introspection (OAS-5) reports the audience.
+- **OAS-11 Consent:** the authorize flow shows a consent screen (client name
+  + target endpoint + requested scope) before issuing a code. Consent is
+  persisted per `(user, client, endpoint)` (`OAuthConsent`) and skipped while
+  unrevoked; users/admins can revoke consent (UI + management API), which
+  also revokes tokens issued under it. Consent pages carry the
+  [SEC-6](70-security.md) hardening headers.
+- **OAS-12** Dynamic client registration abuse controls per
+  [SEC-8](70-security.md).
 
 ## Out of scope
 
 - Acting as a general-purpose IdP (no ID tokens/OIDC provider surface beyond
   what MCP clients need; human identity always comes from the external IdP).
-- Scopes/permissions granularity beyond a single default scope in v1.
+  This includes `/oauth/userinfo` (metamcp served one) — introspection's
+  `sub` covers the known consumers; consciously skipped.
+- Scopes/permissions granularity beyond a single default scope in v1
+  (endpoint binding is via audience, not scopes).
 
 ## Open questions
 
-- Whether claude.ai (July 2026) requires `client_credentials` or
-  resource-indicator (RFC 8707) support — verify during implementation and
-  extend OAS-4 if needed.
+- ~~Whether resource-indicator (RFC 8707) support is needed.~~ **Resolved:**
+  required — OAS-10. Still verify during implementation whether claude.ai
+  additionally needs `client_credentials`; extend OAS-4 if so.

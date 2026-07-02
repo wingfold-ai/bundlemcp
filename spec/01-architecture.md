@@ -78,8 +78,10 @@ bundlemcp/
   users, OAuth clients/codes/tokens, upstream OAuth tokens, API keys, audit
   log, config. Postgres is the system of record.
 - **ARC-8 (Redis — live):** MCP session state, upstream session bindings,
-  rate-limit counters, live-log ring buffer, cross-replica pub/sub. Redis loss
-  degrades gracefully (clients re-initialize); it never loses configuration.
+  rate-limit counters, live-log ring buffer, cross-replica pub/sub. Redis
+  never holds configuration; outage behavior is explicitly defined in the
+  degradation matrix ([SES-14](30-session-management.md)) — bounded, honest
+  degradation, not silent failure.
 - **ARC-9** A request MUST be servable by **any gateway replica**: no
   process-local state may be required to route or answer a request
   (details in [30-session-management.md](30-session-management.md)).
@@ -98,6 +100,12 @@ bundlemcp/
 - **ARC-13** `deploy/docker-compose.yml` MUST bring up a working stack
   (gateway, web, Postgres, Redis, and a lightweight OIDC IdP for development)
   with a single command; TLS termination is left to the operator's proxy.
+  Public base URL, trusted-proxy headers, and cookie attributes are governed
+  by [71-deployment.md](71-deployment.md) (DEP-1/DEP-2).
+- **ARC-15 (clocks):** time-window logic (rate limits, token expiry) MUST NOT
+  assume perfectly synced replica clocks: rate-limit windows use Redis server
+  time; token/code expiry tolerates ordinary NTP-level skew (documented
+  assumption: replicas run NTP).
 
 ## Testing
 
@@ -106,9 +114,17 @@ bundlemcp/
   against the compose stack. `uv run pytest -q` and `uv run ruff check .` MUST
   be green before any change is done.
 
+## Related documentation
+
+Architecture rationale, views, and decision records live in `docs/arc42/`,
+`docs/adr/`, and `docs/likec4/` per
+[62-architecture-documentation.md](62-architecture-documentation.md); this
+spec stays the normative source for the requirements above.
+
 ## Out of scope
 
-- Kubernetes manifests (compose first; k8s can come later).
+- Kubernetes manifests (compose first; k8s can come later) — upgrade/rollout
+  rules are in [71-deployment.md](71-deployment.md).
 - Multi-region or geo-distribution concerns.
 
 ## Open questions

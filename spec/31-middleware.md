@@ -26,14 +26,31 @@ application layer (ultra-mcp) plugs billing in **without forking bundlemcp**.
   Built on FastMCP v3's middleware mechanism where it fits; the chain and
   ordering are bundlemcp's contract regardless of the underlying library.
 - **MID-3 Metering hook contract** (mirrors ultra-mcp's existing billing API):
-  - **pre-call**: hook receives `{sub, endpoint, bundle, server, tool,
-    idempotency_key}` (idempotency key unique per invocation, stable across
-    internal retries). It may **allow** or **deny** (deny → structured MCP
-    error with the hook's reason, e.g. `insufficient_credits`; the upstream
-    call never happens).
+  - **pre-call**: hook receives `{sub, email, endpoint, bundle, server, tool,
+    idempotency_key}` (`email` nullable — the resolved caller's email, which
+    ultra-mcp's ledger uses to attach users). It may **allow** or **deny**
+    (deny → structured MCP error with the hook's reason, e.g.
+    `insufficient_credits`; the upstream call never happens).
   - **post-call**: hook receives the same identifiers + `status`
     (success/error) + `duration_ms`. A failed upstream call after a
-    successful pre-call debit is the hook's refund trigger.
+    successful pre-call debit is the hook's refund trigger. An MCP tool
+    result with `isError: true` maps to `status=error` (it IS a refund
+    trigger); a cancelled call likewise.
+  - **Idempotency across retries:** pre-call fires **once per client
+    invocation**; gateway-internal retries ([SES-7](30-session-management.md),
+    [UPO-4](23-upstream-oauth.md)) reuse the same `idempotency_key` and do
+    NOT re-fire pre-call. Exactly one post-call is delivered per invocation
+    that had a successful pre-call — on the final outcome.
+  - **Crash reconciliation:** if the gateway dies between pre-call and
+    post-call, no refund fires. The audit log ([50-audit-log.md](50-audit-log.md))
+    is the reconciliation source: hook consumers can detect debits with no
+    completed audit record and refund out-of-band. This contract is part of
+    the hook documentation.
+  - Field mapping to ultra-mcp's `MeterRequest`
+    (`../ultra-mcp/packages/billing/ultra_billing/schemas.py`): `sub→sub`,
+    `email→email`, `bundle→bundle_slug`, `server→server_name`,
+    `tool→tool_name`, `idempotency_key→idempotency_key`; `endpoint` is
+    bundlemcp-side context the reference consumer ignores.
   - Configured as a Python entry-point/import path
     (`BUNDLEMCP_METERING_HOOK`); hook errors follow a configurable policy:
     `fail-open` (log, allow) or `fail-closed` (deny) — default fail-closed.

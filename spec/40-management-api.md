@@ -30,10 +30,16 @@ scripts).
   by name, idempotent, returning the server including current tool cache.
   It never blocks on probing the upstream ([SRV-2](10-server-registry.md)
   allows registering not-yet-started servers), so a discovery loop can
-  converge by repeatedly PUTting desired state.
+  converge by repeatedly PUTting desired state. The DTO tolerates an optional
+  `transport` field but accepts only `streamable-http` (422 with a pointed
+  message otherwise) — so registrar payloads carrying the field don't break.
 - **API-5** Mutations are validated (Pydantic + domain rules from the owning
   specs) and return the canonical resource representation; list routes
-  support pagination and the filters the UI needs.
+  support pagination (default page size 50, max 500, stable ordering by
+  creation time then id) and the filters the UI needs.
+- **API-7** Browser-facing security: CORS/CSRF per
+  [SEC-4](70-security.md). Consent revocation ([OAS-11](20-oauth-server.md))
+  and user deactivation ([ADM-6](21-admin-auth.md)) are exposed as routes.
 - **API-6** Write operations SHOULD be safely retryable: upserts by natural
   key where sensible (API-4), deletes idempotent (404 → 204 semantics
   documented per route).

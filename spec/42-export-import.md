@@ -17,8 +17,9 @@ seeding bootstrap files.
   bootstrap consumes ([BOOT-1](41-bootstrap.md)).
 - **EXP-2** Secrets (static header values, upstream OAuth client secrets) are
   **excluded** by default, exported as named placeholders
-  (`{"$secret": "HEADER_NAME"}`); an explicit `?include_secrets=true` (admin
-  session only, audit-logged) exports values for full backups.
+  (`{"$secret": "HEADER_NAME"}`); an explicit `?include_secrets=true` exports
+  values for full backups under the controls of [SEC-11](70-security.md)
+  (admin session only, audit-logged, warning field).
 - **EXP-3** `POST /api/v1/import` applies a document transactionally as
   upserts by natural key, reporting per-resource results
   (created/updated/skipped/error). `dry_run=true` validates and reports

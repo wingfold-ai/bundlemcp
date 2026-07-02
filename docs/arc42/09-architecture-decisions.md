@@ -1,0 +1,22 @@
+# 9. Architecture Decisions
+
+Decisions are recorded as ADRs in [`../adr/`](../adr/README.md) — MADR-style
+(Status / Context / Decision / Reasons / Consequences), append-only, written
+in the same PR as the change they govern
+([ADOC-2/ADOC-5](../../spec/62-architecture-documentation.md)).
+
+| ADR | Decision | Consequence in one line |
+|---|---|---|
+| [0001](../adr/0001-rewrite-not-fork.md) | Rewrite, don't fork metamcp | Own the architecture; accept re-implementation cost |
+| [0002](../adr/0002-fastmcp-v3.md) | FastMCP v3 | Framework plumbing for free; session-model spike required |
+| [0003](../adr/0003-sqlmodel-pydantic-first.md) | SQLModel / Pydantic-first | One shape definition, DB → generated TS |
+| [0004](../adr/0004-postgres-redis-state-split.md) | Postgres durable / Redis live | Any-replica sessions; Redis becomes availability-critical |
+| [0005](../adr/0005-streamable-http-only.md) | Streamable HTTP only | No process management; stdio via sidecar |
+| [0006](../adr/0006-oidc-only-admin-auth.md) | OIDC-only admin auth | No password surface; IdP is a hard dependency |
+| [0007](../adr/0007-endpoint-profiles.md) | Endpoint profiles | One bundle, per-client surfaces; chatgpt annotations lie deliberately |
+| [0008](../adr/0008-full-bidirectional-proxy.md) | Full bidirectional proxy | No protocol degradation; hardest engineering item |
+| [0009](../adr/0009-endpoint-bound-tokens-consent.md) | Consent + endpoint-bound tokens | Token confined to one endpoint; extra consent step |
+| [0010](../adr/0010-single-workspace.md) | Single workspace | Simple model; no intra-instance tenanting |
+
+Smaller, spec-local decisions (dropped features and their reasons) live in the
+[spec decision log](../../spec/README.md).

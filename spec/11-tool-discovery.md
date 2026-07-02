@@ -38,5 +38,7 @@ the substrate for per-bundle overrides ([13-tool-management.md](13-tool-manageme
 
 ## Open questions
 
-- Whether `tools/list_changed` notifications from upstreams should trigger
-  re-discovery in v1 or be deferred.
+- ~~Whether `tools/list_changed` notifications from upstreams should trigger
+  re-discovery in v1 or be deferred.~~ **Resolved:** consumed in v1 — upstream
+  `list_changed` triggers re-discovery and downstream propagation
+  ([PROT-10](32-protocol-passthrough.md), [BND-7](12-bundles.md)).
