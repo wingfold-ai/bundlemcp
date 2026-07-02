@@ -8,7 +8,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
-from bundlemcp.api.routers import api_keys, bundles, endpoints, servers
+from bundlemcp.api.routers import api_keys, bundles, endpoints, servers, users
 from bundlemcp.gateway import mcp_endpoint
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
@@ -18,9 +18,11 @@ from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
 from bundlemcp.models import ApiKey, ApiKeyKind
 from bundlemcp.oauth import authorize as oauth_authorize
 from bundlemcp.oauth import metadata as oauth_metadata
+from bundlemcp.oauth import oidc as oauth_oidc
 from bundlemcp.oauth import registration as oauth_registration
 from bundlemcp.oauth import token as oauth_token
 from bundlemcp.oauth.adminsessions import AdminSessionStore
+from bundlemcp.oauth.oidc import OidcProvider, build_provider
 from bundlemcp.security import display_prefix, hash_token
 from bundlemcp.settings import Settings, get_settings
 from bundlemcp.store import create_engine, create_redis, session_factory
@@ -59,6 +61,7 @@ def create_app(
     engine: AsyncEngine | None = None,
     redis: Redis | None = None,
     client_factory: ClientFactory | None = None,
+    oidc_provider: OidcProvider | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
 
@@ -83,6 +86,7 @@ def create_app(
             client_factory=factory,
         )
         app.state.admin_sessions = AdminSessionStore(app.state.redis)
+        app.state.oidc_provider = oidc_provider or build_provider(settings)
 
         async def _purge_loop() -> None:  # OAS-8/SEC-8
             import asyncio
@@ -121,8 +125,10 @@ def create_app(
         oauth_registration.router,
         oauth_authorize.router,
         oauth_token.router,
+        oauth_oidc.router,
     ):
         app.include_router(router)
+    app.include_router(users.router, prefix=API_PREFIX)  # /api/v1/users (ADM-6, OAS-11)
     app.include_router(mcp_endpoint.router)  # public /{endpoint}/mcp (EP-1)
 
     @app.get("/healthz", include_in_schema=False)

@@ -1,5 +1,6 @@
 """FastAPI dependencies: stores and management-API auth (API-2, KEY-2/3/5)."""
 
+from dataclasses import dataclass
 from datetime import UTC
 from typing import Annotated
 
@@ -8,7 +9,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from bundlemcp.models import ApiKey, ApiKeyKind, utcnow
+from bundlemcp.models import ApiKey, ApiKeyKind, User, utcnow
 from bundlemcp.security import API_KEY_PREFIX, hash_token
 
 
@@ -55,21 +56,69 @@ async def resolve_api_key(request: Request, db: AsyncSession) -> ApiKey | None:
     return key
 
 
-async def require_service_auth(request: Request, db: DbDep) -> ApiKey:
-    """API-2: service API key (admin OIDC sessions to be added with the UI phase)."""
+@dataclass
+class Principal:
+    """The authenticated management-API caller: an admin user or a service key."""
+
+    kind: str  # "admin" | "service"
+    user_id: str | None = None
+    api_key_id: str | None = None
+
+
+_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+async def _admin_session_principal(request: Request, db: AsyncSession) -> Principal | None:
+    """ADM: browser cookie session, admin-only. CSRF-guarded (SEC-4).
+
+    Live is_active/is_admin are re-checked against the DB so ADM-6 deactivation
+    and demotion take effect immediately, not at session expiry.
+    """
+    store = getattr(request.app.state, "admin_sessions", None)
+    if store is None:
+        return None
+    from bundlemcp.oauth.adminsessions import SESSION_COOKIE
+
+    session_id = request.cookies.get(SESSION_COOKIE)
+    if not session_id:
+        return None
+    session = await store.load(session_id)
+    if session is None:
+        return None
+    import uuid as _uuid
+
+    user = (
+        await db.execute(select(User).where(User.id == _uuid.UUID(session.user_id)))
+    ).scalar_one_or_none()
+    if user is None or not user.is_active or not user.is_admin:
+        return None
+    if request.method not in _SAFE_METHODS:
+        # SEC-4: cookie-authenticated mutations require a same-origin Origin/Referer
+        origin = request.headers.get("origin") or request.headers.get("referer")
+        expected = str(request.app.state.settings.public_url).rstrip("/")
+        if origin is None or not origin.startswith(expected):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF origin check failed (SEC-4)")
+    return Principal(kind="admin", user_id=session.user_id)
+
+
+async def require_management_auth(request: Request, db: DbDep) -> Principal:
+    """API-2: admin session cookie OR service API key."""
+    admin = await _admin_session_principal(request, db)
+    if admin is not None:
+        return admin
     key = await resolve_api_key(request, db)
-    if key is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="service API key required"
-        )
-    if key.kind != ApiKeyKind.SERVICE:
+    if key is not None and key.kind == ApiKeyKind.SERVICE:
+        return Principal(kind="service", api_key_id=str(key.id))
+    if key is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="key is not service-kind (KEY-2)"
         )
-    return key
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="admin session or service API key required"
+    )
 
 
-ServiceAuthDep = Annotated[ApiKey, Depends(require_service_auth)]
+ServiceAuthDep = Annotated[Principal, Depends(require_management_auth)]
 
 
 class Pagination:
