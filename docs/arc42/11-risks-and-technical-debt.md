@@ -3,7 +3,7 @@
 | # | Risk | Impact | Mitigation |
 |---|---|---|---|
 | 1 | ~~FastMCP v3 vs. externalized sessions~~ **Resolved** by the implementation spike: the endpoint edge is owned directly (FastAPI + Redis records), FastMCP serves the upstream side ([ADR-0011](../adr/0011-own-streamable-http-edge.md)) | — | Residual risk moved to #2 (the relay work now happens on our own edge) |
-| 2 | **Bidirectional cross-replica relay complexity** (ADR-0008) — request/response correlation over pub/sub is the hardest subsystem | Schedule risk; subtle delivery bugs | Own spec with narrow requirements ([32](../../spec/32-protocol-passthrough.md)); integration tests per flow; capability gating limits blast radius |
+| 2 | ~~Bidirectional cross-replica relay complexity~~ **Design landed** ([ADR-0016](../adr/0016-relay-design.md)): publish-only Redis bus + per-replica registries; progress/cancel/elicitation proven cross-replica in hermetic two-instance tests. Residual = claude.ai/ChatGPT *behavioral* verification against real clients | Lower now | Loopback-server relay suite; compose integration; capability gating limits blast radius |
 | 3 | **Client behavior drift** — claude.ai/ChatGPT OAuth and annotation enforcement change over time | Endpoints stop connecting | Profiles isolate client quirks ([15](../../spec/15-endpoint-profiles.md)); OAS-9 integration test; open questions flag re-verification at implementation |
 | 4 | **Redis as availability keystone** | Live traffic 503s during Redis outage | Accepted trade-off, explicitly specified (SES-14, RATE-6); ops guidance in [71](../../spec/71-deployment.md) |
 | 5 | **SQLModel maturity** (0.0.x) | Missing ORM features | Escape hatch: SQLModel classes are SQLAlchemy models (spec/01 open question) |

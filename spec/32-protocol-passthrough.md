@@ -85,9 +85,13 @@ timeouts and cancellation such calls are unusable through a gateway.
 
 ## Open questions
 
-- ~~How much of PROT-4's relay FastMCP v3 provides natively?~~ **Partially
-  resolved** ([ADR-0011](../docs/adr/0011-own-streamable-http-edge.md)): the
-  downstream half of the relay is built on bundlemcp's own endpoint edge; the
-  upstream half uses FastMCP's client handlers (progress/sampling/elicitation
-  callbacks confirmed available). The concrete pub/sub correlation design is
-  the next implementation milestone.
+- ~~How much of PROT-4's relay FastMCP v3 provides natively? What is the
+  cross-replica correlation design?~~ **Resolved**
+  ([ADR-0016](../docs/adr/0016-relay-design.md)): the downstream half is built
+  on bundlemcp's own endpoint edge (SSE call responses + GET event stream);
+  the upstream half uses FastMCP's client `progress_handler` /
+  `elicitation_handler` / `sampling_handler`. Cross-replica routing is a
+  publish-only Redis `bmcp:signal:*` bus feeding per-replica registries of
+  streams/calls/reply-futures (`gateway/signals.py`, `gateway/streams.py`).
+  One residual limit is documented in ADR-0016: upstream `list_changed`
+  outside an active call awaits connection pooling (ADR-0012).

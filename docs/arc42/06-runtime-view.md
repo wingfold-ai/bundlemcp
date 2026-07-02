@@ -44,3 +44,20 @@ Three load-bearing scenarios (normative details in the linked specs).
    lazily (SES-5/7).
 4. Verified continuously by the restart-under-load and two-replica
    integration tests (SES-12, DEP-7).
+
+## 6.4 Long-running call with progress, then a cross-replica cancel
+
+1. Client sends `tools/call` with `_meta.progressToken`; the gateway replies
+   `text/event-stream` and runs the upstream call as a task under a watchdog
+   (PROT-1/2). A `CallHandle` is registered in this replica's StreamRegistry.
+2. The upstream emits `notifications/progress`; each is relayed as an SSE
+   event and resets the idle timeout (reset-on-progress).
+3. The client's `notifications/cancelled` lands on **another replica**. That
+   replica publishes a `cancel` signal on the Redis bus
+   ([ADR-0016](../adr/0016-relay-design.md), SES-13); the replica holding the
+   `CallHandle` sets its cancel event, the upstream task is cancelled, and the
+   SSE stream emits a JSON-RPC error. Metering `post_call(status=error)` +
+   audit record fire (MID-3).
+4. If instead the upstream raises `elicitation/create`, it is delivered on the
+   client's GET event stream (possibly on a third replica) and the client's
+   reply routed back by correlation id — capability-gated (PROT-4/5/6).
