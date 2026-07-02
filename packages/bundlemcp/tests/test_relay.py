@@ -61,8 +61,17 @@ async def hang(seconds: float) -> str:
     return "finished"
 
 
-def upstream_factory(server, extra_headers):
-    return Client(relay_server)
+@relay_server.tool
+async def ask_name(ctx: Context) -> str:
+    """Elicits a name from the client (server->client request, PROT-4)."""
+    result = await ctx.elicit("What is your name?", response_type=str)
+    if result.action == "accept":
+        return f"hello {result.data}"
+    return "declined"
+
+
+def upstream_factory(server, extra_headers, **handlers):
+    return Client(relay_server, **handlers)
 
 
 async def seed(engine: AsyncEngine) -> None:
@@ -92,7 +101,7 @@ async def seed(engine: AsyncEngine) -> None:
         await db.refresh(bundle)
         db.add(BundleServer(bundle_id=bundle.id, server_id=srv.id))
         db.add(Endpoint(name="main", bundle_id=bundle.id, auth_modes=["api_key"]))
-        for tool in ("quick", "slow_with_progress", "hang"):
+        for tool in ("quick", "slow_with_progress", "hang", "ask_name"):
             db.add(Tool(server_id=srv.id, name=tool, schema_hash="h", input_schema={}))
         await db.commit()
 
@@ -376,3 +385,82 @@ async def test_cancellation_stops_call(relay_env):
     )
     await canceller
     assert resp.json()["error"]["message"] == "cancelled"
+
+
+async def _initialize_with_caps(http, caps, endpoint="main") -> str:
+    resp = await http.post(
+        f"/{endpoint}/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-11-25", "capabilities": caps},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.headers["mcp-session-id"]
+
+
+async def test_elicitation_relayed_to_client(relay_env):
+    """PROT-4/6: upstream elicit() reaches the client via the GET stream; reply routed back."""
+    http, app, base_url = relay_env
+    session = await _initialize_with_caps(http, {"elicitation": {}})
+
+    # Drive the GET stream: answer the elicitation request when it arrives.
+    async def responder():
+        async with http.stream(
+            "GET", "/main/mcp", headers={"Mcp-Session-Id": session}
+        ) as resp:
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                msg = json.loads(line[6:])
+                if msg.get("method") == "elicitation/create":
+                    async with AsyncClient(
+                        base_url=base_url, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}
+                    ) as c:
+                        await c.post(
+                            "/main/mcp",
+                            headers={"Mcp-Session-Id": session},
+                            json={
+                                "jsonrpc": "2.0",
+                                "id": msg["id"],
+                                "result": {"action": "accept", "content": {"value": "Ada"}},
+                            },
+                        )
+                    return
+
+    responder_task = asyncio.create_task(responder())
+    await asyncio.sleep(0.2)  # let the stream register
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={
+            "jsonrpc": "2.0",
+            "id": 8,
+            "method": "tools/call",
+            "params": {"name": "relay__ask_name", "arguments": {}},
+        },
+    )
+    await asyncio.wait_for(responder_task, timeout=5)
+    assert resp.json()["result"]["content"][0]["text"] == "hello Ada"
+
+
+async def test_elicitation_not_advertised_yields_error(relay_env):
+    """PROT-5: without the elicitation capability the upstream request can't be served."""
+    http, app, base_url = relay_env
+    session = await _initialize_with_caps(http, {})  # no elicitation
+
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={
+            "jsonrpc": "2.0",
+            "id": 9,
+            "method": "tools/call",
+            "params": {"name": "relay__ask_name", "arguments": {}},
+        },
+    )
+    # the tool's elicit() fails (no handler) -> upstream returns an error result
+    body = resp.json()
+    assert body["result"]["isError"] is True
