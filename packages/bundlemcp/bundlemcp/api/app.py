@@ -106,9 +106,27 @@ def create_app(
         subscriber = InvalidationSubscriber(app.state.redis)
         app.state.invalidation = subscriber
 
+        session_store = app.state.gateway.sessions
+
         async def _on_invalidation(event) -> None:
             if event.entity_type == "config":
                 await runtime_config.flush()
+                return
+            if event.entity_type in ("bundle", "endpoint"):
+                # BND-7: live sessions of the affected surface get list_changed.
+                # Each replica walks only ITS local streams — full coverage,
+                # no extra signaling.
+                payload = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
+                for session_id in registry.broadcast_sessions():
+                    record = await session_store.load(session_id)
+                    if record is None:
+                        continue
+                    if (
+                        event.entity_type == "bundle" and record.bundle_name == event.key
+                    ) or (
+                        event.entity_type == "endpoint" and record.endpoint_name == event.key
+                    ):
+                        registry.deliver_local(session_id, payload)
 
         subscriber.on_event(_on_invalidation)
         subscriber.on_reconnect_flush(runtime_config.flush)
