@@ -16,6 +16,8 @@ from bundlemcp.gateway.discovery import DiscoveryService
 from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
 from bundlemcp.gateway.metering import load_metering_hook
 from bundlemcp.gateway.runtime_config import RuntimeConfig
+from bundlemcp.gateway.signals import SignalBus
+from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
 from bundlemcp.models import ApiKey, ApiKeyKind
 from bundlemcp.oauth import authorize as oauth_authorize
@@ -84,12 +86,17 @@ def create_app(
         metering.fail_open = settings.metering_hook_fail_open  # type: ignore[attr-defined]
         runtime_config = RuntimeConfig(app.state.session_factory)
         app.state.runtime_config = runtime_config
+        registry = StreamRegistry()
+        signals = SignalBus(app.state.redis, registry)  # SES-13
+        await signals.start()
         app.state.gateway = GatewayRuntime(
             session_store=SessionStore(app.state.redis),
             metering=metering,
             audit=audit,
             client_factory=factory,
             runtime_config=runtime_config,
+            registry=registry,
+            signals=signals,
         )
         app.state.admin_sessions = AdminSessionStore(app.state.redis)
         app.state.oidc_provider = oidc_provider or build_provider(settings)
@@ -124,6 +131,7 @@ def create_app(
         purge_task = asyncio.create_task(_purge_loop())
         yield
         purge_task.cancel()
+        await signals.stop()
         await subscriber.stop()
         await audit.stop()
         await app.state.engine.dispose()
