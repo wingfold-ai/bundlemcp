@@ -1,0 +1,66 @@
+# CI (spec 71 DEP-10): lint + hermetic tests + diagram validation + image build.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync --all-packages
+      - name: Ruff
+        run: uv run ruff check .
+      - name: Tests
+        run: uv run pytest -q
+
+  diagrams:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate LikeC4 model (ADOC-4)
+        run: npx --yes likec4 validate docs/likec4
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build gateway image
+        run: docker build -f services/gateway/Dockerfile -t bundlemcp-gateway:ci .
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync --all-packages
+      - name: Bring up the stack
+        run: docker compose -f deploy/docker-compose.yml up -d --build
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8000/readyz && break || sleep 5
+          done
+      - name: Run integration suite
+        env:
+          BUNDLEMCP_INTEGRATION: "1"
+        run: uv run pytest tests-integration -q
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml logs --tail=200
+      - name: Tear down
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v
