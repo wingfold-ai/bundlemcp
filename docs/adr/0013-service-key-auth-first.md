@@ -2,6 +2,13 @@
 
 **Status:** accepted · **Date:** 2026-07-02
 
+> **Update (2026-07-02, milestone 2):** admin OIDC sessions shipped earlier than
+> this ADR anticipated — the OAuth server milestone pulled in the OIDC login
+> flow, so the management API now accepts an admin session cookie **or** a
+> service key (co-equal). Service keys remain first-class; this ADR is not
+> superseded, only its "later" timing note is overtaken. See
+> [ADR-0014](0014-gateway-rendered-oauth-authlib.md).
+
 ## Context
 
 API-2 (spec 40) requires the management API to accept **either** an admin

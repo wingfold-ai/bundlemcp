@@ -49,5 +49,5 @@ login. This deletes the entire class of auth code that caused pain in metamcp.
 
 ## Open questions
 
-- Which dev IdP to bundle in compose (Keycloak vs. dex vs. mock-oidc) —
-  smallest image that supports the needed flows wins; decide at implementation.
+- ~~Which dev IdP to bundle in compose?~~ **Resolved:** Keycloak, for parity
+  with ultra-mcp's production IdP — [ADR-0015](../docs/adr/0015-keycloak-dev-idp.md).

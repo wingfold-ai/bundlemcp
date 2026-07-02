@@ -19,7 +19,9 @@ in the same PR as the change they govern
 | [0010](../adr/0010-single-workspace.md) | Single workspace | Simple model; no intra-instance tenanting |
 | [0011](../adr/0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge (spike outcome) | Redis-backed sessions work; we own server-side protocol compliance |
 | [0012](../adr/0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | Trivially correct identity isolation; pooling awaits OBS-6 data |
-| [0013](../adr/0013-service-key-auth-first.md) | Service-key auth first | Headless management from day one; OIDC sessions land with the UI |
+| [0013](../adr/0013-service-key-auth-first.md) | Service-key auth first | Headless management from day one; OIDC sessions now also shipped |
+| [0014](../adr/0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB tokens | claude.ai connectable without the UI; no introspect self-call |
+| [0015](../adr/0015-keycloak-dev-idp.md) | Keycloak as the dev IdP | Integration tests prove real federation; heavier compose |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).
