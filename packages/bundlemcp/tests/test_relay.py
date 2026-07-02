@@ -27,7 +27,7 @@ from bundlemcp.security import API_KEY_PREFIX, display_prefix, generate_token, h
 from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
 from fakeredis.aioredis import FakeRedis
-from fastmcp import Client, FastMCP
+from fastmcp import Client, Context, FastMCP
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -46,11 +46,8 @@ async def quick(text: str) -> str:
 
 
 @relay_server.tool
-async def slow_with_progress(steps: int, ctx=None) -> str:
-    """Reports progress each step."""
-    from fastmcp import Context
-
-    assert isinstance(ctx, Context)
+async def slow_with_progress(steps: int, ctx: Context) -> str:
+    """Reports progress each step (Context injected by FastMCP)."""
     for i in range(steps):
         await ctx.report_progress(progress=i + 1, total=steps)
         await asyncio.sleep(0.05)
@@ -247,3 +244,135 @@ async def test_list_changed_cross_instance(relay_env, engine, redis):
             )
             await changer
             assert event is not None
+
+
+async def _call_sse(http, session, name, arguments, endpoint="main", req_id=2):
+    """POST a tools/call with a progressToken; collect SSE events until the final result."""
+    events = []
+    body = {
+        "jsonrpc": "2.0",
+        "id": req_id,
+        "method": "tools/call",
+        "params": {"name": name, "arguments": arguments, "_meta": {"progressToken": "pt1"}},
+    }
+    async with http.stream(
+        "POST", f"/{endpoint}/mcp", headers={"Mcp-Session-Id": session}, json=body
+    ) as resp:
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/event-stream")
+        async for line in resp.aiter_lines():
+            if line.startswith("data: "):
+                msg = json.loads(line[6:])
+                events.append(msg)
+                if msg.get("id") == req_id:  # final result/error carries the id
+                    break
+    return events
+
+
+async def test_progress_streamed_over_sse(relay_env):
+    """PROT-1: progress notifications relayed, then the final result."""
+    http, app, base_url = relay_env
+    session = await _initialize(http)
+    events = await _call_sse(http, session, "relay__slow_with_progress", {"steps": 3})
+
+    progress = [e for e in events if e.get("method") == "notifications/progress"]
+    assert len(progress) == 3
+    assert progress[0]["params"]["progressToken"] == "pt1"
+    assert progress[-1]["params"]["progress"] == 3
+    final = events[-1]
+    assert final["id"] == 2
+    assert final["result"]["content"][0]["text"] == "done"
+
+
+async def test_no_progress_token_uses_json(relay_env):
+    """Calls without a progressToken keep the buffered JSON fast path."""
+    http, app, base_url = relay_env
+    session = await _initialize(http)
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "tools/call",
+            "params": {"name": "relay__quick", "arguments": {"text": "hi"}},
+        },
+    )
+    assert resp.headers["content-type"].startswith("application/json")
+    assert resp.json()["result"]["content"][0]["text"] == "ok:hi"
+
+
+async def test_timeout_fires_without_progress(relay_env):
+    """PROT-2: a silent long call is timed out at call_timeout."""
+    http, app, base_url = relay_env
+    async with AsyncClient(
+        base_url=base_url, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
+    ) as admin:
+        await admin.put("/api/v1/config/call_timeout", json={"value": 0.3})
+    session = await _initialize(http)
+
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={
+            "jsonrpc": "2.0",
+            "id": 6,
+            "method": "tools/call",
+            "params": {"name": "relay__hang", "arguments": {"seconds": 5}},
+        },
+    )
+    body = resp.json()
+    assert body["error"]["message"] == "call_timeout"
+
+
+async def test_progress_resets_timeout(relay_env):
+    """PROT-2: progress keeps the call alive past call_timeout (reset-on-progress)."""
+    http, app, base_url = relay_env
+    async with AsyncClient(
+        base_url=base_url, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
+    ) as admin:
+        # each step sleeps 0.05s; 6 steps = 0.3s total, but no single gap exceeds 0.2s
+        await admin.put("/api/v1/config/call_timeout", json={"value": 0.2})
+    session = await _initialize(http)
+    events = await _call_sse(http, session, "relay__slow_with_progress", {"steps": 6})
+    final = events[-1]
+    assert final["result"]["content"][0]["text"] == "done"  # completed, not timed out
+
+
+async def test_cancellation_stops_call(relay_env):
+    """PROT-3: notifications/cancelled aborts the in-flight call."""
+    http, app, base_url = relay_env
+    async with AsyncClient(
+        base_url=base_url, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
+    ) as admin:
+        await admin.put("/api/v1/config/call_timeout", json={"value": 30})
+    session = await _initialize(http)
+
+    async def cancel_soon():
+        await asyncio.sleep(0.3)
+        async with AsyncClient(
+            base_url=base_url, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}
+        ) as c:
+            await c.post(
+                "/main/mcp",
+                headers={"Mcp-Session-Id": session},
+                json={
+                    "jsonrpc": "2.0",
+                    "method": "notifications/cancelled",
+                    "params": {"requestId": 7},
+                },
+            )
+
+    canceller = asyncio.create_task(cancel_soon())
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": "tools/call",
+            "params": {"name": "relay__hang", "arguments": {"seconds": 30}},
+        },
+    )
+    await canceller
+    assert resp.json()["error"]["message"] == "cancelled"

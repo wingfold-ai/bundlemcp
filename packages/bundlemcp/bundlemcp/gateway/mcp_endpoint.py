@@ -7,6 +7,7 @@ serves any request (SES-2, ADR-0011). FastMCP is used for the upstream side.
 
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 import structlog
@@ -205,6 +206,191 @@ def _tools_payload(view: BundleView) -> list[dict[str, Any]]:
     return tools
 
 
+@dataclass
+class _CallOutcome:
+    status: str  # "success" | "error"
+    result: Any = None  # mcp CallToolResult on success
+    error_message: str | None = None
+    code: int | None = None
+
+
+async def _timeout_config(runtime: GatewayRuntime) -> tuple[float, bool, float]:
+    """PROT-2 values from runtime config (defaults if unavailable)."""
+    rc = runtime.runtime_config
+    if rc is None:
+        return (60.0, True, 1800.0)
+    return (
+        float(await rc.get("call_timeout")),
+        bool(await rc.get("reset_timeout_on_progress")),
+        float(await rc.get("max_total_timeout")),
+    )
+
+
+async def _drive_upstream(
+    runtime: GatewayRuntime,
+    pt: PresentedTool,
+    arguments: dict,
+    extra_headers: dict[str, str],
+    record: SessionRecord,
+    sub: str | None,
+    handle,
+    cfg: tuple[float, bool, float],
+    *,
+    on_progress,
+) -> _CallOutcome:
+    """Run the upstream call with progress-aware timeout (PROT-2) and cancel (PROT-3)."""
+    import asyncio
+
+    call_timeout, reset_on_progress, max_total = cfg
+    loop = asyncio.get_running_loop()
+    last_activity = loop.time()
+
+    async def progress_handler(progress: float, total: float | None, message: str | None) -> None:
+        nonlocal last_activity
+        last_activity = loop.time()  # PROT-2: reset the idle window
+        if on_progress is not None:
+            await on_progress(progress, total, message)
+
+    async def run():
+        client = runtime.client_factory(pt.server, extra_headers)
+        async with client:
+            await runtime.sessions.set_binding(
+                record.session_id,
+                UpstreamBinding(server_name=pt.server.name, identity_key=sub),
+            )
+            return await client.call_tool_mcp(
+                pt.tool.name, arguments, progress_handler=progress_handler
+            )
+
+    call_task = asyncio.create_task(run())
+    timeout_reason: list[str | None] = [None]
+    cancelled = [False]
+
+    async def watchdog():
+        while not call_task.done():
+            await asyncio.sleep(0.05)
+            now = loop.time()
+            if now - record_start > max_total:
+                timeout_reason[0] = "max_total_timeout"
+                call_task.cancel()
+                return
+            idle_since = last_activity if reset_on_progress else record_start
+            if now - idle_since > call_timeout:
+                timeout_reason[0] = "call_timeout"
+                call_task.cancel()
+                return
+
+    async def canceller():
+        if handle is None:
+            return
+        await handle.cancel_event.wait()  # PROT-3 (may be set cross-replica)
+        cancelled[0] = True
+        call_task.cancel()
+
+    record_start = loop.time()
+    wd = asyncio.create_task(watchdog())
+    cn = asyncio.create_task(canceller())
+    try:
+        result = await call_task
+        status = "error" if result.isError else "success"  # MID-3 isError mapping
+        return _CallOutcome(status=status, result=result)
+    except asyncio.CancelledError:
+        if cancelled[0]:
+            return _CallOutcome(status="error", error_message="cancelled", code=-32800)
+        if timeout_reason[0] is not None:
+            return _CallOutcome(status="error", error_message=timeout_reason[0], code=-32000)
+        raise
+    except Exception as exc:
+        log.warning("upstream.call_failed", server=pt.server.name, tool=pt.tool.name)
+        return _CallOutcome(status="error", error_message=str(exc)[:500], code=-32000)
+    finally:
+        wd.cancel()
+        cn.cancel()
+
+
+def _sse_call_response(
+    runtime,
+    pt,
+    arguments,
+    extra_headers,
+    record,
+    sub,
+    handle,
+    cfg,
+    progress_token,
+    rpc_id,
+    finalize,
+) -> Response:
+    """PROT-1: stream notifications/progress, then the final JSON-RPC result."""
+    import asyncio
+    import json as jsonlib
+
+    from fastapi.responses import StreamingResponse
+
+    async def gen():
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def on_progress(progress, total, message):
+            note = {
+                "jsonrpc": "2.0",
+                "method": "notifications/progress",
+                "params": {
+                    "progressToken": progress_token,
+                    "progress": progress,
+                    **({"total": total} if total is not None else {}),
+                    **({"message": message} if message else {}),
+                },
+            }
+            await queue.put(("progress", note))
+
+        started = time.monotonic()
+
+        async def runner():
+            outcome = await _drive_upstream(
+                runtime, pt, arguments, extra_headers, record, sub, handle, cfg,
+                on_progress=on_progress,
+            )
+            await queue.put(("final", outcome))
+
+        task = asyncio.create_task(runner())
+        try:
+            while True:
+                kind, data = await queue.get()
+                if kind == "progress":
+                    yield f"data: {jsonlib.dumps(data)}\n\n"
+                    continue
+                outcome: _CallOutcome = data
+                if handle is not None:
+                    runtime.registry.unregister_call(handle)
+                duration_ms = int((time.monotonic() - started) * 1000)
+                await finalize(outcome.status, duration_ms, outcome.error_message)
+                if outcome.result is not None:
+                    payload = outcome.result.model_dump(
+                        by_alias=True, mode="json", exclude_none=True
+                    )
+                    msg = {"jsonrpc": "2.0", "id": rpc_id, "result": payload}
+                else:
+                    msg = {
+                        "jsonrpc": "2.0",
+                        "id": rpc_id,
+                        "error": {
+                            "code": outcome.code or -32000,
+                            "message": outcome.error_message or "call failed",
+                        },
+                    }
+                yield f"data: {jsonlib.dumps(msg)}\n\n"
+                break
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
+
+
 async def _handle_call(
     runtime: GatewayRuntime,
     request: Request,
@@ -267,28 +453,10 @@ async def _handle_call(
         return _rpc_error(rpc_id, -32000, decision.reason or "call denied")
 
     extra_headers = _forward_headers(request, pt, record.auth_method, sub)
-    started = time.monotonic()
-    status = "error"
-    error_message: str | None = None
-    try:
-        client = runtime.client_factory(pt.server, extra_headers)
-        async with client:
-            # binding bookkeeping (SES-6); connection pooling itself is a
-            # follow-up optimization (SES-8)
-            await runtime.sessions.set_binding(
-                record.session_id,
-                UpstreamBinding(server_name=pt.server.name, identity_key=sub),
-            )
-            result = await client.call_tool_mcp(pt.tool.name, arguments)
-        status = "error" if result.isError else "success"  # MID-3 isError mapping
-        payload = result.model_dump(by_alias=True, mode="json", exclude_none=True)
-        return _rpc_result(rpc_id, payload)
-    except Exception as exc:
-        error_message = str(exc)[:500]
-        log.warning("upstream.call_failed", server=pt.server.name, tool=pt.tool.name)
-        return _rpc_error(rpc_id, -32000, f"upstream call failed: {error_message}")
-    finally:
-        duration_ms = int((time.monotonic() - started) * 1000)
+    progress_token = (params.get("_meta") or {}).get("progressToken")
+    cfg = await _timeout_config(runtime)
+
+    async def finalize(status: str, duration_ms: int, error_message: str | None) -> None:
         try:
             await runtime.metering.post_call(ctx, status, duration_ms)  # refund trigger
         except Exception:
@@ -301,6 +469,31 @@ async def _handle_call(
                 **audit_kwargs,
             )
         )
+
+    handle = None
+    if runtime.registry is not None and rpc_id is not None:
+        handle = runtime.registry.register_call(record.session_id, str(rpc_id))
+
+    # PROT-1: when the client sent a progressToken, stream progress as SSE and
+    # deliver the result as the final event. Otherwise the buffered JSON path.
+    if progress_token is not None:
+        return _sse_call_response(
+            runtime, pt, arguments, extra_headers, record, sub, handle, cfg,
+            progress_token, rpc_id, finalize,
+        )
+
+    started = time.monotonic()
+    outcome = await _drive_upstream(
+        runtime, pt, arguments, extra_headers, record, sub, handle, cfg, on_progress=None
+    )
+    if handle is not None:
+        runtime.registry.unregister_call(handle)
+    duration_ms = int((time.monotonic() - started) * 1000)
+    await finalize(outcome.status, duration_ms, outcome.error_message)
+    if outcome.result is not None:
+        payload = outcome.result.model_dump(by_alias=True, mode="json", exclude_none=True)
+        return _rpc_result(rpc_id, payload)
+    return _rpc_error(rpc_id, outcome.code or -32000, outcome.error_message or "call failed")
 
 
 @router.post("/{endpoint_name}/mcp", include_in_schema=False)
@@ -330,6 +523,12 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return JSONResponse({"error": "session not found"}, status_code=404)
     await runtime.sessions.touch(session_id)  # SES-1 (+ PROT-8 for ping)
 
+    if method == "notifications/cancelled":
+        # PROT-3: route the cancel to the replica holding the in-flight call
+        cancel_id = (body.get("params") or {}).get("requestId")
+        if cancel_id is not None and runtime.signals is not None:
+            await runtime.signals.cancel(session_id, str(cancel_id))
+        return Response(status_code=202)
     if method.startswith("notifications/"):
         return Response(status_code=202)
     if method == "ping":
