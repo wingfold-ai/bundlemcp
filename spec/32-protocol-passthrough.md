@@ -85,6 +85,9 @@ timeouts and cancellation such calls are unusable through a gateway.
 
 ## Open questions
 
-- How much of PROT-4's relay FastMCP v3 provides natively vs. requiring
-  low-level SDK plumbing — answered by the same implementation spike as
-  [30-session-management.md](30-session-management.md)'s open question.
+- ~~How much of PROT-4's relay FastMCP v3 provides natively?~~ **Partially
+  resolved** ([ADR-0011](../docs/adr/0011-own-streamable-http-edge.md)): the
+  downstream half of the relay is built on bundlemcp's own endpoint edge; the
+  upstream half uses FastMCP's client handlers (progress/sampling/elicitation
+  callbacks confirmed available). The concrete pub/sub correlation design is
+  the next implementation milestone.

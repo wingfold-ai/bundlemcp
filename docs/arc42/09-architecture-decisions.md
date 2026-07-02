@@ -17,6 +17,9 @@ in the same PR as the change they govern
 | [0008](../adr/0008-full-bidirectional-proxy.md) | Full bidirectional proxy | No protocol degradation; hardest engineering item |
 | [0009](../adr/0009-endpoint-bound-tokens-consent.md) | Consent + endpoint-bound tokens | Token confined to one endpoint; extra consent step |
 | [0010](../adr/0010-single-workspace.md) | Single workspace | Simple model; no intra-instance tenanting |
+| [0011](../adr/0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge (spike outcome) | Redis-backed sessions work; we own server-side protocol compliance |
+| [0012](../adr/0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | Trivially correct identity isolation; pooling awaits OBS-6 data |
+| [0013](../adr/0013-service-key-auth-first.md) | Service-key auth first | Headless management from day one; OIDC sessions land with the UI |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

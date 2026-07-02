@@ -17,3 +17,6 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0008](0008-full-bidirectional-proxy.md) | Full bidirectional MCP proxy fidelity | accepted |
 | [0009](0009-endpoint-bound-tokens-consent.md) | OAuth consent + endpoint-bound tokens | accepted |
 | [0010](0010-single-workspace.md) | Single shared workspace, no multi-tenancy | accepted |
+| [0011](0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge; FastMCP upstream-only | accepted |
+| [0012](0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | accepted |
+| [0013](0013-service-key-auth-first.md) | Service-key auth first; admin OIDC with the UI | accepted |

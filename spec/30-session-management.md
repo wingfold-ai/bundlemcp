@@ -109,6 +109,7 @@ Redis, any replica can serve it, and restarts are non-events.
 
 ## Open questions
 
-- How much of FastMCP v3's session/transport layer can be used as-is vs.
-  where bundlemcp must drop to the low-level SDK to externalize session state
-  — the first implementation spike answers this and refines SES-5/6.
+- ~~How much of FastMCP v3's session/transport layer can be used as-is?~~
+  **Resolved** by the implementation spike: the endpoint edge is implemented
+  directly (FastAPI + Redis session records); FastMCP v3 serves the upstream
+  client side only. See [ADR-0011](../docs/adr/0011-own-streamable-http-edge.md).
