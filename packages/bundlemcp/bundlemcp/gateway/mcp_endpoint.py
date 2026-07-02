@@ -44,39 +44,77 @@ def _rpc_error(id_: Any, code: int, message: str, status: int = 200) -> JSONResp
 
 
 def _unauthorized(request: Request, endpoint_name: str) -> Response:
-    """EP-3: 401 with the challenge + protected-resource metadata pointer."""
-    base = str(request.base_url).rstrip("/")
-    resource = f"{base}/{endpoint_name}/mcp"
+    """EP-3: 401 with the challenge + per-endpoint protected-resource metadata (RFC 9728)."""
+    base = str(request.app.state.settings.public_url).rstrip("/")  # DEP-1, not Host header
+    metadata = f"{base}/.well-known/oauth-protected-resource/{endpoint_name}/mcp"
     return JSONResponse(
         {"error": "unauthorized"},
         status_code=401,
-        headers={
-            "WWW-Authenticate": (
-                f'Bearer resource_metadata="{base}/.well-known/oauth-protected-resource"'
-            ),
-            "X-MCP-Resource": resource,
-        },
+        headers={"WWW-Authenticate": f'Bearer resource_metadata="{metadata}"'},
     )
+
+
+async def _resolve_oauth_bearer(
+    request: Request, db: AsyncSession, view: BundleView
+) -> tuple[str, str | None] | None:
+    """OAS-7 direct-DB bearer validation + EP-3a audience check.
+
+    Returns (user_id, email) or None.
+    """
+    from bundlemcp.models import OAuthAccessToken, User, utcnow
+    from bundlemcp.security import ACCESS_TOKEN_PREFIX, hash_token
+
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer ") or not auth[7:].startswith(ACCESS_TOKEN_PREFIX):
+        return None
+    from datetime import UTC
+
+    from sqlmodel import select
+
+    row = (
+        await db.execute(
+            select(OAuthAccessToken).where(
+                OAuthAccessToken.access_token_hash == hash_token(auth[7:])
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None or row.revoked:
+        return None
+    expires = row.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=UTC)
+    if expires < utcnow():
+        return None
+    if row.endpoint_id != view.endpoint.id:
+        return None  # EP-3a: audience mismatch -> 401 invalid_token
+    user = (await db.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
+    if user is None or not user.is_active:
+        return None
+    return (str(user.id), user.email)
 
 
 async def _authenticate(
     request: Request, db: AsyncSession, view: BundleView
-) -> tuple[str, str | None, str | None] | None:
-    """EP-3/EP-3b/EP-6: returns (auth_method, user_id, api_key_id) or None.
+) -> tuple[str, str | None, str | None, str | None] | None:
+    """EP-3/EP-3b/EP-6: returns (auth_method, user_id, user_email, api_key_id) or None.
 
-    Precedence oauth > api_key (EP-3b); OAuth validation lands with spec 20 —
-    until then endpoints with only `oauth` reject with the 401 challenge.
+    Precedence oauth > api_key (EP-3b).
     """
     modes = set(view.endpoint.auth_modes)
+    if EndpointAuthMode.OAUTH in modes:
+        oauth = await _resolve_oauth_bearer(request, db, view)
+        if oauth is not None:
+            user_id, email = oauth
+            return ("oauth", user_id, email, None)
     if EndpointAuthMode.API_KEY in modes:
         key = await resolve_api_key(request, db)
         if key is not None:
             if key.kind == "endpoint" and key.endpoint_ids:
                 if str(view.endpoint.id) not in key.endpoint_ids:
                     return None  # scoped key, wrong endpoint (KEY-2)
-            return ("api_key", None, str(key.id))
+            return ("api_key", None, None, str(key.id))
     if EndpointAuthMode.NONE in modes:
-        return ("none", None, None)
+        return ("none", None, None, None)
     return None
 
 
@@ -112,7 +150,7 @@ class GatewayRuntime:
 async def _handle_initialize(
     runtime: GatewayRuntime, view: BundleView, body: dict, auth: tuple
 ) -> Response:
-    auth_method, user_id, api_key_id = auth
+    auth_method, user_id, user_email, api_key_id = auth
     params = body.get("params") or {}
     session_id = SessionStore.new_session_id()
     record = SessionRecord(
@@ -121,6 +159,7 @@ async def _handle_initialize(
         bundle_name=view.bundle.name,
         auth_method=auth_method,
         user_id=user_id,
+        user_email=user_email,
         api_key_id=api_key_id,
         protocol_version=params.get("protocolVersion", PROTOCOL_VERSION),
         client_capabilities=params.get("capabilities") or {},
@@ -191,7 +230,7 @@ async def _handle_call(
 
     ctx = MeterContext(
         sub=sub,
-        email=None,  # populated when OAuth identities land (spec 20)
+        email=record.user_email,
         endpoint=view.endpoint.name,
         bundle=view.bundle.name,
         server=pt.server.name,
