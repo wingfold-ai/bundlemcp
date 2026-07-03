@@ -1,9 +1,9 @@
-"""bundlemcp as an OAuth *client* to protected upstream MCP servers (spec 23).
+"""bundlemcp as an OAuth *client* to protected upstream MCP servers.
 
 Discovery + pre-registered client, encrypted per-(server,user) token storage,
-and proactive-expiry refresh with a Redis single-flight lock (UPO-1/2/4/5).
+and proactive-expiry refresh with a Redis single-flight lock.
 The IdP interaction is behind UpstreamOAuthProvider so hermetic tests inject a
-fake instead of reaching a real authorization server (ARC-14).
+fake instead of reaching a real authorization server.
 """
 
 import json
@@ -28,7 +28,7 @@ REFRESH_LOCK_TTL = 30  # seconds
 
 
 class NeedsConnect(Exception):
-    """No usable token for (server, user); the caller must (re)connect (UPO-3/4)."""
+    """No usable token for (server, user); the caller must (re)connect."""
 
     def __init__(self, server_name: str, reason: str = "not_connected") -> None:
         self.server_name = server_name
@@ -81,7 +81,7 @@ def _user_key(user_id: uuid.UUID | None) -> str:
 
 
 class UpstreamTokenStore:
-    """Encrypted token storage keyed (server_id, user_id); NULL user = shared (UPO-2/5)."""
+    """Encrypted token storage keyed (server_id, user_id); NULL user = shared."""
 
     def __init__(
         self,
@@ -120,7 +120,7 @@ class UpstreamTokenStore:
             await db.commit()
 
     async def status(self, server_id: uuid.UUID, user_id: uuid.UUID | None) -> dict:
-        """UPO-5: connection status only — never token values."""
+        """Connection status only — never token values."""
         async with self._sessions() as db:
             row = await self._row(db, server_id, user_id)
         if row is None:
@@ -146,7 +146,7 @@ class UpstreamTokenStore:
     async def build_authorize(
         self, server: McpServer, redirect_uri: str, state: str
     ) -> tuple[str, str]:
-        """Return (authorize_url, code_verifier) for a PKCE S256 connect (UPO-3)."""
+        """Return (authorize_url, code_verifier) for a PKCE S256 connect."""
         import base64
         import hashlib
         import secrets
@@ -194,7 +194,7 @@ class UpstreamTokenStore:
     async def ensure_access_token(
         self, server: McpServer, user_id: uuid.UUID | None, *, force: bool = False
     ) -> str:
-        """Return a valid access token, refreshing proactively if near expiry (UPO-4).
+        """Return a valid access token, refreshing proactively if near expiry.
 
         `force=True` refreshes regardless of expiry — the reactive path used
         after an upstream 401 despite a non-expired token.

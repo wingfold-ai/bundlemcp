@@ -1,8 +1,8 @@
-"""Idempotent startup provisioning (spec 41).
+"""Idempotent startup provisioning.
 
 Applies a declarative config document as upserts by natural key, reusing the
-same domain rules as the management API (BOOT-1/2). Runs in-process at startup;
-failures honor BOOTSTRAP_STRICT (BOOT-4).
+same domain rules as the management API. Runs in-process at startup; failures
+honor BOOTSTRAP_STRICT.
 """
 
 from pathlib import Path
@@ -104,7 +104,7 @@ async def apply_document(session_factory: async_sessionmaker, doc: BootstrapDocu
 
 
 async def run_bootstrap(session_factory, settings) -> None:
-    """BOOT-1/4: apply BOOTSTRAP_FILE if set; strict mode refuses to start on error."""
+    """Apply BOOTSTRAP_FILE if set; strict mode refuses to start on error."""
     if not settings.bootstrap_file:
         return
     try:

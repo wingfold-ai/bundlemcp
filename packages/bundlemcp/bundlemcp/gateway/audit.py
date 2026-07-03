@@ -1,4 +1,4 @@
-"""Audit writer (spec 50): async relative to the response, bounded, never fails a call."""
+"""Audit writer: async relative to the response, bounded, never fails a call."""
 
 import asyncio
 
@@ -33,7 +33,7 @@ class AuditWriter:
             self._task = None
 
     def record(self, record: AuditRecord) -> None:
-        """AUD-3: fire-and-forget; never blocks or raises into the call path."""
+        """Fire-and-forget; never blocks or raises into the call path."""
         try:
             self._queue.put_nowait(record)
         except asyncio.QueueFull:

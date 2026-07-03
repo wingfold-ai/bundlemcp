@@ -1,4 +1,4 @@
-"""Dynamic Client Registration (OAS-2: RFC 7591), rate-limited per IP (SEC-8)."""
+"""Dynamic Client Registration (RFC 7591), rate-limited per IP."""
 
 import secrets
 from urllib.parse import urlparse
@@ -41,7 +41,7 @@ def _validate_redirect_uri(uri: str) -> None:
 
 
 async def _check_rate(request: Request) -> None:
-    """SEC-8: fail-open on Redis trouble (RATE-6 stance) but loud."""
+    """Fail open on Redis trouble, but log loudly."""
     ip = request.client.host if request.client else "unknown"
     key = REGISTRATION_RATE_KEY.format(ip=ip)
     try:

@@ -1,8 +1,8 @@
-"""Lightweight in-process counters (RATE-3 / OBS-2 seam).
+"""Lightweight in-process counters.
 
 Metrics are replica-local by nature (each Prometheus target scrapes its own
-process), so plain in-memory counters are correct here. Spec 51 exports these
-via /metrics; this module is the collection point they read.
+process), so plain in-memory counters are correct here. The /metrics endpoint
+exports these; this module is the collection point it reads.
 """
 
 from collections import defaultdict

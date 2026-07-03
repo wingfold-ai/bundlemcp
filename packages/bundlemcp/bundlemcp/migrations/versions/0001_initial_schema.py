@@ -1,9 +1,9 @@
-"""Initial schema (spec 02).
+"""Initial schema.
 
 Creates all tables from the SQLModel metadata — the entity classes are the
-single source of truth for the initial revision (ADR-0003); later revisions
-are explicit diffs. Adds Postgres-only CHECK constraints for name rules
-(DOM-4) that hermetic sqlite tests enforce at the DTO layer instead.
+single source of truth for the initial revision; later revisions are explicit
+diffs. Adds Postgres-only CHECK constraints for name rules that hermetic
+sqlite tests enforce at the DTO layer instead.
 """
 
 from collections.abc import Sequence

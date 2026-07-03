@@ -1,8 +1,8 @@
-"""Public MCP endpoints: POST/GET/DELETE /{endpoint_name}/mcp (specs 14/30/31).
+"""Public MCP endpoints: POST/GET/DELETE /{endpoint_name}/mcp.
 
 The Streamable-HTTP edge is implemented directly here (not via FastMCP's
 server session manager) so that session state lives in Redis and any replica
-serves any request (SES-2, ADR-0011). FastMCP is used for the upstream side.
+serves any request. FastMCP is used for the upstream side.
 """
 
 import time
@@ -54,7 +54,7 @@ def _rpc_error(id_: Any, code: int, message: str, status: int = 200) -> JSONResp
 
 
 def _unauthorized(request: Request, endpoint_name: str) -> Response:
-    """EP-3: 401 with the challenge + per-endpoint protected-resource metadata (RFC 9728)."""
+    """401 with the challenge + per-endpoint protected-resource metadata (RFC 9728)."""
     base = str(request.app.state.settings.public_url).rstrip("/")  # DEP-1, not Host header
     metadata = f"{base}/.well-known/oauth-protected-resource/{endpoint_name}/mcp"
     return JSONResponse(
@@ -67,7 +67,7 @@ def _unauthorized(request: Request, endpoint_name: str) -> Response:
 async def _resolve_oauth_bearer(
     request: Request, db: AsyncSession, view: BundleView
 ) -> tuple[str, str | None] | None:
-    """OAS-7 direct-DB bearer validation + EP-3a audience check.
+    """Direct-DB bearer validation + audience check.
 
     Returns (user_id, email) or None.
     """
@@ -106,9 +106,9 @@ async def _resolve_oauth_bearer(
 async def _authenticate(
     request: Request, db: AsyncSession, view: BundleView
 ) -> tuple[str, str | None, str | None, str | None] | None:
-    """EP-3/EP-3b/EP-6: returns (auth_method, user_id, user_email, api_key_id) or None.
+    """Returns (auth_method, user_id, user_email, api_key_id) or None.
 
-    Precedence oauth > api_key (EP-3b).
+    Precedence oauth > api_key.
     """
     modes = set(view.endpoint.auth_modes)
     if EndpointAuthMode.OAUTH in modes:
@@ -129,7 +129,7 @@ async def _authenticate(
 
 
 def _rate_identity(user_id: str | None, api_key_id: str | None, ip: str) -> str:
-    """EP-6/RATE-1 per-client bucket key: OAuth user, else API key, else client IP."""
+    """Per-client rate-limit bucket key: OAuth user, else API key, else client IP."""
     if user_id:
         return f"user:{user_id}"
     if api_key_id:
@@ -147,11 +147,11 @@ async def _enforce_rate_limit(
     *,
     is_tool_call: bool,
 ) -> Response | None:
-    """RATE-1/3/4/6/7: endpoint + per-client fixed-window limits.
+    """Endpoint-wide + per-client fixed-window limits.
 
     Returns a 429 (+ Retry-After) when a configured limit is exceeded, else None.
-    initialize/tools/list are exempt unless the endpoint opted in (RATE-4).
-    A rejection is a metric (RATE-3), never an audit record.
+    initialize/tools/list are exempt unless the endpoint opted in.
+    A rejection is a metric, never an audit record.
     """
     cfg = view.endpoint.rate_limit
     if not cfg or runtime.rate_limiter is None:
@@ -184,7 +184,7 @@ async def _enforce_rate_limit(
 
 
 async def note_auth_failure(request: Request) -> Response | None:
-    """RATE-5: count an auth failure for the caller IP; 429 once the IP is locked out.
+    """Count an auth failure for the caller IP; 429 once the IP is locked out.
 
     Gateway-wide, IP-keyed, shared by the MCP edge and the OAuth token endpoint.
     Returns a 429 (+ Retry-After) when the IP is over the threshold, else None
@@ -205,7 +205,12 @@ async def note_auth_failure(request: Request) -> Response | None:
 def _forward_headers(
     request: Request, pt: PresentedTool, auth_method: str, sub: str | None
 ) -> dict[str, str]:
-    """FWD-1/FWD-2/FWD-3."""
+    """Build the extra headers forwarded upstream.
+
+    Applies the server's configured header mappings, skipping denied headers,
+    then injects the gateway's own identity header (any client-supplied
+    identity header is always stripped).
+    """
     extra: dict[str, str] = {}
     for client_header, upstream_header in pt.server.forward_headers.items():
         lower = client_header.lower()
@@ -310,7 +315,7 @@ class _CallOutcome:
 
 
 async def _timeout_config(runtime: GatewayRuntime) -> tuple[float, bool, float]:
-    """PROT-2 values from runtime config (defaults if unavailable)."""
+    """Timeout values from runtime config (defaults if unavailable)."""
     rc = runtime.runtime_config
     if rc is None:
         return (60.0, True, 1800.0)
@@ -324,11 +329,11 @@ async def _timeout_config(runtime: GatewayRuntime) -> tuple[float, bool, float]:
 def _build_relay_handlers(
     runtime: GatewayRuntime, session_id: str, wait_timeout: float
 ) -> dict:
-    """PROT-4/5: elicitation/sampling handlers that forward to the downstream client.
+    """Elicitation/sampling handlers that forward to the downstream client.
 
     Only attached when the client advertised the capability (caller gates this).
     Each request is delivered on the client's GET stream and its reply awaited
-    via a correlation future (SES-13), bounded by the call's timeout (PROT-6).
+    via a correlation future, bounded by the call's timeout.
     """
     import asyncio
 
@@ -374,7 +379,7 @@ async def _drive_upstream(
     *,
     on_progress,
 ) -> _CallOutcome:
-    """Run the upstream call with progress-aware timeout (PROT-2) and cancel (PROT-3)."""
+    """Run the upstream call with progress-aware timeout and cancellation support."""
     import asyncio
 
     call_timeout, reset_on_progress, max_total = cfg
@@ -468,7 +473,7 @@ def _sse_call_response(
     rpc_id,
     finalize,
 ) -> Response:
-    """PROT-1: stream notifications/progress, then the final JSON-RPC result."""
+    """Stream notifications/progress, then the final JSON-RPC result."""
     import asyncio
     import json as jsonlib
 
@@ -766,7 +771,7 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
 
 @router.delete("/{endpoint_name}/mcp", include_in_schema=False)
 async def mcp_delete(endpoint_name: str, request: Request) -> Response:
-    """SES-4: explicit session termination."""
+    """Explicit session termination."""
     runtime: GatewayRuntime = request.app.state.gateway
     session_id = request.headers.get(SESSION_HEADER, "")
     if session_id:
@@ -776,11 +781,11 @@ async def mcp_delete(endpoint_name: str, request: Request) -> Response:
 
 @router.get("/{endpoint_name}/mcp", include_in_schema=False)
 async def mcp_get(endpoint_name: str, request: Request) -> Response:
-    """EP-1a: the server->client event stream (SSE).
+    """The server->client event stream (SSE).
 
-    Carries list_changed notifications (BND-7) and server->client requests
-    (PROT-4). The open stream is replica-pinned; messages from other replicas
-    arrive via the SignalBus (SES-13).
+    Carries list_changed notifications and server->client requests. The open
+    stream is replica-pinned; messages from other replicas arrive via the
+    SignalBus.
     """
     import asyncio
     import json as jsonlib

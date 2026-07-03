@@ -1,6 +1,6 @@
-"""Metering hook contract (spec 31 MID-3/MID-4): the application layer's extension point.
+"""Metering hook contract: the application layer's extension point.
 
-The protocol below is versioned and semver-relevant (MID-4). ultra-mcp field
+The protocol below is versioned and semver-relevant. ultra-mcp field
 mapping: sub->sub, email->email, bundle->bundle_slug, server->server_name,
 tool->tool_name, idempotency_key->idempotency_key; `endpoint` is
 bundlemcp-side context the reference consumer ignores.
@@ -52,7 +52,7 @@ class NoopMeteringHook:
 
 
 def load_metering_hook(import_path: str | None) -> MeteringHook:
-    """MID-3: BUNDLEMCP_METERING_HOOK='package.module:attribute' (instance or factory)."""
+    """Load from BUNDLEMCP_METERING_HOOK='package.module:attribute' (instance or factory)."""
     if not import_path:
         return NoopMeteringHook()
     module_name, _, attr = import_path.partition(":")

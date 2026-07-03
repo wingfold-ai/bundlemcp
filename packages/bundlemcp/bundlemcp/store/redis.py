@@ -1,4 +1,4 @@
-"""Redis accessors (ARC-8): sessions, rate limits, live logs, pub/sub live here.
+"""Redis accessors: sessions, rate limits, live logs, pub/sub live here.
 
 Key layout is centralized in this module so the live-state footprint stays
 auditable (no ad-hoc keys sprinkled through the codebase).

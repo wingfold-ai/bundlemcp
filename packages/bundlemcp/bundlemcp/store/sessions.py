@@ -1,7 +1,7 @@
-"""Session records in Redis (spec 30): a session is data, not an object.
+"""Session records in Redis: a session is data, not an object.
 
 Records are JSON values under SESSION_KEY with a TTL; any replica loads/serves
-them (SES-2). Updates go through optimistic check-and-set (SES-1a).
+them. Updates go through optimistic check-and-set.
 """
 
 import json
@@ -19,7 +19,7 @@ SESSION_RECORD_VERSION = 1  # DEP-6: bump only with cross-release read compat
 
 
 class UpstreamBinding(BaseModel):
-    """A session's lazy attachment to one upstream session (SES-6)."""
+    """A session's lazy attachment to one upstream session."""
 
     server_name: str
     upstream_session_id: str | None = None
@@ -67,7 +67,7 @@ class SessionStore:
         return SessionRecord(**data)
 
     async def touch(self, session_id: str) -> None:
-        """Refresh idle TTL on activity (SES-1; ping counts, PROT-8)."""
+        """Refresh idle TTL on activity (pings count as activity too)."""
         if self._lifetime is not None:
             await self._redis.expire(self._key(session_id), self._lifetime)
 
@@ -75,7 +75,7 @@ class SessionStore:
         await self._redis.delete(self._key(session_id))
 
     async def set_binding(self, session_id: str, binding: UpstreamBinding) -> SessionRecord | None:
-        """Atomically add/replace one binding (SES-1a: WATCH-based check-and-set)."""
+        """Atomically add/replace one binding (WATCH-based check-and-set)."""
         key = self._key(session_id)
         async with self._redis.pipeline(transaction=True) as pipe:
             while True:

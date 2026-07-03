@@ -1,4 +1,4 @@
-"""Public URL derivation (DEP-1): every externally visible OAuth URL comes from
+"""Public URL derivation: every externally visible OAuth URL comes from
 BUNDLEMCP_PUBLIC_URL — never from incoming Host headers.
 """
 
@@ -10,7 +10,7 @@ def issuer(settings: Settings) -> str:
 
 
 def endpoint_resource(settings: Settings, endpoint_name: str) -> str:
-    """Canonical resource identifier of an endpoint (OAS-10 / RFC 8707)."""
+    """Canonical resource identifier of an endpoint (RFC 8707)."""
     return f"{issuer(settings)}/{endpoint_name}/mcp"
 
 

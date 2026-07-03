@@ -1,7 +1,7 @@
-"""OIDC relying-party login (spec 21: ADM-1/2/3) + admin session lifecycle.
+"""OIDC relying-party login + admin session lifecycle.
 
 The IdP interaction is behind OidcProvider so hermetic tests inject a fake
-issuer instead of reaching a real Keycloak (ARC-14).
+issuer instead of reaching a real Keycloak.
 """
 
 import secrets
@@ -41,14 +41,14 @@ class OidcProvider(Protocol):
 
 
 def is_admin(claims: OidcClaims, settings: Settings) -> bool:
-    """ADM-3: re-evaluated on every login."""
+    """Admin status is re-evaluated on every login."""
     if claims.email and claims.email in settings.admin_emails:
         return True
     return "bundlemcp-admin" in claims.groups
 
 
 async def provision_user(session_factory, claims: OidcClaims, settings: Settings) -> User:
-    """ADM-2: create-or-update by (issuer, sub); refresh is_admin every login (ADM-3)."""
+    """Create-or-update by (issuer, sub); refresh is_admin on every login."""
     async with session_factory() as db:
         user = (
             await db.execute(

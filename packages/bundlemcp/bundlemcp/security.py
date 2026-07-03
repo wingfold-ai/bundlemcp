@@ -1,4 +1,4 @@
-"""Secret-token helpers (KEY-1, OAS-8, DOM-3): generate, hash, compare.
+"""Secret-token helpers: generate, hash, compare.
 
 Only hashes are stored; comparisons run on hashes with constant-time equality.
 """

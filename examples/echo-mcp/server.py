@@ -1,4 +1,4 @@
-"""Tiny demo MCP server (DOC-3): a couple of tools incl. an annotated write tool
+"""Tiny demo MCP server: a couple of tools incl. an annotated write tool
 so a fresh compose install has something to bundle, and the chatgpt profile has
 a write tool to re-annotate.
 """

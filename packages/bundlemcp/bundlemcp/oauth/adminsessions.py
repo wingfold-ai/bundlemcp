@@ -1,6 +1,6 @@
-"""Browser sessions for humans (ADM-1): random id in Redis, httpOnly cookie.
+"""Browser sessions for humans: random id in Redis, httpOnly cookie.
 
-Max age forces periodic re-login so IdP-side changes take effect (ADM-6).
+Max age forces periodic re-login so IdP-side changes take effect.
 """
 
 import json
@@ -44,7 +44,7 @@ class AdminSessionStore:
         await self._redis.delete(self._key(session_id))
 
     def cookie_kwargs(self, secure: bool) -> dict:
-        """SEC-4: httpOnly, SameSite=Lax; Secure iff the public URL is https."""
+        """httpOnly, SameSite=Lax; Secure iff the public URL is https."""
         return {
             "httponly": True,
             "samesite": "lax",

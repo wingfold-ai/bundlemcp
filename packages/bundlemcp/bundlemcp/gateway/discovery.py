@@ -1,4 +1,4 @@
-"""Tool discovery & cache sync (spec 11) + server health tracking (SRV-4)."""
+"""Tool discovery & cache sync + server health tracking."""
 
 import asyncio
 import hashlib
@@ -20,7 +20,7 @@ DEFAULT_MAX_ATTEMPTS = 3  # SRV-4: consecutive failures before health_status=err
 
 def tool_schema_hash(name: str, title: str | None, description: str | None,
                      input_schema: dict, annotations: dict | None) -> str:
-    """DISC-2: stable hash over the full definition; only changed hashes hit Postgres."""
+    """Stable hash over the full definition; only changed hashes hit Postgres."""
     canonical = json.dumps(
         {
             "name": name,
@@ -46,7 +46,7 @@ class DiscoveryService:
     """Connects to an upstream, syncs its tool definitions into Postgres.
 
     Failures are tracked per server: after `max_attempts` consecutive failures
-    the server is marked error; any success resets it to ok (SRV-4).
+    the server is marked error; any success resets it to ok.
     """
 
     def __init__(
@@ -63,7 +63,7 @@ class DiscoveryService:
         self._tasks: set[asyncio.Task] = set()
 
     async def schedule_probe(self, server_id: uuid.UUID) -> None:
-        """SRV-2: best-effort background probe; never blocks the caller."""
+        """Best-effort background probe; never blocks the caller."""
         task = asyncio.create_task(self._probe_quietly(server_id))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)

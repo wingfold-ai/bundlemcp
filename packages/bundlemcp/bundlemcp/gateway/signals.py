@@ -1,4 +1,4 @@
-"""Cross-replica signaling (SES-13): routes messages to replica-pinned objects.
+"""Cross-replica signaling: routes messages to replica-pinned objects.
 
 One pattern subscription on bmcp:signal:* per replica. Publishing is the ONLY
 delivery path — the publisher's own subscription receives the message too, so

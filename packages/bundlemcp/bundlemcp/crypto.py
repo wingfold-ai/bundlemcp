@@ -1,8 +1,8 @@
-"""Encryption-at-rest for upstream OAuth tokens and client secrets (DOM-3, DEP-9).
+"""Encryption-at-rest for upstream OAuth tokens and client secrets.
 
 Uses Fernet (AES-128-CBC + HMAC) via MultiFernet so keys rotate without a
 migration: the FIRST configured key encrypts, ALL configured keys can decrypt.
-Rotation procedure (DEP-9): prepend a new key, let re-encryption happen lazily
+Rotation procedure: prepend a new key, let re-encryption happen lazily
 on next write, then drop the old key once nothing decrypts with it.
 
 Keys come from BUNDLEMCP_TOKEN_ENCRYPTION_KEYS (urlsafe-base64 32-byte Fernet

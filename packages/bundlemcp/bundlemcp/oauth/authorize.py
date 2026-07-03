@@ -1,4 +1,4 @@
-"""Authorization endpoint + consent (OAS-3/OAS-10/OAS-11)."""
+"""Authorization endpoint + consent screen."""
 
 import json
 import secrets

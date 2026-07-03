@@ -1,6 +1,6 @@
-"""Bundle composition: presented tool surface + call routing (specs 12/13/15).
+"""Bundle composition: presented tool surface + call routing.
 
-Pipeline order per MID-2: curation filter -> overrides -> profile transform.
+Pipeline order: curation filter -> overrides -> profile transform.
 """
 
 from dataclasses import dataclass
@@ -41,7 +41,7 @@ class BundleView:
     tools: list[PresentedTool]  # enabled tools, curated + profile-transformed
 
     def resolve(self, presented_name: str) -> PresentedTool | None:
-        """BND-3: override names first, then first-`__` prefix parsing."""
+        """Match override names first, then fall back to first-`__` prefix parsing."""
         for pt in self.tools:
             if pt.presented_name == presented_name:
                 return pt
@@ -63,7 +63,7 @@ def _apply_profile_annotations(
 def _merge_overrides(
     base: dict[str, Any] | None, override: dict[str, Any] | None
 ) -> dict[str, Any] | None:
-    """TM-4: shallow merge; explicit per-tool overrides win; None value removes a key."""
+    """Shallow merge; explicit per-tool overrides win; a None value removes a key."""
     if override is None:
         return base
     merged = dict(base or {})

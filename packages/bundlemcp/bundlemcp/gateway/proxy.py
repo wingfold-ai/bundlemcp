@@ -1,4 +1,4 @@
-"""Client-IP derivation behind a reverse proxy (DEP-2 client-IP half / RATE-7).
+"""Client-IP derivation behind a reverse proxy.
 
 X-Forwarded-For is honored ONLY when the direct socket peer is a configured
 trusted proxy; otherwise the socket peer is used. When trusted, the leftmost

@@ -1,4 +1,4 @@
-"""Token endpoint, introspection, revocation (OAS-4/5/6/8)."""
+"""Token endpoint, introspection, revocation."""
 
 import base64
 import hashlib
@@ -58,7 +58,7 @@ def _verify_pkce(verifier: str, challenge: str) -> bool:
 
 
 async def _note_token_auth_failure(request: Request) -> JSONResponse | None:
-    """RATE-5: count an OAuth-token credential failure per client IP.
+    """Count an OAuth-token credential failure per client IP.
 
     Returns a 429 (+ Retry-After) once the IP is locked out, else None so the
     caller returns its own invalid_client/invalid_grant. Fails open on Redis.
@@ -75,7 +75,7 @@ async def _note_token_auth_failure(request: Request) -> JSONResponse | None:
 
 
 async def _invalid_grant(request: Request, description: str = "") -> JSONResponse:
-    """A failed grant is a credential-scan signal (RATE-5) → count it, maybe 429."""
+    """A failed grant is a credential-scan signal → count it, maybe 429."""
     locked = await _note_token_auth_failure(request)
     return locked if locked is not None else _token_error("invalid_grant", description)
 
@@ -211,7 +211,7 @@ async def token(  # noqa: PLR0911 - protocol branching
 
 @router.post("/oauth/introspect", include_in_schema=False)
 async def introspect(request: Request, token: str = Form(...)):
-    """OAS-5: requires a service API key (UPO-7); reports sub + endpoint audience."""
+    """Requires a service API key; reports sub + endpoint audience."""
     async with request.app.state.session_factory() as db:
         caller = await resolve_api_key(request, db)
         if caller is None or caller.kind != ApiKeyKind.SERVICE:
@@ -248,7 +248,7 @@ async def introspect(request: Request, token: str = Form(...)):
 
 @router.post("/oauth/revoke", include_in_schema=False)
 async def revoke(request: Request, token: str = Form(...)):
-    """OAS-6 (RFC 7009): revokes by access or refresh token; always 200."""
+    """RFC 7009: revokes by access or refresh token; always 200."""
     h = hash_token(token)
     async with request.app.state.session_factory() as db:
         row = (
@@ -267,7 +267,7 @@ async def revoke(request: Request, token: str = Form(...)):
 
 
 async def purge_expired(session_factory) -> int:
-    """OAS-8/SEC-8: delete expired codes/tokens and stale never-used clients."""
+    """Delete expired codes/tokens and stale never-used clients."""
     from sqlalchemy import delete
 
     now = utcnow()

@@ -1,4 +1,4 @@
-"""Per-replica registries for live streams and in-flight calls (SES-13).
+"""Per-replica registries for live streams and in-flight calls.
 
 These hold the ONLY replica-pinned objects the architecture permits: open
 HTTP streams and the asyncio primitives attached to them. Everything else
@@ -12,7 +12,7 @@ from typing import Any
 
 @dataclass
 class CallHandle:
-    """An in-flight tools/call on this replica (PROT-3 cancel target)."""
+    """An in-flight tools/call on this replica (the target for cancellation)."""
 
     session_id: str
     request_id: str

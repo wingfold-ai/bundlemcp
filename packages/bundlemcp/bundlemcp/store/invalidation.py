@@ -1,8 +1,8 @@
-"""Cross-replica config invalidation (spec 33: STP-1/STP-2).
+"""Cross-replica config invalidation.
 
 Every config mutation publishes an event after commit; replicas subscribe and
-drop affected local caches. Caching without subscribing to this channel is a
-spec violation (STP-4).
+drop affected local caches. Any code that caches config must subscribe to
+this channel — caching without subscribing is forbidden.
 """
 
 import asyncio
@@ -32,7 +32,7 @@ async def publish_invalidation(redis: Redis, event: InvalidationEvent) -> None:
 
 
 class InvalidationSubscriber:
-    """Runs a pub/sub loop and fans events out to registered callbacks (STP-2)."""
+    """Runs a pub/sub loop and fans events out to registered callbacks."""
 
     def __init__(self, redis: Redis) -> None:
         self._redis = redis
@@ -44,7 +44,7 @@ class InvalidationSubscriber:
         self._callbacks.append(callback)
 
     def on_reconnect_flush(self, callback: Callable[[], Awaitable[None]]) -> None:
-        """STP-2: after a subscription gap all config caches must be flushed."""
+        """After a subscription gap all config caches must be flushed."""
         self._flush_callbacks.append(callback)
 
     async def start(self) -> None:

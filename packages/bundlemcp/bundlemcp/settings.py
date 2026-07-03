@@ -1,6 +1,6 @@
-"""Deploy-time configuration via environment (BUNDLEMCP_ prefix, spec 01/71).
+"""Deploy-time configuration via environment (BUNDLEMCP_ prefix).
 
-Runtime-tunable settings live in the Config table (spec 02), not here.
+Runtime-tunable settings live in the Config table, not here.
 """
 
 from functools import lru_cache

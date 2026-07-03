@@ -1,4 +1,4 @@
-"""Browser connect flow for upstream OAuth (spec 23: UPO-1/3).
+"""Browser connect flow for upstream OAuth.
 
 Mirrors the OIDC login flow: an authenticated admin (shared connection) or a
 signed-in user (per_user) is redirected to the upstream's authorize endpoint;

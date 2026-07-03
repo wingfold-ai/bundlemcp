@@ -1,7 +1,7 @@
-"""Upstream MCP connections (spec 10): the only place clients to upstreams are built.
+"""Upstream MCP connections: the only place clients to upstreams are built.
 
-Streamable HTTP only (SRV-1/ADR-0005). The factory is injectable so hermetic
-tests can substitute in-process FastMCP servers.
+Streamable HTTP only. The factory is injectable so hermetic tests can
+substitute in-process FastMCP servers.
 """
 
 from collections.abc import Callable

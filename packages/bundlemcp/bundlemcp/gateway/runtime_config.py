@@ -1,8 +1,8 @@
-"""Runtime-tunable configuration (spec 02 Config): ConfigEntry over typed defaults.
+"""Runtime-tunable configuration: ConfigEntry over typed defaults.
 
 Values are cached per replica; the cache participates in STP invalidation
-(entity_type="config"), so a PUT on any replica takes effect everywhere within
-the STP-3 budget — never TTL-based (STP-4/STP-6).
+(entity_type="config"), so a PUT on any replica takes effect everywhere
+within the propagation-latency budget — never TTL-based.
 """
 
 import asyncio
@@ -78,7 +78,7 @@ class RuntimeConfig:
         return {key: self._cache.get(key, default) for key, (default, _t) in DEFAULTS.items()}
 
     async def flush(self) -> None:
-        """STP-2: drop the cache (invalidation event or subscription gap)."""
+        """Drop the cache (invalidation event or subscription gap)."""
         async with self._lock:
             self._cache.clear()
             self._loaded = False

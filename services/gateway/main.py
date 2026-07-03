@@ -1,4 +1,4 @@
-"""Gateway service entrypoint (ARC-6: thin composition root).
+"""Gateway service entrypoint: a thin composition root over the bundlemcp library.
 
 Run: uv run uvicorn --factory services.gateway.main:app_factory
 or:  uv run python services/gateway/main.py
@@ -13,7 +13,7 @@ from bundlemcp.settings import get_settings
 
 
 def _configure_logging(level: str) -> None:
-    """OBS-1: structured JSON logs to stdout."""
+    """Structured JSON logs to stdout."""
     structlog.configure(
         processors=[
             structlog.processors.add_log_level,

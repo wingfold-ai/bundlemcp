@@ -1,4 +1,4 @@
-"""Async engine/session plumbing (ARC-7). Schema changes ship as Alembic migrations (DOM-1)."""
+"""Async engine/session plumbing. Schema changes ship as Alembic migrations."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager

@@ -1,4 +1,4 @@
-"""Egress policy for gateway-initiated HTTP (SEC-1/SEC-2/SEC-3).
+"""Egress policy for gateway-initiated HTTP.
 
 Default: block link-local/metadata ranges and the gateway's own loopback;
 allow private RFC 1918 (compose-network upstreams are the primary use case).
@@ -41,7 +41,7 @@ def _resolve(host: str) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
 
 
 def check_url_allowed(url: str, settings: Settings) -> None:
-    """Raise EgressDenied if any resolved address violates the policy (SEC-2)."""
+    """Raise EgressDenied if any resolved address violates the policy."""
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         raise EgressDenied(url, "only http(s) URLs with a host are allowed")

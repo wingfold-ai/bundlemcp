@@ -1,4 +1,4 @@
-"""Alembic environment — async engine, advisory-lock guarded (DEP-4)."""
+"""Alembic environment — async engine, advisory-lock guarded so replicas never race."""
 
 import asyncio
 import os

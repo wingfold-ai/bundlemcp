@@ -1,6 +1,6 @@
-"""Domain entities (spec 02) — SQLModel classes: DB tables AND Pydantic models (ARC-3).
+"""Domain entities — SQLModel classes serving as both DB tables AND Pydantic models.
 
-Name rules (DOM-4) are enforced on the API DTO layer (api/schemas.py) and by
+Name rules are enforced on the API DTO layer (api/schemas/) and by
 Postgres CHECK constraints added in the initial Alembic migration; table
 models here stay validation-free because SQLModel skips validators for
 table=True classes.
@@ -317,7 +317,7 @@ class UpstreamOAuthToken(SQLModel, table=True):
 
 
 class AuditRecord(SQLModel, table=True):
-    """Append-only per-tool-call record (AUD-1); FKs nullable + denormalized names (DOM-2)."""
+    """Append-only per-tool-call record; nullable FKs + denormalized names survive deletes."""
 
     __tablename__ = "audit_records"
     __table_args__ = (
@@ -353,7 +353,7 @@ class AuditRecord(SQLModel, table=True):
 
 
 class ConfigEntry(SQLModel, table=True):
-    """Runtime-tunable key/value settings (spec 02 Config)."""
+    """Runtime-tunable key/value settings."""
 
     __tablename__ = "config_entries"
 

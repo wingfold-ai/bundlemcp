@@ -1,4 +1,4 @@
-"""OAuth discovery metadata (OAS-1: RFC 8414 + RFC 9728)."""
+"""OAuth discovery metadata (RFC 8414 + RFC 9728)."""
 
 from fastapi import APIRouter, HTTPException, Request
 from sqlmodel import select
@@ -39,7 +39,7 @@ async def authorization_server_metadata(request: Request) -> dict:
     "/.well-known/oauth-protected-resource/{endpoint_name}/mcp", include_in_schema=False
 )
 async def protected_resource_metadata(endpoint_name: str, request: Request) -> dict:
-    """RFC 9728, per endpoint — the 401 challenge points here (EP-3)."""
+    """RFC 9728, per endpoint — the 401 challenge points here."""
     async with request.app.state.session_factory() as db:
         ep = (
             await db.execute(select(Endpoint).where(Endpoint.name == endpoint_name))

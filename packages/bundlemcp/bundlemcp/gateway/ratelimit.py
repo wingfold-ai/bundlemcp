@@ -1,8 +1,8 @@
-"""Redis-backed rate limiting (spec 16).
+"""Redis-backed rate limiting.
 
 Fixed-window counter via atomic INCR + EXPIRE, bucketed by Redis server time
-so all replicas share the window (RATE-2, ARC-9/ARC-15). Fails open on Redis
-trouble unless the caller asks for fail-closed (RATE-6).
+so all replicas share the window. Fails open on Redis trouble unless the
+caller asks for fail-closed.
 """
 
 from dataclasses import dataclass
@@ -36,7 +36,7 @@ class RateLimiter:
         self._counters = counters or Counters()
 
     async def _now(self) -> int:
-        """Redis server time in whole seconds (RATE-7: shared clock)."""
+        """Redis server time in whole seconds — the clock shared by all replicas."""
         secs, _micros = await self._redis.time()
         return int(secs)
 
@@ -63,7 +63,7 @@ class RateLimiter:
 
 
 class AuthFailureLimiter:
-    """RATE-5: gateway-wide credential-scan protection, keyed by client IP.
+    """Gateway-wide credential-scan protection, keyed by client IP.
 
     Each authentication failure increments a per-IP fixed-window counter; once
     the configured threshold is exceeded the IP is locked out until the window
