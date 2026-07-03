@@ -128,6 +128,7 @@ Endpoint  1──n AuditRecord (denormalized names retained after deletes)
 
 ## Open questions
 
-- Encryption mechanism for upstream tokens at rest (app-level Fernet key vs.
-  pgcrypto) — decide at implementation. Key provisioning/rotation is specced
-  in [DEP-9](71-deployment.md).
+- ~~Encryption mechanism for upstream tokens at rest (app-level Fernet vs.
+  pgcrypto).~~ **Resolved:** app-level Fernet via MultiFernet
+  (`crypto.py`, [ADR-0017](../docs/adr/0017-upstream-oauth-encryption.md));
+  key provisioning/rotation per [DEP-9](71-deployment.md).

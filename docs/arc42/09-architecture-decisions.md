@@ -23,6 +23,7 @@ in the same PR as the change they govern
 | [0014](../adr/0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB tokens | claude.ai connectable without the UI; no introspect self-call |
 | [0015](../adr/0015-keycloak-dev-idp.md) | Keycloak as the dev IdP | Integration tests prove real federation; heavier compose |
 | [0016](../adr/0016-relay-design.md) | Protocol relay: registries + Redis signaling | Full bidirectional relay with any-replica correctness |
+| [0017](../adr/0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption | Protected upstreams work; tokens encrypted at rest with key rotation |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

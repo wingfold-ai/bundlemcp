@@ -53,5 +53,8 @@ instead of sharing one credential.
 
 ## Open questions
 
-- UX detail of the per-user connect prompt (MCP elicitation vs. error message
-  with URL) — decide against real client behavior during implementation.
+- ~~UX detail of the per-user connect prompt (MCP elicitation vs. error message
+  with URL).~~ **Resolved** ([ADR-0017](../docs/adr/0017-upstream-oauth-encryption.md)):
+  a structured MCP error carrying the connect URL — reliable across clients and
+  independent of a live elicitation channel. Elicitation-based connect is
+  deferred (the relay already supports it, so it can be added without rework).

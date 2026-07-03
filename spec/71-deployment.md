@@ -57,6 +57,10 @@ non-events" promise, and how state is backed up and keys rotated.
   lazily on access + background job, drop the old key after full
   re-encryption. Losing all keys invalidates stored upstream connections
   (documented consequence, [UPO-5](23-upstream-oauth.md) re-connect path).
+  **Implemented** via MultiFernet in `crypto.py`
+  ([ADR-0017](../docs/adr/0017-upstream-oauth-encryption.md)); the lazy
+  re-encryption job is the one remaining follow-up (rotation works today by
+  key ordering + `rotate()` on write).
 
 ### Release engineering
 
