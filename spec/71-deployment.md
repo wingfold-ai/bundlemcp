@@ -22,7 +22,9 @@ non-events" promise, and how state is backed up and keys rotated.
   `X-Forwarded-For/Proto/Host` are honored only when the direct peer is in
   the list; otherwise ignored. Client IP used for rate limiting
   ([RATE-1](16-rate-limiting.md)) and logging derives from this policy — XFF
-  from untrusted peers is never believed.
+  from untrusted peers is never believed. The **client-IP half is implemented**
+  (`gateway/proxy.py::client_ip`, [ADR-0018](../docs/adr/0018-rate-limiting.md));
+  `X-Forwarded-Proto/Host` handling remains pending.
 - **DEP-3** The compose stack and `docs/deploy.md` show the reference
   topology: reverse proxy (TLS) → gateway + web; health checks wired to
   `/healthz`/`/readyz` ([OBS-3](51-observability.md)).
