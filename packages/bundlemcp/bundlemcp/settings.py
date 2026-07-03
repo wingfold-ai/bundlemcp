@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     metering_hook: str | None = None
     metering_hook_fail_open: bool = False
 
+    # Auth-failure limiter (RATE-5): gateway-wide, per client IP.
+    auth_failure_limit: int = 20
+    auth_failure_window: int = 300  # seconds
+
     # Bootstrap (spec 41). initial_service_key provisions one service API key on
     # first boot when no service key exists (BOOT-3-style, value from env/secret).
     bootstrap_file: str | None = None
