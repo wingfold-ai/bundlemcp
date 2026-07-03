@@ -18,7 +18,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bundlemcp.api.deps import resolve_api_key
 from bundlemcp.gateway.composition import BundleView, PresentedTool, load_bundle_view
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
-from bundlemcp.models import AuditRecord, AuditStatus, EndpointAuthMode
+from bundlemcp.models import (
+    AuditRecord,
+    AuditStatus,
+    EndpointAuthMode,
+    IdentityMode,
+    ServerAuthMode,
+)
+from bundlemcp.oauth.upstream_client import NeedsConnect
 from bundlemcp.store.sessions import SessionRecord, SessionStore, UpstreamBinding
 
 log = structlog.get_logger(__name__)
@@ -151,6 +158,8 @@ class GatewayRuntime:
         runtime_config=None,
         registry=None,
         signals=None,
+        upstream_tokens=None,
+        public_url="",
     ) -> None:
         self.sessions: SessionStore = session_store
         self.metering = metering
@@ -159,6 +168,8 @@ class GatewayRuntime:
         self.runtime_config = runtime_config  # spec 02 Config accessors (PROT-2 values)
         self.registry = registry  # replica-pinned streams/calls/replies (SES-13)
         self.signals = signals  # cross-replica routing (SES-13)
+        self.upstream_tokens = upstream_tokens  # UpstreamTokenStore | None (spec 23)
+        self.public_url = str(public_url).rstrip("/")
 
 
 async def _handle_initialize(
@@ -479,6 +490,43 @@ async def _handle_call(
     audit_kwargs["server_name"] = pt.server.name
     audit_kwargs["tool_name"] = pt.tool.name
 
+    # spec 23: resolve the upstream OAuth bearer BEFORE metering, so an
+    # unconnected upstream is never debited.
+    is_upstream_oauth = pt.server.auth_mode == ServerAuthMode.UPSTREAM_OAUTH
+    upstream_token_user: uuid.UUID | None = None
+    upstream_headers: dict[str, str] = {}
+    if is_upstream_oauth:
+        if runtime.upstream_tokens is None:
+            runtime.audit.record(
+                AuditRecord(
+                    status=AuditStatus.ERROR,
+                    error_message="upstream OAuth not configured",
+                    **audit_kwargs,
+                )
+            )
+            return _rpc_error(rpc_id, -32000, "upstream OAuth not configured on this gateway")
+        per_user = pt.server.identity_mode == IdentityMode.PER_USER
+        if per_user:
+            if record.user_id is None:  # UPO-6 guard (should be unreachable)
+                return _rpc_error(
+                    rpc_id, -32000, "per_user upstream requires an authenticated user"
+                )
+            upstream_token_user = uuid.UUID(record.user_id)
+        try:
+            access = await runtime.upstream_tokens.ensure_access_token(
+                pt.server, upstream_token_user
+            )
+        except NeedsConnect:
+            suffix = "?as=me" if per_user else ""
+            connect_url = f"{runtime.public_url}/oauth/upstream/{pt.server.name}/connect{suffix}"
+            runtime.audit.record(
+                AuditRecord(
+                    status=AuditStatus.ERROR, error_message="upstream_not_connected", **audit_kwargs
+                )
+            )
+            return _rpc_error(rpc_id, -32000, f"upstream not connected — connect at {connect_url}")
+        upstream_headers = {"Authorization": f"Bearer {access}"}
+
     ctx = MeterContext(
         sub=sub,
         email=record.user_email,
@@ -505,6 +553,7 @@ async def _handle_call(
         return _rpc_error(rpc_id, -32000, decision.reason or "call denied")
 
     extra_headers = _forward_headers(request, pt, record.auth_method, sub)
+    extra_headers.update(upstream_headers)  # spec 23: upstream OAuth bearer wins
     progress_token = (params.get("_meta") or {}).get("progressToken")
     cfg = await _timeout_config(runtime)
 
@@ -538,6 +587,20 @@ async def _handle_call(
     outcome = await _drive_upstream(
         runtime, pt, arguments, extra_headers, record, sub, handle, cfg, on_progress=None
     )
+    # UPO-4 reactive: on an upstream error for an oauth server, force-refresh the
+    # token and retry once (covers a 401 despite a non-expired token). The same
+    # metering ctx is reused — internal retry does NOT re-fire pre_call (MID-3).
+    if outcome.result is None and is_upstream_oauth and runtime.upstream_tokens is not None:
+        try:
+            access = await runtime.upstream_tokens.ensure_access_token(
+                pt.server, upstream_token_user, force=True
+            )
+            extra_headers = {**extra_headers, "Authorization": f"Bearer {access}"}
+            outcome = await _drive_upstream(
+                runtime, pt, arguments, extra_headers, record, sub, handle, cfg, on_progress=None
+            )
+        except NeedsConnect:
+            pass  # keep the original error outcome
     if handle is not None:
         runtime.registry.unregister_call(handle)
     duration_ms = int((time.monotonic() - started) * 1000)
