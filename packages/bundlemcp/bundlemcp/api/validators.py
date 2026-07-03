@@ -1,4 +1,5 @@
-"""Cross-resource invariants enforced on mutations (spec 23 UPO-6)."""
+"""Cross-resource invariants enforced on mutations: unauthenticated endpoints
+must never expose bundles containing per-user upstream-OAuth servers."""
 
 import uuid
 
@@ -37,7 +38,7 @@ async def _per_user_upstream_server_ids(db: AsyncSession, bundle_id: uuid.UUID) 
 async def endpoint_violates_per_user_upstream(
     db: AsyncSession, bundle_id: uuid.UUID, auth_modes: list[str]
 ) -> bool:
-    """UPO-6: a `none`-only endpoint can't expose a bundle with a per_user upstream."""
+    """A `none`-only endpoint can't expose a bundle with a per_user upstream."""
     if not _is_none_only(auth_modes):
         return False
     return bool(await _per_user_upstream_server_ids(db, bundle_id))
@@ -46,7 +47,7 @@ async def endpoint_violates_per_user_upstream(
 async def membership_violates_per_user_upstream(
     db: AsyncSession, bundle_id: uuid.UUID, server: McpServer
 ) -> bool:
-    """UPO-6: adding a per_user upstream to a bundle that a none-endpoint exposes."""
+    """A per_user upstream can't be added to a bundle that a none-endpoint exposes."""
     if not (
         server.auth_mode == ServerAuthMode.UPSTREAM_OAUTH
         and server.identity_mode == IdentityMode.PER_USER
@@ -61,7 +62,7 @@ async def membership_violates_per_user_upstream(
 async def identity_switch_violates_per_user_upstream(
     db: AsyncSession, server: McpServer
 ) -> bool:
-    """UPO-6: switching a server to per_user while a none-endpoint exposes its bundle(s)."""
+    """A server can't switch to per_user while a none-endpoint exposes its bundle(s)."""
     bundle_ids = (
         await db.execute(
             select(BundleServer.bundle_id).where(BundleServer.server_id == server.id)

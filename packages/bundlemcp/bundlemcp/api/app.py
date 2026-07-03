@@ -3,12 +3,21 @@
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
 from bundlemcp.api.routers import api_keys, bundles, config, endpoints, servers, users
+from bundlemcp.api.services.errors import (
+    ConflictError,
+    InvalidInputError,
+    NotFoundError,
+    PreconditionError,
+    ServiceError,
+    UnavailableError,
+)
 from bundlemcp.bootstrap import run_bootstrap
 from bundlemcp.crypto import token_cipher
 from bundlemcp.gateway import mcp_endpoint
@@ -46,9 +55,24 @@ log = structlog.get_logger(__name__)
 
 API_PREFIX = "/api/v1"
 
+# Domain errors raised by the service layer, mapped to HTTP here so services
+# stay framework-free.
+_SERVICE_ERROR_STATUS: dict[type[ServiceError], int] = {
+    NotFoundError: status.HTTP_404_NOT_FOUND,
+    ConflictError: status.HTTP_409_CONFLICT,
+    InvalidInputError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    PreconditionError: status.HTTP_400_BAD_REQUEST,
+    UnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
+}
+
+
+async def _service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
+    code = _SERVICE_ERROR_STATUS.get(type(exc), status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return JSONResponse(status_code=code, content={"detail": str(exc)})
+
 
 async def _ensure_initial_service_key(app: FastAPI, settings: Settings) -> None:
-    """BOOT-3-style bootstrap: provision a service key from env if none exists."""
+    """Bootstrap: provision a service API key from the environment if none exists."""
     if not settings.initial_service_key:
         return
     async with app.state.session_factory() as db:
@@ -198,6 +222,7 @@ def create_app(
         openapi_url=f"{API_PREFIX}/openapi.json",  # API-3
         docs_url=f"{API_PREFIX}/docs",
     )
+    app.add_exception_handler(ServiceError, _service_error_handler)
 
     for router in (
         servers.router,
@@ -226,7 +251,7 @@ def create_app(
 
     @app.get("/readyz", include_in_schema=False)
     async def readyz() -> dict:
-        """OBS-3: ready = Postgres and Redis reachable."""
+        """Ready means both Postgres and Redis are reachable."""
         from sqlalchemy import text
 
         async with app.state.session_factory() as db:

@@ -1,4 +1,4 @@
-"""FastAPI dependencies: stores and management-API auth (API-2, KEY-2/3/5)."""
+"""FastAPI dependencies: stores and management-API authentication."""
 
 from dataclasses import dataclass
 from datetime import UTC
@@ -9,6 +9,14 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from bundlemcp.api.services import (
+    ApiKeyService,
+    BundleService,
+    ConfigService,
+    EndpointService,
+    ServerService,
+    UserService,
+)
 from bundlemcp.models import ApiKey, ApiKeyKind, User, utcnow
 from bundlemcp.security import API_KEY_PREFIX, hash_token
 
@@ -28,7 +36,7 @@ RedisDep = Annotated[Redis, Depends(get_redis)]
 
 
 def _extract_key(request: Request) -> str | None:
-    """KEY-3: Authorization: Bearer bmcp_sk_… or X-API-Key. Never query params."""
+    """Read the API key from Authorization: Bearer bmcp_sk_… or X-API-Key. Never query params."""
     auth = request.headers.get("authorization", "")
     if auth.lower().startswith("bearer ") and auth[7:].startswith(API_KEY_PREFIX):
         return auth[7:]
@@ -69,9 +77,9 @@ _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
 async def _admin_session_principal(request: Request, db: AsyncSession) -> Principal | None:
-    """ADM: browser cookie session, admin-only. CSRF-guarded (SEC-4).
+    """Browser cookie session, admin-only, with a CSRF origin check on mutations.
 
-    Live is_active/is_admin are re-checked against the DB so ADM-6 deactivation
+    Live is_active/is_admin are re-checked against the DB so deactivation
     and demotion take effect immediately, not at session expiry.
     """
     store = getattr(request.app.state, "admin_sessions", None)
@@ -102,7 +110,7 @@ async def _admin_session_principal(request: Request, db: AsyncSession) -> Princi
 
 
 async def require_management_auth(request: Request, db: DbDep) -> Principal:
-    """API-2: admin session cookie OR service API key."""
+    """Accept either an admin session cookie or a service-kind API key."""
     admin = await _admin_session_principal(request, db)
     if admin is not None:
         return admin
@@ -122,7 +130,7 @@ ServiceAuthDep = Annotated[Principal, Depends(require_management_auth)]
 
 
 class Pagination:
-    """API-5: default 50, max 500, stable ordering handled per-router."""
+    """Offset/limit pagination: default 50, max 500, stable ordering handled per-router."""
 
     def __init__(
         self,
@@ -134,3 +142,44 @@ class Pagination:
 
 
 PageDep = Annotated[Pagination, Depends(Pagination)]
+
+
+# --- service providers: construct framework-free services from app state ---
+
+
+def get_server_service(request: Request, db: DbDep, redis: RedisDep) -> ServerService:
+    return ServerService(
+        db,
+        redis,
+        discovery=getattr(request.app.state, "discovery", None),
+        settings=request.app.state.settings,
+        upstream_tokens=getattr(request.app.state, "upstream_tokens", None),
+    )
+
+
+def get_bundle_service(db: DbDep, redis: RedisDep) -> BundleService:
+    return BundleService(db, redis)
+
+
+def get_endpoint_service(db: DbDep, redis: RedisDep) -> EndpointService:
+    return EndpointService(db, redis)
+
+
+def get_api_key_service(db: DbDep, redis: RedisDep) -> ApiKeyService:
+    return ApiKeyService(db, redis)
+
+
+def get_user_service(db: DbDep) -> UserService:
+    return UserService(db)
+
+
+def get_config_service(db: DbDep, redis: RedisDep) -> ConfigService:
+    return ConfigService(db, redis)
+
+
+ServerServiceDep = Annotated[ServerService, Depends(get_server_service)]
+BundleServiceDep = Annotated[BundleService, Depends(get_bundle_service)]
+EndpointServiceDep = Annotated[EndpointService, Depends(get_endpoint_service)]
+ApiKeyServiceDep = Annotated[ApiKeyService, Depends(get_api_key_service)]
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+ConfigServiceDep = Annotated[ConfigService, Depends(get_config_service)]

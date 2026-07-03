@@ -25,3 +25,4 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0016](0016-relay-design.md) | Protocol-relay: per-replica registries + Redis signaling | accepted |
 | [0017](0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption at rest | accepted |
 | [0018](0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted |
+| [0019](0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted |
