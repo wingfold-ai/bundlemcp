@@ -183,6 +183,25 @@ async def _enforce_rate_limit(
     return None
 
 
+async def note_auth_failure(request: Request) -> Response | None:
+    """RATE-5: count an auth failure for the caller IP; 429 once the IP is locked out.
+
+    Gateway-wide, IP-keyed, shared by the MCP edge and the OAuth token endpoint.
+    Returns a 429 (+ Retry-After) when the IP is over the threshold, else None
+    (the caller then returns its own 401/invalid_client). Fails open on Redis.
+    """
+    limiter = getattr(request.app.state, "auth_failure_limiter", None)
+    if limiter is None:
+        return None
+    ip = client_ip(request, request.app.state.settings)
+    result = await limiter.record_failure(ip)
+    if result.allowed:
+        return None
+    resp = JSONResponse({"error": "too_many_auth_failures"}, status_code=429)
+    resp.headers["Retry-After"] = str(result.retry_after)
+    return resp
+
+
 def _forward_headers(
     request: Request, pt: PresentedTool, auth_method: str, sub: str | None
 ) -> dict[str, str]:
@@ -218,6 +237,7 @@ class GatewayRuntime:
         upstream_tokens=None,
         public_url="",
         rate_limiter=None,
+        auth_failure_limiter=None,
         counters=None,
         settings=None,
     ) -> None:
@@ -231,6 +251,7 @@ class GatewayRuntime:
         self.upstream_tokens = upstream_tokens  # UpstreamTokenStore | None (spec 23)
         self.public_url = str(public_url).rstrip("/")
         self.rate_limiter = rate_limiter  # RateLimiter | None (spec 16)
+        self.auth_failure_limiter = auth_failure_limiter  # AuthFailureLimiter | None (RATE-5)
         self.counters = counters or Counters()  # RATE-3 metrics seam (spec 51)
         self.settings = settings  # for trusted_proxies / auth-failure limits
 
@@ -683,7 +704,8 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
             return JSONResponse({"error": "not found"}, status_code=404)
         auth = await _authenticate(request, db, view)
     if auth is None:
-        return _unauthorized(request, endpoint_name)
+        locked = await note_auth_failure(request)  # RATE-5
+        return locked if locked is not None else _unauthorized(request, endpoint_name)
 
     try:
         body = await request.json()
@@ -772,7 +794,8 @@ async def mcp_get(endpoint_name: str, request: Request) -> Response:
             return JSONResponse({"error": "not found"}, status_code=404)
         auth = await _authenticate(request, db, view)
     if auth is None:
-        return _unauthorized(request, endpoint_name)
+        locked = await note_auth_failure(request)  # RATE-5
+        return locked if locked is not None else _unauthorized(request, endpoint_name)
 
     session_id = request.headers.get(SESSION_HEADER, "")
     record = await runtime.sessions.load(session_id) if session_id else None

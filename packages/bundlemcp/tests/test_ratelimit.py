@@ -1,8 +1,13 @@
 """Rate limiter core tests (spec 16: RATE-2/3/6/7)."""
 
-from bundlemcp.gateway.metrics import RATE_LIMIT_FAIL_OPEN, Counters
+from bundlemcp.gateway.metrics import (
+    AUTH_FAILURE_LOCKOUTS,
+    AUTH_FAILURES,
+    RATE_LIMIT_FAIL_OPEN,
+    Counters,
+)
 from bundlemcp.gateway.proxy import client_ip
-from bundlemcp.gateway.ratelimit import RateLimiter
+from bundlemcp.gateway.ratelimit import AuthFailureLimiter, RateLimiter
 from bundlemcp.settings import Settings
 
 
@@ -54,6 +59,32 @@ async def test_fail_closed_option():
     rl = RateLimiter(BoomRedis())
     res = await rl.check("s", 1, 100, fail_closed=True)
     assert res.allowed is False
+
+
+async def test_auth_failure_limiter_locks_out_by_ip(redis):
+    """RATE-5: threshold reached → lockout; a different IP keeps its own budget."""
+    counters = Counters()
+    lim = AuthFailureLimiter(redis, limit=2, window=100, counters=counters)
+    assert (await lim.record_failure("1.2.3.4")).allowed is True
+    assert (await lim.record_failure("1.2.3.4")).allowed is True
+    third = await lim.record_failure("1.2.3.4")
+    assert third.allowed is False  # locked out
+    assert third.retry_after > 0
+    assert (await lim.record_failure("5.6.7.8")).allowed is True  # separate IP unaffected
+    assert counters.get(AUTH_FAILURES) == 4
+    assert counters.get(AUTH_FAILURE_LOCKOUTS) == 1
+
+
+async def test_auth_failure_limiter_fails_open():
+    """RATE-6: a Redis outage never locks anyone out."""
+
+    class BoomRedis:
+        async def time(self):
+            raise ConnectionError("down")
+
+    lim = AuthFailureLimiter(BoomRedis(), limit=1, window=100)
+    assert (await lim.record_failure("1.2.3.4")).allowed is True
+    assert (await lim.record_failure("1.2.3.4")).allowed is True
 
 
 class _Req:

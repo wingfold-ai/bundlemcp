@@ -475,6 +475,46 @@ async def test_rate_limit_fail_closed_blocks_on_redis_error(gateway):
     assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 429
 
 
+async def test_auth_failure_lockout_by_ip(gateway):
+    """RATE-5: repeated bad credentials from one IP get 429 after the threshold."""
+    from bundlemcp.gateway.ratelimit import AuthFailureLimiter
+
+    http, app, hook = gateway
+    app.state.auth_failure_limiter = AuthFailureLimiter(
+        app.state.redis, limit=2, window=100, counters=app.state.counters
+    )
+    bad = {"Authorization": f"Bearer {generate_token(API_KEY_PREFIX)}"}  # unknown key
+    body = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
+    assert (await http.post("/main/mcp", headers=bad, json=body)).status_code == 401
+    assert (await http.post("/main/mcp", headers=bad, json=body)).status_code == 401
+    locked = await http.post("/main/mcp", headers=bad, json=body)
+    assert locked.status_code == 429
+    assert int(locked.headers["Retry-After"]) > 0
+    assert app.state.counters.get("auth_failure_lockouts") >= 1
+    assert app.state.counters.get("auth_failures") >= 3
+
+
+async def test_token_endpoint_auth_failure_counted(gateway):
+    """RATE-5: a bad OAuth client at the token endpoint is counted and locked out."""
+    from bundlemcp.gateway.ratelimit import AuthFailureLimiter
+
+    http, app, hook = gateway
+    app.state.auth_failure_limiter = AuthFailureLimiter(
+        app.state.redis, limit=1, window=100, counters=app.state.counters
+    )
+    form = {
+        "grant_type": "authorization_code",
+        "code": "x",
+        "code_verifier": "y",
+        "client_id": "does-not-exist",
+    }
+    first = await http.post("/oauth/token", data=form)
+    assert first.status_code == 401  # invalid_client
+    second = await http.post("/oauth/token", data=form)
+    assert second.status_code == 429
+    assert int(second.headers["Retry-After"]) > 0
+
+
 async def test_identity_header_injected_and_spoof_stripped(gateway):
     """FWD-2/FWD-3: X-MCP-User injected from resolved identity; client value ignored."""
     http, app, hook = gateway

@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import select
 
 from bundlemcp.api.deps import resolve_api_key
+from bundlemcp.gateway.proxy import client_ip
 from bundlemcp.models import (
     ApiKeyKind,
     Endpoint,
@@ -54,6 +55,29 @@ def _token_error(error: str, description: str = "", status: int = 400) -> JSONRe
 def _verify_pkce(verifier: str, challenge: str) -> bool:
     digest = hashlib.sha256(verifier.encode()).digest()
     return base64.urlsafe_b64encode(digest).rstrip(b"=").decode() == challenge
+
+
+async def _note_token_auth_failure(request: Request) -> JSONResponse | None:
+    """RATE-5: count an OAuth-token credential failure per client IP.
+
+    Returns a 429 (+ Retry-After) once the IP is locked out, else None so the
+    caller returns its own invalid_client/invalid_grant. Fails open on Redis.
+    """
+    limiter = getattr(request.app.state, "auth_failure_limiter", None)
+    if limiter is None:
+        return None
+    result = await limiter.record_failure(client_ip(request, request.app.state.settings))
+    if result.allowed:
+        return None
+    resp = _token_error("too_many_requests", "too many authentication failures", status=429)
+    resp.headers["Retry-After"] = str(result.retry_after)
+    return resp
+
+
+async def _invalid_grant(request: Request, description: str = "") -> JSONResponse:
+    """A failed grant is a credential-scan signal (RATE-5) → count it, maybe 429."""
+    locked = await _note_token_auth_failure(request)
+    return locked if locked is not None else _token_error("invalid_grant", description)
 
 
 async def _authenticate_client(request: Request, db, client_id: str, client_secret: str | None):
@@ -121,7 +145,8 @@ async def token(  # noqa: PLR0911 - protocol branching
     async with request.app.state.session_factory() as db:
         client = await _authenticate_client(request, db, client_id or "", client_secret)
         if client is None:
-            return _token_error("invalid_client", status=401)
+            locked = await _note_token_auth_failure(request)  # RATE-5
+            return locked if locked is not None else _token_error("invalid_client", status=401)
         client.last_used_at = utcnow()  # SEC-8 stale-client purge signal
         db.add(client)
 
@@ -141,11 +166,11 @@ async def token(  # noqa: PLR0911 - protocol branching
                 or row.client_id != client.client_id
                 or _aware(row.expires_at) < utcnow()
             ):
-                return _token_error("invalid_grant")
+                return await _invalid_grant(request)
             if redirect_uri != row.redirect_uri:
-                return _token_error("invalid_grant", "redirect_uri mismatch")
+                return await _invalid_grant(request, "redirect_uri mismatch")
             if not _verify_pkce(code_verifier, row.code_challenge):
-                return _token_error("invalid_grant", "PKCE verification failed")
+                return await _invalid_grant(request, "PKCE verification failed")
             row.used = True  # single-use (OAS-3)
             db.add(row)
             access, refresh, token_row = _issue_pair(
@@ -171,7 +196,7 @@ async def token(  # noqa: PLR0911 - protocol branching
                 or row.client_id != client.client_id
                 or _aware(row.refresh_expires_at) < utcnow()
             ):
-                return _token_error("invalid_grant")
+                return await _invalid_grant(request)
             row.revoked = True  # rotation (OAS-4)
             db.add(row)
             access, refresh, token_row = _issue_pair(
