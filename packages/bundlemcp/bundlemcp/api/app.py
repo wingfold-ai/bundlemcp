@@ -16,6 +16,8 @@ from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
 from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
 from bundlemcp.gateway.metering import load_metering_hook
+from bundlemcp.gateway.metrics import Counters
+from bundlemcp.gateway.ratelimit import RateLimiter
 from bundlemcp.gateway.runtime_config import RuntimeConfig
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import StreamRegistry
@@ -108,6 +110,8 @@ def create_app(
                 upstream_oidc_provider or HttpxUpstreamProvider(settings),
             )
         app.state.upstream_tokens = upstream_tokens
+        counters = Counters()  # RATE-3 metric seam (spec 51 exports these)
+        app.state.counters = counters
         app.state.gateway = GatewayRuntime(
             session_store=SessionStore(app.state.redis),
             metering=metering,
@@ -118,6 +122,9 @@ def create_app(
             signals=signals,
             upstream_tokens=upstream_tokens,
             public_url=settings.public_url,
+            rate_limiter=RateLimiter(app.state.redis, counters),
+            counters=counters,
+            settings=settings,
         )
         app.state.admin_sessions = AdminSessionStore(app.state.redis)
         app.state.oidc_provider = oidc_provider or build_provider(settings)

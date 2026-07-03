@@ -18,6 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bundlemcp.api.deps import resolve_api_key
 from bundlemcp.gateway.composition import BundleView, PresentedTool, load_bundle_view
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
+from bundlemcp.gateway.metrics import RATE_LIMIT_REJECTIONS, Counters
+from bundlemcp.gateway.proxy import client_ip
 from bundlemcp.models import (
     AuditRecord,
     AuditStatus,
@@ -126,6 +128,61 @@ async def _authenticate(
     return None
 
 
+def _rate_identity(user_id: str | None, api_key_id: str | None, ip: str) -> str:
+    """EP-6/RATE-1 per-client bucket key: OAuth user, else API key, else client IP."""
+    if user_id:
+        return f"user:{user_id}"
+    if api_key_id:
+        return f"apikey:{api_key_id}"
+    return f"ip:{ip}"
+
+
+async def _enforce_rate_limit(
+    runtime: "GatewayRuntime",
+    request: Request,
+    view: BundleView,
+    user_id: str | None,
+    api_key_id: str | None,
+    rpc_id: Any,
+    *,
+    is_tool_call: bool,
+) -> Response | None:
+    """RATE-1/3/4/6/7: endpoint + per-client fixed-window limits.
+
+    Returns a 429 (+ Retry-After) when a configured limit is exceeded, else None.
+    initialize/tools/list are exempt unless the endpoint opted in (RATE-4).
+    A rejection is a metric (RATE-3), never an audit record.
+    """
+    cfg = view.endpoint.rate_limit
+    if not cfg or runtime.rate_limiter is None:
+        return None
+    if not is_tool_call and not cfg.get("include_initialize_list", False):
+        return None
+    fail_closed = bool(cfg.get("fail_closed", False))
+    checks: list[tuple[str, dict]] = []
+    endpoint_rule = cfg.get("endpoint")
+    if endpoint_rule:
+        checks.append((f"ep:{view.endpoint.name}:all", endpoint_rule))
+    per_client_rule = cfg.get("per_client")
+    if per_client_rule:
+        ip = client_ip(request, runtime.settings) if runtime.settings else "unknown"
+        identity = _rate_identity(user_id, api_key_id, ip)
+        checks.append((f"ep:{view.endpoint.name}:{identity}", per_client_rule))
+    for scope, rule in checks:
+        result = await runtime.rate_limiter.check(
+            scope,
+            int(rule["limit"]),
+            int(rule["window_seconds"]),
+            fail_closed=fail_closed,
+        )
+        if not result.allowed:
+            runtime.counters.inc(RATE_LIMIT_REJECTIONS)
+            resp = _rpc_error(rpc_id, -32000, "rate limit exceeded", status=429)
+            resp.headers["Retry-After"] = str(result.retry_after)
+            return resp
+    return None
+
+
 def _forward_headers(
     request: Request, pt: PresentedTool, auth_method: str, sub: str | None
 ) -> dict[str, str]:
@@ -160,6 +217,9 @@ class GatewayRuntime:
         signals=None,
         upstream_tokens=None,
         public_url="",
+        rate_limiter=None,
+        counters=None,
+        settings=None,
     ) -> None:
         self.sessions: SessionStore = session_store
         self.metering = metering
@@ -170,6 +230,9 @@ class GatewayRuntime:
         self.signals = signals  # cross-replica routing (SES-13)
         self.upstream_tokens = upstream_tokens  # UpstreamTokenStore | None (spec 23)
         self.public_url = str(public_url).rstrip("/")
+        self.rate_limiter = rate_limiter  # RateLimiter | None (spec 16)
+        self.counters = counters or Counters()  # RATE-3 metrics seam (spec 51)
+        self.settings = settings  # for trusted_proxies / auth-failure limits
 
 
 async def _handle_initialize(
@@ -629,6 +692,11 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
     method = body.get("method", "")
 
     if method == "initialize":
+        limited = await _enforce_rate_limit(
+            runtime, request, view, auth[1], auth[3], body.get("id"), is_tool_call=False
+        )
+        if limited is not None:
+            return limited
         return await _handle_initialize(runtime, view, body, auth)
 
     # SES-2/SES-3: everything else requires a live session record
@@ -656,8 +724,20 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
     if method == "ping":
         return _rpc_result(body.get("id"), {})
     if method == "tools/list":
+        limited = await _enforce_rate_limit(
+            runtime, request, view, record.user_id, record.api_key_id, body.get("id"),
+            is_tool_call=False,
+        )
+        if limited is not None:
+            return limited
         return _rpc_result(body.get("id"), {"tools": _tools_payload(view)})
     if method == "tools/call":
+        limited = await _enforce_rate_limit(
+            runtime, request, view, record.user_id, record.api_key_id, body.get("id"),
+            is_tool_call=True,
+        )
+        if limited is not None:
+            return limited
         return await _handle_call(runtime, request, view, record, body)
     return _rpc_error(body.get("id"), -32601, f"method not supported: {method}")
 

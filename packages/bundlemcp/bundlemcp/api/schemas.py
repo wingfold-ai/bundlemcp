@@ -139,7 +139,21 @@ class BundleServerUpdate(BaseModel):
     enabled: bool = True
 
 
-# --- Endpoints (spec 14/15) -------------------------------------------------
+# --- Endpoints (spec 14/15/16) ----------------------------------------------
+
+
+class RateRule(BaseModel):
+    limit: int = Field(gt=0)
+    window_seconds: int = Field(gt=0)
+
+
+class RateLimitConfig(BaseModel):
+    """Per-endpoint limits (spec 16, RATE-1/4/6). Stored as JSON on the endpoint."""
+
+    endpoint: RateRule | None = None  # across all callers
+    per_client: RateRule | None = None  # per resolved identity (EP-6)
+    include_initialize_list: bool = False  # RATE-4: also limit initialize/tools/list
+    fail_closed: bool = False  # RATE-6: deny on Redis outage instead of fail-open
 
 
 class EndpointUpsert(BaseModel):
@@ -147,7 +161,7 @@ class EndpointUpsert(BaseModel):
     bundle_name: str
     profile: EndpointProfile = EndpointProfile.DEFAULT
     auth_modes: list[EndpointAuthMode] = Field(default_factory=lambda: [EndpointAuthMode.API_KEY])
-    rate_limit: dict[str, Any] | None = None
+    rate_limit: RateLimitConfig | None = None
     enabled: bool = True
     allow_unauthenticated: bool = False  # EP-3: explicit opt-in for `none`
     force: bool = False  # EP-8 rename acknowledgement

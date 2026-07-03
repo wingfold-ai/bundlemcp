@@ -338,6 +338,143 @@ async def test_audit_records_written(gateway):
     assert ok.duration_ms is not None
 
 
+async def _set_rate_limit(app, config: dict, endpoint: str = "main") -> None:
+    async with app.state.session_factory() as db:
+        ep = (await db.execute(select(Endpoint).where(Endpoint.name == endpoint))).scalar_one()
+        ep.rate_limit = config
+        db.add(ep)
+        await db.commit()
+
+
+async def test_endpoint_limit_trips_with_retry_after(gateway):
+    """RATE-1/3: the endpoint limit rejects the (N+1)th call with 429 + Retry-After."""
+    http, app, hook = gateway
+    await _set_rate_limit(app, {"endpoint": {"limit": 2, "window_seconds": 100}})
+    session = await _initialize(http)
+    call = {"name": "echo__say", "arguments": {"text": "x"}}
+
+    assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 200
+    assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 200
+    third = await _rpc(http, "main", session, "tools/call", call)
+    assert third.status_code == 429
+    assert int(third.headers["Retry-After"]) > 0
+    # RATE-3: a rejection is a metric, not an upstream call
+    assert len(hook.pre_calls) == 2
+    assert app.state.counters.get("rate_limit_rejections") == 1
+
+
+async def test_per_client_limit_isolates_callers(gateway):
+    """RATE-1/EP-6: the per-client limit buckets by identity — a second key is unaffected."""
+    http, app, hook = gateway
+    await _set_rate_limit(app, {"per_client": {"limit": 1, "window_seconds": 100}})
+
+    other_key = generate_token(API_KEY_PREFIX)
+    async with app.state.session_factory() as db:
+        db.add(
+            ApiKey(
+                name="k2",
+                key_hash=hash_token(other_key),
+                key_prefix=display_prefix(other_key),
+                kind=ApiKeyKind.ENDPOINT,
+            )
+        )
+        await db.commit()
+
+    session = await _initialize(http)
+    call = {"name": "echo__say", "arguments": {"text": "x"}}
+    assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 200
+    assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 429
+
+    # a different caller (own key + session) still gets its own budget
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://gw",
+        headers={"Authorization": f"Bearer {other_key}"},
+    ) as http2:
+        session2 = await _initialize(http2)
+        assert (await _rpc(http2, "main", session2, "tools/call", call)).status_code == 200
+
+
+async def test_initialize_and_list_exempt_by_default(gateway):
+    """RATE-4: initialize/tools/list are not limited unless opted in."""
+    http, app, hook = gateway
+    await _set_rate_limit(app, {"endpoint": {"limit": 1, "window_seconds": 100}})
+    # initialize + tools/list any number of times, never a 429
+    for _ in range(3):
+        session = await _initialize(http)
+        assert (await _rpc(http, "main", session, "tools/list")).status_code == 200
+    # but the single tools/call budget is enforced
+    call = {"name": "echo__say", "arguments": {"text": "x"}}
+    assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 200
+    assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 429
+
+
+async def test_include_initialize_list_opt_in(gateway):
+    """RATE-4: with the opt-in flag, initialize also consumes the endpoint budget."""
+    http, app, hook = gateway
+    await _set_rate_limit(
+        app,
+        {"endpoint": {"limit": 1, "window_seconds": 100}, "include_initialize_list": True},
+    )
+    assert (await http.post(
+        "/main/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-11-25", "capabilities": {}},
+        },
+    )).status_code == 200
+    second = await http.post(
+        "/main/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-11-25", "capabilities": {}},
+        },
+    )
+    assert second.status_code == 429
+
+
+async def test_rate_limit_fails_open_on_redis_error(gateway):
+    """RATE-6: a Redis outage never blocks a call (default fail-open)."""
+    from bundlemcp.gateway.ratelimit import RateLimiter
+
+    http, app, hook = gateway
+    await _set_rate_limit(app, {"endpoint": {"limit": 1, "window_seconds": 100}})
+
+    class BoomRedis:
+        async def time(self):
+            raise ConnectionError("down")
+
+    app.state.gateway.rate_limiter = RateLimiter(BoomRedis(), app.state.counters)
+    session = await _initialize(http)
+    call = {"name": "echo__say", "arguments": {"text": "x"}}
+    for _ in range(3):
+        assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 200
+    assert app.state.counters.get("rate_limit_fail_open") >= 1
+
+
+async def test_rate_limit_fail_closed_blocks_on_redis_error(gateway):
+    """RATE-6: an endpoint may opt into fail-closed — deny on Redis outage."""
+    from bundlemcp.gateway.ratelimit import RateLimiter
+
+    http, app, hook = gateway
+    await _set_rate_limit(
+        app, {"endpoint": {"limit": 1, "window_seconds": 100}, "fail_closed": True}
+    )
+
+    class BoomRedis:
+        async def time(self):
+            raise ConnectionError("down")
+
+    app.state.gateway.rate_limiter = RateLimiter(BoomRedis(), app.state.counters)
+    session = await _initialize(http)
+    call = {"name": "echo__say", "arguments": {"text": "x"}}
+    assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 429
+
+
 async def test_identity_header_injected_and_spoof_stripped(gateway):
     """FWD-2/FWD-3: X-MCP-User injected from resolved identity; client value ignored."""
     http, app, hook = gateway

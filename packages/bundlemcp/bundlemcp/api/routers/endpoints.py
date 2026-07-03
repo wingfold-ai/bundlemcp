@@ -89,7 +89,7 @@ async def upsert_endpoint(
     ep.bundle_id = bundle.id
     ep.profile = body.profile
     ep.auth_modes = [m.value for m in body.auth_modes]
-    ep.rate_limit = body.rate_limit
+    ep.rate_limit = body.rate_limit.model_dump() if body.rate_limit else None
     ep.enabled = body.enabled
     db.add(ep)
     await db.commit()
