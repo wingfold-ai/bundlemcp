@@ -5,6 +5,7 @@ from sqlmodel import func, select
 
 from bundlemcp.api.deps import DbDep, PageDep, RedisDep, ServiceAuthDep
 from bundlemcp.api.schemas import EndpointRead, EndpointUpsert, Page
+from bundlemcp.api.validators import endpoint_violates_per_user_upstream
 from bundlemcp.models import Bundle, Endpoint, EndpointProfile
 from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
 
@@ -73,6 +74,14 @@ async def upsert_endpoint(
     ).scalar_one_or_none()
     if bundle is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "bundle not found")
+    # UPO-6: a none-only endpoint can't expose a bundle with a per_user upstream
+    if await endpoint_violates_per_user_upstream(
+        db, bundle.id, [m.value for m in body.auth_modes]
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "a 'none'-auth endpoint cannot expose a bundle with a per_user upstream server (UPO-6)",
+        )
     ep = (await db.execute(select(Endpoint).where(Endpoint.name == name))).scalar_one_or_none()
     created = ep is None
     if ep is None:

@@ -141,6 +141,56 @@ class UpstreamTokenStore:
                 await db.delete(row)
                 await db.commit()
 
+    # --- interactive connect flow (UPO-1/3) ---
+
+    async def build_authorize(
+        self, server: McpServer, redirect_uri: str, state: str
+    ) -> tuple[str, str]:
+        """Return (authorize_url, code_verifier) for a PKCE S256 connect (UPO-3)."""
+        import base64
+        import hashlib
+        import secrets
+
+        verifier = secrets.token_urlsafe(48)
+        challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+            .rstrip(b"=")
+            .decode()
+        )
+        cfg = await self._client_config(server.id)
+        meta = await self._metadata(server)
+        scope = " ".join(meta.scopes_supported) if meta.scopes_supported else None
+        url = self._provider.authorize_url(
+            meta,
+            client_id=cfg["client_id"],
+            redirect_uri=redirect_uri,
+            state=state,
+            code_challenge=challenge,
+            scope=scope,
+        )
+        return url, verifier
+
+    async def complete_authorize(
+        self,
+        server: McpServer,
+        user_id: uuid.UUID | None,
+        *,
+        code: str,
+        code_verifier: str,
+        redirect_uri: str,
+    ) -> None:
+        cfg = await self._client_config(server.id)
+        meta = await self._metadata(server)
+        tokens = await self._provider.exchange(
+            meta,
+            code=code,
+            redirect_uri=redirect_uri,
+            code_verifier=code_verifier,
+            client_id=cfg["client_id"],
+            client_secret=cfg["client_secret"],
+        )
+        await self.save(server.id, user_id, tokens)
+
     async def ensure_access_token(
         self, server: McpServer, user_id: uuid.UUID | None, *, force: bool = False
     ) -> str:

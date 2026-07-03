@@ -1,17 +1,28 @@
-"""Server registry routes (spec 10, API-4)."""
+"""Server registry routes (spec 10, API-4; spec 23 upstream OAuth config)."""
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request, status
+from pydantic import BaseModel
 from sqlmodel import func, select
 
 from bundlemcp.api.deps import DbDep, PageDep, RedisDep, ServiceAuthDep
 from bundlemcp.api.schemas import Page, ServerRead, ServerUpsert, ToolRead
-from bundlemcp.models import BundleServer, McpServer, Tool
+from bundlemcp.crypto import token_cipher
+from bundlemcp.models import BundleServer, McpServer, Tool, UpstreamOAuthClient
 from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
 
 log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/servers", tags=["servers"])
+
+
+class UpstreamOAuthConfig(BaseModel):
+    """UPO-1: pre-registered upstream client + optional explicit endpoints."""
+
+    client_id: str
+    client_secret: str | None = None  # write-only
+    authorization_url: str | None = None
+    token_url: str | None = None
 
 
 async def _by_name(db, name: str) -> McpServer | None:
@@ -175,3 +186,68 @@ async def refresh_tools(name: str, request: Request, db: DbDep, _auth: ServiceAu
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "discovery unavailable")
     result = await discovery.discover(server.id)
     return {"discovered": result.discovered, "changed": result.changed, "error": result.error}
+
+
+# --- upstream OAuth client config + status (spec 23, UPO-1/5) ---
+
+
+@router.put("/{name}/upstream-oauth")
+async def set_upstream_oauth(
+    name: str, body: UpstreamOAuthConfig, request: Request, db: DbDep, _auth: ServiceAuthDep
+) -> dict:
+    """UPO-1: pre-registered client config. client_secret is write-only, encrypted."""
+    server = await _by_name(db, name)
+    if server is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "server not found")
+    settings = request.app.state.settings
+    if not settings.token_encryption_keys:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "token encryption keys required for upstream OAuth (DEP-9)"
+        )
+    cipher = token_cipher(settings)
+    client = (
+        await db.execute(
+            select(UpstreamOAuthClient).where(UpstreamOAuthClient.server_id == server.id)
+        )
+    ).scalar_one_or_none()
+    if client is None:
+        client = UpstreamOAuthClient(server_id=server.id, client_id=body.client_id)
+    client.client_id = body.client_id
+    if body.client_secret:  # write-only: absent keeps the existing secret
+        client.client_secret_encrypted = cipher.encrypt(body.client_secret)
+    meta = dict(client.metadata_ or {})
+    if body.authorization_url and body.token_url:
+        meta["authorization_endpoint"] = body.authorization_url
+        meta["token_endpoint"] = body.token_url
+    client.metadata_ = meta
+    db.add(client)
+    await db.commit()
+    return {"server": name, "client_id": body.client_id, "has_secret": bool(body.client_secret)}
+
+
+@router.get("/{name}/upstream-oauth")
+async def upstream_oauth_status(
+    name: str, request: Request, db: DbDep, _auth: ServiceAuthDep
+) -> dict:
+    """UPO-5: connection status only — never token values."""
+    server = await _by_name(db, name)
+    if server is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "server not found")
+    store = request.app.state.upstream_tokens
+    if store is None:
+        return {"identity_mode": server.identity_mode, "configured": False}
+    shared = await store.status(server.id, None)
+    return {"identity_mode": server.identity_mode, "shared": shared}
+
+
+@router.delete("/{name}/upstream-oauth/token", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect_upstream_oauth(
+    name: str, request: Request, db: DbDep, _auth: ServiceAuthDep
+) -> None:
+    """Disconnect the shared token (UPO-5)."""
+    server = await _by_name(db, name)
+    if server is None:
+        return
+    store = request.app.state.upstream_tokens
+    if store is not None:
+        await store.disconnect(server.id, None)
