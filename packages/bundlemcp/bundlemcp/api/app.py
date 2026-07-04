@@ -160,7 +160,7 @@ def create_app(
         )
         app.state.admin_sessions = AdminSessionStore(app.state.redis)
         app.state.oidc_provider = oidc_provider or build_provider(settings)
-        await run_bootstrap(app.state.session_factory, settings)  # spec 41
+        await run_bootstrap(app.state.session_factory, app.state.redis, settings)  # spec 41
 
         # STP-2: one subscriber per replica; runtime-config cache hangs off it
         subscriber = InvalidationSubscriber(app.state.redis)

@@ -10,11 +10,11 @@ from pathlib import Path
 import structlog
 import yaml
 from pydantic import BaseModel
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlmodel import select
 
-from bundlemcp.models import Bundle, BundleServer, Endpoint, McpServer
-from bundlemcp.schemas import BundleUpsert, EndpointUpsert, ServerUpsert
+from bundlemcp.schemas import BundleServerUpdate, BundleUpsert, EndpointUpsert, ServerUpsert
+from bundlemcp.services import BundleService, EndpointService, ServerService
 
 log = structlog.get_logger(__name__)
 
@@ -38,78 +38,33 @@ def load_document(path: str) -> BootstrapDocument:
     return BootstrapDocument(**data)
 
 
-async def apply_document(session_factory: async_sessionmaker, doc: BootstrapDocument) -> None:
+async def apply_document(
+    session_factory: async_sessionmaker, redis: Redis, doc: BootstrapDocument
+) -> None:
+    """Apply the document through the same services the management API uses, so
+    every domain invariant (SRV-*, UPO-6, PROF-6) holds identically. Idempotent
+    by natural key."""
     async with session_factory() as db:
+        servers = ServerService(db, redis)
+        bundles = BundleService(db, redis)
+        endpoints = EndpointService(db, redis)
         for s in doc.servers:
-            server = (
-                await db.execute(select(McpServer).where(McpServer.name == s.name))
-            ).scalar_one_or_none()
-            if server is None:
-                server = McpServer(name=s.name, url=s.url)
-            server.description = s.description
-            server.url = s.url
-            if s.static_headers:
-                server.static_headers = s.static_headers
-            server.forward_headers = s.forward_headers
-            server.auth_mode = s.auth_mode
-            db.add(server)
-        await db.commit()
-
+            await servers.upsert(s)
         for b in doc.bundles:
-            bundle = (
-                await db.execute(select(Bundle).where(Bundle.name == b.name))
-            ).scalar_one_or_none()
-            if bundle is None:
-                bundle = Bundle(name=b.name)
-            bundle.description = b.description
-            db.add(bundle)
-            await db.commit()
-            await db.refresh(bundle)
+            await bundles.upsert(b)
             for server_name in b.servers:
-                server = (
-                    await db.execute(select(McpServer).where(McpServer.name == server_name))
-                ).scalar_one_or_none()
-                if server is None:
-                    raise ValueError(f"bundle {b.name}: unknown server {server_name}")
-                exists = (
-                    await db.execute(
-                        select(BundleServer).where(
-                            BundleServer.bundle_id == bundle.id,
-                            BundleServer.server_id == server.id,
-                        )
-                    )
-                ).scalar_one_or_none()
-                if exists is None:
-                    db.add(BundleServer(bundle_id=bundle.id, server_id=server.id))
-            await db.commit()
-
+                await bundles.set_member(b.name, server_name, BundleServerUpdate())
         for e in doc.endpoints:
-            bundle = (
-                await db.execute(select(Bundle).where(Bundle.name == e.bundle_name))
-            ).scalar_one_or_none()
-            if bundle is None:
-                raise ValueError(f"endpoint {e.name}: unknown bundle {e.bundle_name}")
-            endpoint = (
-                await db.execute(select(Endpoint).where(Endpoint.name == e.name))
-            ).scalar_one_or_none()
-            if endpoint is None:
-                endpoint = Endpoint(name=e.name, bundle_id=bundle.id)
-            endpoint.bundle_id = bundle.id
-            endpoint.profile = e.profile
-            endpoint.auth_modes = [m.value for m in e.auth_modes]
-            endpoint.rate_limit = e.rate_limit
-            endpoint.enabled = e.enabled
-            db.add(endpoint)
-        await db.commit()
+            await endpoints.upsert(e)
 
 
-async def run_bootstrap(session_factory, settings) -> None:
+async def run_bootstrap(session_factory, redis: Redis, settings) -> None:
     """Apply BOOTSTRAP_FILE if set; strict mode refuses to start on error."""
     if not settings.bootstrap_file:
         return
     try:
         doc = load_document(settings.bootstrap_file)
-        await apply_document(session_factory, doc)
+        await apply_document(session_factory, redis, doc)
         log.info(
             "bootstrap.applied",
             servers=len(doc.servers),

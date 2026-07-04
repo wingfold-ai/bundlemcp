@@ -12,12 +12,12 @@ DOC = {
 }
 
 
-async def test_apply_is_idempotent(engine):
+async def test_apply_is_idempotent(engine, redis):
     factory = session_factory(engine)
     doc = BootstrapDocument(**DOC)
 
-    await apply_document(factory, doc)
-    await apply_document(factory, doc)  # BOOT-2: second run is a no-op
+    await apply_document(factory, redis, doc)
+    await apply_document(factory, redis, doc)  # BOOT-2: second run is a no-op
 
     async with factory() as db:
         assert len((await db.execute(select(McpServer))).scalars().all()) == 1
