@@ -15,7 +15,6 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bundlemcp.api.deps import resolve_api_key
 from bundlemcp.gateway.composition import BundleView, PresentedTool, load_bundle_view
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
 from bundlemcp.gateway.metrics import RATE_LIMIT_REJECTIONS, Counters
@@ -28,6 +27,7 @@ from bundlemcp.models import (
     ServerAuthMode,
 )
 from bundlemcp.oauth.upstream_client import NeedsConnect
+from bundlemcp.services import AuthService
 from bundlemcp.store.sessions import SessionRecord, SessionStore, UpstreamBinding
 
 log = structlog.get_logger(__name__)
@@ -117,7 +117,10 @@ async def _authenticate(
             user_id, email = oauth
             return ("oauth", user_id, email, None)
     if EndpointAuthMode.API_KEY in modes:
-        key = await resolve_api_key(request, db)
+        key = await AuthService(db).authenticate_api_key(
+            authorization=request.headers.get("authorization"),
+            x_api_key=request.headers.get("x-api-key"),
+        )
         if key is not None:
             if key.kind == "endpoint" and key.endpoint_ids:
                 if str(view.endpoint.id) not in key.endpoint_ids:

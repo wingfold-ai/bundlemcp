@@ -10,7 +10,6 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
-from bundlemcp.api.deps import resolve_api_key
 from bundlemcp.gateway.proxy import client_ip
 from bundlemcp.models import (
     ApiKeyKind,
@@ -29,6 +28,7 @@ from bundlemcp.security import (
     hash_token,
     tokens_equal,
 )
+from bundlemcp.services import AuthService
 
 log = structlog.get_logger(__name__)
 
@@ -213,7 +213,10 @@ async def token(  # noqa: PLR0911 - protocol branching
 async def introspect(request: Request, token: str = Form(...)):
     """Requires a service API key; reports sub + endpoint audience."""
     async with request.app.state.session_factory() as db:
-        caller = await resolve_api_key(request, db)
+        caller = await AuthService(db).authenticate_api_key(
+            authorization=request.headers.get("authorization"),
+            x_api_key=request.headers.get("x-api-key"),
+        )
         if caller is None or caller.kind != ApiKeyKind.SERVICE:
             raise HTTPException(401, "service API key required")
 

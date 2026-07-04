@@ -1,21 +1,24 @@
-"""FastAPI dependencies: stores and management-API authentication."""
+"""FastAPI dependencies: stores, service wiring, and the management-API auth edge.
 
-from dataclasses import dataclass
-from datetime import UTC
+Business logic lives in ``bundlemcp.services``; this module is the thin FastAPI
+seam that builds services from app state, parses the request, applies transport
+concerns (CSRF), and maps the accept-either auth policy to 401/403.
+"""
+
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
 
-from bundlemcp.models import ApiKey, ApiKeyKind, User, utcnow
-from bundlemcp.security import API_KEY_PREFIX, hash_token
+from bundlemcp.models import ApiKeyKind
 from bundlemcp.services import (
     ApiKeyService,
+    AuthService,
     BundleService,
     ConfigService,
     EndpointService,
+    Principal,
     ServerService,
     UserService,
 )
@@ -35,86 +38,32 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 
 
-def _extract_key(request: Request) -> str | None:
-    """Read the API key from Authorization: Bearer bmcp_sk_… or X-API-Key. Never query params."""
-    auth = request.headers.get("authorization", "")
-    if auth.lower().startswith("bearer ") and auth[7:].startswith(API_KEY_PREFIX):
-        return auth[7:]
-    header = request.headers.get("x-api-key")
-    if header and header.startswith(API_KEY_PREFIX):
-        return header
-    return None
+def get_auth_service(request: Request, db: DbDep) -> AuthService:
+    return AuthService(db, admin_sessions=getattr(request.app.state, "admin_sessions", None))
 
 
-async def resolve_api_key(request: Request, db: AsyncSession) -> ApiKey | None:
-    raw = _extract_key(request)
-    if raw is None:
-        return None
-    result = await db.execute(select(ApiKey).where(ApiKey.key_hash == hash_token(raw)))
-    key = result.scalar_one_or_none()
-    if key is None or not key.is_active:
-        return None
-    # KEY-4: coarse last_used_at maintenance (sqlite returns naive datetimes — assume UTC)
-    last = key.last_used_at
-    if last is not None and last.tzinfo is None:
-        last = last.replace(tzinfo=UTC)
-    if last is None or (utcnow() - last).total_seconds() > 60:
-        key.last_used_at = utcnow()
-        await db.commit()
-    return key
-
-
-@dataclass
-class Principal:
-    """The authenticated management-API caller: an admin user or a service key."""
-
-    kind: str  # "admin" | "service"
-    user_id: str | None = None
-    api_key_id: str | None = None
-
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
-async def _admin_session_principal(request: Request, db: AsyncSession) -> Principal | None:
-    """Browser cookie session, admin-only, with a CSRF origin check on mutations.
-
-    Live is_active/is_admin are re-checked against the DB so deactivation
-    and demotion take effect immediately, not at session expiry.
-    """
-    store = getattr(request.app.state, "admin_sessions", None)
-    if store is None:
-        return None
+async def require_management_auth(request: Request, auth: AuthServiceDep) -> Principal:
+    """Accept either an admin session cookie or a service-kind API key."""
     from bundlemcp.oauth.adminsessions import SESSION_COOKIE
 
-    session_id = request.cookies.get(SESSION_COOKIE)
-    if not session_id:
-        return None
-    session = await store.load(session_id)
-    if session is None:
-        return None
-    import uuid as _uuid
-
-    user = (
-        await db.execute(select(User).where(User.id == _uuid.UUID(session.user_id)))
-    ).scalar_one_or_none()
-    if user is None or not user.is_active or not user.is_admin:
-        return None
-    if request.method not in _SAFE_METHODS:
-        # SEC-4: cookie-authenticated mutations require a same-origin Origin/Referer
-        origin = request.headers.get("origin") or request.headers.get("referer")
-        expected = str(request.app.state.settings.public_url).rstrip("/")
-        if origin is None or not origin.startswith(expected):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF origin check failed (SEC-4)")
-    return Principal(kind="admin", user_id=session.user_id)
-
-
-async def require_management_auth(request: Request, db: DbDep) -> Principal:
-    """Accept either an admin session cookie or a service-kind API key."""
-    admin = await _admin_session_principal(request, db)
+    admin = await auth.admin_principal(request.cookies.get(SESSION_COOKIE))
     if admin is not None:
+        if request.method not in _SAFE_METHODS:
+            # SEC-4: cookie-authenticated mutations require a same-origin Origin/Referer
+            origin = request.headers.get("origin") or request.headers.get("referer")
+            expected = str(request.app.state.settings.public_url).rstrip("/")
+            if origin is None or not origin.startswith(expected):
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF origin check failed (SEC-4)")
         return admin
-    key = await resolve_api_key(request, db)
+    key = await auth.authenticate_api_key(
+        authorization=request.headers.get("authorization"),
+        x_api_key=request.headers.get("x-api-key"),
+    )
     if key is not None and key.kind == ApiKeyKind.SERVICE:
         return Principal(kind="service", api_key_id=str(key.id))
     if key is not None:
