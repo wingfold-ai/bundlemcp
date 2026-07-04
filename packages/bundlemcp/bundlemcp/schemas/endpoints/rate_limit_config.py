@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from bundlemcp.api.schemas.endpoints.rate_rule import RateRule
+from bundlemcp.schemas.endpoints.rate_rule import RateRule
 
 
 class RateLimitConfig(BaseModel):

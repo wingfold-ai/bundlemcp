@@ -6,8 +6,8 @@ Thin controllers: HTTP concerns only; business logic lives in EndpointService.
 from fastapi import APIRouter, HTTPException, status
 
 from bundlemcp.api.deps import EndpointServiceDep, PageDep, ServiceAuthDep
-from bundlemcp.api.schemas import EndpointRead, EndpointUpsert, Page
 from bundlemcp.models import EndpointProfile
+from bundlemcp.schemas import EndpointRead, EndpointUpsert, Page
 
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])
 

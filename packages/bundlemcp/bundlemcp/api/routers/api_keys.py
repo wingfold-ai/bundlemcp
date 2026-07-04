@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, status
 
 from bundlemcp.api.deps import ApiKeyServiceDep, PageDep, ServiceAuthDep
-from bundlemcp.api.schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyRead, Page
+from bundlemcp.schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyRead, Page
 
 router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 

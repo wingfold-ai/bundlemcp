@@ -1,8 +1,8 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from bundlemcp.api.schemas.endpoints.rate_limit_config import RateLimitConfig
-from bundlemcp.api.schemas.validation import validate_name
 from bundlemcp.models import RESERVED_ENDPOINT_NAMES, EndpointAuthMode, EndpointProfile
+from bundlemcp.schemas.endpoints.rate_limit_config import RateLimitConfig
+from bundlemcp.schemas.validation import validate_name
 
 
 class EndpointUpsert(BaseModel):

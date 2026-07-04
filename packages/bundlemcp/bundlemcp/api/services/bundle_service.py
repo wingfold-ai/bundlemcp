@@ -7,15 +7,15 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
-from bundlemcp.api.schemas import (
+from bundlemcp.api.services.errors import ConflictError, NotFoundError
+from bundlemcp.models import Bundle, BundleServer, BundleTool, McpServer, Tool
+from bundlemcp.schemas import (
     BundleRead,
     BundleServerUpdate,
     BundleToolUpdate,
     BundleUpsert,
     Page,
 )
-from bundlemcp.api.services.errors import ConflictError, NotFoundError
-from bundlemcp.models import Bundle, BundleServer, BundleTool, McpServer, Tool
 from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
 
 

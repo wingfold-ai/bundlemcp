@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, field_validator
 
-from bundlemcp.api.schemas.validation import validate_name
+from bundlemcp.schemas.validation import validate_name
 
 
 class BundleToolUpdate(BaseModel):

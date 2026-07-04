@@ -6,7 +6,7 @@ Thin controllers: HTTP concerns only; business logic lives in ServerService.
 from fastapi import APIRouter, HTTPException, status
 
 from bundlemcp.api.deps import PageDep, ServerServiceDep, ServiceAuthDep
-from bundlemcp.api.schemas import Page, ServerRead, ServerUpsert, ToolRead, UpstreamOAuthConfig
+from bundlemcp.schemas import Page, ServerRead, ServerUpsert, ToolRead, UpstreamOAuthConfig
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 

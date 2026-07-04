@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, status
 
 from bundlemcp.api.deps import PageDep, ServiceAuthDep, UserServiceDep
-from bundlemcp.api.schemas import ConsentRead, Page, UserRead
+from bundlemcp.schemas import ConsentRead, Page, UserRead
 
 router = APIRouter(prefix="/users", tags=["users"])
 

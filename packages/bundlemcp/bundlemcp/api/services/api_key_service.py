@@ -6,9 +6,9 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
-from bundlemcp.api.schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyRead, Page
 from bundlemcp.api.services.errors import NotFoundError
 from bundlemcp.models import ApiKey
+from bundlemcp.schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyRead, Page
 from bundlemcp.security import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
 

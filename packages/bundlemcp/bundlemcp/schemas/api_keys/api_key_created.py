@@ -1,4 +1,4 @@
-from bundlemcp.api.schemas.api_keys.api_key_read import ApiKeyRead
+from bundlemcp.schemas.api_keys.api_key_read import ApiKeyRead
 
 
 class ApiKeyCreated(ApiKeyRead):

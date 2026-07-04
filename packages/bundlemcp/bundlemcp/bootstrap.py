@@ -13,8 +13,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel import select
 
-from bundlemcp.api.schemas import BundleUpsert, EndpointUpsert, ServerUpsert
 from bundlemcp.models import Bundle, BundleServer, Endpoint, McpServer
+from bundlemcp.schemas import BundleUpsert, EndpointUpsert, ServerUpsert
 
 log = structlog.get_logger(__name__)
 

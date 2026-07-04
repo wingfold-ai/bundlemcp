@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 
 from bundlemcp.api.deps import BundleServiceDep, PageDep, ServiceAuthDep
-from bundlemcp.api.schemas import (
+from bundlemcp.schemas import (
     BundleRead,
     BundleServerUpdate,
     BundleToolUpdate,
