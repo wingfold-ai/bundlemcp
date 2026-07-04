@@ -1,5 +1,7 @@
 """User admin business logic: listing, deactivation cascade, consent management."""
 
+from __future__ import annotations
+
 import uuid
 
 from sqlalchemy import update
