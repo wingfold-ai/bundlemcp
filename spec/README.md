@@ -31,3 +31,11 @@ acceptable. Shared structure:
 | [00-overview.md](00-overview.md) | Vision, scope, boundary with ultra-mcp |
 | [01-architecture.md](01-architecture.md) | Stack, version policy, repo layout, state model, Pydantic-first data flow |
 | [02-domain-model.md](02-domain-model.md) | Entities and relationships |
+
+### Bundling core
+| Spec | Contents |
+|---|---|
+| [10-server-registry.md](10-server-registry.md) | Upstream MCP server CRUD (Streamable HTTP only) |
+| [11-tool-discovery.md](11-tool-discovery.md) | Tool discovery and Postgres cache |
+| [12-bundles.md](12-bundles.md) | Bundle composition, tool prefixing, collisions |
+| [13-tool-management.md](13-tool-management.md) | Per-bundle tool enable/disable + overrides |
