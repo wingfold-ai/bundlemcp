@@ -51,7 +51,7 @@ services:
   gateway:
     build:
       context: ..
-      dockerfile: services/gateway/Dockerfile
+      dockerfile: apps/gateway/Dockerfile
     depends_on:
       postgres:
         condition: service_healthy

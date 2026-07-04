@@ -1,7 +1,7 @@
 """Gateway service entrypoint: a thin composition root over the bundlemcp library.
 
-Run: uv run uvicorn --factory services.gateway.main:app_factory
-or:  uv run python services/gateway/main.py
+Run: uv run uvicorn --factory apps.gateway.main:app_factory
+or:  uv run python apps/gateway/main.py
 """
 
 import logging

@@ -45,7 +45,7 @@ source of truth from database row to frontend type.
 ## Repository layout
 
 uv workspace monorepo, following the `packages/` (importable libraries, flat,
-no `src/`) + `services/` (deployable composition roots) convention used in
+no `src/`) + `apps/` (deployable applications) convention used in
 ultra-mcp:
 
 ```
@@ -55,12 +55,13 @@ bundlemcp/
 │       ├── models/           # SQLModel entities (02-domain-model)
 │       ├── gateway/          # FastMCP bundle serving, sessions, middleware
 │       ├── oauth/            # OAuth 2.1 server + upstream OAuth client
-│       ├── api/              # management REST API routers
+│       ├── api/              # management REST API routers + FastAPI wiring
+│       ├── services/         # framework-free business logic (any layer consumes)
+│       ├── schemas/          # Pydantic DTOs (shared contracts)
 │       ├── store/            # repositories (Postgres) + Redis accessors
 │       └── ...
-├── services/
-│   └── gateway/              # main.py composition root + Dockerfile
 ├── apps/
+│   ├── gateway/              # main.py composition root + Dockerfile
 │   └── web/                  # Nuxt 4 admin UI + its Dockerfile
 ├── deploy/
 │   ├── docker-compose.yml    # gateway, web, postgres, redis, dev IdP
@@ -69,7 +70,7 @@ bundlemcp/
 ```
 
 - **ARC-6** All gateway logic lives in `packages/bundlemcp`;
-  `services/gateway` is a thin entrypoint. The web app is self-contained in
+  `apps/gateway` is a thin entrypoint. The web app is self-contained in
   `apps/web`.
 
 ## State model (the core architectural rule)

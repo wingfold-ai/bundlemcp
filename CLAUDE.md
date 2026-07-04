@@ -36,8 +36,8 @@ See [spec/00-overview.md](spec/00-overview.md) and
 - **Pydantic-first:** entities defined once as SQLModel classes; API DTOs are
   Pydantic; frontend TS types are generated from OpenAPI, never hand-written.
 - **Layout:** uv workspace — library code in `packages/bundlemcp/` (flat, no
-  `src/`), deployable entrypoints in `services/`, Nuxt app in `apps/web/`,
-  compose stack in `deploy/`.
+  `src/`), deployable applications in `apps/` (gateway entrypoint, Nuxt
+  `apps/web`), compose stack in `deploy/`.
 
 ## Development
 

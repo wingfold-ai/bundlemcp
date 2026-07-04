@@ -1,5 +1,5 @@
 # bundlemcp gateway (spec 71 DEP-11); build from the repo root:
-#   docker build -f services/gateway/Dockerfile .
+#   docker build -f apps/gateway/Dockerfile .
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
@@ -12,7 +12,7 @@ FROM python:3.13-slim-bookworm
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY packages/ packages/
-COPY services/gateway/main.py ./main.py
+COPY apps/gateway/main.py ./main.py
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
 # DEP-4: migrations run as a dedicated step before serving

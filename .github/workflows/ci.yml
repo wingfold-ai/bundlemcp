@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build gateway image
-        run: docker build -f services/gateway/Dockerfile -t bundlemcp-gateway:ci .
+        run: docker build -f apps/gateway/Dockerfile -t bundlemcp-gateway:ci .
 
   integration:
     runs-on: ubuntu-latest
