@@ -8,9 +8,9 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
-from bundlemcp.api.services.errors import NotFoundError
 from bundlemcp.models import OAuthAccessToken, OAuthConsent, User, utcnow
 from bundlemcp.schemas import ConsentRead, Page, UserRead
+from bundlemcp.services.errors import NotFoundError
 
 
 class UserService:

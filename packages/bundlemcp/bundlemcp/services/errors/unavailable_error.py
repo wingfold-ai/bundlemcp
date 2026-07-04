@@ -1,4 +1,4 @@
-from bundlemcp.api.services.errors.service_error import ServiceError
+from bundlemcp.services.errors.service_error import ServiceError
 
 
 class UnavailableError(ServiceError):

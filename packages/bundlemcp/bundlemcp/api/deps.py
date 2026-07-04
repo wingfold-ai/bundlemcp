@@ -9,7 +9,9 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from bundlemcp.api.services import (
+from bundlemcp.models import ApiKey, ApiKeyKind, User, utcnow
+from bundlemcp.security import API_KEY_PREFIX, hash_token
+from bundlemcp.services import (
     ApiKeyService,
     BundleService,
     ConfigService,
@@ -17,8 +19,6 @@ from bundlemcp.api.services import (
     ServerService,
     UserService,
 )
-from bundlemcp.models import ApiKey, ApiKeyKind, User, utcnow
-from bundlemcp.security import API_KEY_PREFIX, hash_token
 
 
 async def get_db(request: Request) -> AsyncSession:
