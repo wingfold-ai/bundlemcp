@@ -26,6 +26,7 @@ in the same PR as the change they govern
 | [0017](../adr/0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption | Protected upstreams work; tokens encrypted at rest with key rotation |
 | [0018](../adr/0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | Cross-replica abuse protection; per-IP credential-scan throttling |
 | [0019](../adr/0019-api-service-layer.md) | Thin routers + service layer in the management API | Business logic in framework-free services; one DTO class per module |
+| [0020](../adr/0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | Services/DTOs are library peers any subsystem consumes; framework-free AuthService |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

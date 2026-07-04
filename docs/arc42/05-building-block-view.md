@@ -20,12 +20,19 @@ view: containers — "bundlemcp — Containers"
 ```
 packages/bundlemcp/
 ├── models/     # SQLModel entities (spec 02)
+├── schemas/    # Pydantic DTOs — shared contracts (ADR-0020)
+├── services/   # framework-free business logic incl. AuthService (ADR-0019/0020)
 ├── gateway/    # endpoint serving, bundle composition, sessions,
 │               # protocol relay, middleware chain (specs 12–16, 30–33)
 ├── oauth/      # OAuth 2.1 server + upstream OAuth client (specs 20, 23)
-├── api/        # management REST routers (spec 40)
+├── api/        # management REST routers + FastAPI wiring (spec 40)
 └── store/      # Postgres repositories + Redis accessors
 ```
+
+`services/` and `schemas/` sit below `api/`/`gateway/`/`oauth/`: they import
+neither FastAPI nor `bundlemcp.api`, so every subsystem (and `bootstrap`)
+consumes them as peers — `api/` is one HTTP consumer, not their owner
+(ADR-0020).
 
 Key internal seams:
 

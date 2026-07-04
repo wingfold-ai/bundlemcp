@@ -37,7 +37,11 @@ See [spec/00-overview.md](spec/00-overview.md) and
   Pydantic; frontend TS types are generated from OpenAPI, never hand-written.
 - **Layout:** uv workspace — library code in `packages/bundlemcp/` (flat, no
   `src/`), deployable applications in `apps/` (gateway entrypoint, Nuxt
-  `apps/web`), compose stack in `deploy/`.
+  `apps/web`), compose stack in `deploy/`. Within the library, business logic
+  lives in `bundlemcp/services/` and DTOs in `bundlemcp/schemas/` — both
+  framework-free (no FastAPI, no `bundlemcp.api` import) so `api/`, `gateway/`,
+  `oauth/`, and `bootstrap` consume them as peers (ADR-0019/0020). `api/` is
+  routers + FastAPI wiring only.
 
 ## Development
 
