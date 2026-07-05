@@ -39,3 +39,5 @@ acceptable. Shared structure:
 | [11-tool-discovery.md](11-tool-discovery.md) | Tool discovery and Postgres cache |
 | [12-bundles.md](12-bundles.md) | Bundle composition, tool prefixing, collisions |
 | [13-tool-management.md](13-tool-management.md) | Per-bundle tool enable/disable + overrides |
+| [14-endpoints.md](14-endpoints.md) | Public endpoints, N per bundle, auth modes |
+| [15-endpoint-profiles.md](15-endpoint-profiles.md) | claude.ai / chatgpt / default profiles |
