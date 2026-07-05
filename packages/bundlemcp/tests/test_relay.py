@@ -70,6 +70,20 @@ async def ask_name(ctx: Context) -> str:
     return "declined"
 
 
+@relay_server.tool
+async def read_roots(ctx: Context) -> str:
+    """Requests the client's roots (server->client roots/list, PROT-4)."""
+    roots = await ctx.list_roots()
+    return f"roots:{len(roots)}"
+
+
+@relay_server.tool
+async def emit_log(ctx: Context) -> str:
+    """Emits an upstream log notification (PROT-7)."""
+    await ctx.info("hello-log")
+    return "logged"
+
+
 def upstream_factory(server, extra_headers, **handlers):
     return Client(relay_server, **handlers)
 
@@ -101,7 +115,9 @@ async def seed(engine: AsyncEngine) -> None:
         await db.refresh(bundle)
         db.add(BundleServer(bundle_id=bundle.id, server_id=srv.id))
         db.add(Endpoint(name="main", bundle_id=bundle.id, auth_modes=["api_key"]))
-        for tool in ("quick", "slow_with_progress", "hang", "ask_name"):
+        for tool in (
+            "quick", "slow_with_progress", "hang", "ask_name", "read_roots", "emit_log"
+        ):
             db.add(Tool(server_id=srv.id, name=tool, schema_hash="h", input_schema={}))
         await db.commit()
 
@@ -444,6 +460,74 @@ async def test_elicitation_relayed_to_client(relay_env):
     )
     await asyncio.wait_for(responder_task, timeout=5)
     assert resp.json()["result"]["content"][0]["text"] == "hello Ada"
+
+
+async def test_roots_relayed_to_client(relay_env):
+    """PROT-4: upstream roots/list reaches the client and the reply routes back."""
+    http, app, base_url = relay_env
+    session = await _initialize_with_caps(http, {"roots": {}})
+
+    async def responder():
+        async with http.stream(
+            "GET", "/main/mcp", headers={"Mcp-Session-Id": session}
+        ) as resp:
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                msg = json.loads(line[6:])
+                if msg.get("method") == "roots/list":
+                    async with AsyncClient(
+                        base_url=base_url, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}
+                    ) as c:
+                        await c.post(
+                            "/main/mcp",
+                            headers={"Mcp-Session-Id": session},
+                            json={
+                                "jsonrpc": "2.0",
+                                "id": msg["id"],
+                                "result": {"roots": [{"uri": "file:///w", "name": "w"}]},
+                            },
+                        )
+                    return
+
+    task = asyncio.create_task(responder())
+    await asyncio.sleep(0.2)
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={
+            "jsonrpc": "2.0",
+            "id": 11,
+            "method": "tools/call",
+            "params": {"name": "relay__read_roots", "arguments": {}},
+        },
+    )
+    await asyncio.wait_for(task, timeout=5)
+    assert resp.json()["result"]["content"][0]["text"] == "roots:1"
+
+
+async def test_logging_relayed_to_client_stream(relay_env):
+    """PROT-7: an upstream log notification reaches the client's GET stream."""
+    http, app, base_url = relay_env
+    session = await _initialize_with_caps(http, {"logging": {}})
+
+    reader = asyncio.create_task(
+        _read_stream_until(http, session, lambda e: e.get("method") == "notifications/message")
+    )
+    await asyncio.sleep(0.2)
+    await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={
+            "jsonrpc": "2.0",
+            "id": 12,
+            "method": "tools/call",
+            "params": {"name": "relay__emit_log", "arguments": {}},
+        },
+    )
+    event = await reader
+    assert event["method"] == "notifications/message"
+    assert "hello-log" in json.dumps(event["params"])
 
 
 async def test_elicitation_not_advertised_yields_error(relay_env):

@@ -408,7 +408,30 @@ def _build_relay_handlers(
         result = await _roundtrip("sampling/createMessage", payload)
         return CreateMessageResult.model_validate(result)
 
-    return {"elicitation_handler": elicitation_handler, "sampling_handler": sampling_handler}
+    async def roots_handler(context):
+        # PROT-4: relay the upstream's roots/list to the downstream client.
+        from mcp.types import Root
+
+        result = await _roundtrip("roots/list", {})
+        return [Root.model_validate(r) for r in result.get("roots", [])]
+
+    async def log_handler(message):
+        # PROT-7: forward an upstream log to the client's stream (notification).
+        await runtime.signals.deliver(
+            session_id,
+            {
+                "jsonrpc": "2.0",
+                "method": "notifications/message",
+                "params": message.model_dump(by_alias=True, mode="json", exclude_none=True),
+            },
+        )
+
+    return {
+        "elicitation_handler": elicitation_handler,
+        "sampling_handler": sampling_handler,
+        "roots_handler": roots_handler,
+        "log_handler": log_handler,
+    }
 
 
 async def _drive_upstream(
@@ -446,6 +469,10 @@ async def _drive_upstream(
             handlers["elicitation_handler"] = all_handlers["elicitation_handler"]
         if "sampling" in caps:
             handlers["sampling_handler"] = all_handlers["sampling_handler"]
+        if "roots" in caps:  # PROT-4: Client kwarg is `roots`
+            handlers["roots"] = all_handlers["roots_handler"]
+        if "logging" in caps:  # PROT-7
+            handlers["log_handler"] = all_handlers["log_handler"]
 
     async def run():
         client = runtime.client_factory(pt.server, extra_headers, **handlers)
@@ -1034,6 +1061,10 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return await _handle_resources_read(runtime, request, view, record, body, body.get("id"))
     if method in ("resources/subscribe", "resources/unsubscribe"):
         return await _handle_resources_subscribe(body.get("id"))
+    if method == "logging/setLevel":
+        # PROT-7: accepted; the level applies on each member's next connection
+        # (per-call model — no standing upstream connection to set it on now).
+        return _rpc_result(body.get("id"), {})
     return _rpc_error(body.get("id"), -32601, f"method not supported: {method}")
 
 
