@@ -69,3 +69,22 @@ the business-logic layer.
   the accept-either status decision is an HTTP-contract concern the edge owns.
 - New resources follow ADR-0019's pattern, but the files land under
   `bundlemcp/services/` and `bundlemcp/schemas/`, not `api/`.
+
+## Addendum (2026-07-05)
+
+`api/deps.py` was subsequently split into three specifically-named modules
+within `api/`:
+
+- **`api/providers.py`** — the generic DI glue: `get_db`/`get_redis` and the six
+  `get_*_service` functions.
+- **`api/auth.py`** — the management-auth edge as a `ManagementAuth` class
+  (CSRF origin check + accept-either 401/403 policy), plus `get_auth_service`,
+  `AuthServiceProvider`, and `ServiceAuthProvider`.
+- **`api/pagination.py`** — `Pagination` + `PageProvider`.
+
+The `Annotated[T, Depends(...)]` aliases were renamed from `*Dep` to `*Provider`
+(`DbDep` → `DbProvider`, `ServiceAuthDep` → `ServiceAuthProvider`, …): "provider"
+reads as app-owned glue that yields a value, whereas "dependency" implies
+something external. So references above to "the FastAPI wiring in `deps.py`" now
+mean these three files. Behavior is unchanged — pure code motion, one
+function→class rewrite, and a mechanical rename.

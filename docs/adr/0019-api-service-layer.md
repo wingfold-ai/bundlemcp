@@ -64,3 +64,10 @@ hard to test in isolation, and each router file a mixed-altitude read.
   service wraps Pydantic's `ValidationError` into `InvalidInputError`.
 - The public HTTP contract is otherwise unchanged; the hermetic suite passes
   unmodified.
+
+## Addendum (2026-07-05)
+
+The "Wiring lives in `deps.py`" decision above now lives in three
+specifically-named modules — `api/providers.py`, `api/auth.py`, and
+`api/pagination.py` — with the `*Dep` aliases renamed to `*Provider`. See the
+[ADR-0020](0020-library-level-service-layer.md) addendum.
