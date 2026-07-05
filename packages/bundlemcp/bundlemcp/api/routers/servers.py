@@ -5,7 +5,9 @@ Thin controllers: HTTP concerns only; business logic lives in ServerService.
 
 from fastapi import APIRouter, HTTPException, status
 
-from bundlemcp.api.deps import PageDep, ServerServiceDep, ServiceAuthDep
+from bundlemcp.api.auth import ServiceAuthProvider
+from bundlemcp.api.pagination import PageProvider
+from bundlemcp.api.providers import ServerServiceProvider
 from bundlemcp.schemas import Page, ServerRead, ServerUpsert, ToolRead, UpstreamOAuthConfig
 
 router = APIRouter(prefix="/servers", tags=["servers"])
@@ -13,19 +15,21 @@ router = APIRouter(prefix="/servers", tags=["servers"])
 
 @router.get("")
 async def list_servers(
-    svc: ServerServiceDep, _auth: ServiceAuthDep, page: PageDep
+    svc: ServerServiceProvider, _auth: ServiceAuthProvider, page: PageProvider
 ) -> Page[ServerRead]:
     return await svc.list(offset=page.offset, limit=page.limit)
 
 
 @router.get("/{name}")
-async def get_server(name: str, svc: ServerServiceDep, _auth: ServiceAuthDep) -> ServerRead:
+async def get_server(
+    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+) -> ServerRead:
     return await svc.get(name)
 
 
 @router.put("/{name}")
 async def upsert_server(
-    name: str, body: ServerUpsert, svc: ServerServiceDep, _auth: ServiceAuthDep
+    name: str, body: ServerUpsert, svc: ServerServiceProvider, _auth: ServiceAuthProvider
 ) -> ServerRead:
     if body.name != name:
         raise HTTPException(
@@ -35,7 +39,7 @@ async def upsert_server(
 
 
 @router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_server(name: str, svc: ServerServiceDep, _auth: ServiceAuthDep) -> None:
+async def delete_server(name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider) -> None:
     await svc.delete(name)
 
 
@@ -43,8 +47,8 @@ async def delete_server(name: str, svc: ServerServiceDep, _auth: ServiceAuthDep)
 async def rename_server(
     name: str,
     new_name: str,
-    svc: ServerServiceDep,
-    _auth: ServiceAuthDep,
+    svc: ServerServiceProvider,
+    _auth: ServiceAuthProvider,
     force: bool = False,
 ) -> ServerRead:
     return await svc.rename(name, new_name, force=force)
@@ -52,13 +56,13 @@ async def rename_server(
 
 @router.get("/{name}/tools")
 async def list_server_tools(
-    name: str, svc: ServerServiceDep, _auth: ServiceAuthDep, page: PageDep
+    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider, page: PageProvider
 ) -> Page[ToolRead]:
     return await svc.list_tools(name, offset=page.offset, limit=page.limit)
 
 
 @router.post("/{name}:refresh-tools")
-async def refresh_tools(name: str, svc: ServerServiceDep, _auth: ServiceAuthDep) -> dict:
+async def refresh_tools(name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider) -> dict:
     return await svc.refresh_tools(name)
 
 
@@ -67,18 +71,20 @@ async def refresh_tools(name: str, svc: ServerServiceDep, _auth: ServiceAuthDep)
 
 @router.put("/{name}/upstream-oauth")
 async def set_upstream_oauth(
-    name: str, body: UpstreamOAuthConfig, svc: ServerServiceDep, _auth: ServiceAuthDep
+    name: str, body: UpstreamOAuthConfig, svc: ServerServiceProvider, _auth: ServiceAuthProvider
 ) -> dict:
     return await svc.set_upstream_oauth(name, body)
 
 
 @router.get("/{name}/upstream-oauth")
-async def upstream_oauth_status(name: str, svc: ServerServiceDep, _auth: ServiceAuthDep) -> dict:
+async def upstream_oauth_status(
+    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+) -> dict:
     return await svc.upstream_oauth_status(name)
 
 
 @router.delete("/{name}/upstream-oauth/token", status_code=status.HTTP_204_NO_CONTENT)
 async def disconnect_upstream_oauth(
-    name: str, svc: ServerServiceDep, _auth: ServiceAuthDep
+    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider
 ) -> None:
     await svc.disconnect_upstream_oauth(name)
