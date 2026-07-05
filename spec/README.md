@@ -50,3 +50,11 @@ acceptable. Shared structure:
 | [22-api-keys.md](22-api-keys.md) | API keys for non-OAuth clients |
 | [23-upstream-oauth.md](23-upstream-oauth.md) | OAuth toward protected upstreams, per-(server,user) tokens |
 | [24-identity-forwarding.md](24-identity-forwarding.md) | Header forwarding + `X-MCP-User` |
+
+### Runtime & platform
+| Spec | Contents |
+|---|---|
+| [30-session-management.md](30-session-management.md) | Restart-safe, replica-agnostic MCP sessions |
+| [31-middleware.md](31-middleware.md) | Tool-call middleware chain + metering hook |
+| [32-protocol-passthrough.md](32-protocol-passthrough.md) | Full bidirectional MCP proxy (progress, cancellation, sampling, elicitation) |
+| [33-state-propagation.md](33-state-propagation.md) | Cross-replica config invalidation |
