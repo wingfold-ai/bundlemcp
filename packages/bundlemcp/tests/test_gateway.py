@@ -54,6 +54,12 @@ def greet(name: str) -> str:
     return f"Hello {name}"
 
 
+@echo_server.resource("res://greeting")
+def greeting_resource() -> str:
+    """A static resource."""
+    return "hello resource"
+
+
 notes_server = FastMCP("notes")
 
 
@@ -284,6 +290,39 @@ async def test_completion_routes_prompt_ref(gateway):
     )
     body = resp.json()
     assert "result" in body and "completion" in body["result"]
+
+
+async def test_resources_list_passthrough(gateway):
+    """BND-8: resources merged with URIs unchanged (no prefixing)."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "resources/list")
+    uris = {r["uri"] for r in resp.json()["result"]["resources"]}
+    assert "res://greeting" in uris
+
+
+async def test_resources_read_fans_out_to_owner(gateway):
+    """BND-8: resources/read resolves the owner by fan-out (URI unchanged)."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "resources/read", {"uri": "res://greeting"})
+    contents = resp.json()["result"]["contents"]
+    assert "hello resource" in str(contents)
+
+
+async def test_resources_read_unknown_uri(gateway):
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "resources/read", {"uri": "res://nope"})
+    assert resp.json()["error"]["code"] == -32002
+
+
+async def test_resources_subscribe_accepted(gateway):
+    """Subscribe is accepted (request/response half); push is pooling-dependent."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "resources/subscribe", {"uri": "res://greeting"})
+    assert resp.json()["result"] == {}
 
 
 async def test_call_routes_by_prefix(gateway):

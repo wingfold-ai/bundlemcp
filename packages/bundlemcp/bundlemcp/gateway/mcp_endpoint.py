@@ -892,6 +892,68 @@ async def _handle_completion(runtime, request, view, record, body, rpc_id) -> Re
     return _rpc_result(rpc_id, {"completion": {"values": [], "hasMore": False}})
 
 
+async def _merge_by_key(runtime, request, view, record, call, key: str) -> list[dict[str, Any]]:
+    """Fan-out a resource-list method, merging entries de-duplicated by `key`."""
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for server, member in await _fanout_readonly(
+        runtime, request, record, view.servers.values(), call
+    ):
+        if member is None:
+            continue
+        for obj in member:
+            entry = _dump(obj)
+            identity = entry.get(key)
+            if identity in seen:
+                log.warning("resources.collision", key=identity, server=server.name)
+                continue
+            seen.add(identity)
+            items.append(entry)
+    return items
+
+
+async def _handle_resources_list(runtime, request, view, record, rpc_id) -> Response:
+    """BND-8: merge members' resources; URIs pass through unchanged (dedupe by URI)."""
+    async def call(client):
+        return await client.list_resources()
+
+    items = await _merge_by_key(runtime, request, view, record, call, "uri")
+    return _rpc_result(rpc_id, {"resources": items})
+
+
+async def _handle_resource_templates_list(runtime, request, view, record, rpc_id) -> Response:
+    async def call(client):
+        return await client.list_resource_templates()
+
+    items = await _merge_by_key(runtime, request, view, record, call, "uriTemplate")
+    return _rpc_result(rpc_id, {"resourceTemplates": items})
+
+
+async def _handle_resources_read(runtime, request, view, record, body, rpc_id) -> Response:
+    """BND-8: resolve the owner by fan-out — first enabled member that owns the URI."""
+    uri = (body.get("params") or {}).get("uri", "")
+    for server in view.servers.values():
+        try:
+            headers = await _readonly_headers(runtime, request, server, record)
+            client = runtime.client_factory(server, headers)
+            async with client:
+                result = await client.read_resource_mcp(uri)
+            return _rpc_result(rpc_id, _dump(result))
+        except Exception:
+            continue
+    return _rpc_error(rpc_id, -32002, f"resource not found: {uri}")
+
+
+async def _handle_resources_subscribe(rpc_id) -> Response:
+    """Accept the subscription (request/response half).
+
+    notifications/resources/updated push is pooling-dependent (ADR-0021) and is
+    not delivered between calls under per-call upstream connections.
+    """
+    log.warning("resources.subscribe_push_pooling_dependent")
+    return _rpc_result(rpc_id, {})
+
+
 @router.post("/{endpoint_name}/mcp", include_in_schema=False)
 async def mcp_post(endpoint_name: str, request: Request) -> Response:
     runtime: GatewayRuntime = request.app.state.gateway
@@ -964,6 +1026,14 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return await _handle_prompts_get(runtime, request, view, record, body, body.get("id"))
     if method == "completion/complete":
         return await _handle_completion(runtime, request, view, record, body, body.get("id"))
+    if method == "resources/list":
+        return await _handle_resources_list(runtime, request, view, record, body.get("id"))
+    if method == "resources/templates/list":
+        return await _handle_resource_templates_list(runtime, request, view, record, body.get("id"))
+    if method == "resources/read":
+        return await _handle_resources_read(runtime, request, view, record, body, body.get("id"))
+    if method in ("resources/subscribe", "resources/unsubscribe"):
+        return await _handle_resources_subscribe(body.get("id"))
     return _rpc_error(body.get("id"), -32601, f"method not supported: {method}")
 
 
