@@ -15,7 +15,7 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bundlemcp.gateway.composition import BundleView, PresentedTool, load_bundle_view
+from bundlemcp.gateway.composition import PREFIX_SEP, BundleView, PresentedTool, load_bundle_view
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
 from bundlemcp.gateway.metrics import RATE_LIMIT_REJECTIONS, Counters
 from bundlemcp.gateway.protocol_version import SUPPORTED_PROTOCOL_VERSIONS, negotiate_version
@@ -205,9 +205,7 @@ async def note_auth_failure(request: Request) -> Response | None:
     return resp
 
 
-def _forward_headers(
-    request: Request, pt: PresentedTool, auth_method: str, sub: str | None
-) -> dict[str, str]:
+def _forward_headers(request: Request, server, sub: str | None) -> dict[str, str]:
     """Build the extra headers forwarded upstream.
 
     Applies the server's configured header mappings, skipping denied headers,
@@ -215,7 +213,7 @@ def _forward_headers(
     identity header is always stripped).
     """
     extra: dict[str, str] = {}
-    for client_header, upstream_header in pt.server.forward_headers.items():
+    for client_header, upstream_header in server.forward_headers.items():
         lower = client_header.lower()
         if lower in DENIED_FORWARD_HEADERS or lower.startswith(("sec-", "proxy-")):
             continue
@@ -224,7 +222,7 @@ def _forward_headers(
             extra[upstream_header] = value
     # client-supplied identity header is always stripped; gateway injects its own
     extra.pop(IDENTITY_HEADER, None)
-    if pt.server.send_identity_header and sub is not None:
+    if server.send_identity_header and sub is not None:
         extra[IDENTITY_HEADER] = sub
     return extra
 
@@ -687,7 +685,7 @@ async def _handle_call(
         )
         return _rpc_error(rpc_id, -32000, decision.reason or "call denied")
 
-    extra_headers = _forward_headers(request, pt, record.auth_method, sub)
+    extra_headers = _forward_headers(request, pt.server, sub)
     extra_headers.update(upstream_headers)  # spec 23: upstream OAuth bearer wins
     progress_token = (params.get("_meta") or {}).get("progressToken")
     cfg = await _timeout_config(runtime)
@@ -744,6 +742,154 @@ async def _handle_call(
         payload = outcome.result.model_dump(by_alias=True, mode="json", exclude_none=True)
         return _rpc_result(rpc_id, payload)
     return _rpc_error(rpc_id, outcome.code or -32000, outcome.error_message or "call failed")
+
+
+# --- read-only passthrough: prompts / resources / completions (BND-8, PROT-9) ---
+#
+# Live, uncurated: each request fans out to the enabled member servers. Prompt
+# names are prefixed `server__prompt`; resource URIs pass through unchanged and
+# are routed on read by fan-out (first owner wins). No metering, no tool-call
+# audit — these are reads.
+
+
+def _sub_for(record: SessionRecord) -> str | None:
+    return record.user_id or (f"api_key:{record.api_key_id}" if record.api_key_id else None)
+
+
+async def _readonly_headers(
+    runtime: GatewayRuntime, request: Request, server, record: SessionRecord
+) -> dict[str, str]:
+    """Forward headers + upstream-OAuth bearer for a read-only member call.
+
+    Raises NeedsConnect if an upstream_oauth member has no usable token.
+    """
+    headers = _forward_headers(request, server, _sub_for(record))
+    if server.auth_mode == ServerAuthMode.UPSTREAM_OAUTH:
+        if runtime.upstream_tokens is None:
+            raise NeedsConnect("upstream_oauth_not_configured")
+        token_user: uuid.UUID | None = None
+        if server.identity_mode == IdentityMode.PER_USER:
+            if record.user_id is None:
+                raise NeedsConnect("per_user_requires_user")
+            token_user = uuid.UUID(record.user_id)
+        access = await runtime.upstream_tokens.ensure_access_token(server, token_user)
+        headers["Authorization"] = f"Bearer {access}"
+    return headers
+
+
+def _connect_hint(runtime: GatewayRuntime, server) -> str:
+    suffix = "?as=me" if server.identity_mode == IdentityMode.PER_USER else ""
+    url = f"{runtime.public_url}/oauth/upstream/{server.name}/connect{suffix}"
+    return f"upstream not connected — connect at {url}"
+
+
+async def _fanout_readonly(runtime, request, record, servers, call):
+    """Run `call(client)` against each member concurrently; skip + WARN failures.
+
+    Returns a list of (server, result | None) — a None means that member was
+    unreachable/unconnected and was omitted (DISC-4: degrade observably).
+    """
+    import asyncio
+
+    async def _one(server):
+        try:
+            headers = await _readonly_headers(runtime, request, server, record)
+        except NeedsConnect:
+            log.warning("passthrough.member_unconnected", server=server.name)
+            return server, None
+        try:
+            client = runtime.client_factory(server, headers)
+            async with client:
+                return server, await call(client)
+        except Exception:
+            log.warning("passthrough.member_failed", server=server.name, exc_info=True)
+            return server, None
+
+    return list(await asyncio.gather(*[_one(s) for s in servers]))
+
+
+def _dump(obj) -> dict[str, Any]:
+    return obj.model_dump(by_alias=True, mode="json", exclude_none=True)
+
+
+async def _handle_prompts_list(runtime, request, view, record, rpc_id) -> Response:
+    """PROT-11/BND-8: merge members' prompts with `server__name` prefixing."""
+    async def call(client):
+        return await client.list_prompts()
+
+    prompts: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for server, member_prompts in await _fanout_readonly(
+        runtime, request, record, view.servers.values(), call
+    ):
+        if member_prompts is None:
+            continue
+        for prompt in member_prompts:
+            entry = _dump(prompt)
+            entry["name"] = f"{server.name}{PREFIX_SEP}{prompt.name}"
+            if entry["name"] in seen:
+                continue
+            seen.add(entry["name"])
+            prompts.append(entry)
+    return _rpc_result(rpc_id, {"prompts": prompts})
+
+
+async def _handle_prompts_get(runtime, request, view, record, body, rpc_id) -> Response:
+    params = body.get("params") or {}
+    presented = params.get("name", "")
+    server_name, _, prompt_name = presented.partition(PREFIX_SEP)  # BND-2 first-`__`
+    server = view.servers.get(server_name)
+    if server is None or not prompt_name:
+        return _rpc_error(rpc_id, -32602, f"unknown prompt: {presented}")
+    try:
+        headers = await _readonly_headers(runtime, request, server, record)
+    except NeedsConnect:
+        return _rpc_error(rpc_id, -32000, _connect_hint(runtime, server))
+    try:
+        client = runtime.client_factory(server, headers)
+        async with client:
+            result = await client.get_prompt_mcp(prompt_name, params.get("arguments") or None)
+    except Exception as exc:
+        log.warning("prompts.get_failed", server=server_name)
+        return _rpc_error(rpc_id, -32000, str(exc)[:200])
+    return _rpc_result(rpc_id, _dump(result))
+
+
+async def _handle_completion(runtime, request, view, record, body, rpc_id) -> Response:
+    """PROT-9: route completion to the owning member (prompt ref de-prefixed;
+    resource-template ref resolved by URI fan-out)."""
+    from mcp.types import PromptReference, ResourceTemplateReference
+
+    params = body.get("params") or {}
+    ref = params.get("ref") or {}
+    argument = params.get("argument") or {}
+    context = (params.get("context") or {}).get("arguments")
+
+    if ref.get("type") == "ref/prompt":
+        presented = ref.get("name", "")
+        server_name, _, prompt_name = presented.partition(PREFIX_SEP)
+        server = view.servers.get(server_name)
+        if server is None or not prompt_name:
+            return _rpc_error(rpc_id, -32602, f"unknown prompt ref: {presented}")
+        member_ref = PromptReference(type="ref/prompt", name=prompt_name)
+        candidates = [server]
+    elif ref.get("type") == "ref/resource":
+        member_ref = ResourceTemplateReference(type="ref/resource", uri=ref.get("uri", ""))
+        candidates = list(view.servers.values())  # URI is not prefixed → fan-out
+    else:
+        return _rpc_error(rpc_id, -32602, f"unsupported completion ref: {ref.get('type')}")
+
+    for server in candidates:
+        try:
+            headers = await _readonly_headers(runtime, request, server, record)
+            client = runtime.client_factory(server, headers)
+            async with client:
+                result = await client.complete_mcp(member_ref, argument, context)
+            return _rpc_result(rpc_id, _dump(result))
+        except Exception:
+            log.warning("completion.member_failed", server=server.name)
+            continue
+    return _rpc_result(rpc_id, {"completion": {"values": [], "hasMore": False}})
 
 
 @router.post("/{endpoint_name}/mcp", include_in_schema=False)
@@ -812,6 +958,12 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         if limited is not None:
             return limited
         return await _handle_call(runtime, request, view, record, body)
+    if method == "prompts/list":
+        return await _handle_prompts_list(runtime, request, view, record, body.get("id"))
+    if method == "prompts/get":
+        return await _handle_prompts_get(runtime, request, view, record, body, body.get("id"))
+    if method == "completion/complete":
+        return await _handle_completion(runtime, request, view, record, body, body.get("id"))
     return _rpc_error(body.get("id"), -32601, f"method not supported: {method}")
 
 

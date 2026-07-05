@@ -48,6 +48,12 @@ def fail(text: str) -> str:
     raise ValueError("boom")
 
 
+@echo_server.prompt
+def greet(name: str) -> str:
+    """A greeting prompt."""
+    return f"Hello {name}"
+
+
 notes_server = FastMCP("notes")
 
 
@@ -236,6 +242,48 @@ async def test_initialize_rejects_unsupported_version(gateway):
     err = resp.json()["error"]
     assert err["code"] == -32602
     assert "unsupported" in err["message"].lower()
+
+
+async def test_prompts_list_prefixed(gateway):
+    """BND-8: prompts merged across members with `server__name` prefixing."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "prompts/list")
+    names = {p["name"] for p in resp.json()["result"]["prompts"]}
+    assert "echo__greet" in names
+
+
+async def test_prompts_get_routes_and_deprefixes(gateway):
+    """BND-8: prompts/get de-prefixes and forwards to the owning member."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(
+        http, "main", session, "prompts/get",
+        {"name": "echo__greet", "arguments": {"name": "Ada"}},
+    )
+    result = resp.json()["result"]
+    assert "messages" in result
+    assert "Ada" in str(result["messages"])
+
+
+async def test_prompts_get_unknown_rejected(gateway):
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "prompts/get", {"name": "echo__nope"})
+    assert resp.json()["error"]["code"] in (-32602, -32000)
+
+
+async def test_completion_routes_prompt_ref(gateway):
+    """PROT-9: completion/complete is routed (no -32601 fallthrough)."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(
+        http, "main", session, "completion/complete",
+        {"ref": {"type": "ref/prompt", "name": "echo__greet"},
+         "argument": {"name": "name", "value": "A"}},
+    )
+    body = resp.json()
+    assert "result" in body and "completion" in body["result"]
 
 
 async def test_call_routes_by_prefix(gateway):
