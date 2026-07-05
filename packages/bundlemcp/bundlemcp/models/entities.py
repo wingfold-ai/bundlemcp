@@ -91,6 +91,9 @@ class McpServer(SQLModel, table=True):
     auth_mode: str = Field(default=ServerAuthMode.NONE)
     identity_mode: str = Field(default=IdentityMode.SHARED)
     send_identity_header: bool = Field(default=True)  # FWD-3
+    # DISC-6: advertised-capability snapshot from the upstream initialize result
+    # (source for PROT-11 aggregation). A key present == that capability advertised.
+    capabilities: dict = Field(default_factory=dict, sa_column=Column(JSON))
     health_status: str = Field(default=HealthStatus.UNKNOWN)
     last_error: str | None = None
     created_at: datetime = Field(default_factory=utcnow, sa_column=_ts())

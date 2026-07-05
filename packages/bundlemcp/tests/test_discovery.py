@@ -56,6 +56,33 @@ async def test_discover_syncs_tools(engine):
         assert srv.health_status == HealthStatus.OK
 
 
+async def test_discover_captures_capabilities(engine):
+    """DISC-6: the upstream's advertised capabilities are snapshotted for PROT-11."""
+    server = await seed_server(engine)
+    upstream = FastMCP("caps")
+
+    @upstream.tool
+    def t(x: str) -> str:
+        return x
+
+    @upstream.prompt
+    def p() -> str:
+        return "hi"
+
+    @upstream.resource("res://a")
+    def r() -> str:
+        return "a"
+
+    svc = DiscoveryService(session_factory(engine), factory_for(upstream))
+    await svc.discover(server.id)
+
+    async with session_factory(engine)() as db:
+        srv = (await db.execute(select(McpServer))).scalar_one()
+    assert "tools" in srv.capabilities
+    assert "prompts" in srv.capabilities
+    assert "resources" in srv.capabilities
+
+
 async def test_rediscovery_is_hash_stable(engine):
     """DISC-2: unchanged definitions produce zero writes on re-sync."""
     server = await seed_server(engine)

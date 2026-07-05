@@ -86,9 +86,16 @@ class DiscoveryService:
                 client = self._client_factory(server, {})
                 async with client:
                     upstream_tools = await client.list_tools()
+                    init = client.initialize_result
             except Exception as exc:
                 return await self._record_failure(db, server, str(exc))
 
+            # DISC-6: snapshot the upstream's advertised capabilities for PROT-11.
+            if init is not None and init.capabilities is not None:
+                server.capabilities = init.capabilities.model_dump(
+                    mode="json", by_alias=True, exclude_none=True
+                )
+                db.add(server)
             result = await self._sync_tools(db, server, upstream_tools)
             await self._record_success(db, server)
             return result
