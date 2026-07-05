@@ -180,6 +180,64 @@ async def test_initialize_and_list_tools_prefixed(gateway):
     assert tools == {"echo__say", "echo__fail", "notes__write_note"}
 
 
+async def _initialize_raw(http, endpoint="main", version="2025-11-25"):
+    return await http.post(
+        f"/{endpoint}/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": version, "capabilities": {}},
+        },
+    )
+
+
+async def test_initialize_tools_only_when_no_member_caps(gateway):
+    """PROT-11: with no advertised member capabilities, only tools is advertised."""
+    http, app, hook = gateway
+    caps = (await _initialize_raw(http)).json()["result"]["capabilities"]
+    assert set(caps) == {"tools"}
+
+
+async def test_initialize_aggregates_member_capabilities(gateway):
+    """PROT-11: prompts/resources/completions/logging advertised iff a member supports them."""
+    http, app, hook = gateway
+    async with app.state.session_factory() as db:
+        echo = (
+            await db.execute(select(McpServer).where(McpServer.name == "echo"))
+        ).scalar_one()
+        echo.capabilities = {
+            "prompts": {"listChanged": True},
+            "resources": {"subscribe": True, "listChanged": True},
+            "completions": {},
+            "logging": {},
+        }
+        db.add(echo)
+        await db.commit()
+
+    caps = (await _initialize_raw(http)).json()["result"]["capabilities"]
+    assert caps["tools"] == {"listChanged": True}
+    assert caps["prompts"] == {"listChanged": True}
+    assert caps["resources"]["subscribe"] is True
+    assert "completions" in caps and "logging" in caps
+
+
+async def test_initialize_offers_latest_for_newer_version(gateway):
+    """PROT-12: a client asking for a newer-than-known version is offered our latest."""
+    http, app, hook = gateway
+    resp = await _initialize_raw(http, version="2099-01-01")
+    assert resp.json()["result"]["protocolVersion"] == "2025-11-25"
+
+
+async def test_initialize_rejects_unsupported_version(gateway):
+    """PROT-12: a version older than the supported window fails initialize."""
+    http, app, hook = gateway
+    resp = await _initialize_raw(http, version="2020-01-01")
+    err = resp.json()["error"]
+    assert err["code"] == -32602
+    assert "unsupported" in err["message"].lower()
+
+
 async def test_call_routes_by_prefix(gateway):
     """BND-3 + MID-3: success path with metering pre/post."""
     http, app, hook = gateway
