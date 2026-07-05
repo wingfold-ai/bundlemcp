@@ -15,7 +15,10 @@ resolution, Node+Python runtime images).
 - **SRV-1** A server has: unique slug-safe `name` (doubles as the tool prefix),
   optional `description`, `url` (http/https), `static_headers`,
   `forward_headers`, `auth_mode` (`none` | `static_headers` |
-  `upstream_oauth`). See [02-domain-model.md](02-domain-model.md).
+  `upstream_oauth`), and a `capabilities` snapshot captured at discovery
+  ([DISC-6](11-tool-discovery.md)) that feeds capability aggregation
+  ([PROT-11](32-protocol-passthrough.md)). See
+  [02-domain-model.md](02-domain-model.md).
 - **SRV-2** Create/update/delete/list/get MUST be available in the management
   API ([40-management-api.md](40-management-api.md)) and the UI. Create and
   update MUST validate the config by attempting an MCP `initialize` +

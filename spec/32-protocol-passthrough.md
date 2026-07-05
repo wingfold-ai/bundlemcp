@@ -68,14 +68,34 @@ timeouts and cancellation such calls are unusable through a gateway.
 ### Capability & version aggregation
 
 - **PROT-11** The bundle's `initialize` result advertises a capability iff at
-  least one enabled member server supports it (tools/prompts/resources
-  computed from live+cached knowledge; `listChanged: true` where the gateway
-  can emit it). The gateway itself always supports tools.
-- **PROT-12** Protocol version: the gateway negotiates its supported version
-  with each side independently and translates where message shapes differ
-  between the client's and an upstream's negotiated versions; unsupported
-  version combinations fail `initialize` with a clear error rather than
-  degrading silently.
+  least one enabled member server supports it. The set is computed from the
+  per-server `capabilities` snapshot captured at discovery
+  ([DISC](11-tool-discovery.md)): `tools` (always — the gateway supports tools
+  even with zero members), `prompts`, `resources`, `completions`, and
+  `logging`. `listChanged: true` is advertised where the gateway can emit it
+  (tools always; prompts/resources when ≥1 member advertises it);
+  `resources.subscribe: true` when ≥1 member supports it.
+- **PROT-12** Protocol version: the gateway declares a supported-version window
+  and negotiates the highest version common with each side independently — with
+  the client at its `initialize`, and with each upstream on connect. Message
+  shapes are translated across the bounded set of differences within the
+  window; a client requesting a version outside the window fails `initialize`
+  with a clear error rather than degrading silently.
+
+## Implementation
+
+**Implemented** ([ADR-0021](../docs/adr/0021-mcp-surface-completion.md)):
+prompts/resources/completions routing (PROT-9), capability aggregation
+(PROT-11), version negotiation + bounded translation (PROT-12), and the
+roots/logging relay (PROT-4/PROT-7) on the request/response path and within an
+active call. **Pooling-dependent residual:** any upstream→client *push* that
+must arrive between calls — `notifications/resources/updated` for a
+`resources/subscribe`, PROT-7 upstream `notifications/message`, and PROT-10
+upstream `*/list_changed` **outside an active call** — requires a persistent
+upstream connection, which the per-call-connection model (ADR-0012) does not
+provide. These capabilities are advertised and delivered *within* an active
+call window; full between-call push lands with connection pooling
+([SES-8](30-session-management.md), ADR-0012).
 
 ## Out of scope
 

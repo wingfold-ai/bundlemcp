@@ -22,6 +22,7 @@ per-(server, user) instead of per-server.
 | `static_headers` (json) | headers always sent upstream (e.g. static bearer) |
 | `forward_headers` (json) | client→upstream header forwarding map ([24-identity-forwarding.md](24-identity-forwarding.md)) |
 | `auth_mode` | `none` \| `static_headers` \| `upstream_oauth` ([23-upstream-oauth.md](23-upstream-oauth.md)) |
+| `capabilities` (json) | advertised-capability snapshot from the upstream `initialize`, captured at discovery ([DISC-6](11-tool-discovery.md)); source for [PROT-11](32-protocol-passthrough.md) aggregation |
 | `health_status`, `last_error` | `ok` \| `error` + message ([10-server-registry.md](10-server-registry.md)) |
 | `created_at`, `updated_at` | |
 

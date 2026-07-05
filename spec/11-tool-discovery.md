@@ -30,11 +30,21 @@ the substrate for per-bundle overrides ([13-tool-management.md](13-tool-manageme
   hazard).
 - **DISC-5** Tool input schemas are stored verbatim (json) and served
   unmodified unless a profile or override transforms them.
+- **DISC-6** Discovery also captures the server's **advertised capabilities**
+  from the upstream `initialize` result (which of tools/prompts/resources/
+  completions/logging it supports, plus `listChanged`/`subscribe` flags) into
+  `McpServer.capabilities` ([SRV-1](10-server-registry.md),
+  [DOM](02-domain-model.md)). This snapshot is the source for capability
+  aggregation ([PROT-11](32-protocol-passthrough.md)) so `initialize` need not
+  fan out to members. Refreshed on every discovery run; degrade-observably on
+  failure (DISC-4), keeping the last-known snapshot.
 
 ## Out of scope
 
-- Discovery of resources/prompts is handled in [12-bundles.md](12-bundles.md)
-  (pass-through, not cached in v1).
+- **Content** discovery of resources/prompts is handled in
+  [12-bundles.md](12-bundles.md) (live pass-through, not cached in v1) — only
+  the capability *flags* above are stored, never the prompt/resource lists
+  themselves.
 
 ## Open questions
 

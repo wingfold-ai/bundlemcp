@@ -38,11 +38,21 @@ to the owning upstream by parsing the prefix.
   take effect for new requests without a gateway restart; live sessions pick
   up changes on their next `tools/list` and SHOULD receive a
   `notifications/tools/list_changed` when the serving session supports it.
-- **BND-8** Resources and prompts of member servers are passed through with
-  the same prefixing scheme where names collide; tools are the curated
-  surface, resources/prompts are uncurated passthrough (routing incl.
-  `resources/read`, `prompts/get`, and completions per
-  [PROT-9](32-protocol-passthrough.md)).
+- **BND-8** Resources and prompts of member servers are **uncurated
+  passthrough** (tools are the curated surface); they are fetched **live** from
+  members per request and are not cached ([DISC](11-tool-discovery.md)).
+  Routing rules:
+  - **Prompts** carry a name, so they are **always prefixed**
+    `<server_name>__<prompt_name>` (BND-2 scheme); `prompts/get` and completion
+    prompt-refs de-prefix on the first `__` to find the owning member.
+  - **Resources** are keyed by opaque URI, not a prefixable name, so URIs are
+    passed through **unchanged**. `resources/list` (and
+    `resources/templates/list`) merge members' entries verbatim, de-duplicating
+    by URI (first enabled member wins, collisions logged). `resources/read`,
+    `resources/subscribe`, and resource-template completions resolve the owning
+    member by **fan-out** — trying enabled members in order and taking the first
+    that owns the URI.
+  - Completions are routed per [PROT-9](32-protocol-passthrough.md).
 - **BND-9** The capability set the bundle advertises at `initialize` is
   computed per [PROT-11](32-protocol-passthrough.md).
 - **BND-10** Bundle `name` is the natural key for export/bootstrap upserts
@@ -54,6 +64,15 @@ to the owning upstream by parsing the prefix.
 
 - Nested bundles (a bundle containing a bundle).
 - Per-bundle tool renaming beyond overrides.
+
+## Implementation
+
+BND-8/BND-9 **implemented** ([ADR-0021](../docs/adr/0021-mcp-surface-completion.md)):
+prompts/resources/completions are live passthrough with no cache or curation
+tables; the prefix/URI routing above is enforced in `gateway/composition.py`
+(`resolve_prompt`) and `gateway/mcp_endpoint.py` (fan-out handlers). Capability
+aggregation reads a per-server `capabilities` snapshot captured at discovery
+([DISC](11-tool-discovery.md)).
 
 ## Open questions
 

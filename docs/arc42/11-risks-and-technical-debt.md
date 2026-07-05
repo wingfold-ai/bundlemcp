@@ -14,8 +14,15 @@
 
 - No metamcp-migration importer — manual migration for the primary user
   ([roadmap](../../spec/README.md)).
-- Prompts/resources are uncurated passthrough (BND-8) — no per-bundle
-  curation like tools have.
+- Prompts/resources are uncurated live passthrough (BND-8,
+  [ADR-0021](../adr/0021-mcp-surface-completion.md)) — implemented, but by design
+  no per-bundle curation like tools have.
+- **Upstream→client push between calls is pooling-dependent**
+  ([ADR-0021](../adr/0021-mcp-surface-completion.md)): `resources/subscribe`
+  updates, PROT-7 upstream log push, and PROT-10 upstream `list_changed` outside
+  an active call need a persistent upstream connection that the per-call model
+  (ADR-0012) lacks. Advertised + delivered within an active-call window; full
+  between-call push lands with connection pooling (SES-8).
 - Single scope in OAuth; audience-only binding (OAS-10) — fine-grained scopes
   deferred.
 - Inspector covers tools only (spec/53 out-of-scope list).
