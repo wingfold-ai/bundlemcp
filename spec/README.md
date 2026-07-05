@@ -41,3 +41,12 @@ acceptable. Shared structure:
 | [13-tool-management.md](13-tool-management.md) | Per-bundle tool enable/disable + overrides |
 | [14-endpoints.md](14-endpoints.md) | Public endpoints, N per bundle, auth modes |
 | [15-endpoint-profiles.md](15-endpoint-profiles.md) | claude.ai / chatgpt / default profiles |
+
+### Authentication & identity
+| Spec | Contents |
+|---|---|
+| [20-oauth-server.md](20-oauth-server.md) | Built-in OAuth 2.1 server for MCP clients (DCR, PKCE, introspection) |
+| [21-admin-auth.md](21-admin-auth.md) | OIDC-only admin login |
+| [22-api-keys.md](22-api-keys.md) | API keys for non-OAuth clients |
+| [23-upstream-oauth.md](23-upstream-oauth.md) | OAuth toward protected upstreams, per-(server,user) tokens |
+| [24-identity-forwarding.md](24-identity-forwarding.md) | Header forwarding + `X-MCP-User` |
