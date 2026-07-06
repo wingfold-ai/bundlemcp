@@ -61,3 +61,14 @@ acceptable. Shared structure:
 | [40-management-api.md](40-management-api.md) | Service-authenticated REST management API |
 | [41-bootstrap.md](41-bootstrap.md) | Idempotent startup provisioning |
 | [42-export-import.md](42-export-import.md) | Config export/import |
+
+### Operations & UI
+| Spec | Contents |
+|---|---|
+| [50-audit-log.md](50-audit-log.md) | Per-tool-call audit records |
+| [51-observability.md](51-observability.md) | Logs, metrics, health probes |
+| [52-live-logs.md](52-live-logs.md) | Live log stream in the UI |
+| [53-inspector.md](53-inspector.md) | Built-in MCP inspector |
+| [60-admin-ui.md](60-admin-ui.md) | Nuxt 4 admin frontend |
+| [61-docs-and-onboarding.md](61-docs-and-onboarding.md) | User-facing docs, client guides, demo seed |
+| [62-architecture-documentation.md](62-architecture-documentation.md) | arc42 + ADRs + LikeC4 (docs/ tree) |
