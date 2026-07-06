@@ -6,6 +6,7 @@ OAuth endpoints, bootstrap) stay thin and map failures at their own edge.
 """
 
 from bundlemcp.services.api_key_service import ApiKeyService
+from bundlemcp.services.audit_service import AuditService
 from bundlemcp.services.auth_service import AuthService, Principal
 from bundlemcp.services.bundle_service import BundleService
 from bundlemcp.services.config_service import ConfigService
@@ -15,6 +16,7 @@ from bundlemcp.services.user_service import UserService
 
 __all__ = [
     "ApiKeyService",
+    "AuditService",
     "AuthService",
     "BundleService",
     "ConfigService",

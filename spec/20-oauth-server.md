@@ -32,7 +32,13 @@ application layer can resolve a stable `sub`.
   `active`, `sub` (bundlemcp user id — the stable billing key, see
   [02-domain-model.md](02-domain-model.md) `User`), `client_id`, `exp`,
   `scope`. Callable by upstream services; protected against anonymous
-  fishing (requires a valid API key, service token, or client credentials).
+  fishing (requires a valid API key, service token, or client credentials —
+  a service key supplied as the RFC 7662 HTTP-Basic client secret counts).
+  Gateway **API keys** presented as the introspected token are reported as
+  `active` with `sub` `api_key:<id>` ([FWD-3](24-identity-forwarding.md)
+  identity format), so introspecting upstreams ([FWD-4](24-identity-forwarding.md))
+  can serve api_key-authenticated callers and tool discovery of such
+  upstreams can authenticate via a static `authorization` header.
 - **OAS-6 Revocation** (RFC 7009): `POST /oauth/revoke` for access and
   refresh tokens.
 - **OAS-7** Resource-server validation of bearer tokens on endpoints MUST be a

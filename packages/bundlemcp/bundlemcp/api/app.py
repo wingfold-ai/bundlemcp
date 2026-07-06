@@ -9,7 +9,16 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
-from bundlemcp.api.routers import api_keys, bundles, config, endpoints, servers, users
+from bundlemcp.api.routers import (
+    api_keys,
+    audit,
+    bundles,
+    config,
+    endpoints,
+    me,
+    servers,
+    users,
+)
 from bundlemcp.bootstrap import run_bootstrap
 from bundlemcp.crypto import token_cipher
 from bundlemcp.gateway import mcp_endpoint
@@ -159,7 +168,14 @@ def create_app(
             settings=settings,
         )
         app.state.admin_sessions = AdminSessionStore(app.state.redis)
-        app.state.oidc_provider = oidc_provider or build_provider(settings)
+        provider = oidc_provider or build_provider(settings)
+        app.state.oidc_provider = provider
+        preload = getattr(provider, "preload", None)
+        if preload is not None:
+            try:
+                await preload()  # authorize_url needs the discovered metadata
+            except Exception:
+                log.warning("oidc.preload_failed", exc_info=True)
         await run_bootstrap(app.state.session_factory, app.state.redis, settings)  # spec 41
 
         # STP-2: one subscriber per replica; runtime-config cache hangs off it
@@ -224,12 +240,27 @@ def create_app(
     )
     app.add_exception_handler(ServiceError, _service_error_handler)
 
+    if settings.web_origins:
+        # SEC-4: credentials-enabled CORS for exactly the web app's origin(s)
+        from fastapi.middleware.cors import CORSMiddleware
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[o.rstrip("/") for o in settings.web_origins],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["Mcp-Session-Id"],
+        )
+
     for router in (
         servers.router,
         bundles.router,
         endpoints.router,
         api_keys.router,
         config.router,
+        audit.router,
+        me.router,
     ):
         app.include_router(router, prefix=API_PREFIX)
     # OAuth server routes at root for .well-known discovery (spec 20)

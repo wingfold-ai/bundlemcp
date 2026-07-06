@@ -17,7 +17,10 @@ scripts).
   `bundles`, `bundles/{id}/servers`, `bundles/{id}/tools`, `endpoints`,
   `api-keys`, `users`, `audit-records`, `config`, `profiles` (read-only,
   [PROF-5](15-endpoint-profiles.md)), plus action routes (e.g.
-  `servers/{id}:refresh-tools`, `servers/{id}:probe`).
+  `servers/{id}:refresh-tools`, `servers/{id}:probe`), and `me` (caller
+  identity for the UI: kind, email, `is_admin` — answers 200 for any active
+  signed-in session, admin or not, so the UI can render its "no access"
+  page ([UI-2](60-admin-ui.md)); service keys get their key identity).
 - **API-2** Auth: admin browser session ([21-admin-auth.md](21-admin-auth.md))
   or `service`-kind API key ([KEY-2](22-api-keys.md)) via `Authorization`
   header. All routes require one of the two; 401/403 are structured.

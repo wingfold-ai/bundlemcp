@@ -209,14 +209,39 @@ async def token(  # noqa: PLR0911 - protocol branching
     return _token_error("unsupported_grant_type")
 
 
+def _basic_password(authorization: str | None) -> str | None:
+    """Extract the password from an HTTP Basic header (RFC 7662 client auth)."""
+    if not authorization or not authorization.lower().startswith("basic "):
+        return None
+    import base64
+    import binascii
+
+    try:
+        decoded = base64.b64decode(authorization[6:], validate=True).decode()
+    except (binascii.Error, UnicodeDecodeError):
+        return None
+    _, _, password = decoded.partition(":")
+    return password or None
+
+
 @router.post("/oauth/introspect", include_in_schema=False)
 async def introspect(request: Request, token: str = Form(...)):
-    """Requires a service API key; reports sub + endpoint audience."""
+    """Requires a service API key; reports sub + endpoint audience.
+
+    Upstream resource servers doing RFC 7662 client auth (HTTP Basic) may
+    supply the service key as the client secret — the sequence ultra-mcp's
+    servers use against their gateway (OAS-5 "client credentials").
+    """
     async with request.app.state.session_factory() as db:
-        caller = await AuthService(db).authenticate_api_key(
+        auth_service = AuthService(db)
+        caller = await auth_service.authenticate_api_key(
             authorization=request.headers.get("authorization"),
             x_api_key=request.headers.get("x-api-key"),
         )
+        if caller is None:
+            caller = await auth_service.resolve_api_key(
+                _basic_password(request.headers.get("authorization"))
+            )
         if caller is None or caller.kind != ApiKeyKind.SERVICE:
             raise HTTPException(401, "service API key required")
 
@@ -227,7 +252,19 @@ async def introspect(request: Request, token: str = Form(...)):
                 )
             )
         ).scalar_one_or_none()
-        if row is None or row.revoked or _aware(row.expires_at) < utcnow():
+        if row is None:
+            # FWD-4: forwarded bearers may be gateway API keys, not OAuth
+            # tokens — report them with the FWD-3 identity format so
+            # introspecting upstreams can serve api_key callers too.
+            key = await auth_service.resolve_api_key(token)
+            if key is not None:
+                return {
+                    "active": True,
+                    "sub": f"api_key:{key.id}",
+                    "token_use": "api_key",
+                }
+            return {"active": False}
+        if row.revoked or _aware(row.expires_at) < utcnow():
             return {"active": False}
         user = (
             await db.execute(select(User).where(User.id == row.user_id))

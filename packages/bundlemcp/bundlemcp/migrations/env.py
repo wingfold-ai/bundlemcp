@@ -52,6 +52,9 @@ async def run_migrations_online() -> None:
             if engine.dialect.name == "postgresql":
                 from sqlalchemy import text
 
+                # clear any aborted transaction first so the unlock itself
+                # can run and the ORIGINAL migration error propagates
+                await connection.rollback()
                 await connection.execute(
                     text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": MIGRATION_LOCK_ID}
                 )

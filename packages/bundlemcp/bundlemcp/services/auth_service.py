@@ -77,12 +77,11 @@ class AuthService:
         """Extract a key from request headers and resolve it in one step."""
         return await self.resolve_api_key(self.extract_key(authorization, x_api_key))
 
-    async def admin_principal(self, session_id: str | None) -> Principal | None:
-        """Resolve a browser session to an admin Principal.
+    async def session_user(self, session_id: str | None) -> User | None:
+        """Resolve a browser session to its active user, admin or not.
 
         is_active/is_admin are re-checked against the DB so deactivation and
-        demotion take effect immediately, not at session expiry. The caller
-        still owns the CSRF origin check on mutating requests.
+        demotion take effect immediately, not at session expiry.
         """
         if self._admin_sessions is None or not session_id:
             return None
@@ -94,6 +93,16 @@ class AuthService:
         user = (
             await self._db.execute(select(User).where(User.id == uuid.UUID(session.user_id)))
         ).scalar_one_or_none()
-        if user is None or not user.is_active or not user.is_admin:
+        if user is None or not user.is_active:
             return None
-        return Principal(kind="admin", user_id=session.user_id)
+        return user
+
+    async def admin_principal(self, session_id: str | None) -> Principal | None:
+        """Resolve a browser session to an admin Principal.
+
+        The caller still owns the CSRF origin check on mutating requests.
+        """
+        user = await self.session_user(session_id)
+        if user is None or not user.is_admin:
+            return None
+        return Principal(kind="admin", user_id=str(user.id))

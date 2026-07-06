@@ -32,10 +32,14 @@ class ManagementAuth:
         admin = await auth.admin_principal(request.cookies.get(SESSION_COOKIE))
         if admin is not None:
             if request.method not in self.SAFE_METHODS:
-                # SEC-4: cookie-authenticated mutations require a same-origin Origin/Referer
+                # SEC-4: cookie-authenticated mutations require an Origin/Referer
+                # matching the gateway itself or an allowlisted web-app origin
                 origin = request.headers.get("origin") or request.headers.get("referer")
-                expected = str(request.app.state.settings.public_url).rstrip("/")
-                if origin is None or not origin.startswith(expected):
+                settings = request.app.state.settings
+                allowed = [str(settings.public_url).rstrip("/")] + [
+                    o.rstrip("/") for o in settings.web_origins
+                ]
+                if origin is None or not any(origin.startswith(a) for a in allowed):
                     raise HTTPException(
                         status.HTTP_403_FORBIDDEN, "CSRF origin check failed (SEC-4)"
                     )

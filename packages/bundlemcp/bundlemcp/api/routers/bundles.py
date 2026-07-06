@@ -11,8 +11,10 @@ from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
 from bundlemcp.api.providers import BundleServiceProvider
 from bundlemcp.schemas import (
+    BundleMemberRead,
     BundleRead,
     BundleServerUpdate,
+    BundleToolRead,
     BundleToolUpdate,
     BundleUpsert,
     Page,
@@ -47,6 +49,20 @@ async def get_bundle(
 @router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_bundle(name: str, svc: BundleServiceProvider, _auth: ServiceAuthProvider) -> None:
     await svc.delete(name)
+
+
+@router.get("/{name}/servers")
+async def list_members(
+    name: str, svc: BundleServiceProvider, _auth: ServiceAuthProvider
+) -> list[BundleMemberRead]:
+    return await svc.list_members(name)
+
+
+@router.get("/{name}/tools")
+async def list_bundle_tools(
+    name: str, svc: BundleServiceProvider, _auth: ServiceAuthProvider
+) -> list[BundleToolRead]:
+    return await svc.list_tools(name)
 
 
 @router.put("/{name}/servers/{server_name}")

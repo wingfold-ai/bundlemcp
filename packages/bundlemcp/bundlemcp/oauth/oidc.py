@@ -74,11 +74,24 @@ def _redirect_uri(settings: Settings) -> str:
     return f"{str(settings.public_url).rstrip('/')}/login/callback"
 
 
+def _safe_next(next_url: str, settings: Settings) -> str:
+    """Clamp the post-login redirect to this app or an allowlisted web origin."""
+    if next_url.startswith("/") and not next_url.startswith("//"):
+        return next_url
+    allowed = [str(settings.public_url).rstrip("/")] + [
+        o.rstrip("/") for o in settings.web_origins
+    ]
+    if any(next_url == a or next_url.startswith(a + "/") for a in allowed):
+        return next_url
+    return "/"
+
+
 @router.get("/login", include_in_schema=False)
 async def login(request: Request, next: str = "/"):
     provider: OidcProvider | None = getattr(request.app.state, "oidc_provider", None)
     if provider is None:
         raise HTTPException(503, "no OIDC provider configured")
+    next = _safe_next(next, request.app.state.settings)
     state = secrets.token_urlsafe(24)
     nonce = secrets.token_urlsafe(24)
     await request.app.state.redis.set(

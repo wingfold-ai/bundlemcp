@@ -308,6 +308,44 @@ async def test_introspection_requires_service_key(oauth_env):
     assert body["aud"] == f"{PUBLIC_URL}/ep1/mcp"
     assert body["email"] == "alice@example.com"
 
+    # RFC 7662 client auth (OAS-5 "client credentials"): the service key may
+    # arrive as the HTTP Basic client secret — what ultra-mcp's upstreams send.
+    import base64
+
+    basic = base64.b64encode(f"any-client:{SERVICE_KEY}".encode()).decode()
+    via_basic = await http.post(
+        "/oauth/introspect",
+        data={"token": tokens["access_token"]},
+        headers={"Authorization": f"Basic {basic}"},
+    )
+    assert via_basic.json()["active"] is True
+
+    wrong_basic = base64.b64encode(b"any-client:not-a-key").decode()
+    denied = await http.post(
+        "/oauth/introspect",
+        data={"token": tokens["access_token"]},
+        headers={"Authorization": f"Basic {wrong_basic}"},
+    )
+    assert denied.status_code == 401
+
+    # gateway API keys introspect as active with the FWD-3 identity format,
+    # so introspecting upstreams can serve api_key callers (FWD-4)
+    key_introspect = await http.post(
+        "/oauth/introspect",
+        data={"token": SERVICE_KEY},
+        headers={"Authorization": f"Bearer {SERVICE_KEY}"},
+    )
+    body = key_introspect.json()
+    assert body["active"] is True
+    assert body["sub"].startswith("api_key:")
+
+    unknown = await http.post(
+        "/oauth/introspect",
+        data={"token": "bmcp_sk_doesnotexist"},
+        headers={"Authorization": f"Bearer {SERVICE_KEY}"},
+    )
+    assert unknown.json() == {"active": False}
+
 
 async def test_revocation(oauth_env):
     """OAS-6."""

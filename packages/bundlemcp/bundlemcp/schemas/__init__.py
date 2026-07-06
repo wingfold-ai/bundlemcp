@@ -6,7 +6,14 @@ consumers keep importing from ``bundlemcp.schemas``.
 """
 
 from bundlemcp.schemas.api_keys import ApiKeyCreate, ApiKeyCreated, ApiKeyRead
-from bundlemcp.schemas.bundles import BundleRead, BundleServerUpdate, BundleUpsert
+from bundlemcp.schemas.audit import AuditRecordRead
+from bundlemcp.schemas.bundles import (
+    BundleMemberRead,
+    BundleRead,
+    BundleServerUpdate,
+    BundleToolRead,
+    BundleUpsert,
+)
 from bundlemcp.schemas.common import Page
 from bundlemcp.schemas.config import ConfigValue
 from bundlemcp.schemas.endpoints import (
@@ -17,19 +24,23 @@ from bundlemcp.schemas.endpoints import (
 )
 from bundlemcp.schemas.servers import ServerRead, ServerUpsert, UpstreamOAuthConfig
 from bundlemcp.schemas.tools import BundleToolUpdate, ToolRead
-from bundlemcp.schemas.users import ConsentRead, UserRead
+from bundlemcp.schemas.users import ConsentRead, MeRead, UserRead
 
 __all__ = [
     "ApiKeyCreate",
     "ApiKeyCreated",
     "ApiKeyRead",
+    "AuditRecordRead",
+    "BundleMemberRead",
     "BundleRead",
     "BundleServerUpdate",
+    "BundleToolRead",
     "BundleToolUpdate",
     "BundleUpsert",
     "ConfigValue",
     "ConsentRead",
     "EndpointRead",
+    "MeRead",
     "EndpointUpsert",
     "Page",
     "RateLimitConfig",

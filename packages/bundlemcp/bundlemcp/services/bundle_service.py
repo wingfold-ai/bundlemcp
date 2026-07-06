@@ -1,5 +1,9 @@
 """Bundle composition + tool curation business logic."""
 
+# lazy annotations: `list[...]` in the class body would otherwise resolve to
+# the `list` method on Python < 3.14
+from __future__ import annotations
+
 import uuid
 from typing import Any
 
@@ -9,8 +13,10 @@ from sqlmodel import func, select
 
 from bundlemcp.models import Bundle, BundleServer, BundleTool, McpServer, Tool
 from bundlemcp.schemas import (
+    BundleMemberRead,
     BundleRead,
     BundleServerUpdate,
+    BundleToolRead,
     BundleToolUpdate,
     BundleUpsert,
     Page,
@@ -80,6 +86,89 @@ class BundleService:
             await self._db.delete(bundle)  # DOM-2 cascades mappings + endpoints
             await self._db.commit()
             await self._invalidate(name, "deleted")
+
+    async def list_members(self, name: str) -> list[BundleMemberRead]:
+        bundle = await self._get(name)
+        rows = (
+            (
+                await self._db.execute(
+                    select(McpServer, BundleServer)
+                    .join(BundleServer, BundleServer.server_id == McpServer.id)
+                    .where(BundleServer.bundle_id == bundle.id)
+                    .order_by(McpServer.name)
+                )
+            )
+            .tuples()
+            .all()
+        )
+        return [
+            BundleMemberRead(
+                server_id=srv.id,
+                server_name=srv.name,
+                server_url=srv.url,
+                health_status=srv.health_status,
+                enabled=mapping.enabled,
+            )
+            for srv, mapping in rows
+        ]
+
+    async def list_tools(self, name: str) -> list[BundleToolRead]:
+        """Curation view: every member server's tools with this bundle's overrides."""
+        bundle = await self._get(name)
+        members = (
+            (
+                await self._db.execute(
+                    select(McpServer, BundleServer)
+                    .join(BundleServer, BundleServer.server_id == McpServer.id)
+                    .where(BundleServer.bundle_id == bundle.id)
+                )
+            )
+            .tuples()
+            .all()
+        )
+        server_by_id = {srv.id: (srv, mapping) for srv, mapping in members}
+        if not server_by_id:
+            return []
+        curation = {
+            bt.tool_id: bt
+            for bt in (
+                await self._db.execute(
+                    select(BundleTool).where(BundleTool.bundle_id == bundle.id)
+                )
+            ).scalars()
+        }
+        tools = (
+            await self._db.execute(
+                select(Tool)
+                .where(Tool.server_id.in_(server_by_id))  # type: ignore[attr-defined]
+                .order_by(Tool.name)
+            )
+        ).scalars()
+        out: list[BundleToolRead] = []
+        for tool in tools:
+            srv, mapping = server_by_id[tool.server_id]
+            cur = curation.get(tool.id)
+            out.append(
+                BundleToolRead(
+                    tool_id=tool.id,
+                    server_name=srv.name,
+                    name=tool.name,
+                    title=tool.title,
+                    description=tool.description,
+                    member_enabled=mapping.enabled,
+                    enabled=cur.enabled if cur is not None else True,
+                    presented_name=(
+                        cur.override_name
+                        if cur is not None and cur.override_name
+                        else f"{srv.name}__{tool.name}"
+                    ),
+                    override_name=cur.override_name if cur else None,
+                    override_title=cur.override_title if cur else None,
+                    override_description=cur.override_description if cur else None,
+                )
+            )
+        out.sort(key=lambda t: (t.server_name, t.name))
+        return out
 
     async def set_member(
         self, name: str, server_name: str, body: BundleServerUpdate

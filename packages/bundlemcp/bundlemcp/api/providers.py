@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bundlemcp.services import (
     ApiKeyService,
+    AuditService,
     BundleService,
     ConfigService,
     EndpointService,
@@ -65,9 +66,14 @@ def get_config_service(db: DbProvider, redis: RedisProvider) -> ConfigService:
     return ConfigService(db, redis)
 
 
+def get_audit_service(db: DbProvider) -> AuditService:
+    return AuditService(db)
+
+
 ServerServiceProvider = Annotated[ServerService, Depends(get_server_service)]
 BundleServiceProvider = Annotated[BundleService, Depends(get_bundle_service)]
 EndpointServiceProvider = Annotated[EndpointService, Depends(get_endpoint_service)]
 ApiKeyServiceProvider = Annotated[ApiKeyService, Depends(get_api_key_service)]
 UserServiceProvider = Annotated[UserService, Depends(get_user_service)]
 ConfigServiceProvider = Annotated[ConfigService, Depends(get_config_service)]
+AuditServiceProvider = Annotated[AuditService, Depends(get_audit_service)]
