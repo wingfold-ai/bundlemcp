@@ -4,9 +4,9 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY packages/bundlemcp/pyproject.toml packages/bundlemcp/pyproject.toml
-RUN uv sync --frozen --no-install-workspace --no-dev
+RUN uv sync --frozen --no-install-workspace --no-dev --all-packages
 COPY packages/ packages/
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --all-packages
 
 FROM python:3.13-slim-bookworm
 WORKDIR /app

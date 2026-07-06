@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* wireframe look: quiet grays, visible structure */
+.wf-table {
+  @apply w-full text-sm border-collapse;
+}
+.wf-table th {
+  @apply text-left font-medium text-gray-500 border-b border-gray-300 px-3 py-2;
+}
+.wf-table td {
+  @apply border-b border-gray-200 px-3 py-2 align-top;
+}
+.wf-label {
+  @apply block text-xs font-medium text-gray-500 mb-1;
+}
+.wf-input {
+  @apply w-full border border-gray-300 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900;
+}
+.wf-card {
+  @apply border border-gray-300 rounded p-4;
+}
