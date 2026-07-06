@@ -27,4 +27,12 @@ def shout(text: str) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="0.0.0.0", port=9000, path="/mcp")  # noqa: S104
+    mcp.run(
+        transport="http",
+        host="0.0.0.0",  # noqa: S104
+        port=9000,
+        path="/mcp",
+        # fastmcp >= 3.4.3 rejects non-localhost Host headers unless allowed;
+        # the gateway reaches this container by its compose service name.
+        allowed_hosts=["echo-mcp", "echo-mcp:9000"],
+    )
