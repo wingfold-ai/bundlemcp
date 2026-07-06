@@ -58,3 +58,6 @@ acceptable. Shared structure:
 | [31-middleware.md](31-middleware.md) | Tool-call middleware chain + metering hook |
 | [32-protocol-passthrough.md](32-protocol-passthrough.md) | Full bidirectional MCP proxy (progress, cancellation, sampling, elicitation) |
 | [33-state-propagation.md](33-state-propagation.md) | Cross-replica config invalidation |
+| [40-management-api.md](40-management-api.md) | Service-authenticated REST management API |
+| [41-bootstrap.md](41-bootstrap.md) | Idempotent startup provisioning |
+| [42-export-import.md](42-export-import.md) | Config export/import |
