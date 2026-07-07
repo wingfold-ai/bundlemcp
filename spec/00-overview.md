@@ -82,7 +82,7 @@ The two integration warts this boundary explicitly fixes:
 3. Survive restarts and scale horizontally without losing sessions.
 4. Everything manageable via UI **and** an equivalent authenticated REST API.
 5. Pydantic-typed end to end: DB model → API DTO → generated TS types in the UI.
-6. Deployable as a small Docker Compose stack: gateway, web, Postgres, Redis
+6. Deployable as a small Docker Compose stack: gateway, web, Postgres, Valkey
    (+ any OIDC IdP).
 
 ## Non-goals

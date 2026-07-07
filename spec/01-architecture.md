@@ -19,7 +19,7 @@ source of truth from database row to frontend type.
 | Models/ORM | **SQLModel** (Pydantic-native, on SQLAlchemy 2.0 async + asyncpg) | 0.0.39 |
 | Migrations | **Alembic** | — |
 | Validation/config | **Pydantic v2** + `pydantic-settings` (`BUNDLEMCP_` env prefix) | 2.13 |
-| Live state | **Redis** (redis-py async) | — |
+| Live state | **Valkey** (BSD-3, RESP; `redis-py` async client, MIT) | valkey 8 |
 | Frontend | **Nuxt 4** + **Nuxt UI v4** (Tailwind v4) | nuxt 4.4.8, @nuxt/ui 4.9.0 |
 | Python tooling | **uv** workspace, **ruff**, **pytest** | — |
 
@@ -78,11 +78,14 @@ bundlemcp/
 - **ARC-7 (Postgres — durable):** servers, bundles, endpoints, tools cache,
   users, OAuth clients/codes/tokens, upstream OAuth tokens, API keys, audit
   log, config. Postgres is the system of record.
-- **ARC-8 (Redis — live):** MCP session state, upstream session bindings,
-  rate-limit counters, live-log ring buffer, cross-replica pub/sub. Redis
+- **ARC-8 (RESP store — live):** MCP session state, upstream session bindings,
+  rate-limit counters, live-log ring buffer, cross-replica pub/sub. The store
   never holds configuration; outage behavior is explicitly defined in the
   degradation matrix ([SES-14](30-session-management.md)) — bounded, honest
-  degradation, not silent failure.
+  degradation, not silent failure. The store is a **RESP-compatible** server —
+  the default is **Valkey** (BSD-3), accessed via the MIT `redis-py` client
+  ([ADR-0022](../docs/adr/0022-valkey-store.md)); "Redis" elsewhere in these
+  specs denotes this RESP store/protocol, not the Redis product specifically.
 - **ARC-9** A request MUST be servable by **any gateway replica**: no
   process-local state may be required to route or answer a request
   (details in [30-session-management.md](30-session-management.md)).

@@ -19,10 +19,12 @@ services:
       timeout: 3s
       retries: 10
 
-  redis:
-    image: redis:8-alpine
+  # Valkey (BSD-3): the RESP-compatible store; redis-py (MIT) speaks to it
+  # unchanged, so the connection URL keeps the standard redis:// scheme.
+  valkey:
+    image: valkey/valkey:8-alpine
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -135,13 +137,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      valkey:
         condition: service_healthy
       keycloak:
         condition: service_healthy
     environment:
       BUNDLEMCP_DATABASE_URL: postgresql+asyncpg://bundlemcp:bundlemcp@postgres:5432/bundlemcp
-      BUNDLEMCP_REDIS_URL: redis://redis:6379/0
+      BUNDLEMCP_REDIS_URL: redis://valkey:6379/0
       BUNDLEMCP_PUBLIC_URL: ${BUNDLEMCP_PUBLIC_URL:-http://localhost:8000}
       BUNDLEMCP_OIDC_DISCOVERY_URL: http://keycloak:8080/realms/bundlemcp/.well-known/openid-configuration
       BUNDLEMCP_OIDC_CLIENT_ID: bundlemcp-gateway

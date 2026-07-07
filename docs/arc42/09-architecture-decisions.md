@@ -28,6 +28,7 @@ in the same PR as the change they govern
 | [0019](../adr/0019-api-service-layer.md) | Thin routers + service layer in the management API | Business logic in framework-free services; one DTO class per module |
 | [0020](../adr/0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | Services/DTOs are library peers any subsystem consumes; framework-free AuthService |
 | [0021](../adr/0021-mcp-surface-completion.md) | Complete the MCP surface (prompts/resources/completions, capabilities, version, roots/logging) | Full-fidelity MCP request/response plane; live passthrough; push-between-calls pooling-dependent |
+| [0022](../adr/0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | Permissively-licensed store; redis-py client unchanged; RESP-generic |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).
