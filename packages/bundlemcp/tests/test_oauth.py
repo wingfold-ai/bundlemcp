@@ -385,6 +385,35 @@ async def test_authorize_requires_login_redirect(oauth_env):
     assert resp.headers["location"].startswith("/login?next=")
 
 
+async def test_authorize_login_next_uses_public_url_behind_proxy(oauth_env):
+    """DEP-1: behind a proxy the login return URL is built from public_url, not
+    the internal Host, so the post-login next-clamp preserves it (not '/')."""
+    from urllib.parse import parse_qs, unquote, urlparse
+
+    http, app, user = oauth_env
+    client_id = await _register_client(http)
+    _, challenge = make_pkce()
+    http.cookies.delete(SESSION_COOKIE)
+    # simulate cloudflared: the app is reached on an internal host header
+    resp = await http.get(
+        "/oauth/authorize",
+        params={
+            "client_id": client_id,
+            "redirect_uri": "https://client.example/cb",
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "resource": f"{PUBLIC_URL}/ep1/mcp",
+        },
+        headers={"host": "localhost:8000"},
+    )
+    assert resp.status_code == 302
+    next_url = unquote(parse_qs(urlparse(resp.headers["location"]).query)["next"][0])
+    # the return URL must be the public origin, not the internal host
+    assert next_url.startswith(PUBLIC_URL + "/oauth/authorize")
+    assert "localhost:8000" not in next_url
+
+
 async def test_missing_resource_rejected(oauth_env):
     """OAS-10: resource is required and must be a bundlemcp endpoint."""
     http, app, user = oauth_env

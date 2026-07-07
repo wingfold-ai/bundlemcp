@@ -22,7 +22,7 @@ from bundlemcp.models import (
     utcnow,
 )
 from bundlemcp.oauth.adminsessions import SESSION_COOKIE
-from bundlemcp.oauth.urls import endpoint_name_from_resource
+from bundlemcp.oauth.urls import endpoint_name_from_resource, issuer
 from bundlemcp.security import hash_token
 
 log = structlog.get_logger(__name__)
@@ -135,11 +135,17 @@ async def authorize(request: Request):  # noqa: PLR0911 - protocol branching
             await db.execute(select(Bundle).where(Bundle.id == endpoint.bundle_id))
         ).scalar_one()
 
-    # OAS-3: needs an authenticated human — bounce through OIDC login
+    # OAS-3: needs an authenticated human — bounce through OIDC login.
+    # Build the return URL from public_url (DEP-1), never the incoming Host —
+    # behind a reverse proxy request.url is the internal origin, which the
+    # browser can't return to and the login next-clamp would reject.
     user = await current_session_user(request)
     if user is None:
-        next_url = quote(str(request.url), safe="")
-        return RedirectResponse(f"/login?next={next_url}", status_code=302)
+        base = issuer(request.app.state.settings)
+        return_url = f"{base}{request.url.path}"
+        if request.url.query:
+            return_url += f"?{request.url.query}"
+        return RedirectResponse(f"/login?next={quote(return_url, safe='')}", status_code=302)
 
     pending = {
         "client_id": client_id,
