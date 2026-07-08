@@ -22,6 +22,11 @@ The two switches that select behavior:
 Every externally visible URL in all four systems is derived from
 `settings.public_url`, never the request `Host` — see [§5](#5-the-public-url-rule).
 
+> **"Redis" here = the RESP store, which ships as Valkey** (BSD-3; ADR-0022).
+> The `bmcp:…` keys and the `redis-py` client are genuinely Redis-protocol-named
+> and stay as written; the store *daemon* is Valkey. See
+> [../README.md](../README.md#a-note-on-the-resp-store-valkey-not-redis-adr-0022).
+
 ---
 
 ## 1. MCP-client OAuth 2.1 (system a)

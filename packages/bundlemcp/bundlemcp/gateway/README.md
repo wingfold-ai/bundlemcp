@@ -4,11 +4,19 @@ This package is the core of bundlemcp: it terminates the client-facing
 Streamable-HTTP MCP protocol, composes a bundle's tool surface, proxies calls to
 the right upstream server, and records what happened. The client edge is
 **hand-rolled** (`mcp_endpoint.py`) rather than delegated to FastMCP's session
-manager, precisely so that session state lives in Redis and any replica can
-serve any request (ARC-9/ARC-10). FastMCP is used only for the *upstream* leg.
+manager, precisely so that session state lives in the RESP store and any replica
+can serve any request (ARC-9/ARC-10). FastMCP is used only for the *upstream*
+leg.
 
 Read [../oauth/README.md](../oauth/README.md) for how callers are
 authenticated; this doc picks up once a request is authorized.
+
+> **"the RESP store" = Valkey.** The live-state store ships as Valkey (BSD-3),
+> a drop-in RESP server; the client is `redis-py` and the URL scheme stays
+> `redis://`, so `redis`-named symbols, `bmcp:` keys, and "Redis pub/sub /
+> server time" below refer to the RESP protocol the code speaks — see
+> [../README.md](../README.md#a-note-on-the-resp-store-valkey-not-redis-adr-0022)
+> and ADR-0022.
 
 ---
 
@@ -129,7 +137,7 @@ upstreams.
 
 ## 4. Sessions & multi-replica correctness
 
-A session is pure data in Redis (`store/sessions.py`, key
+A session is pure data in the RESP store (`store/sessions.py`, key
 `bmcp:session:{id}`), so **no request needs the replica that created it.** The
 record (`SessionRecord`) holds the endpoint/bundle names, `auth_method`,
 `user_id`/`user_email`/`api_key_id`, the negotiated `protocol_version`, the
@@ -140,8 +148,8 @@ a version mismatch on load deletes the record and forces the client to re-init
 
 The split that makes multi-replica work:
 
-- **Redis holds everything durable/shared** — the session record, upstream
-  session bindings, rate counters.
+- **The RESP store holds everything durable/shared** — the session record,
+  upstream session bindings, rate counters.
 - **`StreamRegistry` (`streams.py`) holds the only replica-local objects** —
   open GET SSE stream queues, in-flight `CallHandle`s (with their cancel event
   and progress queue), and pending reply futures.
