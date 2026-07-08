@@ -41,6 +41,7 @@ acceptable. Shared structure:
 | [13-tool-management.md](13-tool-management.md) | Per-bundle tool enable/disable + overrides |
 | [14-endpoints.md](14-endpoints.md) | Public endpoints, N per bundle, auth modes |
 | [15-endpoint-profiles.md](15-endpoint-profiles.md) | claude.ai / chatgpt / default profiles |
+| [16-rate-limiting.md](16-rate-limiting.md) | Redis-backed per-endpoint rate limits |
 
 ### Authentication & identity
 | Spec | Contents |
@@ -72,3 +73,9 @@ acceptable. Shared structure:
 | [60-admin-ui.md](60-admin-ui.md) | Nuxt 4 admin frontend |
 | [61-docs-and-onboarding.md](61-docs-and-onboarding.md) | User-facing docs, client guides, demo seed |
 | [62-architecture-documentation.md](62-architecture-documentation.md) | arc42 + ADRs + LikeC4 (docs/ tree) |
+
+### Cross-cutting
+| Spec | Contents |
+|---|---|
+| [70-security.md](70-security.md) | Threat model, SSRF egress policy, CORS/CSRF, limits |
+| [71-deployment.md](71-deployment.md) | Public URL/proxy trust, migrations, upgrades, backups, CI/CD |
