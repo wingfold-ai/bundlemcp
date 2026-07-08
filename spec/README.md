@@ -79,3 +79,39 @@ acceptable. Shared structure:
 |---|---|
 | [70-security.md](70-security.md) | Threat model, SSRF egress policy, CORS/CSRF, limits |
 | [71-deployment.md](71-deployment.md) | Public URL/proxy trust, migrations, upgrades, backups, CI/CD |
+
+## Decision log — deliberately dropped from metamcp
+
+These metamcp features were reviewed and **rejected** for bundlemcp. They are
+recorded here so nobody re-proposes them without new evidence.
+
+| Dropped | Why |
+|---|---|
+| **STDIO upstream servers** | Biggest complexity driver in metamcp (process spawning, crash tracking, env plumbing, fat image). Wrap stdio servers in a Streamable-HTTP sidecar instead — pattern documented in [10-server-registry.md](10-server-registry.md). |
+| **SSE upstream & downstream transport** | Deprecated by the MCP spec; all targeted upstreams and clients speak Streamable HTTP. |
+| **OpenAPI REST bridge** (`/api` per endpoint) | Notable build effort, not needed for the target clients (claude.ai, ChatGPT, MCP-native tools). |
+| **Query-parameter API-key auth** | Keys leak into logs/URLs; header auth only. |
+| **Multi-user resource ownership** (public/private per user) | bundlemcp is a single shared workspace — every admin sees and manages everything. Tenanting is the application layer's job (ultra-mcp). |
+| **Admin tools over MCP** (~40 `metamcp-admin__*` tools) | The management REST API covers automation; agents can call REST. |
+| **i18n** | English-only admin UI. |
+| **Local password accounts** (better-auth style) | Admin login is OIDC-only; bundlemcp never stores passwords. |
+| **Marketplace/search page** (metamcp's registry-browse UI) | bundlemcp is not a marketplace (00-overview non-goal); servers arrive via API/UI/bootstrap. |
+| **`/oauth/userinfo` endpoint** | Introspection's `sub` covers all known consumers; no OIDC-provider surface ([20-oauth-server.md](20-oauth-server.md) out-of-scope). |
+
+## Roadmap — deferred, not dropped
+
+| Item | Status |
+|---|---|
+| **metamcp migration importer** — one-shot CLI reading a metamcp Postgres DB and mapping servers→registry, namespaces→bundles (+curation), endpoints→endpoints | Deferred by decision (2026-07). Revisit when bundlemcp reaches feature parity; until then migration is manual/bootstrap-file based. |
+| **ChatGPT `search`/`fetch` connector profile** | Possible fourth endpoint profile ([15-endpoint-profiles.md](15-endpoint-profiles.md) out-of-scope). |
+
+## Prior art
+
+Specs cite these read-only reference repos (sibling checkouts):
+
+- `../metamcp` — the fork being replaced; schema at
+  `apps/backend/src/db/schema.ts`, gateway at `apps/backend/src/lib/metamcp/`,
+  OAuth server at `apps/backend/src/routers/oauth/`.
+- `../ultra-mcp` — the first consumer; registrar contract at
+  `packages/registrar/registrar/clients.py`, metering contract at
+  `packages/billing/ultra_billing/routers/meter.py`.
