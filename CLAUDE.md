@@ -17,6 +17,11 @@ the index, each numbered file is an atomic spec with testable requirement IDs
 (`SRV-1`, `EP-3`, …). The decision log in spec/README.md lists deliberately
 dropped metamcp features — do not reintroduce them without new evidence.
 
+Architecture rationale lives in `docs/`: arc42 sections in `docs/arc42/`,
+MADR-style ADRs in `docs/adr/` (append-only; new architectural decisions land
+with an ADR in the same PR), diagrams as LikeC4 models in `docs/likec4/`
+(validate with `npx likec4 validate docs/likec4`). Rules: spec 62.
+
 ## Architecture
 
 <!-- High-level structure: key components, how they fit together, where things live. -->
