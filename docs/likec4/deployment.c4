@@ -1,0 +1,41 @@
+// bundlemcp — deployment model (reference compose/production topology, spec/71)
+
+specification {
+  deploymentNode environment
+  deploymentNode zone
+}
+
+deployment {
+  prod = environment 'Production' {
+    proxy = zone 'Reverse Proxy' {
+      description 'Operator-provided (Traefik/nginx/Caddy): TLS termination, forwards X-Forwarded-* (DEP-2)'
+    }
+
+    app = zone 'Gateway Replicas' {
+      description 'N stateless replicas; any replica serves any session (ARC-9)'
+      gw1 = instanceOf bundlemcp.gateway
+      gw2 = instanceOf bundlemcp.gateway
+    }
+
+    webNode = zone 'Web' {
+      webApp = instanceOf bundlemcp.web
+    }
+
+    data = zone 'State' {
+      pgNode = instanceOf bundlemcp.pg
+      redisNode = instanceOf bundlemcp.redis
+    }
+  }
+
+  prod.proxy -> gw1 'routes /{endpoint}/mcp, /api, /oauth'
+  prod.proxy -> gw2 'routes (no sticky sessions)'
+  prod.proxy -> webApp 'routes admin UI'
+}
+
+views {
+  deployment view production {
+    title 'bundlemcp — Deployment (reference topology)'
+    include *
+    autoLayout TopBottom
+  }
+}

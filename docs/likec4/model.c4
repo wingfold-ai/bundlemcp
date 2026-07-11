@@ -1,0 +1,109 @@
+// bundlemcp — LikeC4 model (single source for context/container views)
+// Rendered via `npx likec4` (CLI or VS Code extension). See spec/62.
+
+specification {
+  element actor {
+    style {
+      shape person
+    }
+  }
+  element system
+  element container
+  element database {
+    style {
+      shape storage
+    }
+  }
+  element external {
+    style {
+      color muted
+    }
+  }
+
+  relationship uses
+  relationship mcp {
+    technology 'MCP Streamable HTTP'
+  }
+}
+
+model {
+  admin = actor 'Administrator' {
+    description 'Operates bundlemcp: registers servers, curates bundles, shapes endpoints'
+  }
+
+  mcpClient = external 'MCP Clients' {
+    description 'claude.ai, ChatGPT, scripts and other MCP consumers'
+    style {
+      shape browser
+    }
+  }
+
+  idp = external 'OIDC Identity Provider' {
+    description 'Keycloak, dex or any OIDC-compliant IdP. Authenticates humans; bundlemcp stores no passwords'
+  }
+
+  upstreams = external 'Upstream MCP Servers' {
+    description 'Streamable HTTP MCP servers (containers or hosted); stdio servers via sidecar'
+  }
+
+  appLayer = external 'Application Layer (application-layer)' {
+    description 'Optional consumer: billing via the metering hook, registrar via the management API'
+  }
+
+  bundlemcp = system 'bundlemcp' {
+    description 'Self-hostable MCP bundling gateway'
+
+    gateway = container 'Gateway' {
+      description 'Serves bundle endpoints (full bidirectional MCP proxy), OAuth 2.1 server, management REST API, middleware/metering'
+      technology 'Python, FastAPI, FastMCP v3'
+    }
+
+    web = container 'Admin Web App' {
+      description 'Management UI: servers, bundles, endpoints, keys, audit, logs, inspector'
+      technology 'Nuxt 4, Nuxt UI v4'
+      style {
+        shape browser
+      }
+    }
+
+    pg = database 'Postgres' {
+      description 'Durable state: config, users, tokens, tool cache, audit log'
+      technology 'PostgreSQL, SQLModel/Alembic'
+    }
+
+    redis = database 'Redis' {
+      description 'Live state: sessions, rate limits, live logs, cross-replica pub/sub'
+      technology 'Redis'
+    }
+  }
+
+  // context relationships
+  admin -> web 'manages via browser' 'HTTPS'
+  mcpClient -[mcp]-> gateway 'calls bundle endpoints /{endpoint}/mcp, OAuth 2.1 w/ DCR+PKCE'
+  gateway -[mcp]-> upstreams 'aggregates; forwards identity (X-MCP-User, headers)'
+  upstreams -> gateway 'introspects forwarded bearers (/oauth/introspect)' 'HTTPS'
+  gateway -> idp 'federates logins (authorization code flow)' 'OIDC'
+  admin -> idp 'authenticates at'
+  appLayer -> gateway 'registers servers (PUT /api/v1/servers/{name})' 'REST'
+  gateway -> appLayer 'metering hook: check-and-debit / refund per tool call' 'Python hook -> REST'
+
+  // container relationships
+  web -> gateway 'management REST API (generated TS client)' 'HTTPS /api/v1'
+  gateway -> pg 'reads/writes durable state' 'SQLAlchemy async'
+  gateway -> redis 'sessions, limits, pub/sub' 'redis-py async'
+}
+
+views {
+  view index of bundlemcp {
+    title 'bundlemcp — System Context'
+    include *, admin, mcpClient, idp, upstreams, appLayer
+    exclude bundlemcp.*
+    autoLayout TopBottom
+  }
+
+  view containers of bundlemcp {
+    title 'bundlemcp — Containers'
+    include *, bundlemcp.*
+    autoLayout TopBottom
+  }
+}
