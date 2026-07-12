@@ -1,0 +1,37 @@
+[project]
+name = "bundlemcp-workspace"
+version = "0.1.0"
+description = "bundlemcp workspace root (see packages/)"
+requires-python = ">=3.13"
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.4",
+    "pytest-asyncio>=1.0",
+    "ruff>=0.12",
+    "aiosqlite>=0.21",
+]
+
+[tool.uv.sources]
+bundlemcp = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # bugbear
+    "T20", # no print statements (OBS-1: structured logging only)
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["packages/bundlemcp/tests"]
