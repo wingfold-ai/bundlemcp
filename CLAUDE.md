@@ -24,11 +24,26 @@ with an ADR in the same PR), diagrams as LikeC4 models in `docs/likec4/`
 
 ## Architecture
 
-<!-- High-level structure: key components, how they fit together, where things live. -->
+See [spec/00-overview.md](spec/00-overview.md) and
+[spec/01-architecture.md](spec/01-architecture.md). Core rules:
+
+- **Stack:** FastAPI, SQLModel (Pydantic-native, SQLAlchemy 2.0 async +
+  asyncpg, Alembic), a RESP store for live state. Always adopt the latest
+  stable versions.
+- **State model:** Postgres = durable config/tokens/audit; the RESP store =
+  live sessions/rate-limits/logs. **No in-memory-only state a request depends
+  on** — any replica serves any session; restarts are non-events (spec 30).
+- **Pydantic-first:** entities defined once as SQLModel classes; API DTOs are
+  Pydantic; frontend TS types are generated from OpenAPI, never hand-written.
+- **Layout:** uv workspace — library code in `packages/bundlemcp/` (flat, no
+  `src/`), deployable applications in `apps/`.
 
 ## Development
 
-<!-- How to set up, run, and build the project locally. -->
+- Python ≥3.13, uv: `uv sync --all-packages`; run services with `uv run`.
+- Sibling read-only reference repos: `../metamcp` (what we're replacing),
+  `../ultra-mcp` (first consumer — its registrar and billing contracts drive
+  specs 40 and 31).
 
 ## Testing
 
