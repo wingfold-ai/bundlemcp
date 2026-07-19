@@ -12,6 +12,7 @@ dev-dependencies = [
     "pytest>=8.4",
     "pytest-asyncio>=1.0",
     "ruff>=0.12",
+    "fakeredis>=2.30",
     "aiosqlite>=0.21",
 ]
 
