@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     # Trusted reverse proxies (DEP-2): X-Forwarded-* honored only from these CIDRs.
     trusted_proxies: list[str] = []
 
+    # Egress policy (SEC-2): deny evaluated after allow; metadata ranges are
+    # always blocked in code regardless of these lists.
+    egress_allow_cidrs: list[str] = []
+    egress_deny_cidrs: list[str] = []
+
     log_level: str = "INFO"
 
 

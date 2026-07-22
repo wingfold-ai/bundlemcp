@@ -17,6 +17,7 @@ in the same PR as the change they govern
 | [0008](../adr/0008-full-bidirectional-proxy.md) | Full bidirectional proxy | No protocol degradation; hardest engineering item |
 | [0009](../adr/0009-endpoint-bound-tokens-consent.md) | Consent + endpoint-bound tokens | Token confined to one endpoint; extra consent step |
 | [0010](../adr/0010-single-workspace.md) | Single workspace | Simple model; no intra-instance tenanting |
+| [0012](../adr/0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | Trivially correct identity isolation; pooling awaits OBS-6 data |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

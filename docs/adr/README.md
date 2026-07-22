@@ -17,3 +17,4 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0008](0008-full-bidirectional-proxy.md) | Full bidirectional MCP proxy fidelity | accepted |
 | [0009](0009-endpoint-bound-tokens-consent.md) | OAuth consent + endpoint-bound tokens | accepted |
 | [0010](0010-single-workspace.md) | Single shared workspace, no multi-tenancy | accepted |
+| [0012](0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | accepted |
