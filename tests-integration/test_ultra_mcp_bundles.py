@@ -14,6 +14,11 @@ from conftest import GATEWAY_URL, SERVICE_KEY  # noqa: TID252
 from test_oauth_flow import _drive_login_and_consent, _pkce  # noqa: TID251
 from tests_integration_helpers import initialize, mcp_call, wait_ready
 
+# Every test here drives the ultra-mcp fleet (seo-psi, seo-gsc, dataforseo,
+# hyperframes), which ships as private GHCR images. CI cannot pull those, so it
+# runs `-m "not fleet"`; locally the full compose stack makes them available.
+pytestmark = pytest.mark.fleet
+
 
 def _tool_names(listing: dict) -> list[str]:
     return [t["name"] for t in listing["result"]["tools"]]
