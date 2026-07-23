@@ -53,10 +53,12 @@ function detailMsg(err: unknown): string {
 const profile = ref<EndpointProfile>("default");
 const authModes = ref<EndpointAuthMode[]>([]);
 const enabled = ref(true);
-const rlEndpointLimit = ref("");
-const rlEndpointWindow = ref("");
-const rlClientLimit = ref("");
-const rlClientWindow = ref("");
+// Bound to <input type="number">, for which Vue's v-model assigns a number (or
+// "" when the field is cleared) — never assume these hold a string.
+const rlEndpointLimit = ref<string | number>("");
+const rlEndpointWindow = ref<string | number>("");
+const rlClientLimit = ref<string | number>("");
+const rlClientWindow = ref<string | number>("");
 
 async function load() {
   const [ep, bds, profs] = await Promise.all([
@@ -120,11 +122,17 @@ function toggleAuthMode(mode: EndpointAuthMode, checked: boolean) {
   }
 }
 
+// v-model on a number input yields a number, so normalize before trimming —
+// calling .trim() on it would throw and abort the whole save.
+function fieldText(value: string | number): string {
+  return String(value ?? "").trim();
+}
+
 function buildRateLimit(): RateLimitConfig | undefined {
-  const el = rlEndpointLimit.value.trim();
-  const ew = rlEndpointWindow.value.trim();
-  const cl = rlClientLimit.value.trim();
-  const cw = rlClientWindow.value.trim();
+  const el = fieldText(rlEndpointLimit.value);
+  const ew = fieldText(rlEndpointWindow.value);
+  const cl = fieldText(rlClientLimit.value);
+  const cw = fieldText(rlClientWindow.value);
   if (!el && !ew && !cl && !cw) return undefined;
   return {
     endpoint: el && ew ? { limit: Number(el), window_seconds: Number(ew) } : null,
