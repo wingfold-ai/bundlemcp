@@ -37,3 +37,6 @@ select = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["packages/bundlemcp/tests"]
+markers = [
+    "fleet: integration test requiring the private ultra-mcp GHCR fleet images (skipped in CI)",
+]
