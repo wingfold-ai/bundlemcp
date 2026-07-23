@@ -1,12 +1,14 @@
-# Claude Code — local-only settings (per-machine, never committed)
-.claude/settings.local.json
-
-# OS / editor cruft
-.DS_Store
-.idea/
-.vscode/
-
-# Python
 __pycache__/
 *.py[cod]
+.venv/
+.pytest_cache/
 .ruff_cache/
+dist/
+node_modules/
+.env
+.nuxt/
+.output/
+apps/web/tests/.auth/
+playwright-report/
+test-results/
+.idea/

@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "hyperframes",
+      "credentials": [
+        {
+          "accessKey": "hyperframes",
+          "secretKey": "hyperframes-secret"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
