@@ -36,7 +36,11 @@ See [spec/00-overview.md](spec/00-overview.md) and
 - **Pydantic-first:** entities defined once as SQLModel classes; API DTOs are
   Pydantic; frontend TS types are generated from OpenAPI, never hand-written.
 - **Layout:** uv workspace — library code in `packages/bundlemcp/` (flat, no
-  `src/`), deployable applications in `apps/`.
+  `src/`), deployable applications in `apps/`. Within the library, business
+  logic lives in `bundlemcp/services/` and DTOs in `bundlemcp/schemas/` —
+  both framework-free (no FastAPI, no `bundlemcp.api` import) so `api/`,
+  `gateway/`, `oauth/`, and `bootstrap` consume them as peers
+  (ADR-0019/0020). `api/` is routers + FastAPI wiring only.
 
 ## Development
 
