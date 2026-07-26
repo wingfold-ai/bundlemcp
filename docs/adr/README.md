@@ -18,3 +18,5 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0009](0009-endpoint-bound-tokens-consent.md) | OAuth consent + endpoint-bound tokens | accepted |
 | [0010](0010-single-workspace.md) | Single shared workspace, no multi-tenancy | accepted |
 | [0012](0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | accepted |
+| [0019](0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020) |
+| [0020](0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted |
