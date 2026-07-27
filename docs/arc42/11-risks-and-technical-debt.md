@@ -2,7 +2,7 @@
 
 | # | Risk | Impact | Mitigation |
 |---|---|---|---|
-| 1 | **FastMCP v3 vs. externalized sessions** — the framework's session model may not tolerate session state living outside the process | Blocks the whole state model ([ADR-0004](../adr/0004-postgres-redis-state-split.md)) | Implementation spike before committing to the framework; owning the endpoint edge is the fallback |
+| 1 | ~~FastMCP v3 vs. externalized sessions~~ **Resolved** by the implementation spike: the endpoint edge is owned directly (FastAPI + Redis records), FastMCP serves the upstream side ([ADR-0011](../adr/0011-own-streamable-http-edge.md)) | — | Residual risk moved to #2 (the relay work now happens on our own edge) |
 | 2 | **Bidirectional cross-replica relay complexity** — progress, cancellation, sampling and elicitation must cross replicas | Highest engineering risk in the project | Design spike; capability gating limits blast radius if a piece is not ready |
 | 3 | **Client behavior drift** — claude.ai/ChatGPT OAuth and annotation enforcement change over time | Endpoints stop connecting | Profiles isolate client quirks ([15](../../spec/15-endpoint-profiles.md)); OAS-9 integration test; open questions flag re-verification at implementation |
 | 4 | **Redis as availability keystone** | Live traffic 503s during Redis outage | Accepted trade-off, explicitly specified (SES-14, RATE-6); ops guidance in [71](../../spec/71-deployment.md) |
