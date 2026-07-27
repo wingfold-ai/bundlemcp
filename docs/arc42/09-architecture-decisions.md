@@ -17,6 +17,7 @@ in the same PR as the change they govern
 | [0008](../adr/0008-full-bidirectional-proxy.md) | Full bidirectional proxy | No protocol degradation; hardest engineering item |
 | [0009](../adr/0009-endpoint-bound-tokens-consent.md) | Consent + endpoint-bound tokens | Token confined to one endpoint; extra consent step |
 | [0010](../adr/0010-single-workspace.md) | Single workspace | Simple model; no intra-instance tenanting |
+| [0011](../adr/0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge (spike outcome) | Redis-backed sessions work; we own server-side protocol compliance |
 | [0012](../adr/0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | Trivially correct identity isolation; pooling awaits OBS-6 data |
 | [0019](../adr/0019-api-service-layer.md) | Thin routers + service layer in the management API | Business logic in framework-free services; one DTO class per module |
 | [0020](../adr/0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | Services/DTOs are library peers any subsystem consumes; framework-free AuthService |
