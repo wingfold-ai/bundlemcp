@@ -74,5 +74,7 @@ async def test_settings_env_prefix(monkeypatch):
     from bundlemcp.settings import Settings
 
     monkeypatch.setenv("BUNDLEMCP_REDIS_URL", "redis://elsewhere:6379/2")
+    monkeypatch.setenv("BUNDLEMCP_ADMIN_EMAILS", '["a@example.com"]')
     settings = Settings(_env_file=None)
     assert settings.redis_url == "redis://elsewhere:6379/2"
+    assert settings.admin_emails == ["a@example.com"]

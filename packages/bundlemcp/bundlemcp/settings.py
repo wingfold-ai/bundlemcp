@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     # Trusted reverse proxies (DEP-2): X-Forwarded-* honored only from these CIDRs.
     trusted_proxies: list[str] = []
 
+    # Admin auth (spec 21)
+    oidc_discovery_url: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: str | None = None
+    admin_emails: list[str] = []
+
     # Web app origins (SEC-4): CORS allowlist for the management API; these
     # origins may also pass the CSRF origin check on cookie-authenticated
     # mutations. Empty = same-origin only (API-only deployments, UI-5).

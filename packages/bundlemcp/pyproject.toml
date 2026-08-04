@@ -16,6 +16,7 @@ dependencies = [
     "uvicorn>=0.35",
     "httpx>=0.28",
     "structlog>=25.4",
+    "authlib>=1.6",
 ]
 
 [build-system]
