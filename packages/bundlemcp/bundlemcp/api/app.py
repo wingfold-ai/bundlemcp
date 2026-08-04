@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from bundlemcp.api.routers import api_keys, audit, bundles, endpoints, servers
+from bundlemcp.api.routers import api_keys, audit, bundles, endpoints, me, servers, users
 from bundlemcp.gateway import mcp_endpoint
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
@@ -16,6 +16,9 @@ from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
 from bundlemcp.gateway.metering import load_metering_hook
 from bundlemcp.gateway.metrics import Counters
 from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
+from bundlemcp.oauth import oidc as oauth_oidc
+from bundlemcp.oauth.adminsessions import AdminSessionStore
+from bundlemcp.oauth.oidc import OidcProvider, build_provider
 from bundlemcp.services.errors import (
     ConflictError,
     InvalidInputError,
@@ -54,6 +57,7 @@ def create_app(
     engine: AsyncEngine | None = None,
     redis: Redis | None = None,
     client_factory: ClientFactory | None = None,
+    oidc_provider: OidcProvider | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
 
@@ -81,6 +85,15 @@ def create_app(
             counters=counters,
             settings=settings,
         )
+        app.state.admin_sessions = AdminSessionStore(app.state.redis)
+        provider = oidc_provider or build_provider(settings)
+        app.state.oidc_provider = provider
+        preload = getattr(provider, "preload", None)
+        if preload is not None:
+            try:
+                await preload()  # authorize_url needs the discovered metadata
+            except Exception:
+                log.warning("oidc.preload_failed", exc_info=True)
         yield
         await audit.stop()
         await app.state.engine.dispose()
@@ -114,8 +127,11 @@ def create_app(
         endpoints.router,
         api_keys.router,
         audit.router,
+        me.router,
     ):
         app.include_router(router, prefix=API_PREFIX)
+    app.include_router(oauth_oidc.router)  # /login, /login/callback at root
+    app.include_router(users.router, prefix=API_PREFIX)  # /api/v1/users (ADM-6)
     app.include_router(mcp_endpoint.router)  # public /{endpoint}/mcp (EP-1)
 
     @app.get("/healthz", include_in_schema=False)
