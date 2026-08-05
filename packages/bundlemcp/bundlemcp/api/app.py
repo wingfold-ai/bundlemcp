@@ -131,7 +131,7 @@ def create_app(
     ):
         app.include_router(router, prefix=API_PREFIX)
     app.include_router(oauth_oidc.router)  # /login, /login/callback at root
-    app.include_router(users.router, prefix=API_PREFIX)  # /api/v1/users (ADM-6)
+    app.include_router(users.router, prefix=API_PREFIX)  # /api/v1/users (ADM-6, OAS-11)
     app.include_router(mcp_endpoint.router)  # public /{endpoint}/mcp (EP-1)
 
     @app.get("/healthz", include_in_schema=False)
