@@ -20,5 +20,6 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0011](0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge; FastMCP upstream-only | accepted |
 | [0012](0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | accepted |
 | [0013](0013-service-key-auth-first.md) | Service-key auth first; admin OIDC with the UI | accepted (updated: OIDC sessions now shipped) |
+| [0014](0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB token validation | accepted |
 | [0019](0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020) |
 | [0020](0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted |
