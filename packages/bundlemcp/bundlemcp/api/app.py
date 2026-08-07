@@ -16,7 +16,11 @@ from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
 from bundlemcp.gateway.metering import load_metering_hook
 from bundlemcp.gateway.metrics import Counters
 from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
+from bundlemcp.oauth import authorize as oauth_authorize
+from bundlemcp.oauth import metadata as oauth_metadata
 from bundlemcp.oauth import oidc as oauth_oidc
+from bundlemcp.oauth import registration as oauth_registration
+from bundlemcp.oauth import token as oauth_token
 from bundlemcp.oauth.adminsessions import AdminSessionStore
 from bundlemcp.oauth.oidc import OidcProvider, build_provider
 from bundlemcp.services.errors import (
@@ -94,7 +98,23 @@ def create_app(
                 await preload()  # authorize_url needs the discovered metadata
             except Exception:
                 log.warning("oidc.preload_failed", exc_info=True)
+        async def _purge_loop() -> None:  # OAS-8/SEC-8
+            import asyncio
+
+            while True:
+                await asyncio.sleep(600)
+                try:
+                    removed = await oauth_token.purge_expired(app.state.session_factory)
+                    if removed:
+                        log.info("oauth.purged", removed=removed)
+                except Exception:
+                    log.warning("oauth.purge_failed", exc_info=True)
+
+        import asyncio
+
+        purge_task = asyncio.create_task(_purge_loop())
         yield
+        purge_task.cancel()
         await audit.stop()
         await app.state.engine.dispose()
         await app.state.redis.aclose()
@@ -130,8 +150,16 @@ def create_app(
         me.router,
     ):
         app.include_router(router, prefix=API_PREFIX)
-    app.include_router(oauth_oidc.router)  # /login, /login/callback at root
-    app.include_router(users.router, prefix=API_PREFIX)  # /api/v1/users (ADM-6)
+    # OAuth server routes at root for .well-known discovery (spec 20)
+    for router in (
+        oauth_metadata.router,
+        oauth_registration.router,
+        oauth_authorize.router,
+        oauth_token.router,
+        oauth_oidc.router,
+    ):
+        app.include_router(router)
+    app.include_router(users.router, prefix=API_PREFIX)  # /api/v1/users (ADM-6, OAS-11)
     app.include_router(mcp_endpoint.router)  # public /{endpoint}/mcp (EP-1)
 
     @app.get("/healthz", include_in_schema=False)

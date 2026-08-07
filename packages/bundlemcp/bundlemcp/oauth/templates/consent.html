@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authorize access — bundlemcp</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f6f7f9; color: #1a1d21;
+           display: flex; justify-content: center; padding-top: 8vh; }
+    .card { background: #fff; border: 1px solid #e2e5e9; border-radius: 12px;
+            padding: 2rem; max-width: 26rem; box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+    h1 { font-size: 1.15rem; margin: 0 0 1rem; }
+    .target { background: #f0f2f5; border-radius: 8px; padding: .75rem 1rem; margin: 1rem 0;
+              font-size: .9rem; }
+    .target b { font-family: ui-monospace, monospace; }
+    .actions { display: flex; gap: .75rem; margin-top: 1.5rem; }
+    button { flex: 1; padding: .6rem 1rem; border-radius: 8px; border: 1px solid #cfd4da;
+             background: #fff; font-size: .95rem; cursor: pointer; }
+    button.approve { background: #1a7f37; border-color: #1a7f37; color: #fff; }
+    .user { color: #5b6470; font-size: .8rem; margin-top: 1.25rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Authorize access</h1>
+    <p><b>{{ client_name }}</b> wants to connect to the MCP endpoint:</p>
+    <div class="target">
+      Endpoint: <b>{{ endpoint_name }}</b><br>
+      Bundle: <b>{{ bundle_name }}</b><br>
+      Scope: <b>{{ scope }}</b>
+    </div>
+    <p>The client will be able to list and call every tool this endpoint
+       exposes, acting as you.</p>
+    <form method="post" action="{{ consent_action }}">
+      <input type="hidden" name="token" value="{{ token }}">
+      <div class="actions">
+        <button type="submit" name="action" value="deny">Deny</button>
+        <button type="submit" name="action" value="approve" class="approve">Approve</button>
+      </div>
+    </form>
+    <p class="user">Signed in as {{ user_email }}</p>
+  </div>
+</body>
+</html>

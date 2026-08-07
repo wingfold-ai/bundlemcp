@@ -14,3 +14,5 @@
 
 - No metamcp-migration importer — manual migration for the primary user
   ([roadmap](../../spec/README.md)).
+- Single scope in OAuth; audience-only binding (OAS-10) — fine-grained scopes
+  deferred.

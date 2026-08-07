@@ -58,11 +58,58 @@ def _unauthorized(request: Request, endpoint_name: str) -> Response:
     )
 
 
+async def _resolve_oauth_bearer(
+    request: Request, db: AsyncSession, view: BundleView
+) -> tuple[str, str | None] | None:
+    """Direct-DB bearer validation + audience check.
+
+    Returns (user_id, email) or None.
+    """
+    from bundlemcp.models import OAuthAccessToken, User, utcnow
+    from bundlemcp.security import ACCESS_TOKEN_PREFIX, hash_token
+
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer ") or not auth[7:].startswith(ACCESS_TOKEN_PREFIX):
+        return None
+    from datetime import UTC
+
+    from sqlmodel import select
+
+    row = (
+        await db.execute(
+            select(OAuthAccessToken).where(
+                OAuthAccessToken.access_token_hash == hash_token(auth[7:])
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None or row.revoked:
+        return None
+    expires = row.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=UTC)
+    if expires < utcnow():
+        return None
+    if row.endpoint_id != view.endpoint.id:
+        return None  # EP-3a: audience mismatch -> 401 invalid_token
+    user = (await db.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
+    if user is None or not user.is_active:
+        return None
+    return (str(user.id), user.email)
+
+
 async def _authenticate(
     request: Request, db: AsyncSession, view: BundleView
 ) -> tuple[str, str | None, str | None, str | None] | None:
-    """Returns (auth_method, user_id, user_email, api_key_id) or None."""
+    """Returns (auth_method, user_id, user_email, api_key_id) or None.
+
+    Precedence oauth > api_key.
+    """
     modes = set(view.endpoint.auth_modes)
+    if EndpointAuthMode.OAUTH in modes:
+        oauth = await _resolve_oauth_bearer(request, db, view)
+        if oauth is not None:
+            user_id, email = oauth
+            return ("oauth", user_id, email, None)
     if EndpointAuthMode.API_KEY in modes:
         key = await AuthService(db).authenticate_api_key(
             authorization=request.headers.get("authorization"),
