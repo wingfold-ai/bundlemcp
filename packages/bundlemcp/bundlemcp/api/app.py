@@ -25,6 +25,8 @@ from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
 from bundlemcp.gateway.metering import load_metering_hook
 from bundlemcp.gateway.metrics import Counters
 from bundlemcp.gateway.runtime_config import RuntimeConfig
+from bundlemcp.gateway.signals import SignalBus
+from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
 from bundlemcp.oauth import authorize as oauth_authorize
 from bundlemcp.oauth import metadata as oauth_metadata
@@ -91,6 +93,9 @@ def create_app(
         metering.fail_open = settings.metering_hook_fail_open  # type: ignore[attr-defined]
         runtime_config = RuntimeConfig(app.state.session_factory)
         app.state.runtime_config = runtime_config
+        registry = StreamRegistry()
+        signals = SignalBus(app.state.redis, registry)  # SES-13
+        await signals.start()
         counters = Counters()  # metric seam (spec 51 exports these)
         app.state.counters = counters
         app.state.gateway = GatewayRuntime(
@@ -99,6 +104,8 @@ def create_app(
             audit=audit,
             client_factory=factory,
             runtime_config=runtime_config,
+            registry=registry,
+            signals=signals,
             public_url=settings.public_url,
             counters=counters,
             settings=settings,
@@ -116,9 +123,27 @@ def create_app(
         subscriber = InvalidationSubscriber(app.state.redis)
         app.state.invalidation = subscriber
 
+        session_store = app.state.gateway.sessions
+
         async def _on_invalidation(event) -> None:
             if event.entity_type == "config":
                 await runtime_config.flush()
+                return
+            if event.entity_type in ("bundle", "endpoint"):
+                # BND-7: live sessions of the affected surface get list_changed.
+                # Each replica walks only ITS local streams — full coverage,
+                # no extra signaling.
+                payload = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
+                for session_id in registry.broadcast_sessions():
+                    record = await session_store.load(session_id)
+                    if record is None:
+                        continue
+                    if (
+                        event.entity_type == "bundle" and record.bundle_name == event.key
+                    ) or (
+                        event.entity_type == "endpoint" and record.endpoint_name == event.key
+                    ):
+                        registry.deliver_local(session_id, payload)
 
         subscriber.on_event(_on_invalidation)
         subscriber.on_reconnect_flush(runtime_config.flush)
@@ -141,6 +166,7 @@ def create_app(
         purge_task = asyncio.create_task(_purge_loop())
         yield
         purge_task.cancel()
+        await signals.stop()
         await subscriber.stop()
         await audit.stop()
         await app.state.engine.dispose()
