@@ -1,4 +1,4 @@
-"""Public MCP endpoints: POST/DELETE /{endpoint_name}/mcp.
+"""Public MCP endpoints: POST/GET/DELETE /{endpoint_name}/mcp.
 
 The Streamable-HTTP edge is implemented directly here (not via FastMCP's
 server session manager) so that session state lives in Redis and any replica
@@ -350,6 +350,53 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
     if method == "tools/call":
         return await _handle_call(runtime, request, view, record, body)
     return _rpc_error(body.get("id"), -32601, f"method not supported: {method}")
+
+
+@router.get("/{endpoint_name}/mcp", include_in_schema=False)
+async def mcp_get(endpoint_name: str, request: Request) -> Response:
+    """The server->client event stream (SSE).
+
+    Carries list_changed notifications. The open stream is replica-pinned;
+    messages from other replicas arrive via the SignalBus.
+    """
+    import json as jsonlib
+
+    from fastapi.responses import StreamingResponse
+
+    runtime: GatewayRuntime = request.app.state.gateway
+    async with request.app.state.session_factory() as db:
+        view = await load_bundle_view(db, endpoint_name)
+        if view is None:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        auth = await _authenticate(request, db, view)
+    if auth is None:
+        return _unauthorized(request, endpoint_name)
+
+    session_id = request.headers.get(SESSION_HEADER, "")
+    record = await runtime.sessions.load(session_id) if session_id else None
+    if record is None or record.endpoint_name != endpoint_name:
+        return JSONResponse({"error": "session not found"}, status_code=404)
+
+    queue = runtime.registry.register_stream(session_id)
+
+    async def event_source():
+        try:
+            yield ": connected\n\n"
+            while True:
+                try:
+                    payload = await asyncio.wait_for(queue.get(), timeout=15)
+                    yield f"data: {jsonlib.dumps(payload)}\n\n"
+                except TimeoutError:
+                    yield ": keepalive\n\n"
+                    await runtime.sessions.touch(session_id)  # stream open = active
+        finally:
+            runtime.registry.unregister_stream(session_id, queue)
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.delete("/{endpoint_name}/mcp", include_in_schema=False)
