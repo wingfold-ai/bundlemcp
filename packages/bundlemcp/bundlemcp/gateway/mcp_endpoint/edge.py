@@ -29,7 +29,6 @@ router = APIRouter()
 
 SESSION_HEADER = "mcp-session-id"
 PROTOCOL_VERSION = "2025-11-25"
-CALL_TIMEOUT = 60.0  # seconds; becomes runtime-tunable with spec 33
 
 # FWD-2: never forwardable, enforced at runtime on top of write-time checks
 DENIED_FORWARD_HEADERS = {"host", "content-length", "cookie", "x-api-key", "mcp-session-id"}
@@ -192,6 +191,12 @@ def _tools_payload(view: BundleView) -> list[dict[str, Any]]:
     return tools
 
 
+async def _call_timeout(runtime: GatewayRuntime) -> float:
+    """Call timeout from runtime config (default if unavailable)."""
+    rc = runtime.runtime_config
+    return 60.0 if rc is None else float(await rc.get("call_timeout"))
+
+
 async def _drive_upstream(
     runtime: GatewayRuntime,
     pt: PresentedTool,
@@ -212,7 +217,7 @@ async def _drive_upstream(
             return await client.call_tool_mcp(pt.tool.name, arguments)
 
     try:
-        result = await asyncio.wait_for(run(), timeout=CALL_TIMEOUT)
+        result = await asyncio.wait_for(run(), timeout=await _call_timeout(runtime))
         status = "error" if result.isError else "success"  # MID-3 isError mapping
         return _CallOutcome(status=status, result=result)
     except TimeoutError:
