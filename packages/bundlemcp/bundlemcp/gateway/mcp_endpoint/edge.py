@@ -19,6 +19,7 @@ from bundlemcp.gateway.composition import BundleView, PresentedTool, load_bundle
 from bundlemcp.gateway.mcp_endpoint._call_outcome import _CallOutcome
 from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
+from bundlemcp.gateway.protocol_version import SUPPORTED_PROTOCOL_VERSIONS, negotiate_version
 from bundlemcp.models import AuditRecord, AuditStatus, EndpointAuthMode
 from bundlemcp.services import AuthService
 from bundlemcp.store.sessions import SessionRecord, SessionStore, UpstreamBinding
@@ -28,7 +29,6 @@ log = structlog.get_logger(__name__)
 router = APIRouter()
 
 SESSION_HEADER = "mcp-session-id"
-PROTOCOL_VERSION = "2025-11-25"
 
 # FWD-2: never forwardable, enforced at runtime on top of write-time checks
 DENIED_FORWARD_HEADERS = {"host", "content-length", "cookie", "x-api-key", "mcp-session-id"}
@@ -146,11 +146,54 @@ def _forward_headers(request: Request, server, sub: str | None) -> dict[str, str
     return extra
 
 
+def _aggregate_capabilities(view: BundleView) -> dict[str, Any]:
+    """PROT-11: advertise a capability iff ≥1 enabled member advertises it.
+
+    Source is each member's discovery-time capabilities snapshot (DISC-6), so
+    initialize never fans out to members. The gateway always supports tools.
+    """
+    caps: dict[str, Any] = {"tools": {"listChanged": True}}
+    has_prompts = has_resources = has_completions = has_logging = False
+    resources_subscribe = False
+    for server in view.servers.values():
+        member = server.capabilities or {}
+        if "prompts" in member:
+            has_prompts = True
+        if "resources" in member:
+            has_resources = True
+            if (member.get("resources") or {}).get("subscribe"):
+                resources_subscribe = True
+        if "completions" in member:
+            has_completions = True
+        if "logging" in member:
+            has_logging = True
+    if has_prompts:
+        caps["prompts"] = {"listChanged": True}
+    if has_resources:
+        resources: dict[str, Any] = {"listChanged": True}
+        if resources_subscribe:
+            resources["subscribe"] = True
+        caps["resources"] = resources
+    if has_completions:
+        caps["completions"] = {}
+    if has_logging:
+        caps["logging"] = {}
+    return caps
+
+
 async def _handle_initialize(
     runtime: GatewayRuntime, view: BundleView, body: dict, auth: tuple
 ) -> Response:
     auth_method, user_id, user_email, api_key_id = auth
     params = body.get("params") or {}
+    negotiated = negotiate_version(params.get("protocolVersion"))  # PROT-12
+    if negotiated is None:
+        return _rpc_error(
+            body.get("id"),
+            -32602,
+            f"unsupported protocolVersion {params.get('protocolVersion')!r}; "
+            f"supported: {', '.join(SUPPORTED_PROTOCOL_VERSIONS)}",
+        )
     session_id = SessionStore.new_session_id()
     record = SessionRecord(
         session_id=session_id,
@@ -160,15 +203,15 @@ async def _handle_initialize(
         user_id=user_id,
         user_email=user_email,
         api_key_id=api_key_id,
-        protocol_version=PROTOCOL_VERSION,
+        protocol_version=negotiated,
         client_capabilities=params.get("capabilities") or {},
     )
     await runtime.sessions.create(record)  # SES-1
     response = _rpc_result(
         body.get("id"),
         {
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {"tools": {"listChanged": True}},
+            "protocolVersion": negotiated,
+            "capabilities": _aggregate_capabilities(view),  # PROT-11
             "serverInfo": {"name": f"bundlemcp/{view.bundle.name}", "version": "0.1.0"},
             **({"instructions": view.bundle.description} if view.bundle.description else {}),
         },
