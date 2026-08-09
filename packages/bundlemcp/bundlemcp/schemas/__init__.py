@@ -15,6 +15,7 @@ from bundlemcp.schemas.bundles import (
     BundleUpsert,
 )
 from bundlemcp.schemas.common import Page
+from bundlemcp.schemas.config import ConfigValue
 from bundlemcp.schemas.endpoints import EndpointRead, EndpointUpsert
 from bundlemcp.schemas.servers import ServerRead, ServerUpsert
 from bundlemcp.schemas.tools import BundleToolUpdate, ToolRead
@@ -31,6 +32,7 @@ __all__ = [
     "BundleToolRead",
     "BundleToolUpdate",
     "BundleUpsert",
+    "ConfigValue",
     "ConsentRead",
     "EndpointRead",
     "MeRead",
