@@ -8,13 +8,25 @@ from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from bundlemcp.api.routers import api_keys, audit, bundles, endpoints, me, servers, users
+from bundlemcp.api.routers import (
+    api_keys,
+    audit,
+    bundles,
+    config,
+    endpoints,
+    me,
+    servers,
+    users,
+)
 from bundlemcp.gateway import mcp_endpoint
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
 from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
 from bundlemcp.gateway.metering import load_metering_hook
 from bundlemcp.gateway.metrics import Counters
+from bundlemcp.gateway.runtime_config import RuntimeConfig
+from bundlemcp.gateway.signals import SignalBus
+from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
 from bundlemcp.oauth import authorize as oauth_authorize
 from bundlemcp.oauth import metadata as oauth_metadata
@@ -33,6 +45,7 @@ from bundlemcp.services.errors import (
 )
 from bundlemcp.settings import Settings, get_settings
 from bundlemcp.store import create_engine, create_redis, session_factory
+from bundlemcp.store.invalidation import InvalidationSubscriber
 from bundlemcp.store.sessions import SessionStore
 
 log = structlog.get_logger(__name__)
@@ -78,6 +91,11 @@ def create_app(
         await audit.start()
         metering = load_metering_hook(settings.metering_hook)
         metering.fail_open = settings.metering_hook_fail_open  # type: ignore[attr-defined]
+        runtime_config = RuntimeConfig(app.state.session_factory)
+        app.state.runtime_config = runtime_config
+        registry = StreamRegistry()
+        signals = SignalBus(app.state.redis, registry)  # SES-13
+        await signals.start()
         counters = Counters()  # metric seam (spec 51 exports these)
         app.state.counters = counters
         app.state.gateway = GatewayRuntime(
@@ -85,6 +103,9 @@ def create_app(
             metering=metering,
             audit=audit,
             client_factory=factory,
+            runtime_config=runtime_config,
+            registry=registry,
+            signals=signals,
             public_url=settings.public_url,
             counters=counters,
             settings=settings,
@@ -98,6 +119,36 @@ def create_app(
                 await preload()  # authorize_url needs the discovered metadata
             except Exception:
                 log.warning("oidc.preload_failed", exc_info=True)
+        # STP-2: one subscriber per replica; runtime-config cache hangs off it
+        subscriber = InvalidationSubscriber(app.state.redis)
+        app.state.invalidation = subscriber
+
+        session_store = app.state.gateway.sessions
+
+        async def _on_invalidation(event) -> None:
+            if event.entity_type == "config":
+                await runtime_config.flush()
+                return
+            if event.entity_type in ("bundle", "endpoint"):
+                # BND-7: live sessions of the affected surface get list_changed.
+                # Each replica walks only ITS local streams — full coverage,
+                # no extra signaling.
+                payload = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
+                for session_id in registry.broadcast_sessions():
+                    record = await session_store.load(session_id)
+                    if record is None:
+                        continue
+                    if (
+                        event.entity_type == "bundle" and record.bundle_name == event.key
+                    ) or (
+                        event.entity_type == "endpoint" and record.endpoint_name == event.key
+                    ):
+                        registry.deliver_local(session_id, payload)
+
+        subscriber.on_event(_on_invalidation)
+        subscriber.on_reconnect_flush(runtime_config.flush)
+        await subscriber.start()
+
         async def _purge_loop() -> None:  # OAS-8/SEC-8
             import asyncio
 
@@ -115,6 +166,8 @@ def create_app(
         purge_task = asyncio.create_task(_purge_loop())
         yield
         purge_task.cancel()
+        await signals.stop()
+        await subscriber.stop()
         await audit.stop()
         await app.state.engine.dispose()
         await app.state.redis.aclose()
@@ -146,6 +199,7 @@ def create_app(
         bundles.router,
         endpoints.router,
         api_keys.router,
+        config.router,
         audit.router,
         me.router,
     ):
