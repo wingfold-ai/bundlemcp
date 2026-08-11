@@ -15,7 +15,7 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bundlemcp.gateway.composition import BundleView, PresentedTool, load_bundle_view
+from bundlemcp.gateway.composition import PREFIX_SEP, BundleView, PresentedTool, load_bundle_view
 from bundlemcp.gateway.mcp_endpoint._call_outcome import _CallOutcome
 from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
@@ -595,6 +595,181 @@ async def _handle_call(
     return _rpc_error(rpc_id, outcome.code or -32000, outcome.error_message or "call failed")
 
 
+def _sub_for(record: SessionRecord) -> str | None:
+    return record.user_id or (f"api_key:{record.api_key_id}" if record.api_key_id else None)
+
+
+async def _readonly_headers(
+    runtime: GatewayRuntime, request: Request, server, record: SessionRecord
+) -> dict[str, str]:
+    """Forward headers for a read-only member call."""
+    return _forward_headers(request, server, _sub_for(record))
+
+
+async def _fanout_readonly(runtime, request, record, servers, call):
+    """Run `call(client)` against each member concurrently; skip + WARN failures.
+
+    Returns a list of (server, result | None) — a None means that member was
+    unreachable/unconnected and was omitted (DISC-4: degrade observably).
+    """
+    import asyncio
+
+    async def _one(server):
+        headers = await _readonly_headers(runtime, request, server, record)
+        try:
+            client = runtime.client_factory(server, headers)
+            async with client:
+                return server, await call(client)
+        except Exception:
+            log.warning("passthrough.member_failed", server=server.name, exc_info=True)
+            return server, None
+
+    return list(await asyncio.gather(*[_one(s) for s in servers]))
+
+
+def _dump(obj) -> dict[str, Any]:
+    return obj.model_dump(by_alias=True, mode="json", exclude_none=True)
+
+
+async def _handle_prompts_list(runtime, request, view, record, rpc_id) -> Response:
+    """PROT-11/BND-8: merge members' prompts with `server__name` prefixing."""
+    async def call(client):
+        return await client.list_prompts()
+
+    prompts: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for server, member_prompts in await _fanout_readonly(
+        runtime, request, record, view.servers.values(), call
+    ):
+        if member_prompts is None:
+            continue
+        for prompt in member_prompts:
+            entry = _dump(prompt)
+            entry["name"] = f"{server.name}{PREFIX_SEP}{prompt.name}"
+            if entry["name"] in seen:
+                continue
+            seen.add(entry["name"])
+            prompts.append(entry)
+    return _rpc_result(rpc_id, {"prompts": prompts})
+
+
+async def _handle_prompts_get(runtime, request, view, record, body, rpc_id) -> Response:
+    params = body.get("params") or {}
+    presented = params.get("name", "")
+    server_name, _, prompt_name = presented.partition(PREFIX_SEP)  # BND-2 first-`__`
+    server = view.servers.get(server_name)
+    if server is None or not prompt_name:
+        return _rpc_error(rpc_id, -32602, f"unknown prompt: {presented}")
+    headers = await _readonly_headers(runtime, request, server, record)
+    try:
+        client = runtime.client_factory(server, headers)
+        async with client:
+            result = await client.get_prompt_mcp(prompt_name, params.get("arguments") or None)
+    except Exception as exc:
+        log.warning("prompts.get_failed", server=server_name)
+        return _rpc_error(rpc_id, -32000, str(exc)[:200])
+    return _rpc_result(rpc_id, _dump(result))
+
+
+async def _handle_completion(runtime, request, view, record, body, rpc_id) -> Response:
+    """PROT-9: route completion to the owning member (prompt ref de-prefixed;
+    resource-template ref resolved by URI fan-out)."""
+    from mcp.types import PromptReference, ResourceTemplateReference
+
+    params = body.get("params") or {}
+    ref = params.get("ref") or {}
+    argument = params.get("argument") or {}
+    context = (params.get("context") or {}).get("arguments")
+
+    if ref.get("type") == "ref/prompt":
+        presented = ref.get("name", "")
+        server_name, _, prompt_name = presented.partition(PREFIX_SEP)
+        server = view.servers.get(server_name)
+        if server is None or not prompt_name:
+            return _rpc_error(rpc_id, -32602, f"unknown prompt ref: {presented}")
+        member_ref = PromptReference(type="ref/prompt", name=prompt_name)
+        candidates = [server]
+    elif ref.get("type") == "ref/resource":
+        member_ref = ResourceTemplateReference(type="ref/resource", uri=ref.get("uri", ""))
+        candidates = list(view.servers.values())  # URI is not prefixed → fan-out
+    else:
+        return _rpc_error(rpc_id, -32602, f"unsupported completion ref: {ref.get('type')}")
+
+    for server in candidates:
+        try:
+            headers = await _readonly_headers(runtime, request, server, record)
+            client = runtime.client_factory(server, headers)
+            async with client:
+                result = await client.complete_mcp(member_ref, argument, context)
+            return _rpc_result(rpc_id, _dump(result))
+        except Exception:
+            log.warning("completion.member_failed", server=server.name)
+            continue
+    return _rpc_result(rpc_id, {"completion": {"values": [], "hasMore": False}})
+
+
+async def _merge_by_key(runtime, request, view, record, call, key: str) -> list[dict[str, Any]]:
+    """Fan-out a resource-list method, merging entries de-duplicated by `key`."""
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for server, member in await _fanout_readonly(
+        runtime, request, record, view.servers.values(), call
+    ):
+        if member is None:
+            continue
+        for obj in member:
+            entry = _dump(obj)
+            identity = entry.get(key)
+            if identity in seen:
+                log.warning("resources.collision", key=identity, server=server.name)
+                continue
+            seen.add(identity)
+            items.append(entry)
+    return items
+
+
+async def _handle_resources_list(runtime, request, view, record, rpc_id) -> Response:
+    """BND-8: merge members' resources; URIs pass through unchanged (dedupe by URI)."""
+    async def call(client):
+        return await client.list_resources()
+
+    items = await _merge_by_key(runtime, request, view, record, call, "uri")
+    return _rpc_result(rpc_id, {"resources": items})
+
+
+async def _handle_resource_templates_list(runtime, request, view, record, rpc_id) -> Response:
+    async def call(client):
+        return await client.list_resource_templates()
+
+    items = await _merge_by_key(runtime, request, view, record, call, "uriTemplate")
+    return _rpc_result(rpc_id, {"resourceTemplates": items})
+
+
+async def _handle_resources_read(runtime, request, view, record, body, rpc_id) -> Response:
+    """BND-8: resolve the owner by fan-out — first enabled member that owns the URI."""
+    uri = (body.get("params") or {}).get("uri", "")
+    for server in view.servers.values():
+        try:
+            headers = await _readonly_headers(runtime, request, server, record)
+            client = runtime.client_factory(server, headers)
+            async with client:
+                result = await client.read_resource_mcp(uri)
+            return _rpc_result(rpc_id, _dump(result))
+        except Exception:
+            continue
+    return _rpc_error(rpc_id, -32002, f"resource not found: {uri}")
+
+
+async def _handle_resources_subscribe(rpc_id) -> Response:
+    """Accept the subscription (request/response half).
+
+    notifications/resources/updated push is pooling-dependent (ADR-0021) and is
+    not delivered between calls under per-call upstream connections.
+    """
+    log.warning("resources.subscribe_push_pooling_dependent")
+    return _rpc_result(rpc_id, {})
+
+
 @router.post("/{endpoint_name}/mcp", include_in_schema=False)
 async def mcp_post(endpoint_name: str, request: Request) -> Response:
     runtime: GatewayRuntime = request.app.state.gateway
@@ -643,6 +818,20 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return _rpc_result(body.get("id"), {"tools": _tools_payload(view)})
     if method == "tools/call":
         return await _handle_call(runtime, request, view, record, body)
+    if method == "prompts/list":
+        return await _handle_prompts_list(runtime, request, view, record, body.get("id"))
+    if method == "prompts/get":
+        return await _handle_prompts_get(runtime, request, view, record, body, body.get("id"))
+    if method == "completion/complete":
+        return await _handle_completion(runtime, request, view, record, body, body.get("id"))
+    if method == "resources/list":
+        return await _handle_resources_list(runtime, request, view, record, body.get("id"))
+    if method == "resources/templates/list":
+        return await _handle_resource_templates_list(runtime, request, view, record, body.get("id"))
+    if method == "resources/read":
+        return await _handle_resources_read(runtime, request, view, record, body, body.get("id"))
+    if method in ("resources/subscribe", "resources/unsubscribe"):
+        return await _handle_resources_subscribe(body.get("id"))
     if method == "logging/setLevel":
         # PROT-7: accepted; the level applies on each member's next connection
         # (per-call model — no standing upstream connection to set it on now).
