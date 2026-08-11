@@ -246,6 +246,70 @@ async def _timeout_config(runtime: GatewayRuntime) -> tuple[float, bool, float]:
     )
 
 
+def _build_relay_handlers(
+    runtime: GatewayRuntime, session_id: str, wait_timeout: float
+) -> dict:
+    """Elicitation/sampling handlers that forward to the downstream client.
+
+    Only attached when the client advertised the capability (caller gates this).
+    Each request is delivered on the client's GET stream and its reply awaited
+    via a correlation future, bounded by the call's timeout.
+    """
+    import asyncio
+
+    async def _roundtrip(method: str, params: dict) -> dict:
+        correlation_id = uuid.uuid4().hex
+        future = runtime.registry.register_reply(correlation_id)
+        request = {"jsonrpc": "2.0", "id": correlation_id, "method": method, "params": params}
+        await runtime.signals.deliver(session_id, request)
+        try:
+            reply = await asyncio.wait_for(future, timeout=wait_timeout)
+        finally:
+            runtime.registry.unregister_reply(correlation_id)
+        if "error" in reply:
+            raise RuntimeError(reply["error"].get("message", "client rejected request"))
+        return reply.get("result", {})
+
+    async def elicitation_handler(message, response_type, params, context):
+        from fastmcp.client.elicitation import ElicitResult
+
+        payload = params.model_dump(by_alias=True, mode="json", exclude_none=True)
+        result = await _roundtrip("elicitation/create", payload)
+        return ElicitResult(action=result.get("action", "decline"), content=result.get("content"))
+
+    async def sampling_handler(messages, params, context):
+        from mcp.types import CreateMessageResult
+
+        payload = params.model_dump(by_alias=True, mode="json", exclude_none=True)
+        result = await _roundtrip("sampling/createMessage", payload)
+        return CreateMessageResult.model_validate(result)
+
+    async def roots_handler(context):
+        # PROT-4: relay the upstream's roots/list to the downstream client.
+        from mcp.types import Root
+
+        result = await _roundtrip("roots/list", {})
+        return [Root.model_validate(r) for r in result.get("roots", [])]
+
+    async def log_handler(message):
+        # PROT-7: forward an upstream log to the client's stream (notification).
+        await runtime.signals.deliver(
+            session_id,
+            {
+                "jsonrpc": "2.0",
+                "method": "notifications/message",
+                "params": message.model_dump(by_alias=True, mode="json", exclude_none=True),
+            },
+        )
+
+    return {
+        "elicitation_handler": elicitation_handler,
+        "sampling_handler": sampling_handler,
+        "roots_handler": roots_handler,
+        "log_handler": log_handler,
+    }
+
+
 async def _drive_upstream(
     runtime: GatewayRuntime,
     pt: PresentedTool,
@@ -271,8 +335,23 @@ async def _drive_upstream(
         if on_progress is not None:
             await on_progress(progress, total, message)
 
+    # PROT-5: capability intersection — attach relay handlers only for what the
+    # downstream client advertised, and only if we can route replies.
+    handlers: dict = {}
+    caps = record.client_capabilities or {}
+    if runtime.registry is not None and runtime.signals is not None:
+        all_handlers = _build_relay_handlers(runtime, record.session_id, max_total)
+        if "elicitation" in caps:
+            handlers["elicitation_handler"] = all_handlers["elicitation_handler"]
+        if "sampling" in caps:
+            handlers["sampling_handler"] = all_handlers["sampling_handler"]
+        if "roots" in caps:  # PROT-4: Client kwarg is `roots`
+            handlers["roots"] = all_handlers["roots_handler"]
+        if "logging" in caps:  # PROT-7
+            handlers["log_handler"] = all_handlers["log_handler"]
+
     async def run():
-        client = runtime.client_factory(pt.server, extra_headers)
+        client = runtime.client_factory(pt.server, extra_headers, **handlers)
         async with client:
             await runtime.sessions.set_binding(
                 record.session_id,
@@ -543,6 +622,13 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return JSONResponse({"error": "session not found"}, status_code=404)
     await runtime.sessions.touch(session_id)  # SES-1 (+ PROT-8 for ping)
 
+    # PROT-4: a JSON-RPC response (no method, has result/error) is the client's
+    # reply to a server->client request — route it to the awaiting call.
+    if not method and ("result" in body or "error" in body):
+        if runtime.signals is not None and body.get("id") is not None:
+            await runtime.signals.reply(str(body["id"]), body)
+        return Response(status_code=202)
+
     if method == "notifications/cancelled":
         # PROT-3: route the cancel to the replica holding the in-flight call
         cancel_id = (body.get("params") or {}).get("requestId")
@@ -557,6 +643,10 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return _rpc_result(body.get("id"), {"tools": _tools_payload(view)})
     if method == "tools/call":
         return await _handle_call(runtime, request, view, record, body)
+    if method == "logging/setLevel":
+        # PROT-7: accepted; the level applies on each member's next connection
+        # (per-call model — no standing upstream connection to set it on now).
+        return _rpc_result(body.get("id"), {})
     return _rpc_error(body.get("id"), -32601, f"method not supported: {method}")
 
 
