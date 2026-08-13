@@ -21,8 +21,10 @@ in the same PR as the change they govern
 | [0012](../adr/0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | Trivially correct identity isolation; pooling awaits OBS-6 data |
 | [0013](../adr/0013-service-key-auth-first.md) | Service-key auth first | Headless management from day one; OIDC sessions now also shipped |
 | [0014](../adr/0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB tokens | claude.ai connectable without the UI; no introspect self-call |
+| [0016](../adr/0016-relay-design.md) | Protocol relay: registries + Redis signaling | Full bidirectional relay with any-replica correctness |
 | [0019](../adr/0019-api-service-layer.md) | Thin routers + service layer in the management API | Business logic in framework-free services; one DTO class per module |
 | [0020](../adr/0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | Services/DTOs are library peers any subsystem consumes; framework-free AuthService |
+| [0021](../adr/0021-mcp-surface-completion.md) | Complete the MCP surface (prompts/resources/completions, capabilities, version, roots/logging) | Full-fidelity MCP request/response plane; live passthrough; push-between-calls pooling-dependent |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).
