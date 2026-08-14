@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     egress_allow_cidrs: list[str] = []
     egress_deny_cidrs: list[str] = []
 
+    # Upstream-token encryption (DEP-9): first key encrypts, all decrypt.
+    token_encryption_keys: list[str] = []
+
     # Metering hook (MID-3): import path "module:attribute"; None = no-op.
     metering_hook: str | None = None
     metering_hook_fail_open: bool = False
