@@ -15,10 +15,11 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bundlemcp.gateway.composition import BundleView, PresentedTool, load_bundle_view
+from bundlemcp.gateway.composition import PREFIX_SEP, BundleView, PresentedTool, load_bundle_view
 from bundlemcp.gateway.mcp_endpoint._call_outcome import _CallOutcome
 from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
+from bundlemcp.gateway.protocol_version import SUPPORTED_PROTOCOL_VERSIONS, negotiate_version
 from bundlemcp.models import AuditRecord, AuditStatus, EndpointAuthMode
 from bundlemcp.services import AuthService
 from bundlemcp.store.sessions import SessionRecord, SessionStore, UpstreamBinding
@@ -28,7 +29,6 @@ log = structlog.get_logger(__name__)
 router = APIRouter()
 
 SESSION_HEADER = "mcp-session-id"
-PROTOCOL_VERSION = "2025-11-25"
 
 # FWD-2: never forwardable, enforced at runtime on top of write-time checks
 DENIED_FORWARD_HEADERS = {"host", "content-length", "cookie", "x-api-key", "mcp-session-id"}
@@ -146,11 +146,54 @@ def _forward_headers(request: Request, server, sub: str | None) -> dict[str, str
     return extra
 
 
+def _aggregate_capabilities(view: BundleView) -> dict[str, Any]:
+    """PROT-11: advertise a capability iff ≥1 enabled member advertises it.
+
+    Source is each member's discovery-time capabilities snapshot (DISC-6), so
+    initialize never fans out to members. The gateway always supports tools.
+    """
+    caps: dict[str, Any] = {"tools": {"listChanged": True}}
+    has_prompts = has_resources = has_completions = has_logging = False
+    resources_subscribe = False
+    for server in view.servers.values():
+        member = server.capabilities or {}
+        if "prompts" in member:
+            has_prompts = True
+        if "resources" in member:
+            has_resources = True
+            if (member.get("resources") or {}).get("subscribe"):
+                resources_subscribe = True
+        if "completions" in member:
+            has_completions = True
+        if "logging" in member:
+            has_logging = True
+    if has_prompts:
+        caps["prompts"] = {"listChanged": True}
+    if has_resources:
+        resources: dict[str, Any] = {"listChanged": True}
+        if resources_subscribe:
+            resources["subscribe"] = True
+        caps["resources"] = resources
+    if has_completions:
+        caps["completions"] = {}
+    if has_logging:
+        caps["logging"] = {}
+    return caps
+
+
 async def _handle_initialize(
     runtime: GatewayRuntime, view: BundleView, body: dict, auth: tuple
 ) -> Response:
     auth_method, user_id, user_email, api_key_id = auth
     params = body.get("params") or {}
+    negotiated = negotiate_version(params.get("protocolVersion"))  # PROT-12
+    if negotiated is None:
+        return _rpc_error(
+            body.get("id"),
+            -32602,
+            f"unsupported protocolVersion {params.get('protocolVersion')!r}; "
+            f"supported: {', '.join(SUPPORTED_PROTOCOL_VERSIONS)}",
+        )
     session_id = SessionStore.new_session_id()
     record = SessionRecord(
         session_id=session_id,
@@ -160,15 +203,15 @@ async def _handle_initialize(
         user_id=user_id,
         user_email=user_email,
         api_key_id=api_key_id,
-        protocol_version=PROTOCOL_VERSION,
+        protocol_version=negotiated,
         client_capabilities=params.get("capabilities") or {},
     )
     await runtime.sessions.create(record)  # SES-1
     response = _rpc_result(
         body.get("id"),
         {
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {"tools": {"listChanged": True}},
+            "protocolVersion": negotiated,
+            "capabilities": _aggregate_capabilities(view),  # PROT-11
             "serverInfo": {"name": f"bundlemcp/{view.bundle.name}", "version": "0.1.0"},
             **({"instructions": view.bundle.description} if view.bundle.description else {}),
         },
@@ -191,10 +234,80 @@ def _tools_payload(view: BundleView) -> list[dict[str, Any]]:
     return tools
 
 
-async def _call_timeout(runtime: GatewayRuntime) -> float:
-    """Call timeout from runtime config (default if unavailable)."""
+async def _timeout_config(runtime: GatewayRuntime) -> tuple[float, bool, float]:
+    """Timeout values from runtime config (defaults if unavailable)."""
     rc = runtime.runtime_config
-    return 60.0 if rc is None else float(await rc.get("call_timeout"))
+    if rc is None:
+        return (60.0, True, 1800.0)
+    return (
+        float(await rc.get("call_timeout")),
+        bool(await rc.get("reset_timeout_on_progress")),
+        float(await rc.get("max_total_timeout")),
+    )
+
+
+def _build_relay_handlers(
+    runtime: GatewayRuntime, session_id: str, wait_timeout: float
+) -> dict:
+    """Elicitation/sampling handlers that forward to the downstream client.
+
+    Only attached when the client advertised the capability (caller gates this).
+    Each request is delivered on the client's GET stream and its reply awaited
+    via a correlation future, bounded by the call's timeout.
+    """
+    import asyncio
+
+    async def _roundtrip(method: str, params: dict) -> dict:
+        correlation_id = uuid.uuid4().hex
+        future = runtime.registry.register_reply(correlation_id)
+        request = {"jsonrpc": "2.0", "id": correlation_id, "method": method, "params": params}
+        await runtime.signals.deliver(session_id, request)
+        try:
+            reply = await asyncio.wait_for(future, timeout=wait_timeout)
+        finally:
+            runtime.registry.unregister_reply(correlation_id)
+        if "error" in reply:
+            raise RuntimeError(reply["error"].get("message", "client rejected request"))
+        return reply.get("result", {})
+
+    async def elicitation_handler(message, response_type, params, context):
+        from fastmcp.client.elicitation import ElicitResult
+
+        payload = params.model_dump(by_alias=True, mode="json", exclude_none=True)
+        result = await _roundtrip("elicitation/create", payload)
+        return ElicitResult(action=result.get("action", "decline"), content=result.get("content"))
+
+    async def sampling_handler(messages, params, context):
+        from mcp.types import CreateMessageResult
+
+        payload = params.model_dump(by_alias=True, mode="json", exclude_none=True)
+        result = await _roundtrip("sampling/createMessage", payload)
+        return CreateMessageResult.model_validate(result)
+
+    async def roots_handler(context):
+        # PROT-4: relay the upstream's roots/list to the downstream client.
+        from mcp.types import Root
+
+        result = await _roundtrip("roots/list", {})
+        return [Root.model_validate(r) for r in result.get("roots", [])]
+
+    async def log_handler(message):
+        # PROT-7: forward an upstream log to the client's stream (notification).
+        await runtime.signals.deliver(
+            session_id,
+            {
+                "jsonrpc": "2.0",
+                "method": "notifications/message",
+                "params": message.model_dump(by_alias=True, mode="json", exclude_none=True),
+            },
+        )
+
+    return {
+        "elicitation_handler": elicitation_handler,
+        "sampling_handler": sampling_handler,
+        "roots_handler": roots_handler,
+        "log_handler": log_handler,
+    }
 
 
 async def _drive_upstream(
@@ -204,27 +317,177 @@ async def _drive_upstream(
     extra_headers: dict[str, str],
     record: SessionRecord,
     sub: str | None,
+    handle,
+    cfg: tuple[float, bool, float],
+    *,
+    on_progress,
 ) -> _CallOutcome:
-    """Run the upstream call, mapping every failure onto a call outcome."""
+    """Run the upstream call with progress-aware timeout and cancellation support."""
+    import asyncio
+
+    call_timeout, reset_on_progress, max_total = cfg
+    loop = asyncio.get_running_loop()
+    last_activity = loop.time()
+
+    async def progress_handler(progress: float, total: float | None, message: str | None) -> None:
+        nonlocal last_activity
+        last_activity = loop.time()  # PROT-2: reset the idle window
+        if on_progress is not None:
+            await on_progress(progress, total, message)
+
+    # PROT-5: capability intersection — attach relay handlers only for what the
+    # downstream client advertised, and only if we can route replies.
+    handlers: dict = {}
+    caps = record.client_capabilities or {}
+    if runtime.registry is not None and runtime.signals is not None:
+        all_handlers = _build_relay_handlers(runtime, record.session_id, max_total)
+        if "elicitation" in caps:
+            handlers["elicitation_handler"] = all_handlers["elicitation_handler"]
+        if "sampling" in caps:
+            handlers["sampling_handler"] = all_handlers["sampling_handler"]
+        if "roots" in caps:  # PROT-4: Client kwarg is `roots`
+            handlers["roots"] = all_handlers["roots_handler"]
+        if "logging" in caps:  # PROT-7
+            handlers["log_handler"] = all_handlers["log_handler"]
 
     async def run():
-        client = runtime.client_factory(pt.server, extra_headers)
+        client = runtime.client_factory(pt.server, extra_headers, **handlers)
         async with client:
             await runtime.sessions.set_binding(
                 record.session_id,
                 UpstreamBinding(server_name=pt.server.name, identity_key=sub),
             )
-            return await client.call_tool_mcp(pt.tool.name, arguments)
+            return await client.call_tool_mcp(
+                pt.tool.name, arguments, progress_handler=progress_handler
+            )
 
+    call_task = asyncio.create_task(run())
+    timeout_reason: list[str | None] = [None]
+    cancelled = [False]
+
+    async def watchdog():
+        while not call_task.done():
+            await asyncio.sleep(0.05)
+            now = loop.time()
+            if now - record_start > max_total:
+                timeout_reason[0] = "max_total_timeout"
+                call_task.cancel()
+                return
+            idle_since = last_activity if reset_on_progress else record_start
+            if now - idle_since > call_timeout:
+                timeout_reason[0] = "call_timeout"
+                call_task.cancel()
+                return
+
+    async def canceller():
+        if handle is None:
+            return
+        await handle.cancel_event.wait()  # PROT-3 (may be set cross-replica)
+        cancelled[0] = True
+        call_task.cancel()
+
+    record_start = loop.time()
+    wd = asyncio.create_task(watchdog())
+    cn = asyncio.create_task(canceller())
     try:
-        result = await asyncio.wait_for(run(), timeout=await _call_timeout(runtime))
+        result = await call_task
         status = "error" if result.isError else "success"  # MID-3 isError mapping
         return _CallOutcome(status=status, result=result)
-    except TimeoutError:
-        return _CallOutcome(status="error", error_message="call_timeout", code=-32000)
+    except asyncio.CancelledError:
+        if cancelled[0]:
+            return _CallOutcome(status="error", error_message="cancelled", code=-32800)
+        if timeout_reason[0] is not None:
+            return _CallOutcome(status="error", error_message=timeout_reason[0], code=-32000)
+        raise
     except Exception as exc:
         log.warning("upstream.call_failed", server=pt.server.name, tool=pt.tool.name)
         return _CallOutcome(status="error", error_message=str(exc)[:500], code=-32000)
+    finally:
+        wd.cancel()
+        cn.cancel()
+
+
+def _sse_call_response(
+    runtime,
+    pt,
+    arguments,
+    extra_headers,
+    record,
+    sub,
+    handle,
+    cfg,
+    progress_token,
+    rpc_id,
+    finalize,
+) -> Response:
+    """Stream notifications/progress, then the final JSON-RPC result."""
+    import asyncio
+    import json as jsonlib
+
+    from fastapi.responses import StreamingResponse
+
+    async def gen():
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def on_progress(progress, total, message):
+            note = {
+                "jsonrpc": "2.0",
+                "method": "notifications/progress",
+                "params": {
+                    "progressToken": progress_token,
+                    "progress": progress,
+                    **({"total": total} if total is not None else {}),
+                    **({"message": message} if message else {}),
+                },
+            }
+            await queue.put(("progress", note))
+
+        started = time.monotonic()
+
+        async def runner():
+            outcome = await _drive_upstream(
+                runtime, pt, arguments, extra_headers, record, sub, handle, cfg,
+                on_progress=on_progress,
+            )
+            await queue.put(("final", outcome))
+
+        task = asyncio.create_task(runner())
+        try:
+            while True:
+                kind, data = await queue.get()
+                if kind == "progress":
+                    yield f"data: {jsonlib.dumps(data)}\n\n"
+                    continue
+                outcome: _CallOutcome = data
+                if handle is not None:
+                    runtime.registry.unregister_call(handle)
+                duration_ms = int((time.monotonic() - started) * 1000)
+                await finalize(outcome.status, duration_ms, outcome.error_message)
+                if outcome.result is not None:
+                    payload = outcome.result.model_dump(
+                        by_alias=True, mode="json", exclude_none=True
+                    )
+                    msg = {"jsonrpc": "2.0", "id": rpc_id, "result": payload}
+                else:
+                    msg = {
+                        "jsonrpc": "2.0",
+                        "id": rpc_id,
+                        "error": {
+                            "code": outcome.code or -32000,
+                            "message": outcome.error_message or "call failed",
+                        },
+                    }
+                yield f"data: {jsonlib.dumps(msg)}\n\n"
+                break
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 async def _handle_call(
@@ -289,6 +552,8 @@ async def _handle_call(
         return _rpc_error(rpc_id, -32000, decision.reason or "call denied")
 
     extra_headers = _forward_headers(request, pt.server, sub)
+    progress_token = (params.get("_meta") or {}).get("progressToken")
+    cfg = await _timeout_config(runtime)
 
     async def finalize(status: str, duration_ms: int, error_message: str | None) -> None:
         try:
@@ -304,14 +569,205 @@ async def _handle_call(
             )
         )
 
+    handle = None
+    if runtime.registry is not None and rpc_id is not None:
+        handle = runtime.registry.register_call(record.session_id, str(rpc_id))
+
+    # PROT-1: when the client sent a progressToken, stream progress as SSE and
+    # deliver the result as the final event. Otherwise the buffered JSON path.
+    if progress_token is not None:
+        return _sse_call_response(
+            runtime, pt, arguments, extra_headers, record, sub, handle, cfg,
+            progress_token, rpc_id, finalize,
+        )
+
     started = time.monotonic()
-    outcome = await _drive_upstream(runtime, pt, arguments, extra_headers, record, sub)
+    outcome = await _drive_upstream(
+        runtime, pt, arguments, extra_headers, record, sub, handle, cfg, on_progress=None
+    )
+    if handle is not None:
+        runtime.registry.unregister_call(handle)
     duration_ms = int((time.monotonic() - started) * 1000)
     await finalize(outcome.status, duration_ms, outcome.error_message)
     if outcome.result is not None:
         payload = outcome.result.model_dump(by_alias=True, mode="json", exclude_none=True)
         return _rpc_result(rpc_id, payload)
     return _rpc_error(rpc_id, outcome.code or -32000, outcome.error_message or "call failed")
+
+
+def _sub_for(record: SessionRecord) -> str | None:
+    return record.user_id or (f"api_key:{record.api_key_id}" if record.api_key_id else None)
+
+
+async def _readonly_headers(
+    runtime: GatewayRuntime, request: Request, server, record: SessionRecord
+) -> dict[str, str]:
+    """Forward headers for a read-only member call."""
+    return _forward_headers(request, server, _sub_for(record))
+
+
+async def _fanout_readonly(runtime, request, record, servers, call):
+    """Run `call(client)` against each member concurrently; skip + WARN failures.
+
+    Returns a list of (server, result | None) — a None means that member was
+    unreachable/unconnected and was omitted (DISC-4: degrade observably).
+    """
+    import asyncio
+
+    async def _one(server):
+        headers = await _readonly_headers(runtime, request, server, record)
+        try:
+            client = runtime.client_factory(server, headers)
+            async with client:
+                return server, await call(client)
+        except Exception:
+            log.warning("passthrough.member_failed", server=server.name, exc_info=True)
+            return server, None
+
+    return list(await asyncio.gather(*[_one(s) for s in servers]))
+
+
+def _dump(obj) -> dict[str, Any]:
+    return obj.model_dump(by_alias=True, mode="json", exclude_none=True)
+
+
+async def _handle_prompts_list(runtime, request, view, record, rpc_id) -> Response:
+    """PROT-11/BND-8: merge members' prompts with `server__name` prefixing."""
+    async def call(client):
+        return await client.list_prompts()
+
+    prompts: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for server, member_prompts in await _fanout_readonly(
+        runtime, request, record, view.servers.values(), call
+    ):
+        if member_prompts is None:
+            continue
+        for prompt in member_prompts:
+            entry = _dump(prompt)
+            entry["name"] = f"{server.name}{PREFIX_SEP}{prompt.name}"
+            if entry["name"] in seen:
+                continue
+            seen.add(entry["name"])
+            prompts.append(entry)
+    return _rpc_result(rpc_id, {"prompts": prompts})
+
+
+async def _handle_prompts_get(runtime, request, view, record, body, rpc_id) -> Response:
+    params = body.get("params") or {}
+    presented = params.get("name", "")
+    server_name, _, prompt_name = presented.partition(PREFIX_SEP)  # BND-2 first-`__`
+    server = view.servers.get(server_name)
+    if server is None or not prompt_name:
+        return _rpc_error(rpc_id, -32602, f"unknown prompt: {presented}")
+    headers = await _readonly_headers(runtime, request, server, record)
+    try:
+        client = runtime.client_factory(server, headers)
+        async with client:
+            result = await client.get_prompt_mcp(prompt_name, params.get("arguments") or None)
+    except Exception as exc:
+        log.warning("prompts.get_failed", server=server_name)
+        return _rpc_error(rpc_id, -32000, str(exc)[:200])
+    return _rpc_result(rpc_id, _dump(result))
+
+
+async def _handle_completion(runtime, request, view, record, body, rpc_id) -> Response:
+    """PROT-9: route completion to the owning member (prompt ref de-prefixed;
+    resource-template ref resolved by URI fan-out)."""
+    from mcp.types import PromptReference, ResourceTemplateReference
+
+    params = body.get("params") or {}
+    ref = params.get("ref") or {}
+    argument = params.get("argument") or {}
+    context = (params.get("context") or {}).get("arguments")
+
+    if ref.get("type") == "ref/prompt":
+        presented = ref.get("name", "")
+        server_name, _, prompt_name = presented.partition(PREFIX_SEP)
+        server = view.servers.get(server_name)
+        if server is None or not prompt_name:
+            return _rpc_error(rpc_id, -32602, f"unknown prompt ref: {presented}")
+        member_ref = PromptReference(type="ref/prompt", name=prompt_name)
+        candidates = [server]
+    elif ref.get("type") == "ref/resource":
+        member_ref = ResourceTemplateReference(type="ref/resource", uri=ref.get("uri", ""))
+        candidates = list(view.servers.values())  # URI is not prefixed → fan-out
+    else:
+        return _rpc_error(rpc_id, -32602, f"unsupported completion ref: {ref.get('type')}")
+
+    for server in candidates:
+        try:
+            headers = await _readonly_headers(runtime, request, server, record)
+            client = runtime.client_factory(server, headers)
+            async with client:
+                result = await client.complete_mcp(member_ref, argument, context)
+            return _rpc_result(rpc_id, _dump(result))
+        except Exception:
+            log.warning("completion.member_failed", server=server.name)
+            continue
+    return _rpc_result(rpc_id, {"completion": {"values": [], "hasMore": False}})
+
+
+async def _merge_by_key(runtime, request, view, record, call, key: str) -> list[dict[str, Any]]:
+    """Fan-out a resource-list method, merging entries de-duplicated by `key`."""
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for server, member in await _fanout_readonly(
+        runtime, request, record, view.servers.values(), call
+    ):
+        if member is None:
+            continue
+        for obj in member:
+            entry = _dump(obj)
+            identity = entry.get(key)
+            if identity in seen:
+                log.warning("resources.collision", key=identity, server=server.name)
+                continue
+            seen.add(identity)
+            items.append(entry)
+    return items
+
+
+async def _handle_resources_list(runtime, request, view, record, rpc_id) -> Response:
+    """BND-8: merge members' resources; URIs pass through unchanged (dedupe by URI)."""
+    async def call(client):
+        return await client.list_resources()
+
+    items = await _merge_by_key(runtime, request, view, record, call, "uri")
+    return _rpc_result(rpc_id, {"resources": items})
+
+
+async def _handle_resource_templates_list(runtime, request, view, record, rpc_id) -> Response:
+    async def call(client):
+        return await client.list_resource_templates()
+
+    items = await _merge_by_key(runtime, request, view, record, call, "uriTemplate")
+    return _rpc_result(rpc_id, {"resourceTemplates": items})
+
+
+async def _handle_resources_read(runtime, request, view, record, body, rpc_id) -> Response:
+    """BND-8: resolve the owner by fan-out — first enabled member that owns the URI."""
+    uri = (body.get("params") or {}).get("uri", "")
+    for server in view.servers.values():
+        try:
+            headers = await _readonly_headers(runtime, request, server, record)
+            client = runtime.client_factory(server, headers)
+            async with client:
+                result = await client.read_resource_mcp(uri)
+            return _rpc_result(rpc_id, _dump(result))
+        except Exception:
+            continue
+    return _rpc_error(rpc_id, -32002, f"resource not found: {uri}")
+
+
+async def _handle_resources_subscribe(rpc_id) -> Response:
+    """Accept the subscription (request/response half).
+
+    notifications/resources/updated push is pooling-dependent (ADR-0021) and is
+    not delivered between calls under per-call upstream connections.
+    """
+    log.warning("resources.subscribe_push_pooling_dependent")
+    return _rpc_result(rpc_id, {})
 
 
 @router.post("/{endpoint_name}/mcp", include_in_schema=False)
@@ -341,6 +797,19 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return JSONResponse({"error": "session not found"}, status_code=404)
     await runtime.sessions.touch(session_id)  # SES-1 (+ PROT-8 for ping)
 
+    # PROT-4: a JSON-RPC response (no method, has result/error) is the client's
+    # reply to a server->client request — route it to the awaiting call.
+    if not method and ("result" in body or "error" in body):
+        if runtime.signals is not None and body.get("id") is not None:
+            await runtime.signals.reply(str(body["id"]), body)
+        return Response(status_code=202)
+
+    if method == "notifications/cancelled":
+        # PROT-3: route the cancel to the replica holding the in-flight call
+        cancel_id = (body.get("params") or {}).get("requestId")
+        if cancel_id is not None and runtime.signals is not None:
+            await runtime.signals.cancel(session_id, str(cancel_id))
+        return Response(status_code=202)
     if method.startswith("notifications/"):
         return Response(status_code=202)
     if method == "ping":
@@ -349,6 +818,24 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return _rpc_result(body.get("id"), {"tools": _tools_payload(view)})
     if method == "tools/call":
         return await _handle_call(runtime, request, view, record, body)
+    if method == "prompts/list":
+        return await _handle_prompts_list(runtime, request, view, record, body.get("id"))
+    if method == "prompts/get":
+        return await _handle_prompts_get(runtime, request, view, record, body, body.get("id"))
+    if method == "completion/complete":
+        return await _handle_completion(runtime, request, view, record, body, body.get("id"))
+    if method == "resources/list":
+        return await _handle_resources_list(runtime, request, view, record, body.get("id"))
+    if method == "resources/templates/list":
+        return await _handle_resource_templates_list(runtime, request, view, record, body.get("id"))
+    if method == "resources/read":
+        return await _handle_resources_read(runtime, request, view, record, body, body.get("id"))
+    if method in ("resources/subscribe", "resources/unsubscribe"):
+        return await _handle_resources_subscribe(body.get("id"))
+    if method == "logging/setLevel":
+        # PROT-7: accepted; the level applies on each member's next connection
+        # (per-call model — no standing upstream connection to set it on now).
+        return _rpc_result(body.get("id"), {})
     return _rpc_error(body.get("id"), -32601, f"method not supported: {method}")
 
 

@@ -48,6 +48,18 @@ def fail(text: str) -> str:
     raise ValueError("boom")
 
 
+@echo_server.prompt
+def greet(name: str) -> str:
+    """A greeting prompt."""
+    return f"Hello {name}"
+
+
+@echo_server.resource("res://greeting")
+def greeting_resource() -> str:
+    """A static resource."""
+    return "hello resource"
+
+
 notes_server = FastMCP("notes")
 
 
@@ -190,6 +202,127 @@ async def _initialize_raw(http, endpoint="main", version="2025-11-25"):
             "params": {"protocolVersion": version, "capabilities": {}},
         },
     )
+
+
+async def test_initialize_tools_only_when_no_member_caps(gateway):
+    """PROT-11: with no advertised member capabilities, only tools is advertised."""
+    http, app, hook = gateway
+    caps = (await _initialize_raw(http)).json()["result"]["capabilities"]
+    assert set(caps) == {"tools"}
+
+
+async def test_initialize_aggregates_member_capabilities(gateway):
+    """PROT-11: prompts/resources/completions/logging advertised iff a member supports them."""
+    http, app, hook = gateway
+    async with app.state.session_factory() as db:
+        echo = (
+            await db.execute(select(McpServer).where(McpServer.name == "echo"))
+        ).scalar_one()
+        echo.capabilities = {
+            "prompts": {"listChanged": True},
+            "resources": {"subscribe": True, "listChanged": True},
+            "completions": {},
+            "logging": {},
+        }
+        db.add(echo)
+        await db.commit()
+
+    caps = (await _initialize_raw(http)).json()["result"]["capabilities"]
+    assert caps["tools"] == {"listChanged": True}
+    assert caps["prompts"] == {"listChanged": True}
+    assert caps["resources"]["subscribe"] is True
+    assert "completions" in caps and "logging" in caps
+
+
+async def test_initialize_offers_latest_for_newer_version(gateway):
+    """PROT-12: a client asking for a newer-than-known version is offered our latest."""
+    http, app, hook = gateway
+    resp = await _initialize_raw(http, version="2099-01-01")
+    assert resp.json()["result"]["protocolVersion"] == "2025-11-25"
+
+
+async def test_initialize_rejects_unsupported_version(gateway):
+    """PROT-12: a version older than the supported window fails initialize."""
+    http, app, hook = gateway
+    resp = await _initialize_raw(http, version="2020-01-01")
+    err = resp.json()["error"]
+    assert err["code"] == -32602
+    assert "unsupported" in err["message"].lower()
+
+
+async def test_prompts_list_prefixed(gateway):
+    """BND-8: prompts merged across members with `server__name` prefixing."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "prompts/list")
+    names = {p["name"] for p in resp.json()["result"]["prompts"]}
+    assert "echo__greet" in names
+
+
+async def test_prompts_get_routes_and_deprefixes(gateway):
+    """BND-8: prompts/get de-prefixes and forwards to the owning member."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(
+        http, "main", session, "prompts/get",
+        {"name": "echo__greet", "arguments": {"name": "Ada"}},
+    )
+    result = resp.json()["result"]
+    assert "messages" in result
+    assert "Ada" in str(result["messages"])
+
+
+async def test_prompts_get_unknown_rejected(gateway):
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "prompts/get", {"name": "echo__nope"})
+    assert resp.json()["error"]["code"] in (-32602, -32000)
+
+
+async def test_completion_routes_prompt_ref(gateway):
+    """PROT-9: completion/complete is routed (no -32601 fallthrough)."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(
+        http, "main", session, "completion/complete",
+        {"ref": {"type": "ref/prompt", "name": "echo__greet"},
+         "argument": {"name": "name", "value": "A"}},
+    )
+    body = resp.json()
+    assert "result" in body and "completion" in body["result"]
+
+
+async def test_resources_list_passthrough(gateway):
+    """BND-8: resources merged with URIs unchanged (no prefixing)."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "resources/list")
+    uris = {r["uri"] for r in resp.json()["result"]["resources"]}
+    assert "res://greeting" in uris
+
+
+async def test_resources_read_fans_out_to_owner(gateway):
+    """BND-8: resources/read resolves the owner by fan-out (URI unchanged)."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "resources/read", {"uri": "res://greeting"})
+    contents = resp.json()["result"]["contents"]
+    assert "hello resource" in str(contents)
+
+
+async def test_resources_read_unknown_uri(gateway):
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "resources/read", {"uri": "res://nope"})
+    assert resp.json()["error"]["code"] == -32002
+
+
+async def test_resources_subscribe_accepted(gateway):
+    """Subscribe is accepted (request/response half); push is pooling-dependent."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await _rpc(http, "main", session, "resources/subscribe", {"uri": "res://greeting"})
+    assert resp.json()["result"] == {}
 
 
 async def test_call_routes_by_prefix(gateway):

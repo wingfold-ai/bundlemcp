@@ -54,7 +54,7 @@ Three load-bearing scenarios (normative details in the linked specs).
    event and resets the idle timeout (reset-on-progress).
 3. The client's `notifications/cancelled` lands on **another replica**. That
    replica publishes a `cancel` signal on the Redis bus
-   (SES-13); the replica holding the
+   ([ADR-0016](../adr/0016-relay-design.md), SES-13); the replica holding the
    `CallHandle` sets its cancel event, the upstream task is cancelled, and the
    SSE stream emits a JSON-RPC error. Metering `post_call(status=error)` +
    audit record fire (MID-3).

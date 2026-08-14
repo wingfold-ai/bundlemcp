@@ -3,7 +3,7 @@
 | # | Risk | Impact | Mitigation |
 |---|---|---|---|
 | 1 | ~~FastMCP v3 vs. externalized sessions~~ **Resolved** by the implementation spike: the endpoint edge is owned directly (FastAPI + Redis records), FastMCP serves the upstream side ([ADR-0011](../adr/0011-own-streamable-http-edge.md)) | — | Residual risk moved to #2 (the relay work now happens on our own edge) |
-| 2 | **Bidirectional cross-replica relay complexity** — progress, cancellation, sampling and elicitation must cross replicas | Highest engineering risk in the project | Design spike; capability gating limits blast radius if a piece is not ready |
+| 2 | ~~Bidirectional cross-replica relay complexity~~ **Design landed** ([ADR-0016](../adr/0016-relay-design.md)): publish-only Redis bus + per-replica registries; progress/cancel/elicitation proven cross-replica in hermetic two-instance tests. Residual = claude.ai/ChatGPT *behavioral* verification against real clients | Lower now | Loopback-server relay suite; compose integration; capability gating limits blast radius |
 | 3 | **Client behavior drift** — claude.ai/ChatGPT OAuth and annotation enforcement change over time | Endpoints stop connecting | Profiles isolate client quirks ([15](../../spec/15-endpoint-profiles.md)); OAS-9 integration test; open questions flag re-verification at implementation |
 | 4 | **Redis as availability keystone** | Live traffic 503s during Redis outage | Accepted trade-off, explicitly specified (SES-14, RATE-6); ops guidance in [71](../../spec/71-deployment.md) |
 | 5 | **SQLModel maturity** (0.0.x) | Missing ORM features | Escape hatch: SQLModel classes are SQLAlchemy models (spec/01 open question) |
@@ -14,5 +14,14 @@
 
 - No metamcp-migration importer — manual migration for the primary user
   ([roadmap](../../spec/README.md)).
+- Prompts/resources are uncurated live passthrough (BND-8,
+  [ADR-0021](../adr/0021-mcp-surface-completion.md)) — implemented, but by design
+  no per-bundle curation like tools have.
+- **Upstream→client push between calls is pooling-dependent**
+  ([ADR-0021](../adr/0021-mcp-surface-completion.md)): `resources/subscribe`
+  updates, PROT-7 upstream log push, and PROT-10 upstream `list_changed` outside
+  an active call need a persistent upstream connection that the per-call model
+  (ADR-0012) lacks. Advertised + delivered within an active-call window; full
+  between-call push lands with connection pooling (SES-8).
 - Single scope in OAuth; audience-only binding (OAS-10) — fine-grained scopes
   deferred.
