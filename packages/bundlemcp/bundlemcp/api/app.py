@@ -18,6 +18,7 @@ from bundlemcp.api.routers import (
     servers,
     users,
 )
+from bundlemcp.crypto import token_cipher
 from bundlemcp.gateway import mcp_endpoint
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
@@ -35,6 +36,11 @@ from bundlemcp.oauth import registration as oauth_registration
 from bundlemcp.oauth import token as oauth_token
 from bundlemcp.oauth.adminsessions import AdminSessionStore
 from bundlemcp.oauth.oidc import OidcProvider, build_provider
+from bundlemcp.oauth.upstream_client import (
+    HttpxUpstreamProvider,
+    UpstreamOAuthProvider,
+    UpstreamTokenStore,
+)
 from bundlemcp.services.errors import (
     ConflictError,
     InvalidInputError,
@@ -75,6 +81,7 @@ def create_app(
     redis: Redis | None = None,
     client_factory: ClientFactory | None = None,
     oidc_provider: OidcProvider | None = None,
+    upstream_oidc_provider: UpstreamOAuthProvider | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
 
@@ -96,6 +103,17 @@ def create_app(
         registry = StreamRegistry()
         signals = SignalBus(app.state.redis, registry)  # SES-13
         await signals.start()
+        # spec 23: upstream OAuth token store (None if no encryption keys — then
+        # upstream_oauth servers error clearly rather than storing plaintext).
+        upstream_tokens = None
+        if settings.token_encryption_keys:
+            upstream_tokens = UpstreamTokenStore(
+                app.state.session_factory,
+                token_cipher(settings),
+                app.state.redis,
+                upstream_oidc_provider or HttpxUpstreamProvider(settings),
+            )
+        app.state.upstream_tokens = upstream_tokens
         counters = Counters()  # metric seam (spec 51 exports these)
         app.state.counters = counters
         app.state.gateway = GatewayRuntime(
@@ -106,6 +124,7 @@ def create_app(
             runtime_config=runtime_config,
             registry=registry,
             signals=signals,
+            upstream_tokens=upstream_tokens,
             public_url=settings.public_url,
             counters=counters,
             settings=settings,
