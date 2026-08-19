@@ -20,7 +20,14 @@ from bundlemcp.gateway.mcp_endpoint._call_outcome import _CallOutcome
 from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
 from bundlemcp.gateway.protocol_version import SUPPORTED_PROTOCOL_VERSIONS, negotiate_version
-from bundlemcp.models import AuditRecord, AuditStatus, EndpointAuthMode
+from bundlemcp.models import (
+    AuditRecord,
+    AuditStatus,
+    EndpointAuthMode,
+    IdentityMode,
+    ServerAuthMode,
+)
+from bundlemcp.oauth.upstream_client import NeedsConnect
 from bundlemcp.services import AuthService
 from bundlemcp.store.sessions import SessionRecord, SessionStore, UpstreamBinding
 
@@ -526,6 +533,43 @@ async def _handle_call(
     audit_kwargs["server_name"] = pt.server.name
     audit_kwargs["tool_name"] = pt.tool.name
 
+    # spec 23: resolve the upstream OAuth bearer BEFORE metering, so an
+    # unconnected upstream is never debited.
+    is_upstream_oauth = pt.server.auth_mode == ServerAuthMode.UPSTREAM_OAUTH
+    upstream_token_user: uuid.UUID | None = None
+    upstream_headers: dict[str, str] = {}
+    if is_upstream_oauth:
+        if runtime.upstream_tokens is None:
+            runtime.audit.record(
+                AuditRecord(
+                    status=AuditStatus.ERROR,
+                    error_message="upstream OAuth not configured",
+                    **audit_kwargs,
+                )
+            )
+            return _rpc_error(rpc_id, -32000, "upstream OAuth not configured on this gateway")
+        per_user = pt.server.identity_mode == IdentityMode.PER_USER
+        if per_user:
+            if record.user_id is None:  # UPO-6 guard (should be unreachable)
+                return _rpc_error(
+                    rpc_id, -32000, "per_user upstream requires an authenticated user"
+                )
+            upstream_token_user = uuid.UUID(record.user_id)
+        try:
+            access = await runtime.upstream_tokens.ensure_access_token(
+                pt.server, upstream_token_user
+            )
+        except NeedsConnect:
+            suffix = "?as=me" if per_user else ""
+            connect_url = f"{runtime.public_url}/oauth/upstream/{pt.server.name}/connect{suffix}"
+            runtime.audit.record(
+                AuditRecord(
+                    status=AuditStatus.ERROR, error_message="upstream_not_connected", **audit_kwargs
+                )
+            )
+            return _rpc_error(rpc_id, -32000, f"upstream not connected — connect at {connect_url}")
+        upstream_headers = {"Authorization": f"Bearer {access}"}
+
     ctx = MeterContext(
         sub=sub,
         email=record.user_email,
@@ -552,6 +596,7 @@ async def _handle_call(
         return _rpc_error(rpc_id, -32000, decision.reason or "call denied")
 
     extra_headers = _forward_headers(request, pt.server, sub)
+    extra_headers.update(upstream_headers)  # spec 23: upstream OAuth bearer wins
     progress_token = (params.get("_meta") or {}).get("progressToken")
     cfg = await _timeout_config(runtime)
 
@@ -585,6 +630,20 @@ async def _handle_call(
     outcome = await _drive_upstream(
         runtime, pt, arguments, extra_headers, record, sub, handle, cfg, on_progress=None
     )
+    # UPO-4 reactive: on an upstream error for an oauth server, force-refresh the
+    # token and retry once (covers a 401 despite a non-expired token). The same
+    # metering ctx is reused — internal retry does NOT re-fire pre_call (MID-3).
+    if outcome.result is None and is_upstream_oauth and runtime.upstream_tokens is not None:
+        try:
+            access = await runtime.upstream_tokens.ensure_access_token(
+                pt.server, upstream_token_user, force=True
+            )
+            extra_headers = {**extra_headers, "Authorization": f"Bearer {access}"}
+            outcome = await _drive_upstream(
+                runtime, pt, arguments, extra_headers, record, sub, handle, cfg, on_progress=None
+            )
+        except NeedsConnect:
+            pass  # keep the original error outcome
     if handle is not None:
         runtime.registry.unregister_call(handle)
     duration_ms = int((time.monotonic() - started) * 1000)
@@ -595,6 +654,14 @@ async def _handle_call(
     return _rpc_error(rpc_id, outcome.code or -32000, outcome.error_message or "call failed")
 
 
+# --- read-only passthrough: prompts / resources / completions (BND-8, PROT-9) ---
+#
+# Live, uncurated: each request fans out to the enabled member servers. Prompt
+# names are prefixed `server__prompt`; resource URIs pass through unchanged and
+# are routed on read by fan-out (first owner wins). No metering, no tool-call
+# audit — these are reads.
+
+
 def _sub_for(record: SessionRecord) -> str | None:
     return record.user_id or (f"api_key:{record.api_key_id}" if record.api_key_id else None)
 
@@ -602,8 +669,28 @@ def _sub_for(record: SessionRecord) -> str | None:
 async def _readonly_headers(
     runtime: GatewayRuntime, request: Request, server, record: SessionRecord
 ) -> dict[str, str]:
-    """Forward headers for a read-only member call."""
-    return _forward_headers(request, server, _sub_for(record))
+    """Forward headers + upstream-OAuth bearer for a read-only member call.
+
+    Raises NeedsConnect if an upstream_oauth member has no usable token.
+    """
+    headers = _forward_headers(request, server, _sub_for(record))
+    if server.auth_mode == ServerAuthMode.UPSTREAM_OAUTH:
+        if runtime.upstream_tokens is None:
+            raise NeedsConnect("upstream_oauth_not_configured")
+        token_user: uuid.UUID | None = None
+        if server.identity_mode == IdentityMode.PER_USER:
+            if record.user_id is None:
+                raise NeedsConnect("per_user_requires_user")
+            token_user = uuid.UUID(record.user_id)
+        access = await runtime.upstream_tokens.ensure_access_token(server, token_user)
+        headers["Authorization"] = f"Bearer {access}"
+    return headers
+
+
+def _connect_hint(runtime: GatewayRuntime, server) -> str:
+    suffix = "?as=me" if server.identity_mode == IdentityMode.PER_USER else ""
+    url = f"{runtime.public_url}/oauth/upstream/{server.name}/connect{suffix}"
+    return f"upstream not connected — connect at {url}"
 
 
 async def _fanout_readonly(runtime, request, record, servers, call):
@@ -615,7 +702,11 @@ async def _fanout_readonly(runtime, request, record, servers, call):
     import asyncio
 
     async def _one(server):
-        headers = await _readonly_headers(runtime, request, server, record)
+        try:
+            headers = await _readonly_headers(runtime, request, server, record)
+        except NeedsConnect:
+            log.warning("passthrough.member_unconnected", server=server.name)
+            return server, None
         try:
             client = runtime.client_factory(server, headers)
             async with client:
@@ -660,7 +751,10 @@ async def _handle_prompts_get(runtime, request, view, record, body, rpc_id) -> R
     server = view.servers.get(server_name)
     if server is None or not prompt_name:
         return _rpc_error(rpc_id, -32602, f"unknown prompt: {presented}")
-    headers = await _readonly_headers(runtime, request, server, record)
+    try:
+        headers = await _readonly_headers(runtime, request, server, record)
+    except NeedsConnect:
+        return _rpc_error(rpc_id, -32000, _connect_hint(runtime, server))
     try:
         client = runtime.client_factory(server, headers)
         async with client:
