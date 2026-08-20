@@ -7,12 +7,14 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
-from bundlemcp.models import BundleServer, McpServer, Tool
-from bundlemcp.schemas import Page, ServerRead, ServerUpsert, ToolRead
+from bundlemcp.crypto import token_cipher
+from bundlemcp.models import BundleServer, McpServer, Tool, UpstreamOAuthClient
+from bundlemcp.schemas import Page, ServerRead, ServerUpsert, ToolRead, UpstreamOAuthConfig
 from bundlemcp.services.errors import (
     ConflictError,
     InvalidInputError,
     NotFoundError,
+    PreconditionError,
     UnavailableError,
 )
 from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
@@ -153,3 +155,48 @@ class ServerService:
             raise UnavailableError("discovery unavailable")
         result = await self._discovery.discover(server.id)
         return {"discovered": result.discovered, "changed": result.changed, "error": result.error}
+
+    # --- upstream OAuth client config + status (spec 23, UPO-1/5) ---
+
+    async def set_upstream_oauth(self, name: str, body: UpstreamOAuthConfig) -> dict[str, Any]:
+        """Store the pre-registered client config. client_secret is write-only, encrypted."""
+        server = await self._get(name)
+        if self._settings is None or not self._settings.token_encryption_keys:
+            raise PreconditionError(
+                "token encryption keys required for upstream OAuth (DEP-9)"
+            )
+        cipher = token_cipher(self._settings)
+        client = (
+            await self._db.execute(
+                select(UpstreamOAuthClient).where(UpstreamOAuthClient.server_id == server.id)
+            )
+        ).scalar_one_or_none()
+        if client is None:
+            client = UpstreamOAuthClient(server_id=server.id, client_id=body.client_id)
+        client.client_id = body.client_id
+        if body.client_secret:  # write-only: absent keeps the existing secret
+            client.client_secret_encrypted = cipher.encrypt(body.client_secret)
+        meta = dict(client.metadata_ or {})
+        if body.authorization_url and body.token_url:
+            meta["authorization_endpoint"] = body.authorization_url
+            meta["token_endpoint"] = body.token_url
+        client.metadata_ = meta
+        self._db.add(client)
+        await self._db.commit()
+        return {"server": name, "client_id": body.client_id, "has_secret": bool(body.client_secret)}
+
+    async def upstream_oauth_status(self, name: str) -> dict[str, Any]:
+        """Report connection status only — never token values."""
+        server = await self._get(name)
+        if self._upstream_tokens is None:
+            return {"identity_mode": server.identity_mode, "configured": False}
+        shared = await self._upstream_tokens.status(server.id, None)
+        return {"identity_mode": server.identity_mode, "shared": shared}
+
+    async def disconnect_upstream_oauth(self, name: str) -> None:
+        """Disconnect the shared upstream token."""
+        server = await self._by_name(name)
+        if server is None:
+            return
+        if self._upstream_tokens is not None:
+            await self._upstream_tokens.disconnect(server.id, None)

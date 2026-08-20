@@ -34,6 +34,7 @@ from bundlemcp.oauth import metadata as oauth_metadata
 from bundlemcp.oauth import oidc as oauth_oidc
 from bundlemcp.oauth import registration as oauth_registration
 from bundlemcp.oauth import token as oauth_token
+from bundlemcp.oauth import upstream_connect as oauth_upstream_connect
 from bundlemcp.oauth.adminsessions import AdminSessionStore
 from bundlemcp.oauth.oidc import OidcProvider, build_provider
 from bundlemcp.oauth.upstream_client import (
@@ -230,6 +231,7 @@ def create_app(
         oauth_authorize.router,
         oauth_token.router,
         oauth_oidc.router,
+        oauth_upstream_connect.router,  # spec 23 connect flow
     ):
         app.include_router(router)
     app.include_router(users.router, prefix=API_PREFIX)  # /api/v1/users (ADM-6, OAS-11)

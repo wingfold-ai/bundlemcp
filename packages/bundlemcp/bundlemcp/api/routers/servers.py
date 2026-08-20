@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
 from bundlemcp.api.providers import ServerServiceProvider
-from bundlemcp.schemas import Page, ServerRead, ServerUpsert, ToolRead
+from bundlemcp.schemas import Page, ServerRead, ServerUpsert, ToolRead, UpstreamOAuthConfig
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 
@@ -64,3 +64,27 @@ async def list_server_tools(
 @router.post("/{name}:refresh-tools")
 async def refresh_tools(name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider) -> dict:
     return await svc.refresh_tools(name)
+
+
+# --- upstream OAuth client config + status (spec 23, UPO-1/5) ---
+
+
+@router.put("/{name}/upstream-oauth")
+async def set_upstream_oauth(
+    name: str, body: UpstreamOAuthConfig, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+) -> dict:
+    return await svc.set_upstream_oauth(name, body)
+
+
+@router.get("/{name}/upstream-oauth")
+async def upstream_oauth_status(
+    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+) -> dict:
+    return await svc.upstream_oauth_status(name)
+
+
+@router.delete("/{name}/upstream-oauth/token", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect_upstream_oauth(
+    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+) -> None:
+    await svc.disconnect_upstream_oauth(name)
