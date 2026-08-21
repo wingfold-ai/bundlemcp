@@ -16,7 +16,12 @@ from bundlemcp.schemas.bundles import (
 )
 from bundlemcp.schemas.common import Page
 from bundlemcp.schemas.config import ConfigValue
-from bundlemcp.schemas.endpoints import EndpointRead, EndpointUpsert
+from bundlemcp.schemas.endpoints import (
+    EndpointRead,
+    EndpointUpsert,
+    RateLimitConfig,
+    RateRule,
+)
 from bundlemcp.schemas.servers import ServerRead, ServerUpsert, UpstreamOAuthConfig
 from bundlemcp.schemas.tools import BundleToolUpdate, ToolRead
 from bundlemcp.schemas.users import ConsentRead, MeRead, UserRead
@@ -38,6 +43,8 @@ __all__ = [
     "MeRead",
     "EndpointUpsert",
     "Page",
+    "RateLimitConfig",
+    "RateRule",
     "ServerRead",
     "ServerUpsert",
     "ToolRead",

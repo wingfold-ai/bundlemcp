@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -12,6 +13,7 @@ class EndpointRead(BaseModel):
     bundle_id: uuid.UUID
     profile: str
     auth_modes: list[str]
+    rate_limit: dict[str, Any] | None
     enabled: bool
     created_at: datetime
     updated_at: datetime
