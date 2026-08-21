@@ -42,6 +42,7 @@ def get_server_service(request: Request, db: DbProvider, redis: RedisProvider) -
         redis,
         discovery=getattr(request.app.state, "discovery", None),
         settings=request.app.state.settings,
+        upstream_tokens=getattr(request.app.state, "upstream_tokens", None),
     )
 
 
