@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from bundlemcp.models import RESERVED_ENDPOINT_NAMES, EndpointAuthMode, EndpointProfile
+from bundlemcp.schemas.endpoints.rate_limit_config import RateLimitConfig
 from bundlemcp.schemas.validation import validate_name
 
 
@@ -9,6 +10,7 @@ class EndpointUpsert(BaseModel):
     bundle_name: str
     profile: EndpointProfile = EndpointProfile.DEFAULT
     auth_modes: list[EndpointAuthMode] = Field(default_factory=lambda: [EndpointAuthMode.API_KEY])
+    rate_limit: RateLimitConfig | None = None
     enabled: bool = True
     allow_unauthenticated: bool = False  # EP-3: explicit opt-in for `none`
     force: bool = False  # EP-8 rename acknowledgement

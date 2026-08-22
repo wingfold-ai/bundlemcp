@@ -25,6 +25,7 @@ from bundlemcp.gateway.discovery import DiscoveryService
 from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
 from bundlemcp.gateway.metering import load_metering_hook
 from bundlemcp.gateway.metrics import Counters
+from bundlemcp.gateway.ratelimit import AuthFailureLimiter, RateLimiter
 from bundlemcp.gateway.runtime_config import RuntimeConfig
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import StreamRegistry
@@ -115,8 +116,15 @@ def create_app(
                 upstream_oidc_provider or HttpxUpstreamProvider(settings),
             )
         app.state.upstream_tokens = upstream_tokens
-        counters = Counters()  # metric seam (spec 51 exports these)
+        counters = Counters()  # RATE-3 metric seam (spec 51 exports these)
         app.state.counters = counters
+        auth_failure_limiter = AuthFailureLimiter(  # RATE-5
+            app.state.redis,
+            limit=settings.auth_failure_limit,
+            window=settings.auth_failure_window,
+            counters=counters,
+        )
+        app.state.auth_failure_limiter = auth_failure_limiter
         app.state.gateway = GatewayRuntime(
             session_store=SessionStore(app.state.redis),
             metering=metering,
@@ -127,6 +135,8 @@ def create_app(
             signals=signals,
             upstream_tokens=upstream_tokens,
             public_url=settings.public_url,
+            rate_limiter=RateLimiter(app.state.redis, counters),
+            auth_failure_limiter=auth_failure_limiter,
             counters=counters,
             settings=settings,
         )
