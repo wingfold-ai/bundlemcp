@@ -23,6 +23,7 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0014](0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB token validation | accepted |
 | [0016](0016-relay-design.md) | Protocol-relay: per-replica registries + Redis signaling | accepted |
 | [0017](0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption at rest | accepted |
+| [0018](0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted |
 | [0019](0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020) |
 | [0020](0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted |
 | [0021](0021-mcp-surface-completion.md) | Complete the MCP surface: prompts/resources/completions passthrough, capability aggregation, version negotiation, roots/logging relay | accepted |
