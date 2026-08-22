@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlmodel import select
 
 from bundlemcp.api.routers import (
     api_keys,
@@ -18,6 +19,7 @@ from bundlemcp.api.routers import (
     servers,
     users,
 )
+from bundlemcp.bootstrap import run_bootstrap
 from bundlemcp.crypto import token_cipher
 from bundlemcp.gateway import mcp_endpoint
 from bundlemcp.gateway.audit import AuditWriter
@@ -30,6 +32,7 @@ from bundlemcp.gateway.runtime_config import RuntimeConfig
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
+from bundlemcp.models import ApiKey, ApiKeyKind
 from bundlemcp.oauth import authorize as oauth_authorize
 from bundlemcp.oauth import metadata as oauth_metadata
 from bundlemcp.oauth import oidc as oauth_oidc
@@ -43,6 +46,7 @@ from bundlemcp.oauth.upstream_client import (
     UpstreamOAuthProvider,
     UpstreamTokenStore,
 )
+from bundlemcp.security import display_prefix, hash_token
 from bundlemcp.services.errors import (
     ConflictError,
     InvalidInputError,
@@ -76,6 +80,28 @@ async def _service_error_handler(request: Request, exc: ServiceError) -> JSONRes
     return JSONResponse(status_code=code, content={"detail": str(exc)})
 
 
+async def _ensure_initial_service_key(app: FastAPI, settings: Settings) -> None:
+    """Bootstrap: provision a service API key from the environment if none exists."""
+    if not settings.initial_service_key:
+        return
+    async with app.state.session_factory() as db:
+        existing = (
+            await db.execute(select(ApiKey).where(ApiKey.kind == ApiKeyKind.SERVICE).limit(1))
+        ).scalar_one_or_none()
+        if existing is not None:
+            return
+        db.add(
+            ApiKey(
+                name="initial-service-key",
+                key_hash=hash_token(settings.initial_service_key),
+                key_prefix=display_prefix(settings.initial_service_key),
+                kind=ApiKeyKind.SERVICE,
+            )
+        )
+        await db.commit()
+        log.info("bootstrap.initial_service_key_created")
+
+
 def create_app(
     settings: Settings | None = None,
     *,
@@ -93,6 +119,7 @@ def create_app(
         app.state.engine = engine or create_engine(settings.database_url)
         app.state.session_factory = session_factory(app.state.engine)
         app.state.redis = redis or create_redis(settings.redis_url)
+        await _ensure_initial_service_key(app, settings)
 
         factory = client_factory or default_client_factory(settings)
         app.state.discovery = DiscoveryService(app.state.session_factory, factory)
@@ -149,6 +176,8 @@ def create_app(
                 await preload()  # authorize_url needs the discovered metadata
             except Exception:
                 log.warning("oidc.preload_failed", exc_info=True)
+        await run_bootstrap(app.state.session_factory, app.state.redis, settings)  # spec 41
+
         # STP-2: one subscriber per replica; runtime-config cache hangs off it
         subscriber = InvalidationSubscriber(app.state.redis)
         app.state.invalidation = subscriber
