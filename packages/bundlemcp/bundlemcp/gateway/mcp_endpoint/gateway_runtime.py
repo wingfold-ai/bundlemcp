@@ -17,6 +17,8 @@ class GatewayRuntime:
         signals=None,
         upstream_tokens=None,
         public_url="",
+        rate_limiter=None,
+        auth_failure_limiter=None,
         counters=None,
         settings=None,
     ) -> None:
@@ -29,5 +31,7 @@ class GatewayRuntime:
         self.signals = signals  # cross-replica routing (SES-13)
         self.upstream_tokens = upstream_tokens  # UpstreamTokenStore | None (spec 23)
         self.public_url = str(public_url).rstrip("/")
-        self.counters = counters or Counters()  # metrics seam (spec 51)
-        self.settings = settings
+        self.rate_limiter = rate_limiter  # RateLimiter | None (spec 16)
+        self.auth_failure_limiter = auth_failure_limiter  # AuthFailureLimiter | None (RATE-5)
+        self.counters = counters or Counters()  # RATE-3 metrics seam (spec 51)
+        self.settings = settings  # for trusted_proxies / auth-failure limits
