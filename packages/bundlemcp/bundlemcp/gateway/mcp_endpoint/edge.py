@@ -5,7 +5,6 @@ server session manager) so that session state lives in Redis and any replica
 serves any request. FastMCP is used for the upstream side.
 """
 
-import asyncio
 import time
 import uuid
 from typing import Any
@@ -19,7 +18,9 @@ from bundlemcp.gateway.composition import PREFIX_SEP, BundleView, PresentedTool,
 from bundlemcp.gateway.mcp_endpoint._call_outcome import _CallOutcome
 from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
+from bundlemcp.gateway.metrics import RATE_LIMIT_REJECTIONS
 from bundlemcp.gateway.protocol_version import SUPPORTED_PROTOCOL_VERSIONS, negotiate_version
+from bundlemcp.gateway.proxy import client_ip
 from bundlemcp.models import (
     AuditRecord,
     AuditStatus,
@@ -129,6 +130,80 @@ async def _authenticate(
     if EndpointAuthMode.NONE in modes:
         return ("none", None, None, None)
     return None
+
+
+def _rate_identity(user_id: str | None, api_key_id: str | None, ip: str) -> str:
+    """Per-client rate-limit bucket key: OAuth user, else API key, else client IP."""
+    if user_id:
+        return f"user:{user_id}"
+    if api_key_id:
+        return f"apikey:{api_key_id}"
+    return f"ip:{ip}"
+
+
+async def _enforce_rate_limit(
+    runtime: "GatewayRuntime",
+    request: Request,
+    view: BundleView,
+    user_id: str | None,
+    api_key_id: str | None,
+    rpc_id: Any,
+    *,
+    is_tool_call: bool,
+) -> Response | None:
+    """Endpoint-wide + per-client fixed-window limits.
+
+    Returns a 429 (+ Retry-After) when a configured limit is exceeded, else None.
+    initialize/tools/list are exempt unless the endpoint opted in.
+    A rejection is a metric, never an audit record.
+    """
+    cfg = view.endpoint.rate_limit
+    if not cfg or runtime.rate_limiter is None:
+        return None
+    if not is_tool_call and not cfg.get("include_initialize_list", False):
+        return None
+    fail_closed = bool(cfg.get("fail_closed", False))
+    checks: list[tuple[str, dict]] = []
+    endpoint_rule = cfg.get("endpoint")
+    if endpoint_rule:
+        checks.append((f"ep:{view.endpoint.name}:all", endpoint_rule))
+    per_client_rule = cfg.get("per_client")
+    if per_client_rule:
+        ip = client_ip(request, runtime.settings) if runtime.settings else "unknown"
+        identity = _rate_identity(user_id, api_key_id, ip)
+        checks.append((f"ep:{view.endpoint.name}:{identity}", per_client_rule))
+    for scope, rule in checks:
+        result = await runtime.rate_limiter.check(
+            scope,
+            int(rule["limit"]),
+            int(rule["window_seconds"]),
+            fail_closed=fail_closed,
+        )
+        if not result.allowed:
+            runtime.counters.inc(RATE_LIMIT_REJECTIONS)
+            resp = _rpc_error(rpc_id, -32000, "rate limit exceeded", status=429)
+            resp.headers["Retry-After"] = str(result.retry_after)
+            return resp
+    return None
+
+
+async def note_auth_failure(request: Request) -> Response | None:
+    """Count an auth failure for the caller IP; 429 once the IP is locked out.
+
+    Gateway-wide, IP-keyed, shared by the MCP edge and the OAuth token endpoint.
+    Returns a 429 (+ Retry-After) when the IP is over the threshold, else None
+    (the caller then returns its own 401/invalid_client). Fails open on Redis.
+    """
+    limiter = getattr(request.app.state, "auth_failure_limiter", None)
+    if limiter is None:
+        return None
+    ip = client_ip(request, request.app.state.settings)
+    result = await limiter.record_failure(ip)
+    if result.allowed:
+        return None
+    resp = JSONResponse({"error": "too_many_auth_failures"}, status_code=429)
+    resp.headers["Retry-After"] = str(result.retry_after)
+    return resp
 
 
 def _forward_headers(request: Request, server, sub: str | None) -> dict[str, str]:
@@ -873,7 +948,8 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
             return JSONResponse({"error": "not found"}, status_code=404)
         auth = await _authenticate(request, db, view)
     if auth is None:
-        return _unauthorized(request, endpoint_name)
+        locked = await note_auth_failure(request)  # RATE-5
+        return locked if locked is not None else _unauthorized(request, endpoint_name)
 
     try:
         body = await request.json()
@@ -882,6 +958,11 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
     method = body.get("method", "")
 
     if method == "initialize":
+        limited = await _enforce_rate_limit(
+            runtime, request, view, auth[1], auth[3], body.get("id"), is_tool_call=False
+        )
+        if limited is not None:
+            return limited
         return await _handle_initialize(runtime, view, body, auth)
 
     # SES-2/SES-3: everything else requires a live session record
@@ -909,8 +990,20 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
     if method == "ping":
         return _rpc_result(body.get("id"), {})
     if method == "tools/list":
+        limited = await _enforce_rate_limit(
+            runtime, request, view, record.user_id, record.api_key_id, body.get("id"),
+            is_tool_call=False,
+        )
+        if limited is not None:
+            return limited
         return _rpc_result(body.get("id"), {"tools": _tools_payload(view)})
     if method == "tools/call":
+        limited = await _enforce_rate_limit(
+            runtime, request, view, record.user_id, record.api_key_id, body.get("id"),
+            is_tool_call=True,
+        )
+        if limited is not None:
+            return limited
         return await _handle_call(runtime, request, view, record, body)
     if method == "prompts/list":
         return await _handle_prompts_list(runtime, request, view, record, body.get("id"))
@@ -933,13 +1026,25 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
     return _rpc_error(body.get("id"), -32601, f"method not supported: {method}")
 
 
+@router.delete("/{endpoint_name}/mcp", include_in_schema=False)
+async def mcp_delete(endpoint_name: str, request: Request) -> Response:
+    """Explicit session termination."""
+    runtime: GatewayRuntime = request.app.state.gateway
+    session_id = request.headers.get(SESSION_HEADER, "")
+    if session_id:
+        await runtime.sessions.delete(session_id)
+    return Response(status_code=204)
+
+
 @router.get("/{endpoint_name}/mcp", include_in_schema=False)
 async def mcp_get(endpoint_name: str, request: Request) -> Response:
     """The server->client event stream (SSE).
 
-    Carries list_changed notifications. The open stream is replica-pinned;
-    messages from other replicas arrive via the SignalBus.
+    Carries list_changed notifications and server->client requests. The open
+    stream is replica-pinned; messages from other replicas arrive via the
+    SignalBus.
     """
+    import asyncio
     import json as jsonlib
 
     from fastapi.responses import StreamingResponse
@@ -951,7 +1056,8 @@ async def mcp_get(endpoint_name: str, request: Request) -> Response:
             return JSONResponse({"error": "not found"}, status_code=404)
         auth = await _authenticate(request, db, view)
     if auth is None:
-        return _unauthorized(request, endpoint_name)
+        locked = await note_auth_failure(request)  # RATE-5
+        return locked if locked is not None else _unauthorized(request, endpoint_name)
 
     session_id = request.headers.get(SESSION_HEADER, "")
     record = await runtime.sessions.load(session_id) if session_id else None
@@ -978,13 +1084,3 @@ async def mcp_get(endpoint_name: str, request: Request) -> Response:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )
-
-
-@router.delete("/{endpoint_name}/mcp", include_in_schema=False)
-async def mcp_delete(endpoint_name: str, request: Request) -> Response:
-    """Explicit session termination."""
-    runtime: GatewayRuntime = request.app.state.gateway
-    session_id = request.headers.get(SESSION_HEADER, "")
-    if session_id:
-        await runtime.sessions.delete(session_id)
-    return Response(status_code=204)

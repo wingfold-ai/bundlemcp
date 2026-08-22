@@ -10,6 +10,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
+from bundlemcp.gateway.proxy import client_ip
 from bundlemcp.models import (
     ApiKeyKind,
     Endpoint,
@@ -56,9 +57,27 @@ def _verify_pkce(verifier: str, challenge: str) -> bool:
     return base64.urlsafe_b64encode(digest).rstrip(b"=").decode() == challenge
 
 
+async def _note_token_auth_failure(request: Request) -> JSONResponse | None:
+    """Count an OAuth-token credential failure per client IP.
+
+    Returns a 429 (+ Retry-After) once the IP is locked out, else None so the
+    caller returns its own invalid_client/invalid_grant. Fails open on Redis.
+    """
+    limiter = getattr(request.app.state, "auth_failure_limiter", None)
+    if limiter is None:
+        return None
+    result = await limiter.record_failure(client_ip(request, request.app.state.settings))
+    if result.allowed:
+        return None
+    resp = _token_error("too_many_requests", "too many authentication failures", status=429)
+    resp.headers["Retry-After"] = str(result.retry_after)
+    return resp
+
+
 async def _invalid_grant(request: Request, description: str = "") -> JSONResponse:
-    """A failed grant is a credential-scan signal."""
-    return _token_error("invalid_grant", description)
+    """A failed grant is a credential-scan signal → count it, maybe 429."""
+    locked = await _note_token_auth_failure(request)
+    return locked if locked is not None else _token_error("invalid_grant", description)
 
 
 async def _authenticate_client(request: Request, db, client_id: str, client_secret: str | None):
@@ -126,7 +145,8 @@ async def token(  # noqa: PLR0911 - protocol branching
     async with request.app.state.session_factory() as db:
         client = await _authenticate_client(request, db, client_id or "", client_secret)
         if client is None:
-            return _token_error("invalid_client", status=401)
+            locked = await _note_token_auth_failure(request)  # RATE-5
+            return locked if locked is not None else _token_error("invalid_client", status=401)
         client.last_used_at = utcnow()  # SEC-8 stale-client purge signal
         db.add(client)
 
