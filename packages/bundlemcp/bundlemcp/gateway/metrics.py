@@ -20,3 +20,10 @@ class Counters:
 
     def snapshot(self) -> dict[str, int]:
         return dict(self._counts)
+
+
+# Canonical metric names (kept stable for the spec-51 exporter).
+RATE_LIMIT_REJECTIONS = "rate_limit_rejections"
+RATE_LIMIT_FAIL_OPEN = "rate_limit_fail_open"
+AUTH_FAILURES = "auth_failures"
+AUTH_FAILURE_LOCKOUTS = "auth_failure_lockouts"

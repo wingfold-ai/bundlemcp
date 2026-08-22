@@ -74,6 +74,7 @@ class EndpointService:
         ep.bundle_id = bundle.id
         ep.profile = body.profile
         ep.auth_modes = [m.value for m in body.auth_modes]
+        ep.rate_limit = body.rate_limit.model_dump() if body.rate_limit else None
         ep.enabled = body.enabled
         self._db.add(ep)
         await self._db.commit()
