@@ -24,3 +24,16 @@ async def test_apply_is_idempotent(engine, redis):
         assert len((await db.execute(select(Bundle))).scalars().all()) == 1
         assert len((await db.execute(select(Endpoint))).scalars().all()) == 1
         assert len((await db.execute(select(BundleServer))).scalars().all()) == 1
+
+
+async def test_seed_file_parses():
+    """The shipped demo seed is a valid document."""
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[3]
+    data = yaml.safe_load((root / "deploy" / "seed.yaml").read_text())
+    doc = BootstrapDocument(**data)
+    assert doc.servers[0].name == "echo"
+    assert doc.endpoints[0].bundle_name == "demo"
