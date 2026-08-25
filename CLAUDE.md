@@ -51,7 +51,12 @@ See [spec/00-overview.md](spec/00-overview.md) and
 
 ## Testing
 
-<!-- How to run the tests and what's expected before a change is considered done. -->
+- `uv run pytest -q` — hermetic unit tests (no Docker/network); must pass
+  before any change is done. `uv run ruff check .` must be clean.
+- Integration tests run against the compose stack; spec 30 mandates
+  restart-under-load and two-replica session tests.
+- Tests reference spec requirement IDs in their names/docstrings where they
+  verify one.
 
 ## Conventions
 
