@@ -1,0 +1,165 @@
+# bundlemcp dev/reference stack (ARC-13). TLS is the operator's proxy concern
+# in production (spec 71 DEP-3); here the gateway is exposed directly.
+#
+# Egress note (SEC-2): compose service hostnames resolve to private IPs, which
+# the default egress policy allows; loopback/metadata ranges stay blocked.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: bundlemcp
+      POSTGRES_PASSWORD: bundlemcp
+      POSTGRES_DB: bundlemcp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bundlemcp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Valkey (BSD-3): the RESP-compatible store; redis-py (MIT) speaks to it
+  # unchanged, so the connection URL keeps the standard redis:// scheme.
+  valkey:
+    image: valkey/valkey:8-alpine
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo ok >&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  echo-mcp:
+    build: ../examples/echo-mcp
+    expose:
+      - "9000"
+
+  # --- ultra-mcp MCP fleet (seed.yaml registers + bundles these) ------------
+
+  # PageSpeed Insights MCP (sibling seo-improve-mcp repo -> GHCR). No auth
+  # required; PSI_API_KEY raises Google quota when set.
+  seo-psi:
+    image: ${SEO_PSI_IMAGE:-ghcr.io/mhoegger/seo-psi-mcp:latest}
+    environment:
+      PSI_API_KEY: ${PSI_API_KEY:-}
+    expose:
+      - "8000"
+
+  # Google Search Console MCP (sibling seo-improve-mcp repo -> GHCR). Does its
+  # own per-user Google OAuth at /connect + /google/callback (host port 8001 so
+  # Google can redirect), and verifies the gateway-forwarded bearer via RFC 7662
+  # introspection against this stack's gateway (FWD-4). Requires real Google
+  # OAuth client credentials in deploy/.env — see .env.example.
+  seo-gsc:
+    image: ${SEO_GSC_IMAGE:-ghcr.io/mhoegger/seo-gsc-mcp:latest}
+    environment:
+      GSC_GOOGLE_CLIENT_ID: ${GSC_GOOGLE_CLIENT_ID:-}
+      GSC_GOOGLE_CLIENT_SECRET: ${GSC_GOOGLE_CLIENT_SECRET:-}
+      GSC_BASE_URL: ${GSC_BASE_URL:-http://localhost:8001}
+      GSC_TOKEN_ENCRYPTION_KEY: ${GSC_TOKEN_ENCRYPTION_KEY:-}
+      GSC_SIGNING_KEY: ${GSC_SIGNING_KEY:-}
+      GSC_DB_PATH: /data/gsc.sqlite
+      GSC_INTROSPECTION_URL: http://gateway:8000/oauth/introspect
+      GSC_INTROSPECTION_CLIENT_ID: bundlemcp
+      # our introspection accepts the service key as the RFC 7662 client secret
+      GSC_INTROSPECTION_CLIENT_SECRET: ${BUNDLEMCP_INITIAL_SERVICE_KEY:-bmcp_sk_devservicekey000000000000000000000000}
+    ports:
+      - "8001:8000"
+    volumes:
+      - gscdata:/data
+
+  # DataForSEO MCP from npm. Boots without credentials; tool calls 401 until
+  # DATAFORSEO_USERNAME/PASSWORD are set in deploy/.env.
+  dataforseo:
+    image: node:20-alpine
+    command: ["npx", "-y", "dataforseo-mcp-server@2.9.8", "http"]
+    environment:
+      DATAFORSEO_USERNAME: ${DATAFORSEO_USERNAME:-}
+      DATAFORSEO_PASSWORD: ${DATAFORSEO_PASSWORD:-}
+    expose:
+      - "3000"
+
+  # SeaweedFS (S3) backing HyperFrames render outputs.
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    command: "server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data"
+    ports:
+      - "8333:8333" # presigned URLs (http://localhost:8333) resolve from the host
+    volumes:
+      - seaweed-data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+
+  # HyperFrames MCP (HTML-to-video, sibling hyperframes-mcp repo -> GHCR).
+  # Identifies callers by the gateway-injected X-MCP-User header (FWD-3).
+  hyperframes:
+    image: ${HYPERFRAMES_IMAGE:-ghcr.io/mhoegger/hyperframes-mcp:latest}
+    shm_size: "1g"
+    environment:
+      PORT: "8080"
+      HOST: 0.0.0.0
+      PERSISTENCE_MODE: memory
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_PUBLIC_ENDPOINT: http://localhost:8333
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: hyperframes
+      S3_SECRET_KEY: hyperframes-secret
+      S3_BUCKET: hyperframes
+      S3_FORCE_PATH_STYLE: "true"
+      IDENTITY_HEADER: X-MCP-User
+      INTROSPECTION_URL: http://gateway:8000/oauth/introspect
+      MAX_CONCURRENT_RENDERS: "2"
+    expose:
+      - "8080"
+    depends_on:
+      seaweedfs:
+        condition: service_started
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: apps/gateway/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      BUNDLEMCP_DATABASE_URL: postgresql+asyncpg://bundlemcp:bundlemcp@postgres:5432/bundlemcp
+      BUNDLEMCP_REDIS_URL: redis://valkey:6379/0
+      BUNDLEMCP_PUBLIC_URL: ${BUNDLEMCP_PUBLIC_URL:-http://localhost:8000}
+      BUNDLEMCP_OIDC_DISCOVERY_URL: http://keycloak:8080/realms/bundlemcp/.well-known/openid-configuration
+      BUNDLEMCP_OIDC_CLIENT_ID: bundlemcp-gateway
+      BUNDLEMCP_OIDC_CLIENT_SECRET: ${BUNDLEMCP_OIDC_CLIENT_SECRET:-dev-gateway-secret}
+      BUNDLEMCP_ADMIN_EMAILS: '["admin@example.com"]'
+      BUNDLEMCP_INITIAL_SERVICE_KEY: ${BUNDLEMCP_INITIAL_SERVICE_KEY:-bmcp_sk_devservicekey000000000000000000000000}
+      BUNDLEMCP_BOOTSTRAP_FILE: /app/deploy/seed.yaml
+      BUNDLEMCP_WEB_ORIGINS: '["http://localhost:3000"]'
+      # dev-only key (rotate for anything real): upstream OAuth token encryption
+      BUNDLEMCP_TOKEN_ENCRYPTION_KEYS: ${BUNDLEMCP_TOKEN_ENCRYPTION_KEYS:-["Uqw2PEJomK66Xa6lD-TmIU75wHfWRU6T1n9jpYqjv80="]}
+    volumes:
+      - ../deploy/seed.yaml:/app/deploy/seed.yaml:ro
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:
+  gscdata:
+  seaweed-data:

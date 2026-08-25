@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     auth_failure_limit: int = 20
     auth_failure_window: int = 300  # seconds
 
+    # Bootstrap (spec 41). initial_service_key provisions one service API key on
+    # first boot when no service key exists (BOOT-3-style, value from env/secret).
+    bootstrap_file: str | None = None
+    bootstrap_strict: bool = False
+    initial_service_key: str | None = None
+
     log_level: str = "INFO"
 
 
