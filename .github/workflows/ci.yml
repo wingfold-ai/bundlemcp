@@ -1,0 +1,89 @@
+# CI (spec 71 DEP-10): lint + hermetic tests + diagram validation + image build.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync --all-packages
+      - name: Ruff
+        run: uv run ruff check .
+      - name: Tests
+        run: uv run pytest -q
+
+  diagrams:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate LikeC4 model (ADOC-4)
+        run: npx --yes likec4 validate docs/likec4
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build gateway image
+        run: docker build -f apps/gateway/Dockerfile -t bundlemcp-gateway:ci .
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync --all-packages
+      - name: Resolve the Keycloak compose hostname
+        # The gateway hands OAuth clients Keycloak URLs under the compose-internal
+        # hostname, so the runner (which drives the OAuth flow) must resolve it —
+        # same prerequisite as deploy/TESTING.md.
+        run: echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
+      - name: Bring up the core stack
+        # Only the public/buildable services. The application-layer fleet (seo-psi,
+        # seo-gsc, hyperframes) lives in private GHCR images CI cannot pull, so
+        # its tests are marked `fleet` and skipped below — run them locally with
+        # the full `docker compose ... up` per deploy/TESTING.md. No deploy/.env
+        # in CI, so BUNDLEMCP_PUBLIC_URL falls back to http://localhost:8000.
+        run: docker compose -f deploy/docker-compose.yml up -d --build postgres valkey keycloak echo-mcp gateway
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8000/readyz && break || sleep 5
+          done
+      - name: Discover the seeded demo upstream
+        # Bootstrap schedules tool discovery best-effort (async), so a fresh boot
+        # can race echo-mcp's startup. Force + confirm discovery so the demo
+        # tools are present before the suite asserts on them.
+        run: |
+          SK=bmcp_sk_devservicekey000000000000000000000000
+          for i in $(seq 1 30); do
+            n=$(curl -s -X POST -H "Authorization: Bearer $SK" \
+              http://localhost:8000/api/v1/servers/echo:refresh-tools \
+              | python3 -c "import sys,json;print(json.load(sys.stdin).get('discovered',0))" 2>/dev/null || echo 0)
+            [ "$n" -gt 0 ] && { echo "echo discovered $n tools"; break; }
+            sleep 3
+          done
+      - name: Run integration suite (core; fleet needs private GHCR images)
+        env:
+          BUNDLEMCP_INTEGRATION: "1"
+        run: uv run pytest tests-integration -q -m "not fleet"
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml logs --tail=200
+      - name: Tear down
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v

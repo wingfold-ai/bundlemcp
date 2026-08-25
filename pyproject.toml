@@ -14,6 +14,7 @@ dev-dependencies = [
     "ruff>=0.12",
     "fakeredis>=2.30",
     "aiosqlite>=0.21",
+    "httpx>=0.28",
 ]
 
 [tool.uv.sources]
@@ -36,3 +37,6 @@ select = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["packages/bundlemcp/tests"]
+markers = [
+    "fleet: integration test requiring the private application-layer GHCR fleet images (skipped in CI)",
+]
