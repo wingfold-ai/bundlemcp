@@ -25,6 +25,7 @@
   between-call push lands with connection pooling (SES-8).
 - Single scope in OAuth; audience-only binding (OAS-10) — fine-grained scopes
   deferred.
+- Inspector covers tools only (spec/53 out-of-scope list).
 - Rate limiting ([16](../../spec/16-rate-limiting.md),
   [ADR-0018](../adr/0018-rate-limiting.md)) uses a fixed-window counter — up to
   a 2× burst at window edges; a sliding-window log is the noted upgrade. Its
