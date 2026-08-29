@@ -159,6 +159,17 @@ services:
     ports:
       - "8000:8000"
 
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NUXT_PUBLIC_API_BASE: ${BUNDLEMCP_PUBLIC_URL:-http://localhost:8000}
+    depends_on:
+      - gateway
+    ports:
+      - "3000:3000"
+
 volumes:
   pgdata:
   gscdata:
