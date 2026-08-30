@@ -1,0 +1,141 @@
+{
+  "$comment": "Single source of truth mapping each e2e scenario to the spec requirements it verifies. The E2E-NN id threads through: the test title, the recording filename, and TESTMAP.md. The PRIMARY spec of a scenario is derived from requirements[0] (the file that defines it); `requirements` lists every requirement id the test exercises, in on-screen order. Generated artifacts: `node tests/gen-testmap.mjs` (TESTMAP.md) and `npm run test:ui:record` (recordings + gallery).",
+  "scenarios": [
+    {
+      "id": "E2E-01",
+      "testFile": "login.spec.ts",
+      "slug": "login-admin-sees-seeded-servers",
+      "title": "Signed-in admin sees the seeded servers",
+      "requirements": [
+        "UI-2",
+        "UI-1"
+      ]
+    },
+    {
+      "id": "E2E-02",
+      "testFile": "login.spec.ts",
+      "slug": "login-navigation-all-pages",
+      "title": "Navigation reaches every page of the admin UI",
+      "requirements": [
+        "UI-1"
+      ]
+    },
+    {
+      "id": "E2E-03",
+      "testFile": "server-flow.spec.ts",
+      "slug": "server-create-discover-delete",
+      "title": "Create a server, discover its tools, delete it",
+      "requirements": [
+        "SRV-2",
+        "DISC-1"
+      ]
+    },
+    {
+      "id": "E2E-04",
+      "testFile": "server-flow.spec.ts",
+      "slug": "server-name-validation",
+      "title": "Form validation blocks a '__' server name client-side",
+      "requirements": [
+        "UI-4"
+      ]
+    },
+    {
+      "id": "E2E-05",
+      "testFile": "bundle-flow.spec.ts",
+      "slug": "bundle-compose-curate-expose",
+      "title": "Compose a bundle, curate a tool, expose it as an endpoint",
+      "requirements": [
+        "BND-6",
+        "BND-4",
+        "TM-1",
+        "TM-3",
+        "EP-7"
+      ]
+    },
+    {
+      "id": "E2E-06",
+      "testFile": "bundle-flow.spec.ts",
+      "slug": "bundle-chatgpt-warning",
+      "title": "The chatgpt profile warns that write tools are re-annotated",
+      "requirements": [
+        "PROF-3"
+      ]
+    },
+    {
+      "id": "E2E-07",
+      "testFile": "endpoint-relay.spec.ts",
+      "slug": "endpoint-relay-mcp-and-audit",
+      "title": "A UI-built endpoint serves MCP calls and records an audit trail",
+      "requirements": [
+        "EP-1",
+        "EP-3",
+        "AUD-1",
+        "BND-6",
+        "EP-7",
+        "KEY-1"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-08",
+      "testFile": "endpoint-config.spec.ts",
+      "slug": "endpoint-config-persist",
+      "title": "Endpoint rate limit and auth-mode edits persist across reload",
+      "requirements": [
+        "RATE-1",
+        "EP-3"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-09",
+      "testFile": "users.spec.ts",
+      "slug": "users-list-and-consents",
+      "title": "Users page lists the admin and drills into consents",
+      "requirements": [
+        "ADM-6",
+        "OAS-11",
+        "UI-1"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-10",
+      "testFile": "keys-settings.spec.ts",
+      "slug": "api-key-lifecycle",
+      "title": "An API key is shown once, then deactivated and deleted",
+      "requirements": [
+        "KEY-1",
+        "KEY-4"
+      ]
+    },
+    {
+      "id": "E2E-11",
+      "testFile": "keys-settings.spec.ts",
+      "slug": "runtime-config-edit-reset",
+      "title": "A runtime Config value can be edited, persisted and reset",
+      "requirements": [
+        "API-1",
+        "DOM-5"
+      ]
+    },
+    {
+      "id": "E2E-12",
+      "testFile": "gsc-upstream.spec.ts",
+      "slug": "gsc-forwarding-status",
+      "title": "The UI surfaces header forwarding and upstream status",
+      "requirements": [
+        "FWD-4"
+      ]
+    },
+    {
+      "id": "E2E-13",
+      "testFile": "gsc-upstream.spec.ts",
+      "slug": "gsc-connect-link",
+      "title": "The upstream-OAuth connect link targets the gateway route",
+      "requirements": [
+        "UPO-1"
+      ]
+    }
+  ]
+}
