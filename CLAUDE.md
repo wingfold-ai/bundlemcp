@@ -64,7 +64,15 @@ See [spec/00-overview.md](spec/00-overview.md) and
 
 ## Conventions
 
-<!-- Code style, naming, commit/branch conventions, and any project-specific rules. -->
+- Ruff (line length 100), full type hints, `pydantic-settings` with
+  `BUNDLEMCP_` env prefix.
+- Docstrings never reference spec numbers or requirement IDs — they must
+  explain the behavior standalone, or be omitted. Requirement-ID
+  cross-references belong in inline `#` comments, test names/docstrings, and
+  error messages only.
+- Never log or return secrets/tokens/header values (spec 51, DOM-3).
+- New behavior starts with a spec update in `/spec`; keep requirement IDs
+  stable.
 
 ## Git & Commit Attribution
 
