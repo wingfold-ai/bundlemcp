@@ -158,7 +158,7 @@ async def _enforce_rate_limit(
     A rejection is a metric, never an audit record.
     """
     cfg = view.endpoint.rate_limit
-    if not cfg or runtime.rate_limiter is None:
+    if not cfg:
         return None
     if not is_tool_call and not cfg.get("include_initialize_list", False):
         return None
@@ -169,7 +169,7 @@ async def _enforce_rate_limit(
         checks.append((f"ep:{view.endpoint.name}:all", endpoint_rule))
     per_client_rule = cfg.get("per_client")
     if per_client_rule:
-        ip = client_ip(request, runtime.settings) if runtime.settings else "unknown"
+        ip = client_ip(request, runtime.settings)
         identity = _rate_identity(user_id, api_key_id, ip)
         checks.append((f"ep:{view.endpoint.name}:{identity}", per_client_rule))
     for scope, rule in checks:
@@ -328,9 +328,7 @@ async def _timeout_config(runtime: GatewayRuntime) -> tuple[float, bool, float]:
     )
 
 
-def _build_relay_handlers(
-    runtime: GatewayRuntime, session_id: str, wait_timeout: float
-) -> dict:
+def _build_relay_handlers(runtime: GatewayRuntime, session_id: str, wait_timeout: float) -> dict:
     """Elicitation/sampling handlers that forward to the downstream client.
 
     Only attached when the client advertised the capability (caller gates this).
@@ -421,16 +419,15 @@ async def _drive_upstream(
     # downstream client advertised, and only if we can route replies.
     handlers: dict = {}
     caps = record.client_capabilities or {}
-    if runtime.registry is not None and runtime.signals is not None:
-        all_handlers = _build_relay_handlers(runtime, record.session_id, max_total)
-        if "elicitation" in caps:
-            handlers["elicitation_handler"] = all_handlers["elicitation_handler"]
-        if "sampling" in caps:
-            handlers["sampling_handler"] = all_handlers["sampling_handler"]
-        if "roots" in caps:  # PROT-4: Client kwarg is `roots`
-            handlers["roots"] = all_handlers["roots_handler"]
-        if "logging" in caps:  # PROT-7
-            handlers["log_handler"] = all_handlers["log_handler"]
+    all_handlers = _build_relay_handlers(runtime, record.session_id, max_total)
+    if "elicitation" in caps:
+        handlers["elicitation_handler"] = all_handlers["elicitation_handler"]
+    if "sampling" in caps:
+        handlers["sampling_handler"] = all_handlers["sampling_handler"]
+    if "roots" in caps:  # PROT-4: Client kwarg is `roots`
+        handlers["roots"] = all_handlers["roots_handler"]
+    if "logging" in caps:  # PROT-7
+        handlers["log_handler"] = all_handlers["log_handler"]
 
     async def run():
         client = runtime.client_factory(pt.server, extra_headers, **handlers)
@@ -528,7 +525,14 @@ def _sse_call_response(
 
         async def runner():
             outcome = await _drive_upstream(
-                runtime, pt, arguments, extra_headers, record, sub, handle, cfg,
+                runtime,
+                pt,
+                arguments,
+                extra_headers,
+                record,
+                sub,
+                handle,
+                cfg,
                 on_progress=on_progress,
             )
             await queue.put(("final", outcome))
@@ -600,8 +604,9 @@ async def _handle_call(
     if pt is None:
         # TM-2: disabled/unknown tools are rejected on call, not just hidden
         runtime.audit.record(
-            AuditRecord(status=AuditStatus.DENIED, denied_reason="unknown_or_disabled_tool",
-                        **audit_kwargs)
+            AuditRecord(
+                status=AuditStatus.DENIED, denied_reason="unknown_or_disabled_tool", **audit_kwargs
+            )
         )
         return _rpc_error(rpc_id, -32602, f"Unknown tool: {presented_name}")
 
@@ -658,7 +663,8 @@ async def _handle_call(
         decision: MeterDecision = await runtime.metering.pre_call(ctx)
     except Exception:
         log.error("metering.pre_call_failed", exc_info=True)
-        fail_open = getattr(runtime.metering, "fail_open", False)
+        # MID-3: fail-open is the gateway's policy, not the hook's property.
+        fail_open = runtime.settings.metering_hook_fail_open
         decision = MeterDecision(allowed=fail_open, reason="metering_unavailable")
     if not decision.allowed:
         runtime.audit.record(
@@ -690,15 +696,24 @@ async def _handle_call(
         )
 
     handle = None
-    if runtime.registry is not None and rpc_id is not None:
+    if rpc_id is not None:
         handle = runtime.registry.register_call(record.session_id, str(rpc_id))
 
     # PROT-1: when the client sent a progressToken, stream progress as SSE and
     # deliver the result as the final event. Otherwise the buffered JSON path.
     if progress_token is not None:
         return _sse_call_response(
-            runtime, pt, arguments, extra_headers, record, sub, handle, cfg,
-            progress_token, rpc_id, finalize,
+            runtime,
+            pt,
+            arguments,
+            extra_headers,
+            record,
+            sub,
+            handle,
+            cfg,
+            progress_token,
+            rpc_id,
+            finalize,
         )
 
     started = time.monotonic()
@@ -799,6 +814,7 @@ def _dump(obj) -> dict[str, Any]:
 
 async def _handle_prompts_list(runtime, request, view, record, rpc_id) -> Response:
     """PROT-11/BND-8: merge members' prompts with `server__name` prefixing."""
+
     async def call(client):
         return await client.list_prompts()
 
@@ -899,6 +915,7 @@ async def _merge_by_key(runtime, request, view, record, call, key: str) -> list[
 
 async def _handle_resources_list(runtime, request, view, record, rpc_id) -> Response:
     """BND-8: merge members' resources; URIs pass through unchanged (dedupe by URI)."""
+
     async def call(client):
         return await client.list_resources()
 
@@ -975,14 +992,14 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
     # PROT-4: a JSON-RPC response (no method, has result/error) is the client's
     # reply to a server->client request — route it to the awaiting call.
     if not method and ("result" in body or "error" in body):
-        if runtime.signals is not None and body.get("id") is not None:
+        if body.get("id") is not None:
             await runtime.signals.reply(str(body["id"]), body)
         return Response(status_code=202)
 
     if method == "notifications/cancelled":
         # PROT-3: route the cancel to the replica holding the in-flight call
         cancel_id = (body.get("params") or {}).get("requestId")
-        if cancel_id is not None and runtime.signals is not None:
+        if cancel_id is not None:
             await runtime.signals.cancel(session_id, str(cancel_id))
         return Response(status_code=202)
     if method.startswith("notifications/"):
@@ -991,7 +1008,12 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return _rpc_result(body.get("id"), {})
     if method == "tools/list":
         limited = await _enforce_rate_limit(
-            runtime, request, view, record.user_id, record.api_key_id, body.get("id"),
+            runtime,
+            request,
+            view,
+            record.user_id,
+            record.api_key_id,
+            body.get("id"),
             is_tool_call=False,
         )
         if limited is not None:
@@ -999,7 +1021,12 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
         return _rpc_result(body.get("id"), {"tools": _tools_payload(view)})
     if method == "tools/call":
         limited = await _enforce_rate_limit(
-            runtime, request, view, record.user_id, record.api_key_id, body.get("id"),
+            runtime,
+            request,
+            view,
+            record.user_id,
+            record.api_key_id,
+            body.get("id"),
             is_tool_call=True,
         )
         if limited is not None:
