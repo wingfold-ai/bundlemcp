@@ -9,8 +9,9 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from bundlemcp.gateway.ratelimit import AuthFailureLimiter
 from bundlemcp.services import (
     ApiKeyService,
     AuditService,
@@ -20,6 +21,7 @@ from bundlemcp.services import (
     ServerService,
     UserService,
 )
+from bundlemcp.settings import Settings
 
 
 async def get_db(request: Request) -> AsyncSession:
@@ -28,12 +30,32 @@ async def get_db(request: Request) -> AsyncSession:
         yield session
 
 
+def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
+    """The factory itself, for handlers that need several short transactions.
+
+    Prefer ``DbProvider`` for a single request-scoped session; take the factory
+    only when the handler deliberately opens and commits more than one.
+    """
+    return request.app.state.session_factory
+
+
 async def get_redis(request: Request) -> Redis:
     return request.app.state.redis
 
 
+def get_app_settings(request: Request) -> Settings:
+    return request.app.state.settings
+
+
+def get_auth_failure_limiter(request: Request) -> AuthFailureLimiter:
+    return request.app.state.auth_failure_limiter
+
+
 DbProvider = Annotated[AsyncSession, Depends(get_db)]
+SessionFactoryProvider = Annotated[async_sessionmaker[AsyncSession], Depends(get_session_factory)]
 RedisProvider = Annotated[Redis, Depends(get_redis)]
+SettingsProvider = Annotated[Settings, Depends(get_app_settings)]
+AuthFailureLimiterProvider = Annotated[AuthFailureLimiter, Depends(get_auth_failure_limiter)]
 
 
 def get_server_service(request: Request, db: DbProvider, redis: RedisProvider) -> ServerService:

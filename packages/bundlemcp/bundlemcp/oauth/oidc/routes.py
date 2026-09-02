@@ -1,11 +1,18 @@
 import secrets
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlmodel import select
 
+from bundlemcp.api.providers import (
+    RedisProvider,
+    SessionFactoryProvider,
+    SettingsProvider,
+)
 from bundlemcp.models import User
 from bundlemcp.oauth.adminsessions import SESSION_COOKIE, AdminSession
+from bundlemcp.oauth.deps import AdminSessionsProvider
 from bundlemcp.oauth.oidc._common import OIDC_STATE_KEY, OIDC_STATE_TTL, log
 from bundlemcp.oauth.oidc.authlib_oidc_provider import AuthlibOidcProvider
 from bundlemcp.oauth.oidc.oidc_claims import OidcClaims
@@ -13,6 +20,14 @@ from bundlemcp.oauth.oidc.oidc_provider import OidcProvider
 from bundlemcp.settings import Settings
 
 router = APIRouter(tags=["auth"])
+
+
+def get_oidc_provider(request: Request) -> OidcProvider | None:
+    """None when no OIDC issuer is configured; routes must reject in that case."""
+    return request.app.state.oidc_provider
+
+
+OidcProviderDep = Annotated[OidcProvider | None, Depends(get_oidc_provider)]
 
 
 def is_admin(claims: OidcClaims, settings: Settings) -> bool:
@@ -27,9 +42,7 @@ async def provision_user(session_factory, claims: OidcClaims, settings: Settings
     async with session_factory() as db:
         user = (
             await db.execute(
-                select(User).where(
-                    User.oidc_issuer == claims.issuer, User.oidc_sub == claims.sub
-                )
+                select(User).where(User.oidc_issuer == claims.issuer, User.oidc_sub == claims.sub)
             )
         ).scalar_one_or_none()
         if user is None:
@@ -53,66 +66,70 @@ def _safe_next(next_url: str, settings: Settings) -> str:
     """Clamp the post-login redirect to this app or an allowlisted web origin."""
     if next_url.startswith("/") and not next_url.startswith("//"):
         return next_url
-    allowed = [str(settings.public_url).rstrip("/")] + [
-        o.rstrip("/") for o in settings.web_origins
-    ]
+    allowed = [str(settings.public_url).rstrip("/")] + [o.rstrip("/") for o in settings.web_origins]
     if any(next_url == a or next_url.startswith(a + "/") for a in allowed):
         return next_url
     return "/"
 
 
 @router.get("/login", include_in_schema=False)
-async def login(request: Request, next: str = "/"):
-    provider: OidcProvider | None = getattr(request.app.state, "oidc_provider", None)
+async def login(
+    provider: OidcProviderDep,
+    settings: SettingsProvider,
+    redis: RedisProvider,
+    next: str = "/",
+):
     if provider is None:
         raise HTTPException(503, "no OIDC provider configured")
-    next = _safe_next(next, request.app.state.settings)
+    next = _safe_next(next, settings)
     state = secrets.token_urlsafe(24)
     nonce = secrets.token_urlsafe(24)
-    await request.app.state.redis.set(
+    await redis.set(
         OIDC_STATE_KEY.format(state=state),
         f"{nonce}\n{next}",
         ex=OIDC_STATE_TTL,
     )
-    url = provider.authorize_url(
-        state=state, nonce=nonce, redirect_uri=_redirect_uri(request.app.state.settings)
-    )
+    url = provider.authorize_url(state=state, nonce=nonce, redirect_uri=_redirect_uri(settings))
     return RedirectResponse(url, status_code=302)
 
 
 @router.get("/login/callback", include_in_schema=False)
-async def login_callback(request: Request, code: str = "", state: str = ""):
+async def login_callback(
+    provider: OidcProviderDep,
+    settings: SettingsProvider,
+    redis: RedisProvider,
+    session_factory: SessionFactoryProvider,
+    admin_sessions: AdminSessionsProvider,
+    code: str = "",
+    state: str = "",
+):
     key = OIDC_STATE_KEY.format(state=state)
-    stored = await request.app.state.redis.get(key)
-    await request.app.state.redis.delete(key)  # single-use state (CSRF)
+    stored = await redis.get(key)
+    await redis.delete(key)  # single-use state (CSRF)
     if stored is None:
         raise HTTPException(400, "invalid or expired state")
     nonce, _, next_url = stored.partition("\n")
 
-    provider: OidcProvider = request.app.state.oidc_provider
-    settings = request.app.state.settings
-    claims = await provider.exchange(
-        code=code, redirect_uri=_redirect_uri(settings), nonce=nonce
-    )
-    user = await provision_user(request.app.state.session_factory, claims, settings)
+    if provider is None:
+        raise HTTPException(503, "no OIDC provider configured")
+    claims = await provider.exchange(code=code, redirect_uri=_redirect_uri(settings), nonce=nonce)
+    user = await provision_user(session_factory, claims, settings)
 
-    session_id = await request.app.state.admin_sessions.create(
+    session_id = await admin_sessions.create(
         AdminSession(user_id=str(user.id), email=user.email, is_admin=user.is_admin)
     )
     secure = str(settings.public_url).startswith("https")
     response = RedirectResponse(next_url or "/", status_code=302)
-    response.set_cookie(
-        SESSION_COOKIE, session_id, **request.app.state.admin_sessions.cookie_kwargs(secure)
-    )
+    response.set_cookie(SESSION_COOKIE, session_id, **admin_sessions.cookie_kwargs(secure))
     log.info("admin.login", user_id=str(user.id), is_admin=user.is_admin)
     return response
 
 
 @router.post("/logout", include_in_schema=False)
-async def logout(request: Request):
+async def logout(request: Request, admin_sessions: AdminSessionsProvider):
     session_id = request.cookies.get(SESSION_COOKIE)
     if session_id:
-        await request.app.state.admin_sessions.delete(session_id)  # ADM-5
+        await admin_sessions.delete(session_id)  # ADM-5
     response = RedirectResponse("/", status_code=302)
     response.delete_cookie(SESSION_COOKIE, path="/")
     return response
