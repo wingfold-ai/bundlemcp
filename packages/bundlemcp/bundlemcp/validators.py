@@ -59,14 +59,10 @@ async def membership_violates_per_user_upstream(
     return any(_is_none_only(e.auth_modes) for e in endpoints)
 
 
-async def identity_switch_violates_per_user_upstream(
-    db: AsyncSession, server: McpServer
-) -> bool:
+async def identity_switch_violates_per_user_upstream(db: AsyncSession, server: McpServer) -> bool:
     """A server can't switch to per_user while a none-endpoint exposes its bundle(s)."""
     bundle_ids = (
-        await db.execute(
-            select(BundleServer.bundle_id).where(BundleServer.server_id == server.id)
-        )
+        await db.execute(select(BundleServer.bundle_id).where(BundleServer.server_id == server.id))
     ).scalars()
     for bundle_id in bundle_ids:
         endpoints = (

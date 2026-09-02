@@ -42,9 +42,7 @@ class HttpxUpstreamProvider:
                 )
         raise NeedsConnect("upstream", "no_oauth_metadata")
 
-    def authorize_url(
-        self, meta, *, client_id, redirect_uri, state, code_challenge, scope
-    ) -> str:
+    def authorize_url(self, meta, *, client_id, redirect_uri, state, code_challenge, scope) -> str:
         from urllib.parse import urlencode
 
         params = {

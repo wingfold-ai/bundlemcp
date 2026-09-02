@@ -1,11 +1,15 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from bundlemcp.schemas.validation import validate_name
 
 
 class BundleUpsert(BaseModel):
-    name: str
-    description: str | None = None
+    """Body for creating or replacing a bundle."""
+
+    name: str = Field(description="Unique bundle name; lowercase letters, digits and hyphens")
+    description: str | None = Field(
+        default=None, description="Free-text note about what this bundle is for"
+    )
 
     @field_validator("name")
     @classmethod
