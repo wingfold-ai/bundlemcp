@@ -14,9 +14,16 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import select
 
+from bundlemcp.api.providers import (
+    RedisProvider,
+    SessionFactoryProvider,
+    SettingsProvider,
+)
 from bundlemcp.models import IdentityMode, McpServer
-from bundlemcp.oauth.authorize import PAGE_HEADERS, current_session_user
+from bundlemcp.oauth.authorize import PAGE_HEADERS, CurrentSessionUser
+from bundlemcp.oauth.deps import UpstreamTokensProvider
 from bundlemcp.oauth.upstream_client import NeedsConnect
+from bundlemcp.settings import Settings
 
 log = structlog.get_logger(__name__)
 
@@ -32,13 +39,13 @@ _DONE_PAGE = (
 )
 
 
-def _redirect_uri(request: Request) -> str:
-    base = str(request.app.state.settings.public_url).rstrip("/")
+def _redirect_uri(settings: Settings) -> str:
+    base = str(settings.public_url).rstrip("/")
     return f"{base}/oauth/upstream/callback"
 
 
-async def _server(request: Request, name: str) -> McpServer:
-    async with request.app.state.session_factory() as db:
+async def _server(session_factory, name: str) -> McpServer:
+    async with session_factory() as db:
         srv = (
             await db.execute(select(McpServer).where(McpServer.name == name))
         ).scalar_one_or_none()
@@ -48,18 +55,25 @@ async def _server(request: Request, name: str) -> McpServer:
 
 
 @router.get("/oauth/upstream/{server_name}/connect", include_in_schema=False)
-async def connect(server_name: str, request: Request, as_: str | None = Query(None, alias="as")):
-    store = request.app.state.upstream_tokens
+async def connect(
+    server_name: str,
+    request: Request,
+    session_factory: SessionFactoryProvider,
+    settings: SettingsProvider,
+    redis: RedisProvider,
+    store: UpstreamTokensProvider,
+    user: CurrentSessionUser,
+    as_: str | None = Query(None, alias="as"),
+):
     if store is None:
         raise HTTPException(503, "upstream OAuth not configured (no encryption keys)")
 
-    user = await current_session_user(request)
     if user is None:
         from urllib.parse import quote
 
         return RedirectResponse(f"/login?next={quote(str(request.url), safe='')}", status_code=302)
 
-    server = await _server(request, server_name)
+    server = await _server(session_factory, server_name)
     per_user = as_ == "me"
     if per_user:
         # a per_user server must be per_user; the connecting user owns the token
@@ -75,14 +89,14 @@ async def connect(server_name: str, request: Request, as_: str | None = Query(No
             )
 
     state = secrets.token_urlsafe(24)
-    redirect_uri = _redirect_uri(request)
+    redirect_uri = _redirect_uri(settings)
     try:
         url, verifier = await store.build_authorize(server, redirect_uri, state)
     except NeedsConnect:
         raise HTTPException(
             400, "server has no upstream OAuth client config (set client_id first)"
         ) from None
-    await request.app.state.redis.set(
+    await redis.set(
         CONNECT_STATE_KEY.format(state=state),
         json.dumps(
             {
@@ -98,16 +112,23 @@ async def connect(server_name: str, request: Request, as_: str | None = Query(No
 
 
 @router.get("/oauth/upstream/callback", include_in_schema=False)
-async def callback(request: Request, code: str = "", state: str = ""):
+async def callback(
+    request: Request,
+    session_factory: SessionFactoryProvider,
+    settings: SettingsProvider,
+    redis: RedisProvider,
+    store: UpstreamTokensProvider,
+    code: str = "",
+    state: str = "",
+):
     key = CONNECT_STATE_KEY.format(state=state)
-    raw = await request.app.state.redis.get(key)
-    await request.app.state.redis.delete(key)  # single-use (CSRF)
+    raw = await redis.get(key)
+    await redis.delete(key)  # single-use (CSRF)
     if raw is None:
         raise HTTPException(400, "invalid or expired connect state")
     payload = json.loads(raw)
 
-    store = request.app.state.upstream_tokens
-    async with request.app.state.session_factory() as db:
+    async with session_factory() as db:
         server = (
             await db.execute(
                 select(McpServer).where(McpServer.id == uuid.UUID(payload["server_id"]))
