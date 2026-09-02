@@ -1,21 +1,18 @@
 """OAuth discovery metadata (RFC 8414 + RFC 9728)."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
+from bundlemcp.api.providers import DbProvider, SettingsProvider
 from bundlemcp.models import Endpoint
 from bundlemcp.oauth.urls import endpoint_resource, issuer
 
 router = APIRouter(tags=["oauth"])
 
 
-def _settings(request: Request):
-    return request.app.state.settings
-
-
 @router.get("/.well-known/oauth-authorization-server", include_in_schema=False)
-async def authorization_server_metadata(request: Request) -> dict:
-    base = issuer(_settings(request))
+async def authorization_server_metadata(settings: SettingsProvider) -> dict:
+    base = issuer(settings)
     return {
         "issuer": base,
         "authorization_endpoint": f"{base}/oauth/authorize",
@@ -35,18 +32,16 @@ async def authorization_server_metadata(request: Request) -> dict:
     }
 
 
-@router.get(
-    "/.well-known/oauth-protected-resource/{endpoint_name}/mcp", include_in_schema=False
-)
-async def protected_resource_metadata(endpoint_name: str, request: Request) -> dict:
+@router.get("/.well-known/oauth-protected-resource/{endpoint_name}/mcp", include_in_schema=False)
+async def protected_resource_metadata(
+    endpoint_name: str, db: DbProvider, settings: SettingsProvider
+) -> dict:
     """RFC 9728, per endpoint — the 401 challenge points here."""
-    async with request.app.state.session_factory() as db:
-        ep = (
-            await db.execute(select(Endpoint).where(Endpoint.name == endpoint_name))
-        ).scalar_one_or_none()
+    ep = (
+        await db.execute(select(Endpoint).where(Endpoint.name == endpoint_name))
+    ).scalar_one_or_none()
     if ep is None or not ep.enabled:
         raise HTTPException(404, "unknown resource")
-    settings = _settings(request)
     return {
         "resource": endpoint_resource(settings, endpoint_name),
         "authorization_servers": [issuer(settings)],

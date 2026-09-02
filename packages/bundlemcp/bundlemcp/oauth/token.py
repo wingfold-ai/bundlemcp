@@ -1,5 +1,6 @@
 """Token endpoint, introspection, revocation."""
 
+import asyncio
 import base64
 import hashlib
 import uuid
@@ -10,7 +11,13 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
+from bundlemcp.api.providers import (
+    AuthFailureLimiterProvider,
+    SessionFactoryProvider,
+    SettingsProvider,
+)
 from bundlemcp.gateway.proxy import client_ip
+from bundlemcp.gateway.ratelimit import AuthFailureLimiter
 from bundlemcp.models import (
     ApiKeyKind,
     Endpoint,
@@ -29,6 +36,7 @@ from bundlemcp.security import (
     tokens_equal,
 )
 from bundlemcp.services import AuthService
+from bundlemcp.settings import Settings
 
 log = structlog.get_logger(__name__)
 
@@ -57,16 +65,17 @@ def _verify_pkce(verifier: str, challenge: str) -> bool:
     return base64.urlsafe_b64encode(digest).rstrip(b"=").decode() == challenge
 
 
-async def _note_token_auth_failure(request: Request) -> JSONResponse | None:
+async def _note_token_auth_failure(
+    request: Request, limiter: AuthFailureLimiter | None, settings: Settings
+) -> JSONResponse | None:
     """Count an OAuth-token credential failure per client IP.
 
     Returns a 429 (+ Retry-After) once the IP is locked out, else None so the
     caller returns its own invalid_client/invalid_grant. Fails open on Redis.
     """
-    limiter = getattr(request.app.state, "auth_failure_limiter", None)
     if limiter is None:
         return None
-    result = await limiter.record_failure(client_ip(request, request.app.state.settings))
+    result = await limiter.record_failure(client_ip(request, settings))
     if result.allowed:
         return None
     resp = _token_error("too_many_requests", "too many authentication failures", status=429)
@@ -74,9 +83,14 @@ async def _note_token_auth_failure(request: Request) -> JSONResponse | None:
     return resp
 
 
-async def _invalid_grant(request: Request, description: str = "") -> JSONResponse:
+async def _invalid_grant(
+    request: Request,
+    limiter: AuthFailureLimiter | None,
+    settings: Settings,
+    description: str = "",
+) -> JSONResponse:
     """A failed grant is a credential-scan signal → count it, maybe 429."""
-    locked = await _note_token_auth_failure(request)
+    locked = await _note_token_auth_failure(request, limiter, settings)
     return locked if locked is not None else _token_error("invalid_grant", description)
 
 
@@ -134,6 +148,9 @@ def _token_response(access: str, refresh: str, scope: str) -> JSONResponse:
 @router.post("/oauth/token", include_in_schema=False)
 async def token(  # noqa: PLR0911 - protocol branching
     request: Request,
+    session_factory: SessionFactoryProvider,
+    settings: SettingsProvider,
+    limiter: AuthFailureLimiterProvider,
     grant_type: str = Form(...),
     code: str = Form(None),
     redirect_uri: str = Form(None),
@@ -142,10 +159,10 @@ async def token(  # noqa: PLR0911 - protocol branching
     client_id: str = Form(None),
     client_secret: str = Form(None),
 ):
-    async with request.app.state.session_factory() as db:
+    async with session_factory() as db:
         client = await _authenticate_client(request, db, client_id or "", client_secret)
         if client is None:
-            locked = await _note_token_auth_failure(request)  # RATE-5
+            locked = await _note_token_auth_failure(request, limiter, settings)  # RATE-5
             return locked if locked is not None else _token_error("invalid_client", status=401)
         client.last_used_at = utcnow()  # SEC-8 stale-client purge signal
         db.add(client)
@@ -166,11 +183,11 @@ async def token(  # noqa: PLR0911 - protocol branching
                 or row.client_id != client.client_id
                 or _aware(row.expires_at) < utcnow()
             ):
-                return await _invalid_grant(request)
+                return await _invalid_grant(request, limiter, settings)
             if redirect_uri != row.redirect_uri:
-                return await _invalid_grant(request, "redirect_uri mismatch")
+                return await _invalid_grant(request, limiter, settings, "redirect_uri mismatch")
             if not _verify_pkce(code_verifier, row.code_challenge):
-                return await _invalid_grant(request, "PKCE verification failed")
+                return await _invalid_grant(request, limiter, settings, "PKCE verification failed")
             row.used = True  # single-use (OAS-3)
             db.add(row)
             access, refresh, token_row = _issue_pair(
@@ -196,7 +213,7 @@ async def token(  # noqa: PLR0911 - protocol branching
                 or row.client_id != client.client_id
                 or _aware(row.refresh_expires_at) < utcnow()
             ):
-                return await _invalid_grant(request)
+                return await _invalid_grant(request, limiter, settings)
             row.revoked = True  # rotation (OAS-4)
             db.add(row)
             access, refresh, token_row = _issue_pair(
@@ -225,14 +242,19 @@ def _basic_password(authorization: str | None) -> str | None:
 
 
 @router.post("/oauth/introspect", include_in_schema=False)
-async def introspect(request: Request, token: str = Form(...)):
+async def introspect(
+    request: Request,
+    session_factory: SessionFactoryProvider,
+    settings: SettingsProvider,
+    token: str = Form(...),
+):
     """Requires a service API key; reports sub + endpoint audience.
 
     Upstream resource servers doing RFC 7662 client auth (HTTP Basic) may
     supply the service key as the client secret — the sequence ultra-mcp's
     servers use against their gateway (OAS-5 "client credentials").
     """
-    async with request.app.state.session_factory() as db:
+    async with session_factory() as db:
         auth_service = AuthService(db)
         caller = await auth_service.authenticate_api_key(
             authorization=request.headers.get("authorization"),
@@ -266,15 +288,12 @@ async def introspect(request: Request, token: str = Form(...)):
             return {"active": False}
         if row.revoked or _aware(row.expires_at) < utcnow():
             return {"active": False}
-        user = (
-            await db.execute(select(User).where(User.id == row.user_id))
-        ).scalar_one_or_none()
+        user = (await db.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
         endpoint = (
             await db.execute(select(Endpoint).where(Endpoint.id == row.endpoint_id))
         ).scalar_one_or_none()
     if user is None or not user.is_active:
         return {"active": False}
-    settings = request.app.state.settings
     return {
         "active": True,
         "sub": str(row.user_id),
@@ -287,10 +306,10 @@ async def introspect(request: Request, token: str = Form(...)):
 
 
 @router.post("/oauth/revoke", include_in_schema=False)
-async def revoke(request: Request, token: str = Form(...)):
+async def revoke(session_factory: SessionFactoryProvider, token: str = Form(...)):
     """RFC 7009: revokes by access or refresh token; always 200."""
     h = hash_token(token)
-    async with request.app.state.session_factory() as db:
+    async with session_factory() as db:
         row = (
             await db.execute(
                 select(OAuthAccessToken).where(
@@ -332,3 +351,21 @@ async def purge_expired(session_factory) -> int:
         removed += result.rowcount or 0
         await db.commit()
         return removed
+
+
+PURGE_INTERVAL_SECONDS = 600
+
+
+async def purge_expired_forever(session_factory) -> None:
+    """Run purge_expired on a fixed interval for the life of the process.
+
+    One failed sweep never ends the loop: the next interval retries.
+    """
+    while True:
+        await asyncio.sleep(PURGE_INTERVAL_SECONDS)
+        try:
+            removed = await purge_expired(session_factory)
+            if removed:
+                log.info("oauth.purged", removed=removed)
+        except Exception:
+            log.warning("oauth.purge_failed", exc_info=True)
