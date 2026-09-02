@@ -71,8 +71,26 @@ See [spec/00-overview.md](spec/00-overview.md) and
   cross-references belong in inline `#` comments, test names/docstrings, and
   error messages only.
 - Never log or return secrets/tokens/header values (spec 51, DOM-3).
+- **Pydantic everywhere, no `dataclasses`.** Every structured value is a
+  `BaseModel` (SQLModel for entities); `X | None` only where `None` is really
+  reachable. The config recipes, the `@runtime_checkable` rule for `Protocol`
+  fields, and the boundary round-trip pattern are in:
+
+@.claude/docs/pydantic-models.md
+
+- Every model field carries a `description`; on `schemas/` DTOs and `Settings`
+  it is published API surface (OpenAPI, the generated TS client, operators), so
+  write those for a reader without the source. Constraints and defaults belong
+  in `Field`, requirement IDs stay in `#` comments:
+
+@.claude/docs/pydantic-fields.md
+
 - New behavior starts with a spec update in `/spec`; keep requirement IDs
   stable.
+- Local aliases (`state = self._app.state`) must add meaning, not save typing —
+  the rules, and the cases that justify one, are in:
+
+@.claude/docs/local-aliasing.md
 
 ## Git & Commit Attribution
 
