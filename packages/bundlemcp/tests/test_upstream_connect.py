@@ -28,6 +28,14 @@ SERVICE_KEY = generate_token(API_KEY_PREFIX)
 PUBLIC_URL = "http://gw"
 
 
+# Distinctive sentinels. The encrypted-at-rest assertion checks the plaintext is
+# absent from the ciphertext, and a two-character value collides with random
+# base64 often enough to fail roughly one run in twenty.
+ACCESS_TOKEN = "access-token-plaintext-sentinel"
+REFRESH_TOKEN = "refresh-token-plaintext-sentinel"
+REFRESHED_ACCESS_TOKEN = "refreshed-access-token-plaintext-sentinel"
+
+
 class FakeProvider:
     async def discover(self, server_url):
         return UpstreamMetadata(authorization_endpoint="https://idp/a", token_endpoint="https://idp/t")
@@ -37,11 +45,14 @@ class FakeProvider:
 
     async def exchange(self, meta, *, code, redirect_uri, code_verifier, client_id, client_secret):
         return UpstreamTokens(
-            access_token="at", refresh_token="rt", expires_in=3600, account_hint="me@x"
+            access_token=ACCESS_TOKEN,
+            refresh_token=REFRESH_TOKEN,
+            expires_in=3600,
+            account_hint="me@x",
         )
 
     async def refresh(self, meta, **kw):
-        return UpstreamTokens(access_token="at2", expires_in=3600)
+        return UpstreamTokens(access_token=REFRESHED_ACCESS_TOKEN, expires_in=3600)
 
 
 def _settings():
@@ -119,7 +130,7 @@ async def test_connect_flow_stores_encrypted_token(engine, redis):
             async with session_factory(engine)() as db:
                 row = (await db.execute(select(UpstreamOAuthToken))).scalar_one()
             assert row.user_id is None  # shared connection
-            assert "rt" not in row.tokens_encrypted  # ciphertext, not plaintext
+            assert REFRESH_TOKEN not in row.tokens_encrypted  # ciphertext, not plaintext
             assert row.account_hint == "me@x"
 
 
