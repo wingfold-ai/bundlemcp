@@ -3,12 +3,12 @@
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlmodel import select
 
+from bundlemcp.api.composition import CompositionRoot
+from bundlemcp.api.errors import service_error_handler
 from bundlemcp.api.routers import (
     api_keys,
     audit,
@@ -19,87 +19,26 @@ from bundlemcp.api.routers import (
     servers,
     users,
 )
-from bundlemcp.bootstrap import run_bootstrap
-from bundlemcp.crypto import token_cipher
 from bundlemcp.gateway import mcp_endpoint
-from bundlemcp.gateway.audit import AuditWriter
-from bundlemcp.gateway.discovery import DiscoveryService
-from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
-from bundlemcp.gateway.metering import load_metering_hook
-from bundlemcp.gateway.metrics import Counters
-from bundlemcp.gateway.ratelimit import AuthFailureLimiter, RateLimiter
-from bundlemcp.gateway.runtime_config import RuntimeConfig
-from bundlemcp.gateway.signals import SignalBus
-from bundlemcp.gateway.streams import StreamRegistry
-from bundlemcp.gateway.upstream import ClientFactory, default_client_factory
-from bundlemcp.models import ApiKey, ApiKeyKind
+from bundlemcp.gateway.upstream import ClientFactory
 from bundlemcp.oauth import authorize as oauth_authorize
 from bundlemcp.oauth import metadata as oauth_metadata
 from bundlemcp.oauth import oidc as oauth_oidc
 from bundlemcp.oauth import registration as oauth_registration
 from bundlemcp.oauth import token as oauth_token
 from bundlemcp.oauth import upstream_connect as oauth_upstream_connect
-from bundlemcp.oauth.adminsessions import AdminSessionStore
-from bundlemcp.oauth.oidc import OidcProvider, build_provider
+from bundlemcp.oauth.oidc import OidcProvider
 from bundlemcp.oauth.upstream_client import (
-    HttpxUpstreamProvider,
     UpstreamOAuthProvider,
-    UpstreamTokenStore,
 )
-from bundlemcp.security import display_prefix, hash_token
 from bundlemcp.services.errors import (
-    ConflictError,
-    InvalidInputError,
-    NotFoundError,
-    PreconditionError,
     ServiceError,
-    UnavailableError,
 )
 from bundlemcp.settings import Settings, get_settings
-from bundlemcp.store import create_engine, create_redis, session_factory
-from bundlemcp.store.invalidation import InvalidationSubscriber
-from bundlemcp.store.sessions import SessionStore
 
 log = structlog.get_logger(__name__)
 
 API_PREFIX = "/api/v1"
-
-# Domain errors raised by the service layer, mapped to HTTP here so services
-# stay framework-free.
-_SERVICE_ERROR_STATUS: dict[type[ServiceError], int] = {
-    NotFoundError: status.HTTP_404_NOT_FOUND,
-    ConflictError: status.HTTP_409_CONFLICT,
-    InvalidInputError: status.HTTP_422_UNPROCESSABLE_CONTENT,
-    PreconditionError: status.HTTP_400_BAD_REQUEST,
-    UnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
-}
-
-
-async def _service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
-    code = _SERVICE_ERROR_STATUS.get(type(exc), status.HTTP_500_INTERNAL_SERVER_ERROR)
-    return JSONResponse(status_code=code, content={"detail": str(exc)})
-
-
-async def _ensure_initial_service_key(app: FastAPI, settings: Settings) -> None:
-    """Bootstrap: provision a service API key from the environment if none exists."""
-    if not settings.initial_service_key:
-        return
-    async with app.state.session_factory() as db:
-        existing = (
-            await db.execute(select(ApiKey).where(ApiKey.kind == ApiKeyKind.SERVICE).limit(1))
-        ).scalar_one_or_none()
-        if existing is not None:
-            return
-        db.add(
-            ApiKey(
-                name="initial-service-key",
-                key_hash=hash_token(settings.initial_service_key),
-                key_prefix=display_prefix(settings.initial_service_key),
-                kind=ApiKeyKind.SERVICE,
-            )
-        )
-        await db.commit()
-        log.info("bootstrap.initial_service_key_created")
 
 
 def create_app(
@@ -115,121 +54,16 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        app.state.settings = settings
-        app.state.engine = engine or create_engine(settings.database_url)
-        app.state.session_factory = session_factory(app.state.engine)
-        app.state.redis = redis or create_redis(settings.redis_url)
-        await _ensure_initial_service_key(app, settings)
-
-        factory = client_factory or default_client_factory(settings)
-        app.state.discovery = DiscoveryService(app.state.session_factory, factory)
-        audit = AuditWriter(app.state.session_factory)
-        await audit.start()
-        metering = load_metering_hook(settings.metering_hook)
-        metering.fail_open = settings.metering_hook_fail_open  # type: ignore[attr-defined]
-        runtime_config = RuntimeConfig(app.state.session_factory)
-        app.state.runtime_config = runtime_config
-        registry = StreamRegistry()
-        signals = SignalBus(app.state.redis, registry)  # SES-13
-        await signals.start()
-        # spec 23: upstream OAuth token store (None if no encryption keys — then
-        # upstream_oauth servers error clearly rather than storing plaintext).
-        upstream_tokens = None
-        if settings.token_encryption_keys:
-            upstream_tokens = UpstreamTokenStore(
-                app.state.session_factory,
-                token_cipher(settings),
-                app.state.redis,
-                upstream_oidc_provider or HttpxUpstreamProvider(settings),
-            )
-        app.state.upstream_tokens = upstream_tokens
-        counters = Counters()  # RATE-3 metric seam (spec 51 exports these)
-        app.state.counters = counters
-        auth_failure_limiter = AuthFailureLimiter(  # RATE-5
-            app.state.redis,
-            limit=settings.auth_failure_limit,
-            window=settings.auth_failure_window,
-            counters=counters,
-        )
-        app.state.auth_failure_limiter = auth_failure_limiter
-        app.state.gateway = GatewayRuntime(
-            session_store=SessionStore(app.state.redis),
-            metering=metering,
-            audit=audit,
-            client_factory=factory,
-            runtime_config=runtime_config,
-            registry=registry,
-            signals=signals,
-            upstream_tokens=upstream_tokens,
-            public_url=settings.public_url,
-            rate_limiter=RateLimiter(app.state.redis, counters),
-            auth_failure_limiter=auth_failure_limiter,
-            counters=counters,
-            settings=settings,
-        )
-        app.state.admin_sessions = AdminSessionStore(app.state.redis)
-        provider = oidc_provider or build_provider(settings)
-        app.state.oidc_provider = provider
-        preload = getattr(provider, "preload", None)
-        if preload is not None:
-            try:
-                await preload()  # authorize_url needs the discovered metadata
-            except Exception:
-                log.warning("oidc.preload_failed", exc_info=True)
-        await run_bootstrap(app.state.session_factory, app.state.redis, settings)  # spec 41
-
-        # STP-2: one subscriber per replica; runtime-config cache hangs off it
-        subscriber = InvalidationSubscriber(app.state.redis)
-        app.state.invalidation = subscriber
-
-        session_store = app.state.gateway.sessions
-
-        async def _on_invalidation(event) -> None:
-            if event.entity_type == "config":
-                await runtime_config.flush()
-                return
-            if event.entity_type in ("bundle", "endpoint"):
-                # BND-7: live sessions of the affected surface get list_changed.
-                # Each replica walks only ITS local streams — full coverage,
-                # no extra signaling.
-                payload = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
-                for session_id in registry.broadcast_sessions():
-                    record = await session_store.load(session_id)
-                    if record is None:
-                        continue
-                    if (
-                        event.entity_type == "bundle" and record.bundle_name == event.key
-                    ) or (
-                        event.entity_type == "endpoint" and record.endpoint_name == event.key
-                    ):
-                        registry.deliver_local(session_id, payload)
-
-        subscriber.on_event(_on_invalidation)
-        subscriber.on_reconnect_flush(runtime_config.flush)
-        await subscriber.start()
-
-        async def _purge_loop() -> None:  # OAS-8/SEC-8
-            import asyncio
-
-            while True:
-                await asyncio.sleep(600)
-                try:
-                    removed = await oauth_token.purge_expired(app.state.session_factory)
-                    if removed:
-                        log.info("oauth.purged", removed=removed)
-                except Exception:
-                    log.warning("oauth.purge_failed", exc_info=True)
-
-        import asyncio
-
-        purge_task = asyncio.create_task(_purge_loop())
-        yield
-        purge_task.cancel()
-        await signals.stop()
-        await subscriber.stop()
-        await audit.stop()
-        await app.state.engine.dispose()
-        await app.state.redis.aclose()
+        async with CompositionRoot(
+            app,
+            settings,
+            engine=engine,
+            redis=redis,
+            client_factory=client_factory,
+            oidc_provider=oidc_provider,
+            upstream_oidc_provider=upstream_oidc_provider,
+        ):
+            yield
 
     app = FastAPI(
         title="bundlemcp",
@@ -238,7 +72,7 @@ def create_app(
         openapi_url=f"{API_PREFIX}/openapi.json",  # API-3
         docs_url=f"{API_PREFIX}/docs",
     )
-    app.add_exception_handler(ServiceError, _service_error_handler)
+    app.add_exception_handler(ServiceError, service_error_handler)
 
     if settings.web_origins:
         # SEC-4: credentials-enabled CORS for exactly the web app's origin(s)

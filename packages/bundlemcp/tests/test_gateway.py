@@ -81,8 +81,6 @@ def upstream_factory(server, extra_headers):
 class RecordingHook:
     """MID-3 hook double: records contexts, can deny."""
 
-    fail_open = False
-
     def __init__(self):
         self.pre_calls: list[MeterContext] = []
         self.post_calls: list[tuple[MeterContext, str, int]] = []
@@ -367,6 +365,38 @@ async def test_metering_deny_blocks_upstream(gateway):
     )
     assert resp.json()["error"]["message"] == "insufficient_credits"
     assert hook.post_calls == []  # pre denied -> no post
+
+
+class BoomHook:
+    """MID-3 hook double whose pre_call is unavailable."""
+
+    async def pre_call(self, ctx: MeterContext) -> MeterDecision:
+        raise RuntimeError("metering down")
+
+    async def post_call(self, ctx: MeterContext, status: str, duration_ms: int) -> None:
+        pass
+
+
+@pytest.mark.parametrize("fail_open", [True, False])
+async def test_metering_unavailable_follows_gateway_policy(gateway, fail_open):
+    """MID-3: an unavailable hook is allowed or denied by settings, not by the hook object."""
+    http, app, _ = gateway
+    session = await _initialize(http)
+    app.state.gateway.metering = BoomHook()
+    app.state.gateway.settings = Settings(
+        _env_file=None,
+        database_url="sqlite+aiosqlite://",
+        metering_hook_fail_open=fail_open,
+    )
+
+    resp = await _rpc(
+        http, "main", session, "tools/call", {"name": "echo__say", "arguments": {"text": "x"}}
+    )
+    body = resp.json()
+    if fail_open:
+        assert body["result"]["content"][0]["text"] == "echo:x"
+    else:
+        assert body["error"]["message"] == "metering_unavailable"
 
 
 async def test_unknown_session_404(gateway):
