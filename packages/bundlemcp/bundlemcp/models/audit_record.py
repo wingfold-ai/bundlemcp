@@ -16,28 +16,55 @@ class AuditRecord(SQLModel, table=True):
         Index("ix_audit_status", "status"),
     )
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(default_factory=utcnow, sa_column=_ts(index=True))
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4, primary_key=True, description="Identifier of the record"
+    )
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_column=_ts(index=True), description="When the call was recorded"
+    )
     endpoint_id: uuid.UUID | None = Field(
         default=None,
         sa_column=Column(ForeignKey("endpoints.id", ondelete="SET NULL"), nullable=True),
+        description="Endpoint the call arrived on; cleared if that endpoint is later deleted",
     )
-    endpoint_name: str
-    bundle_name: str
-    server_name: str | None = None
-    tool_name: str | None = None  # original upstream name
-    presented_tool_name: str | None = None  # after prefix/override/profile
+    endpoint_name: str = Field(
+        description="Endpoint name as it was at the time, kept so the record survives a delete"
+    )
+    bundle_name: str = Field(description="Bundle the endpoint exposed at the time of the call")
+    server_name: str | None = Field(
+        default=None,
+        description="Upstream server the call was routed to; null if it never got that far",
+    )
+    tool_name: str | None = Field(
+        default=None, description="Tool name as the upstream server knows it"
+    )
+    presented_tool_name: str | None = Field(
+        default=None,
+        description="Tool name as the client used it, after prefixing, overrides and the profile",
+    )
     user_id: uuid.UUID | None = Field(
         default=None,
         sa_column=Column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+        description="Authenticated user, when OAuth was used",
     )
     api_key_id: uuid.UUID | None = Field(
         default=None,
         sa_column=Column(ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True),
+        description="API key used, when one was",
     )
-    auth_method: str | None = None  # oauth | api_key | none
-    session_id: str | None = None
-    status: str  # AuditStatus
-    denied_reason: str | None = None  # AUD-2
-    duration_ms: int | None = None
-    error_message: str | None = None  # truncated (AUD-1)
+    auth_method: str | None = Field(
+        default=None, description="How the caller authenticated: oauth, api_key or none"
+    )
+    session_id: str | None = Field(default=None, description="MCP session the call belonged to")
+    status: str = Field(description="Outcome of the call: success, error or denied")
+    denied_reason: str | None = Field(  # AUD-2
+        default=None,
+        description="Why a denied call was refused, such as a metering or rate-limit decision",
+    )
+    duration_ms: int | None = Field(
+        default=None,
+        description="Time spent on the upstream call; null when the call was denied",
+    )
+    error_message: str | None = Field(  # AUD-1
+        default=None, description="Failure detail when the call errored, truncated if long"
+    )

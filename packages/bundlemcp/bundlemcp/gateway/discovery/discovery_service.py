@@ -14,10 +14,26 @@ log = structlog.get_logger(__name__)
 
 
 class DiscoveryService:
-    """Connects to an upstream, syncs its tool definitions into Postgres.
+    """Probes one upstream MCP server and refreshes everything cached about it.
 
-    Failures are tracked per server: after `max_attempts` consecutive failures
-    the server is marked error; any success resets it to ok.
+    A probe opens an MCP session and writes three things to Postgres:
+
+    - **Tool definitions** — name, title, description, input schema and
+      annotations into ``Tool``. Writes are hash-gated, so a tool whose
+      definition is unchanged costs nothing; ``last_seen_at`` is touched on
+      every sighting, so a tool that disappears upstream goes stale and stops
+      being served rather than being deleted, keeping its curation.
+    - **Advertised capabilities** — which of tools/prompts/resources/
+      completions/logging the server supports, plus its listChanged and
+      subscribe flags, taken from the upstream ``initialize`` result onto
+      ``McpServer.capabilities``. That snapshot is what capability gating
+      reads when serving.
+    - **Health** — consecutive failures are counted per server; at
+      ``max_attempts`` the server flips to error with its last error recorded,
+      and any success resets the streak.
+
+    Caching all three is what lets bundles stay curatable and servable while
+    an upstream is unreachable.
     """
 
     def __init__(
@@ -46,6 +62,7 @@ class DiscoveryService:
             log.warning("discovery.probe_failed", server_id=str(server_id), exc_info=True)
 
     async def discover(self, server_id: uuid.UUID) -> DiscoveryResult:
+        """Probe now and report how many tools were seen and how many changed."""
         async with self._sessions() as db:
             server = (
                 await db.execute(select(McpServer).where(McpServer.id == server_id))
@@ -76,16 +93,12 @@ class DiscoveryService:
     ) -> DiscoveryResult:
         existing = {
             t.name: t
-            for t in (
-                await db.execute(select(Tool).where(Tool.server_id == server.id))
-            ).scalars()
+            for t in (await db.execute(select(Tool).where(Tool.server_id == server.id))).scalars()
         }
         changed = 0
         now = utcnow()
         for ut in upstream_tools:
-            annotations = (
-                ut.annotations.model_dump(exclude_none=True) if ut.annotations else None
-            )
+            annotations = ut.annotations.model_dump(exclude_none=True) if ut.annotations else None
             input_schema = ut.inputSchema or {}
             digest = tool_schema_hash(ut.name, ut.title, ut.description, input_schema, annotations)
             row = existing.get(ut.name)

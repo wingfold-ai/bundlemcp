@@ -162,9 +162,7 @@ class ServerService:
         """Store the pre-registered client config. client_secret is write-only, encrypted."""
         server = await self._get(name)
         if self._settings is None or not self._settings.token_encryption_keys:
-            raise PreconditionError(
-                "token encryption keys required for upstream OAuth (DEP-9)"
-            )
+            raise PreconditionError("token encryption keys required for upstream OAuth (DEP-9)")
         cipher = token_cipher(self._settings)
         client = (
             await self._db.execute(

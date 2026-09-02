@@ -6,14 +6,37 @@ from bundlemcp.schemas.validation import validate_name
 
 
 class EndpointUpsert(BaseModel):
-    name: str
-    bundle_name: str
-    profile: EndpointProfile = EndpointProfile.DEFAULT
-    auth_modes: list[EndpointAuthMode] = Field(default_factory=lambda: [EndpointAuthMode.API_KEY])
-    rate_limit: RateLimitConfig | None = None
-    enabled: bool = True
-    allow_unauthenticated: bool = False  # EP-3: explicit opt-in for `none`
-    force: bool = False  # EP-8 rename acknowledgement
+    """Body for creating or replacing an endpoint."""
+
+    name: str = Field(
+        description="Unique endpoint name; it becomes the URL path segment clients call"
+    )
+    bundle_name: str = Field(description="Bundle this endpoint exposes")
+    profile: EndpointProfile = Field(
+        default=EndpointProfile.DEFAULT,
+        description="Client profile shaping the responses for a particular consumer",
+    )
+    auth_modes: list[EndpointAuthMode] = Field(
+        default_factory=lambda: [EndpointAuthMode.API_KEY],
+        description="Accepted credentials. 'none' is only valid on its own and additionally "
+        "requires allow_unauthenticated",
+    )
+    rate_limit: RateLimitConfig | None = Field(
+        default=None, description="Rate limits for this endpoint; omit for unlimited"
+    )
+    enabled: bool = Field(
+        default=True, description="Whether the endpoint serves requests once saved"
+    )
+    allow_unauthenticated: bool = Field(  # EP-3
+        default=False,
+        description="Confirms an intentionally open endpoint. Required whenever auth_modes "
+        "is ['none'], so an endpoint is never left unauthenticated by accident",
+    )
+    force: bool = Field(  # EP-8
+        default=False,
+        description="Confirm a rename that would otherwise be rejected, accepting that clients "
+        "using the old name will break",
+    )
 
     @field_validator("name")
     @classmethod
