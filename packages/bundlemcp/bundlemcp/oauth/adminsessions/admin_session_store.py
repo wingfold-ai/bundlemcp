@@ -1,11 +1,13 @@
-import json
 import secrets
-from dataclasses import asdict
 
+import structlog
+from pydantic import ValidationError
 from redis.asyncio import Redis
 
 from bundlemcp.oauth.adminsessions._common import ADMIN_SESSION_KEY, DEFAULT_MAX_AGE
 from bundlemcp.oauth.adminsessions.admin_session import AdminSession
+
+log = structlog.get_logger(__name__)
 
 
 class AdminSessionStore:
@@ -18,14 +20,21 @@ class AdminSessionStore:
 
     async def create(self, session: AdminSession) -> str:
         session_id = secrets.token_urlsafe(32)
-        await self._redis.set(self._key(session_id), json.dumps(asdict(session)), ex=self.max_age)
+        await self._redis.set(self._key(session_id), session.model_dump_json(), ex=self.max_age)
         return session_id
 
     async def load(self, session_id: str) -> AdminSession | None:
         raw = await self._redis.get(self._key(session_id))
         if raw is None:
             return None
-        return AdminSession(**json.loads(raw))
+        # A stored record that no longer matches the schema is treated as no
+        # session, so a rollout that changes the shape logs people out rather
+        # than raising mid-request.
+        try:
+            return AdminSession.model_validate_json(raw)
+        except ValidationError:
+            log.warning("adminsession.malformed", session_id=session_id)
+            return None
 
     async def delete(self, session_id: str) -> None:
         await self._redis.delete(self._key(session_id))
