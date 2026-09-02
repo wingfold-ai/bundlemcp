@@ -15,55 +15,57 @@ router = APIRouter(prefix="/servers", tags=["servers"])
 
 @router.get("")
 async def list_servers(
-    svc: ServerServiceProvider, _auth: ServiceAuthProvider, page: PageProvider
+    service: ServerServiceProvider, _auth: ServiceAuthProvider, page: PageProvider
 ) -> Page[ServerRead]:
-    return await svc.list(offset=page.offset, limit=page.limit)
+    return await service.list(offset=page.offset, limit=page.limit)
 
 
 @router.get("/{name}")
 async def get_server(
-    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+    name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider
 ) -> ServerRead:
-    return await svc.get(name)
+    return await service.get(name)
 
 
 @router.put("/{name}")
 async def upsert_server(
-    name: str, body: ServerUpsert, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+    name: str, body: ServerUpsert, service: ServerServiceProvider, _auth: ServiceAuthProvider
 ) -> ServerRead:
     if body.name != name:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, "body.name must match path name"
-        )
-    return await svc.upsert(body)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "body.name must match path name")
+    return await service.upsert(body)
 
 
 @router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_server(name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider) -> None:
-    await svc.delete(name)
+async def delete_server(
+    name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider
+) -> None:
+    await service.delete(name)
 
 
 @router.post("/{name}:rename")
 async def rename_server(
     name: str,
     new_name: str,
-    svc: ServerServiceProvider,
+    service: ServerServiceProvider,
     _auth: ServiceAuthProvider,
     force: bool = False,
 ) -> ServerRead:
-    return await svc.rename(name, new_name, force=force)
+    return await service.rename(name, new_name, force=force)
 
 
 @router.get("/{name}/tools")
 async def list_server_tools(
-    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider, page: PageProvider
+    name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider, page: PageProvider
 ) -> Page[ToolRead]:
-    return await svc.list_tools(name, offset=page.offset, limit=page.limit)
+    return await service.list_tools(name, offset=page.offset, limit=page.limit)
 
 
 @router.post("/{name}:refresh-tools")
-async def refresh_tools(name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider) -> dict:
-    return await svc.refresh_tools(name)
+async def refresh_tools(
+    name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider
+) -> dict:
+    return await service.refresh_tools(name)
 
 
 # --- upstream OAuth client config + status (spec 23, UPO-1/5) ---
@@ -71,20 +73,20 @@ async def refresh_tools(name: str, svc: ServerServiceProvider, _auth: ServiceAut
 
 @router.put("/{name}/upstream-oauth")
 async def set_upstream_oauth(
-    name: str, body: UpstreamOAuthConfig, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+    name: str, body: UpstreamOAuthConfig, service: ServerServiceProvider, _auth: ServiceAuthProvider
 ) -> dict:
-    return await svc.set_upstream_oauth(name, body)
+    return await service.set_upstream_oauth(name, body)
 
 
 @router.get("/{name}/upstream-oauth")
 async def upstream_oauth_status(
-    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+    name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider
 ) -> dict:
-    return await svc.upstream_oauth_status(name)
+    return await service.upstream_oauth_status(name)
 
 
 @router.delete("/{name}/upstream-oauth/token", status_code=status.HTTP_204_NO_CONTENT)
 async def disconnect_upstream_oauth(
-    name: str, svc: ServerServiceProvider, _auth: ServiceAuthProvider
+    name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider
 ) -> None:
-    await svc.disconnect_upstream_oauth(name)
+    await service.disconnect_upstream_oauth(name)
