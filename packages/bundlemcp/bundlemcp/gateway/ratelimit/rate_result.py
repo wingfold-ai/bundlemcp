@@ -1,8 +1,11 @@
-from dataclasses import dataclass
+from pydantic import BaseModel, Field
 
 
-@dataclass
-class RateResult:
-    allowed: bool
-    retry_after: int = 0  # seconds until the window rolls over
-    remaining: int = 0
+class RateResult(BaseModel):
+    """Verdict for one rate-limit window check."""
+
+    allowed: bool = Field(description="Whether this request may proceed")
+    retry_after: int = Field(
+        default=0, description="Seconds until the window rolls over and capacity returns"
+    )
+    remaining: int = Field(default=0, description="Requests still permitted in the current window")
