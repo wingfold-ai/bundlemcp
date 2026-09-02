@@ -18,7 +18,7 @@ router = APIRouter(prefix="/audit-records", tags=["audit"])
 
 @router.get("")
 async def list_audit_records(  # noqa: PLR0913 - one query param per AUD-6 filter
-    svc: AuditServiceProvider,
+    service: AuditServiceProvider,
     _auth: ServiceAuthProvider,
     page: PageProvider,
     created_from: datetime | None = None,
@@ -31,7 +31,7 @@ async def list_audit_records(  # noqa: PLR0913 - one query param per AUD-6 filte
     api_key_id: uuid.UUID | None = None,
     status: str | None = None,
 ) -> Page[AuditRecordRead]:
-    return await svc.list(
+    return await service.list(
         offset=page.offset,
         limit=page.limit,
         created_from=created_from,

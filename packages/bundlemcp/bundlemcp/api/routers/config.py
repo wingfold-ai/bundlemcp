@@ -15,17 +15,19 @@ router = APIRouter(prefix="/config", tags=["config"])
 
 
 @router.get("")
-async def get_config(svc: ConfigServiceProvider, _auth: ServiceAuthProvider) -> dict[str, Any]:
-    return await svc.effective()
+async def get_config(service: ConfigServiceProvider, _auth: ServiceAuthProvider) -> dict[str, Any]:
+    return await service.effective()
 
 
 @router.put("/{key}")
 async def set_config(
-    key: str, body: ConfigValue, svc: ConfigServiceProvider, _auth: ServiceAuthProvider
+    key: str, body: ConfigValue, service: ConfigServiceProvider, _auth: ServiceAuthProvider
 ) -> dict[str, Any]:
-    return await svc.set(key, body.value)
+    return await service.set(key, body.value)
 
 
 @router.delete("/{key}", status_code=status.HTTP_204_NO_CONTENT)
-async def reset_config(key: str, svc: ConfigServiceProvider, _auth: ServiceAuthProvider) -> None:
-    await svc.reset(key)
+async def reset_config(
+    key: str, service: ConfigServiceProvider, _auth: ServiceAuthProvider
+) -> None:
+    await service.reset(key)
