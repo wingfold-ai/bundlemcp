@@ -1,15 +1,22 @@
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict, Field
 
 from bundlemcp.gateway.composition.presented_tool import PresentedTool
 from bundlemcp.models import Bundle, Endpoint, McpServer
 
 
-@dataclass
-class BundleView:
-    endpoint: Endpoint
-    bundle: Bundle
-    servers: dict[str, McpServer]  # by name, enabled members only
-    tools: list[PresentedTool]  # enabled tools, curated + profile-transformed
+class BundleView(BaseModel):
+    """Everything needed to serve one endpoint, resolved from the database once."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    endpoint: Endpoint = Field(description="Endpoint being served, with its auth and rate limits")
+    bundle: Bundle = Field(description="Bundle the endpoint exposes")
+    servers: dict[str, McpServer] = Field(
+        description="Enabled member servers, keyed by server name"
+    )
+    tools: list[PresentedTool] = Field(
+        description="Enabled tools as presented to the client, curated and transformed"
+    )
 
     def resolve(self, presented_name: str) -> PresentedTool | None:
         """Match override names first, then fall back to first-`__` prefix parsing."""
