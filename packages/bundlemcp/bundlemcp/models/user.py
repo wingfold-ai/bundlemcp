@@ -9,15 +9,29 @@ from bundlemcp.models.base import _ts, utcnow
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
-    __table_args__ = (
-        UniqueConstraint("oidc_issuer", "oidc_sub", name="uq_users_issuer_sub"),
-    )
+    __table_args__ = (UniqueConstraint("oidc_issuer", "oidc_sub", name="uq_users_issuer_sub"),)
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)  # the stable `sub`
-    oidc_issuer: str
-    oidc_sub: str
-    email: str | None = Field(default=None, index=True)
-    display_name: str | None = None
-    is_admin: bool = Field(default=False)  # re-evaluated every login (ADM-3)
-    is_active: bool = Field(default=True)  # ADM-6 deactivation
-    created_at: datetime = Field(default_factory=utcnow, sa_column=_ts())
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        description="Stable identifier used as the subject of issued tokens",
+    )
+    oidc_issuer: str = Field(description="Issuer that authenticated this user")
+    oidc_sub: str = Field(description="Subject identifier for this user at that issuer")
+    email: str | None = Field(
+        default=None, index=True, description="Email claim, when the issuer sent one"
+    )
+    display_name: str | None = Field(
+        default=None, description="Display name claim, when the issuer sent one"
+    )
+    is_admin: bool = Field(  # ADM-3
+        default=False,
+        description="Whether the user may use the management API. Re-evaluated at every login",
+    )
+    is_active: bool = Field(  # ADM-6
+        default=True,
+        description="Whether the user may authenticate; deactivating also ends their sessions",
+    )
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_column=_ts(), description="When the record was created"
+    )

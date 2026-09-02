@@ -1,9 +1,11 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CancelSignal(BaseModel):
-    type: Literal["cancel"] = "cancel"
-    session_id: str
-    request_id: str
+    """Cancel an in-flight call on whichever replica is holding it."""
+
+    type: Literal["cancel"] = Field(default="cancel", description="Discriminator for the envelope")
+    session_id: str = Field(description="Session whose call should be cancelled")
+    request_id: str = Field(description="JSON-RPC id of the call to cancel")

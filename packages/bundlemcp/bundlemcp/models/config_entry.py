@@ -12,6 +12,14 @@ class ConfigEntry(SQLModel, table=True):
 
     __tablename__ = "config_entries"
 
-    key: str = Field(primary_key=True)
-    value: Any = Field(default=None, sa_column=Column(JSON))
-    updated_at: datetime = Field(default_factory=utcnow, sa_column=_ts(onupdate=utcnow))
+    key: str = Field(primary_key=True, description="Name of the setting")
+    value: Any = Field(
+        default=None,
+        sa_column=Column(JSON),
+        description="Stored value; its type comes from the key's declared default",
+    )
+    updated_at: datetime = Field(
+        default_factory=utcnow,
+        sa_column=_ts(onupdate=utcnow),
+        description="When the value was last changed",
+    )

@@ -6,4 +6,9 @@ from bundlemcp.gateway.signals.reply_signal import ReplySignal
 
 
 class SignalEnvelope(BaseModel):
-    signal: CancelSignal | DeliverSignal | ReplySignal = Field(discriminator="type")
+    """What travels on the cross-replica signal channel."""
+
+    signal: CancelSignal | DeliverSignal | ReplySignal = Field(
+        discriminator="type",
+        description="The signal to act on, selected by its type field",
+    )

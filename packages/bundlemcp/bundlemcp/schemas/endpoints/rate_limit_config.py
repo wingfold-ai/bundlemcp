@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from bundlemcp.schemas.endpoints.rate_rule import RateRule
 
@@ -6,7 +6,21 @@ from bundlemcp.schemas.endpoints.rate_rule import RateRule
 class RateLimitConfig(BaseModel):
     """Per-endpoint rate limits. Stored as JSON on the endpoint."""
 
-    endpoint: RateRule | None = None  # across all callers
-    per_client: RateRule | None = None  # per resolved identity (EP-6)
-    include_initialize_list: bool = False  # RATE-4: also limit initialize/tools/list
-    fail_closed: bool = False  # RATE-6: deny on Redis outage instead of fail-open
+    endpoint: RateRule | None = Field(
+        default=None,
+        description="Limit shared by every caller of the endpoint; omit for no overall cap",
+    )
+    per_client: RateRule | None = Field(  # EP-6
+        default=None,
+        description="Limit applied per caller, keyed by OAuth user, else API key, else client IP",
+    )
+    include_initialize_list: bool = Field(  # RATE-4
+        default=False,
+        description="Whether initialize and tools/list count against these limits; by default "
+        "only tool calls do",
+    )
+    fail_closed: bool = Field(  # RATE-6
+        default=False,
+        description="Whether requests are denied when the rate-limit store is unreachable. "
+        "False keeps serving traffic unlimited during an outage",
+    )

@@ -50,9 +50,7 @@ async def load_bundle_view(db: AsyncSession, endpoint_name: str) -> BundleView |
     ).scalar_one_or_none()
     if endpoint is None or not endpoint.enabled:  # EP-5
         return None
-    bundle = (
-        await db.execute(select(Bundle).where(Bundle.id == endpoint.bundle_id))
-    ).scalar_one()
+    bundle = (await db.execute(select(Bundle).where(Bundle.id == endpoint.bundle_id))).scalar_one()
 
     members = (
         (

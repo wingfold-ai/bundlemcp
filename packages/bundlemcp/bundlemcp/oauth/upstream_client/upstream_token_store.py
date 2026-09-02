@@ -44,9 +44,7 @@ class UpstreamTokenStore:
         tokens: UpstreamTokens,
     ) -> None:
         blob = self._cipher.encrypt(tokens.model_dump_json())
-        expires_at = (
-            utcnow() + timedelta(seconds=tokens.expires_in) if tokens.expires_in else None
-        )
+        expires_at = utcnow() + timedelta(seconds=tokens.expires_in) if tokens.expires_in else None
         async with self._sessions() as db:
             row = await self._row(db, server_id, user_id)
             if row is None:

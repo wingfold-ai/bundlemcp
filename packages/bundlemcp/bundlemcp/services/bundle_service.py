@@ -132,9 +132,7 @@ class BundleService:
         curation = {
             bt.tool_id: bt
             for bt in (
-                await self._db.execute(
-                    select(BundleTool).where(BundleTool.bundle_id == bundle.id)
-                )
+                await self._db.execute(select(BundleTool).where(BundleTool.bundle_id == bundle.id))
             ).scalars()
         }
         tools = (
@@ -215,9 +213,7 @@ class BundleService:
     ) -> dict[str, Any]:
         """Per-bundle tool curation: enable/disable plus name/metadata overrides."""
         bundle = await self._get(name)
-        tool = (
-            await self._db.execute(select(Tool).where(Tool.id == tool_id))
-        ).scalar_one_or_none()
+        tool = (await self._db.execute(select(Tool).where(Tool.id == tool_id))).scalar_one_or_none()
         if tool is None:
             raise NotFoundError("tool not found")
 

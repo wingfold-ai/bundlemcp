@@ -4,8 +4,13 @@ import json
 DEFAULT_MAX_ATTEMPTS = 3  # SRV-4: consecutive failures before health_status=error
 
 
-def tool_schema_hash(name: str, title: str | None, description: str | None,
-                     input_schema: dict, annotations: dict | None) -> str:
+def tool_schema_hash(
+    name: str,
+    title: str | None,
+    description: str | None,
+    input_schema: dict,
+    annotations: dict | None,
+) -> str:
     """Stable hash over the full definition; only changed hashes hit Postgres."""
     canonical = json.dumps(
         {

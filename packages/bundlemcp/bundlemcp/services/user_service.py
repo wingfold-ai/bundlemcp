@@ -37,9 +37,7 @@ class UserService:
         Admin browser sessions are re-validated against is_active on each request
         (see current_session_user), so revoking is_active logs them out too.
         """
-        user = (
-            await self._db.execute(select(User).where(User.id == user_id))
-        ).scalar_one_or_none()
+        user = (await self._db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         if user is None:
             raise NotFoundError("user not found")
         user.is_active = False
