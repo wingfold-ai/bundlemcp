@@ -1,6 +1,6 @@
 """Server registry business logic, including upstream OAuth client configuration."""
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 from redis.asyncio import Redis
@@ -9,7 +9,18 @@ from sqlmodel import func, select
 
 from bundlemcp.crypto import token_cipher
 from bundlemcp.models import BundleServer, McpServer, Tool, UpstreamOAuthClient
-from bundlemcp.schemas import Page, ServerRead, ServerUpsert, ToolRead, UpstreamOAuthConfig
+from bundlemcp.schemas import (
+    DiscoveryResult,
+    Page,
+    ServerRead,
+    ServerUpsert,
+    ToolRead,
+    UpstreamConnectionStatus,
+    UpstreamOAuthClientRead,
+    UpstreamOAuthConfig,
+    UpstreamOAuthStatusRead,
+)
+from bundlemcp.schemas.resource_names import server_name as server_name_adapter
 from bundlemcp.services.errors import (
     ConflictError,
     InvalidInputError,
@@ -23,12 +34,6 @@ if TYPE_CHECKING:
     from bundlemcp.gateway.discovery import DiscoveryService
     from bundlemcp.oauth.upstream_client import UpstreamTokenStore
     from bundlemcp.settings import Settings
-
-
-def to_read(server: McpServer) -> ServerRead:
-    data = server.model_dump()
-    data["static_header_names"] = sorted(server.static_headers)  # SRV-3: names only
-    return ServerRead.model_validate(data)
 
 
 class ServerService:
@@ -72,10 +77,15 @@ class ServerService:
                 .limit(limit)
             )
         ).scalars()
-        return Page(items=[to_read(s) for s in rows], total=total, offset=offset, limit=limit)
+        return Page(
+            items=[ServerRead.from_entity(s) for s in rows],
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
 
     async def get(self, name: str) -> ServerRead:
-        return to_read(await self._get(name))
+        return ServerRead.from_entity(await self._get(name))
 
     async def upsert(self, body: ServerUpsert) -> ServerRead:
         """Config-only upsert by natural key; idempotent; never blocks on probing."""
@@ -98,7 +108,7 @@ class ServerService:
         # SRV-2: validate + discover best-effort; never blocks the API response.
         if self._discovery is not None:
             await self._discovery.schedule_probe(server.id)
-        return to_read(server)
+        return ServerRead.from_entity(server)
 
     async def delete(self, name: str) -> None:
         """Idempotent delete: a missing server still yields success (404 -> 204 semantics)."""
@@ -113,7 +123,7 @@ class ServerService:
         client-visible tool names change."""
         server = await self._get(name)
         try:
-            ServerUpsert(name=new_name, url=server.url)  # reuse name validation
+            server_name_adapter.validate_python(new_name)
         except ValidationError as exc:
             raise InvalidInputError(str(exc)) from None
         in_bundle = (
@@ -130,7 +140,7 @@ class ServerService:
         await self._db.commit()
         await self._db.refresh(server)
         await self._invalidate(new_name, "updated")
-        return to_read(server)
+        return ServerRead.from_entity(server)
 
     async def list_tools(self, name: str, *, offset: int, limit: int) -> Page[ToolRead]:
         server = await self._get(name)
@@ -142,23 +152,24 @@ class ServerService:
             await self._db.execute(base.order_by(Tool.name).offset(offset).limit(limit))
         ).scalars()
         return Page(
-            items=[ToolRead.model_validate(t) for t in rows],
+            items=[ToolRead.from_entity(t) for t in rows],
             total=total,
             offset=offset,
             limit=limit,
         )
 
-    async def refresh_tools(self, name: str) -> dict[str, Any]:
+    async def refresh_tools(self, name: str) -> DiscoveryResult:
         """Explicit refresh: runs tool discovery now and reports the result."""
         server = await self._get(name)
         if self._discovery is None:
             raise UnavailableError("discovery unavailable")
-        result = await self._discovery.discover(server.id)
-        return {"discovered": result.discovered, "changed": result.changed, "error": result.error}
+        return await self._discovery.discover(server.id)
 
     # --- upstream OAuth client config + status (spec 23, UPO-1/5) ---
 
-    async def set_upstream_oauth(self, name: str, body: UpstreamOAuthConfig) -> dict[str, Any]:
+    async def set_upstream_oauth(
+        self, name: str, body: UpstreamOAuthConfig
+    ) -> UpstreamOAuthClientRead:
         """Store the pre-registered client config. client_secret is write-only, encrypted."""
         server = await self._get(name)
         if self._settings is None or not self._settings.token_encryption_keys:
@@ -181,15 +192,19 @@ class ServerService:
         client.metadata_ = meta
         self._db.add(client)
         await self._db.commit()
-        return {"server": name, "client_id": body.client_id, "has_secret": bool(body.client_secret)}
+        return UpstreamOAuthClientRead(
+            server=name, client_id=body.client_id, has_secret=bool(body.client_secret)
+        )
 
-    async def upstream_oauth_status(self, name: str) -> dict[str, Any]:
+    async def upstream_oauth_status(self, name: str) -> UpstreamOAuthStatusRead:
         """Report connection status only — never token values."""
         server = await self._get(name)
         if self._upstream_tokens is None:
-            return {"identity_mode": server.identity_mode, "configured": False}
-        shared = await self._upstream_tokens.status(server.id, None)
-        return {"identity_mode": server.identity_mode, "shared": shared}
+            return UpstreamOAuthStatusRead(identity_mode=server.identity_mode, configured=False)
+        shared: UpstreamConnectionStatus = await self._upstream_tokens.status(server.id, None)
+        return UpstreamOAuthStatusRead(
+            identity_mode=server.identity_mode, configured=True, shared=shared
+        )
 
     async def disconnect_upstream_oauth(self, name: str) -> None:
         """Disconnect the shared upstream token."""

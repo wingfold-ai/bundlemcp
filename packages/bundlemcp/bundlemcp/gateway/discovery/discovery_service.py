@@ -5,10 +5,10 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlmodel import select
 
-from bundlemcp.gateway.discovery.discovery_result import DiscoveryResult
 from bundlemcp.gateway.discovery.tool_schema_hash import tool_schema_hash
 from bundlemcp.gateway.upstream import ClientFactory
 from bundlemcp.models import HealthStatus, McpServer, Tool, utcnow
+from bundlemcp.schemas import DiscoveryResult
 
 DEFAULT_MAX_ATTEMPTS = 3  # SRV-4: consecutive failures before health_status=error
 

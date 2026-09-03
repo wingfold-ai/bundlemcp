@@ -9,7 +9,8 @@ owned by ``bundlemcp.services.config_service`` and re-exported here for
 gateway-side consumers.
 """
 
+from bundlemcp.gateway.runtime_config.call_timeouts import CallTimeouts
 from bundlemcp.gateway.runtime_config.runtime_config import RuntimeConfig
 from bundlemcp.services.config_service import DEFAULTS, UnknownConfigKey, coerce
 
-__all__ = ["DEFAULTS", "RuntimeConfig", "UnknownConfigKey", "coerce"]
+__all__ = ["DEFAULTS", "CallTimeouts", "RuntimeConfig", "UnknownConfigKey", "coerce"]

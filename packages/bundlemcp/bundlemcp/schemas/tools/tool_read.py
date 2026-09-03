@@ -2,13 +2,13 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from bundlemcp.schemas.common.entity_read import EntityRead
 
 
-class ToolRead(BaseModel):
+class ToolRead(EntityRead):
     """A tool definition as cached from its upstream server."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID = Field(description="Identifier of the cached tool")
     server_id: uuid.UUID = Field(description="Server that provides the tool")

@@ -1,13 +1,13 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from bundlemcp.schemas.common.entity_read import EntityRead
 
 
-class ConsentRead(BaseModel):
+class ConsentRead(EntityRead):
     """A user's standing consent for one OAuth client on one endpoint."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID = Field(description="Identifier of the consent record")
     client_id: str = Field(description="OAuth client the consent was granted to")

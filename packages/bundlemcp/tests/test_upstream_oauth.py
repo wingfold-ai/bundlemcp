@@ -192,6 +192,6 @@ async def test_status_hides_token_values(engine, redis):
         srv.id, None, UpstreamTokens(access_token="secret", expires_in=3600, account_hint="a@b.com")
     )
     status = await store.status(srv.id, None)
-    assert status["connected"] is True
-    assert status["account_hint"] == "a@b.com"
-    assert "secret" not in json.dumps(status)
+    assert status.connected is True
+    assert status.account_hint == "a@b.com"
+    assert "secret" not in status.model_dump_json()

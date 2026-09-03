@@ -11,17 +11,18 @@ from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
 from bundlemcp.gateway.mcp_endpoint.jsonrpc import rpc_error
 from bundlemcp.gateway.metrics import RATE_LIMIT_REJECTIONS
 from bundlemcp.gateway.proxy import client_ip
+from bundlemcp.models import CallerIdentity
 from bundlemcp.schemas import RateLimitConfig, RateRule
 
 log = structlog.get_logger(__name__)
 
 
-def _rate_identity(user_id: str | None, api_key_id: str | None, ip: str) -> str:
+def _rate_identity(identity: CallerIdentity, ip: str) -> str:
     """Per-client rate-limit bucket key: OAuth user, else API key, else client IP."""
-    if user_id:
-        return f"user:{user_id}"
-    if api_key_id:
-        return f"apikey:{api_key_id}"
+    if identity.user_id:
+        return f"user:{identity.user_id}"
+    if identity.api_key_id:
+        return f"apikey:{identity.api_key_id}"
     return f"ip:{ip}"
 
 
@@ -29,8 +30,7 @@ async def enforce_rate_limit(
     runtime: "GatewayRuntime",
     request: Request,
     view: BundleView,
-    user_id: str | None,
-    api_key_id: str | None,
+    identity: CallerIdentity,
     rpc_id: Any,
     *,
     is_tool_call: bool,
@@ -58,8 +58,8 @@ async def enforce_rate_limit(
         checks.append((f"ep:{view.endpoint.name}:all", cfg.endpoint))
     if cfg.per_client is not None:  # EP-6
         ip = client_ip(request, runtime.settings)
-        identity = _rate_identity(user_id, api_key_id, ip)
-        checks.append((f"ep:{view.endpoint.name}:{identity}", cfg.per_client))
+        bucket = _rate_identity(identity, ip)
+        checks.append((f"ep:{view.endpoint.name}:{bucket}", cfg.per_client))
 
     for scope, rule in checks:
         result = await runtime.rate_limiter.check(

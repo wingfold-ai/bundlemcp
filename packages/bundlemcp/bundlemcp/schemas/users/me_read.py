@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -6,7 +7,10 @@ from pydantic import BaseModel, Field
 class MeRead(BaseModel):
     """The caller's own identity: session user (admin or not) or service key."""
 
-    kind: str = Field(description="What authenticated this call: 'admin', 'user' or 'service'")
+    kind: Literal["admin", "user", "service"] = Field(
+        description="What authenticated this call: an admin session, a signed-in user without "
+        "admin rights, or a service API key"
+    )
     user_id: uuid.UUID | None = Field(
         default=None, description="The signed-in user; null for service keys"
     )

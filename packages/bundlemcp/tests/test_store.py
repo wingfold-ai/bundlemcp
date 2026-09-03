@@ -2,7 +2,9 @@
 
 import asyncio
 import json
+import uuid
 
+from bundlemcp.models import CallerIdentity
 from bundlemcp.store import INVALIDATION_CHANNEL
 from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
 from bundlemcp.store.sessions import SessionRecord, SessionStore, UpstreamBinding
@@ -13,7 +15,7 @@ def _record(session_id: str = "s1") -> SessionRecord:
         session_id=session_id,
         endpoint_name="ep",
         bundle_name="b",
-        auth_method="api_key",
+        identity=CallerIdentity.with_api_key(uuid.uuid4()),
         protocol_version="2025-11-25",
     )
 
