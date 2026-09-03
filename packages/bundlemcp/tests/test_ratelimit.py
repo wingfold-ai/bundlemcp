@@ -28,15 +28,14 @@ async def test_scopes_are_independent(redis):
 
 
 async def test_window_rollover_resets(redis):
-    """Different time buckets reset the count (fixed-window)."""
+    """Crossing into the next fixed window restores the budget."""
     rl = RateLimiter(redis)
-    # window of 1s: two calls in the same second, then bump the bucket by
-    # exhausting and re-checking after the key would expire. Simulate rollover
-    # by using a tiny window and asserting a fresh scope in the next bucket.
-    assert (await rl.check("w", 1, 1)).allowed is True
-    assert (await rl.check("w", 1, 1)).allowed is False
+    assert (await rl.check("w", 1, 100)).allowed is True
+    assert (await rl.check("w", 1, 100)).allowed is False  # spent for this window
+    redis.advance(100)  # over the bucket edge
+    assert (await rl.check("w", 1, 100)).allowed is True
     # a scope that never fired starts fresh regardless of bucket
-    assert (await rl.check("w2", 1, 1)).allowed is True
+    assert (await rl.check("w2", 1, 100)).allowed is True
 
 
 async def test_fail_open_on_redis_error():
