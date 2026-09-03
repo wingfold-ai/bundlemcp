@@ -3,7 +3,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-class _CallOutcome(BaseModel):
+class CallOutcome(BaseModel):
     """What a proxied tools/call produced, before it is rendered as JSON-RPC."""
 
     status: str = Field(description="How the call ended: 'success' or 'error'")
