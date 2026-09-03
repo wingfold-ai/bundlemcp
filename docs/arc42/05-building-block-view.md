@@ -25,8 +25,9 @@ packages/bundlemcp/
 ├── gateway/    # endpoint serving, bundle composition, sessions,
 │               # protocol relay, middleware chain (specs 12–16, 30–33)
 ├── oauth/      # OAuth 2.1 server + upstream OAuth client (specs 20, 23)
+├── http/       # the Controller base every HTTP surface is declared with (ADR-0026)
 ├── providers/  # FastAPI providers for shared collaborators (ADR-0023)
-├── api/        # management REST routers + the composition root (spec 40)
+├── api/        # management API controllers + the composition root (spec 40)
 └── store/      # Repository, UnitOfWork, session/admin-session stores, Redis accessors
 ```
 
