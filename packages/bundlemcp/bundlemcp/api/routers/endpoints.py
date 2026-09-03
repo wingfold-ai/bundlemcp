@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException, status
 
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
-from bundlemcp.api.providers import EndpointServiceProvider
 from bundlemcp.models import EndpointProfile
+from bundlemcp.providers import EndpointServiceProvider
 from bundlemcp.schemas import EndpointRead, EndpointUpsert, Page
 
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])

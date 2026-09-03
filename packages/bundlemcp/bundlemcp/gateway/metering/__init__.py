@@ -6,11 +6,11 @@ tool->tool_name, idempotency_key->idempotency_key; `endpoint` is
 bundlemcp-side context the reference consumer ignores.
 """
 
-from bundlemcp.gateway.metering._common import METERING_PROTOCOL_VERSION
-from bundlemcp.gateway.metering._functions import load_metering_hook, new_idempotency_key
+from bundlemcp.gateway.metering.idempotency_key import new_idempotency_key
 from bundlemcp.gateway.metering.meter_context import MeterContext
 from bundlemcp.gateway.metering.meter_decision import MeterDecision
-from bundlemcp.gateway.metering.metering_hook import MeteringHook
+from bundlemcp.gateway.metering.metering_hook import METERING_PROTOCOL_VERSION, MeteringHook
+from bundlemcp.gateway.metering.metering_hook_loader import load_metering_hook
 from bundlemcp.gateway.metering.noop_metering_hook import NoopMeteringHook
 
 __all__ = [

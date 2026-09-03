@@ -4,7 +4,7 @@ Gated by BUNDLEMCP_INTEGRATION=1 so the default hermetic suite never touches
 Docker/network. Run locally with:
 
     docker compose -f deploy/docker-compose.yml up -d --build
-    BUNDLEMCP_INTEGRATION=1 uv run pytest tests-integration -q
+    BUNDLEMCP_INTEGRATION=1 uv run pytest tests/integration -q
 """
 
 import os

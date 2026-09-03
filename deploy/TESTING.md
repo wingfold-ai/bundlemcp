@@ -30,7 +30,7 @@ and exposes endpoints `demo` (api_key), `seo` and `media` (oauth + api_key).
 uv run pytest -q
 
 # API-level integration (needs the stack)
-BUNDLEMCP_INTEGRATION=1 uv run pytest tests-integration -q
+BUNDLEMCP_INTEGRATION=1 uv run pytest tests/integration -q
 
 # browser UI tests (needs the stack; logs in via Keycloak admin/admin)
 cd apps/web && npx playwright test

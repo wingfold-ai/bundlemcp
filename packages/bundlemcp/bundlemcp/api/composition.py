@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
 from bundlemcp.bootstrap import run_bootstrap
-from bundlemcp.crypto import token_cipher
+from bundlemcp.crypto import display_prefix, hash_token, token_cipher
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
 from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
@@ -36,7 +36,6 @@ from bundlemcp.oauth.upstream_client import (
     UpstreamOAuthProvider,
     UpstreamTokenStore,
 )
-from bundlemcp.security import display_prefix, hash_token
 from bundlemcp.settings import Settings
 from bundlemcp.store import create_engine, create_redis, session_factory
 from bundlemcp.store.invalidation import InvalidationSubscriber

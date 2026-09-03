@@ -1,20 +1,15 @@
-from pathlib import Path
+"""Applying a bootstrap document through the services the API uses."""
 
 import structlog
-import yaml
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from bundlemcp.bootstrap.bootstrap_document import BootstrapDocument
+from bundlemcp.bootstrap.document_loader import load_document
 from bundlemcp.schemas import BundleServerUpdate
 from bundlemcp.services import BundleService, EndpointService, ServerService
 
 log = structlog.get_logger(__name__)
-
-
-def load_document(path: str) -> BootstrapDocument:
-    data = yaml.safe_load(Path(path).read_text()) or {}
-    return BootstrapDocument(**data)
 
 
 async def apply_document(

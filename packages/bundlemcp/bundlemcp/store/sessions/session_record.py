@@ -2,8 +2,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from bundlemcp.store.sessions._common import SESSION_RECORD_VERSION
 from bundlemcp.store.sessions.upstream_binding import UpstreamBinding
+
+SESSION_RECORD_VERSION = 1  # DEP-6: bump only with cross-release read compat
 
 
 class SessionRecord(BaseModel):

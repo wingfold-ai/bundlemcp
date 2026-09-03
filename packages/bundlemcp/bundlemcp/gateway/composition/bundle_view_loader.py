@@ -1,11 +1,12 @@
+"""Assembling a bundle's presented tool surface for one endpoint."""
+
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from bundlemcp.gateway.composition._common import PREFIX_SEP
 from bundlemcp.gateway.composition.bundle_view import BundleView
-from bundlemcp.gateway.composition.presented_tool import PresentedTool
+from bundlemcp.gateway.composition.presented_tool import PREFIX_SEP, PresentedTool
 from bundlemcp.models import (
     Bundle,
     BundleServer,

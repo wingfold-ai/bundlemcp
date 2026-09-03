@@ -1,5 +1,6 @@
+"""Resolving the configured metering hook at startup."""
+
 import importlib
-import uuid
 
 import structlog
 
@@ -18,7 +19,3 @@ def load_metering_hook(import_path: str | None) -> MeteringHook:
     hook = obj() if callable(obj) and not hasattr(obj, "pre_call") else obj
     log.info("metering.hook_loaded", path=import_path)
     return hook
-
-
-def new_idempotency_key() -> str:
-    return uuid.uuid4().hex

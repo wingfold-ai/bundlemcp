@@ -13,11 +13,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment, PackageLoader, select_autoescape
 from sqlmodel import select
 
-from bundlemcp.api.providers import (
-    RedisProvider,
-    SessionFactoryProvider,
-    SettingsProvider,
-)
+from bundlemcp.crypto import hash_token
 from bundlemcp.models import (
     Bundle,
     Endpoint,
@@ -28,9 +24,13 @@ from bundlemcp.models import (
     utcnow,
 )
 from bundlemcp.oauth.adminsessions import SESSION_COOKIE
-from bundlemcp.oauth.deps import AdminSessionsProvider
+from bundlemcp.oauth.providers import AdminSessionsProvider
 from bundlemcp.oauth.urls import endpoint_name_from_resource, issuer
-from bundlemcp.security import hash_token
+from bundlemcp.providers import (
+    RedisProvider,
+    SessionFactoryProvider,
+    SettingsProvider,
+)
 
 log = structlog.get_logger(__name__)
 

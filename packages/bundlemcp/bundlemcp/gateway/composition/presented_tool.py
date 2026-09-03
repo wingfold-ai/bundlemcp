@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from bundlemcp.models import McpServer, Tool
 
+PREFIX_SEP = "__"  # BND-2: separates the bundle prefix from the upstream tool name
+
 
 class PresentedTool(BaseModel):
     """One tool as an endpoint shows it, after curation and profile transforms."""

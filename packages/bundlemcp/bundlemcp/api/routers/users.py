@@ -9,7 +9,7 @@ from fastapi import APIRouter, status
 
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
-from bundlemcp.api.providers import UserServiceProvider
+from bundlemcp.providers import UserServiceProvider
 from bundlemcp.schemas import ConsentRead, Page, UserRead
 
 router = APIRouter(prefix="/users", tags=["users"])

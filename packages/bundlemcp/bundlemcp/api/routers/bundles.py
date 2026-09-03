@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
-from bundlemcp.api.providers import BundleServiceProvider
+from bundlemcp.providers import BundleServiceProvider
 from bundlemcp.schemas import (
     BundleMemberRead,
     BundleRead,

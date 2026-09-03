@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 from conftest import GATEWAY_URL, SERVICE_KEY  # noqa: TID252
-from tests_integration_helpers import initialize, mcp_call, wait_ready
+from helpers import initialize, mcp_call, wait_ready
 
 KEYCLOAK_USER = "admin"
 KEYCLOAK_PASSWORD = "admin"

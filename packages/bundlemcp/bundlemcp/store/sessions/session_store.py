@@ -6,8 +6,7 @@ from redis.asyncio.client import Pipeline
 from redis.exceptions import WatchError
 
 from bundlemcp.store.redis import SESSION_KEY
-from bundlemcp.store.sessions._common import SESSION_RECORD_VERSION
-from bundlemcp.store.sessions.session_record import SessionRecord
+from bundlemcp.store.sessions.session_record import SESSION_RECORD_VERSION, SessionRecord
 from bundlemcp.store.sessions.upstream_binding import UpstreamBinding
 
 

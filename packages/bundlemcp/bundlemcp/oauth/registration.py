@@ -8,10 +8,10 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 
-from bundlemcp.api.providers import DbProvider, RedisProvider, SettingsProvider
+from bundlemcp.crypto import hash_token
 from bundlemcp.models import OAuthClient
 from bundlemcp.oauth.urls import issuer
-from bundlemcp.security import hash_token
+from bundlemcp.providers import DbProvider, RedisProvider, SettingsProvider
 
 log = structlog.get_logger(__name__)
 

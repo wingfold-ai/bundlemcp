@@ -88,3 +88,8 @@ reads as app-owned glue that yields a value, whereas "dependency" implies
 something external. So references above to "the FastAPI wiring in `deps.py`" now
 mean these three files. Behavior is unchanged — pure code motion, one
 function→class rewrite, and a mechanical rename.
+
+> **Superseded in part by [ADR-0023](0023-import-contracts-and-shared-providers.md):**
+> `api/providers.py` is now `bundlemcp/providers.py` and `oauth/deps.py` is now
+> `oauth/providers.py`. The layer direction described here is enforced by
+> import contracts (`uv run lint-imports`) rather than by grep.
