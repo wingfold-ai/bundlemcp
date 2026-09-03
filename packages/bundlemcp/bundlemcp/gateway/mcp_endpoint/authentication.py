@@ -12,7 +12,7 @@ from bundlemcp.services import AuthService
 
 def unauthorized(request: Request, endpoint_name: str) -> Response:
     """401 with the challenge + per-endpoint protected-resource metadata (RFC 9728)."""
-    base = str(request.app.state.settings.public_url).rstrip("/")  # DEP-1, not Host header
+    base = request.app.state.container.settings.public_base  # DEP-1, not Host header
     metadata = f"{base}/.well-known/oauth-protected-resource/{endpoint_name}/mcp"
     return JSONResponse(
         {"error": "unauthorized"},
@@ -55,10 +55,9 @@ async def note_auth_failure(request: Request) -> Response | None:
     Returns a 429 (+ Retry-After) when the IP is over the threshold, else None
     (the caller then returns its own 401/invalid_client). Fails open on Redis.
     """
-    limiter = getattr(request.app.state, "auth_failure_limiter", None)
-    if limiter is None:
-        return None
-    ip = client_ip(request, request.app.state.settings)
+    container = request.app.state.container
+    limiter = container.auth_failure_limiter
+    ip = client_ip(request, container.settings)
     result = await limiter.record_failure(ip)
     if result.allowed:
         return None

@@ -9,9 +9,10 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 from bundlemcp.api.app import create_app
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.models import User
-from bundlemcp.oauth.adminsessions import SESSION_COOKIE
 from bundlemcp.oauth.oidc import OidcClaims
+from bundlemcp.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.settings import Settings
 from fakeredis.aioredis import FakeRedis
 from httpx import ASGITransport, AsyncClient
@@ -49,7 +50,9 @@ async def env(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[tuple]:
         admin_emails=["admin@example.com"],
     )
     provider = FakeOidcProvider()
-    app = create_app(settings, engine=engine, redis=redis, oidc_provider=provider)
+    app = create_app(
+        settings, overrides=CompositionOverrides(engine=engine, redis=redis, oidc_provider=provider)
+    )
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url=PUBLIC_URL, follow_redirects=False
     ) as http:
@@ -79,7 +82,7 @@ async def test_login_provisions_user_and_sets_admin(env):
         provider,
         OidcClaims(issuer="http://idp", sub="admin1", email="admin@example.com", name="Admin"),
     )
-    async with app.state.session_factory() as db:
+    async with app.state.container.session_factory() as db:
         user = (await db.execute(select(User))).scalar_one()
         assert user.email == "admin@example.com"
         assert user.is_admin is True
@@ -92,14 +95,14 @@ async def test_admin_role_reevaluated_on_each_login(env):
     await _login(
         http, provider, OidcClaims(issuer="http://idp", sub="u1", email="admin@example.com")
     )
-    async with app.state.session_factory() as db:
+    async with app.state.container.session_factory() as db:
         assert (await db.execute(select(User))).scalar_one().is_admin is True
 
     # same subject logs in, but is no longer an admin email match
     await _login(
         http, provider, OidcClaims(issuer="http://idp", sub="u1", email="user@example.com")
     )
-    async with app.state.session_factory() as db:
+    async with app.state.container.session_factory() as db:
         users = (await db.execute(select(User))).scalars().all()
         assert len(users) == 1  # same (issuer, sub)
         assert users[0].is_admin is False
@@ -118,9 +121,7 @@ async def test_management_api_accepts_admin_session(env):
 async def test_non_admin_session_rejected(env):
     """Non-admin users can't reach the management API."""
     http, app, provider = env
-    await _login(
-        http, provider, OidcClaims(issuer="http://idp", sub="b", email="user@example.com")
-    )
+    await _login(http, provider, OidcClaims(issuer="http://idp", sub="b", email="user@example.com"))
     resp = await http.get("/api/v1/servers")
     assert resp.status_code == 401
 
@@ -164,12 +165,10 @@ async def test_deactivation_logs_out_and_revokes(env):
     await _login(
         http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
     )
-    async with app.state.session_factory() as db:
+    async with app.state.container.session_factory() as db:
         user = (await db.execute(select(User))).scalar_one()
 
-    resp = await http.post(
-        f"/api/v1/users/{user.id}:deactivate", headers={"Origin": PUBLIC_URL}
-    )
+    resp = await http.post(f"/api/v1/users/{user.id}:deactivate", headers={"Origin": PUBLIC_URL})
     assert resp.status_code == 200
     # session now fails is_active re-check
     follow = await http.get("/api/v1/servers")

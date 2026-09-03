@@ -1,8 +1,9 @@
 """Bootstrap tests (spec 41: BOOT-2 idempotent upserts)."""
 
-from bundlemcp.bootstrap import BootstrapDocument, apply_document
+from bundlemcp.bootstrap import BootstrapDocument, BootstrapRunner
 from bundlemcp.models import Bundle, BundleServer, Endpoint, McpServer
-from bundlemcp.store import session_factory
+from bundlemcp.services import NoopToolDiscovery
+from bundlemcp.store import UnitOfWorkFactory, session_factory
 from sqlmodel import select
 
 DOC = {
@@ -15,9 +16,10 @@ DOC = {
 async def test_apply_is_idempotent(engine, redis):
     factory = session_factory(engine)
     doc = BootstrapDocument(**DOC)
+    runner = BootstrapRunner(UnitOfWorkFactory(factory, redis), NoopToolDiscovery())
 
-    await apply_document(factory, redis, doc)
-    await apply_document(factory, redis, doc)  # BOOT-2: second run is a no-op
+    await runner.apply(doc)
+    await runner.apply(doc)  # BOOT-2: second run is a no-op
 
     async with factory() as db:
         assert len((await db.execute(select(McpServer))).scalars().all()) == 1

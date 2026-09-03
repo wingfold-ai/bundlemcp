@@ -2,34 +2,38 @@
 
 import uuid
 
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import func, select
+import structlog
 
 from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
-from bundlemcp.models import ApiKey
+from bundlemcp.models import ApiKey, ApiKeyKind
 from bundlemcp.schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyRead, Page
 from bundlemcp.services.errors import NotFoundError
-from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
+from bundlemcp.store import Repository, UnitOfWork
+from bundlemcp.store.invalidation import InvalidationEvent
+
+log = structlog.get_logger(__name__)
 
 
 class ApiKeyService:
-    def __init__(self, db: AsyncSession, redis: Redis) -> None:
-        self._db = db
-        self._redis = redis
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+        self._keys = Repository(uow.session, ApiKey)
 
-    async def _by_id(self, key_id: uuid.UUID) -> ApiKey | None:
-        return (
-            await self._db.execute(select(ApiKey).where(ApiKey.id == key_id))
-        ).scalar_one_or_none()
+    async def _get(self, key_id: uuid.UUID) -> ApiKey:
+        key = await self._keys.get(key_id)
+        if key is None:
+            raise NotFoundError("key not found")
+        return key
+
+    def _invalidate(self, key_id: uuid.UUID, action: str) -> None:
+        self._uow.invalidate(
+            InvalidationEvent(entity_type="api_key", key=str(key_id), action=action)  # type: ignore[arg-type]
+        )
 
     async def list(self, *, offset: int, limit: int) -> Page[ApiKeyRead]:
-        total = (await self._db.execute(select(func.count()).select_from(ApiKey))).scalar_one()
-        rows = (
-            await self._db.execute(
-                select(ApiKey).order_by(ApiKey.created_at, ApiKey.id).offset(offset).limit(limit)
-            )
-        ).scalars()
+        total, rows = await self._keys.page(
+            offset=offset, limit=limit, order_by=(ApiKey.created_at, ApiKey.id)
+        )
         return Page(
             items=[ApiKeyRead.from_entity(k) for k in rows],
             total=total,
@@ -40,38 +44,53 @@ class ApiKeyService:
     async def create(self, body: ApiKeyCreate) -> ApiKeyCreated:
         """The key value is returned exactly once; only the hash is stored."""
         value = generate_token(API_KEY_PREFIX)
-        key = ApiKey(
-            name=body.name,
-            key_hash=hash_token(value),
-            key_prefix=display_prefix(value),
-            kind=body.kind,
-            endpoint_ids=[str(e) for e in body.endpoint_ids],
+        key = self._keys.add(
+            ApiKey(
+                name=body.name,
+                key_hash=hash_token(value),
+                key_prefix=display_prefix(value),
+                kind=body.kind,
+                endpoint_ids=[str(e) for e in body.endpoint_ids],
+            )
         )
-        self._db.add(key)
-        await self._db.commit()
-        await self._db.refresh(key)
+        await self._uow.commit()
+        await self._uow.session.refresh(key)
         return ApiKeyCreated(**ApiKeyRead.from_entity(key).model_dump(), key=value)
+
+    async def ensure_initial_service_key(self, value: str) -> bool:
+        """Provision the operator-supplied service key unless a service key already exists.
+
+        Returns whether a key was created.
+        """
+        # BOOT-3
+        existing = await self._keys.one(ApiKey.kind == ApiKeyKind.SERVICE)
+        if existing is not None:
+            return False
+        self._keys.add(
+            ApiKey(
+                name="initial-service-key",
+                key_hash=hash_token(value),
+                key_prefix=display_prefix(value),
+                kind=ApiKeyKind.SERVICE,
+            )
+        )
+        await self._uow.commit()
+        log.info("bootstrap.initial_service_key_created")
+        return True
 
     async def deactivate(self, key_id: uuid.UUID) -> ApiKeyRead:
         """Takes effect via a published invalidation event, not cache TTL."""
-        key = await self._by_id(key_id)
-        if key is None:
-            raise NotFoundError("key not found")
+        key = await self._get(key_id)
         key.is_active = False
-        await self._db.commit()
-        await self._db.refresh(key)
-        await publish_invalidation(
-            self._redis,
-            InvalidationEvent(entity_type="api_key", key=str(key_id), action="updated"),
-        )
+        self._invalidate(key_id, "updated")
+        await self._uow.commit()
+        await self._uow.session.refresh(key)
         return ApiKeyRead.from_entity(key)
 
     async def delete(self, key_id: uuid.UUID) -> None:
-        key = await self._by_id(key_id)
-        if key is not None:
-            await self._db.delete(key)
-            await self._db.commit()
-            await publish_invalidation(
-                self._redis,
-                InvalidationEvent(entity_type="api_key", key=str(key_id), action="deleted"),
-            )
+        key = await self._keys.get(key_id)
+        if key is None:
+            return
+        await self._keys.delete(key)
+        self._invalidate(key_id, "deleted")
+        await self._uow.commit()

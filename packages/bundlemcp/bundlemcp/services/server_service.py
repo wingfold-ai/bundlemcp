@@ -1,91 +1,24 @@
-"""Server registry business logic, including upstream OAuth client configuration."""
+"""Server registry business logic."""
 
-from typing import TYPE_CHECKING
-
-from pydantic import ValidationError
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import func, select
-
-from bundlemcp.crypto import token_cipher
-from bundlemcp.models import BundleServer, McpServer, Tool, UpstreamOAuthClient
-from bundlemcp.schemas import (
-    DiscoveryResult,
-    Page,
-    ServerRead,
-    ServerUpsert,
-    ToolRead,
-    UpstreamConnectionStatus,
-    UpstreamOAuthClientRead,
-    UpstreamOAuthConfig,
-    UpstreamOAuthStatusRead,
-)
-from bundlemcp.schemas.resource_names import server_name as server_name_adapter
-from bundlemcp.services.errors import (
-    ConflictError,
-    InvalidInputError,
-    NotFoundError,
-    PreconditionError,
-    UnavailableError,
-)
-from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
-
-if TYPE_CHECKING:
-    from bundlemcp.gateway.discovery import DiscoveryService
-    from bundlemcp.oauth.upstream_client import UpstreamTokenStore
-    from bundlemcp.settings import Settings
+from bundlemcp.models import BundleServer, McpServer, Tool
+from bundlemcp.schemas import DiscoveryResult, Page, ServerRead, ServerUpsert, ToolRead
+from bundlemcp.schemas.resource_names import server_name as server_name_type
+from bundlemcp.services.errors import ConflictError
+from bundlemcp.services.named_resource_service import NamedResourceService
+from bundlemcp.services.per_user_upstream_policy import PerUserUpstreamPolicy
+from bundlemcp.services.tool_discovery import ToolDiscovery
+from bundlemcp.store import Repository, UnitOfWork
 
 
-class ServerService:
-    def __init__(
-        self,
-        db: AsyncSession,
-        redis: Redis,
-        *,
-        discovery: "DiscoveryService | None" = None,
-        settings: "Settings | None" = None,
-        upstream_tokens: "UpstreamTokenStore | None" = None,
-    ) -> None:
-        self._db = db
-        self._redis = redis
+class ServerService(NamedResourceService[McpServer, ServerRead]):
+    def __init__(self, uow: UnitOfWork, discovery: ToolDiscovery) -> None:
+        super().__init__(
+            uow, entity=McpServer, read_model=ServerRead, entity_type="server", label="server"
+        )
         self._discovery = discovery
-        self._settings = settings
-        self._upstream_tokens = upstream_tokens
-
-    async def _by_name(self, name: str) -> McpServer | None:
-        result = await self._db.execute(select(McpServer).where(McpServer.name == name))
-        return result.scalar_one_or_none()
-
-    async def _get(self, name: str) -> McpServer:
-        server = await self._by_name(name)
-        if server is None:
-            raise NotFoundError("server not found")
-        return server
-
-    async def _invalidate(self, name: str, action: str) -> None:
-        await publish_invalidation(
-            self._redis, InvalidationEvent(entity_type="server", key=name, action=action)
-        )
-
-    async def list(self, *, offset: int, limit: int) -> Page[ServerRead]:
-        total = (await self._db.execute(select(func.count()).select_from(McpServer))).scalar_one()
-        rows = (
-            await self._db.execute(
-                select(McpServer)
-                .order_by(McpServer.created_at, McpServer.id)
-                .offset(offset)
-                .limit(limit)
-            )
-        ).scalars()
-        return Page(
-            items=[ServerRead.from_entity(s) for s in rows],
-            total=total,
-            offset=offset,
-            limit=limit,
-        )
-
-    async def get(self, name: str) -> ServerRead:
-        return ServerRead.from_entity(await self._get(name))
+        self._memberships = Repository(uow.session, BundleServer)
+        self._tools = Repository(uow.session, Tool)
+        self._policy = PerUserUpstreamPolicy(uow.session)
 
     async def upsert(self, body: ServerUpsert) -> ServerRead:
         """Config-only upsert by natural key; idempotent; never blocks on probing."""
@@ -101,115 +34,35 @@ class ServerService:
         server.auth_mode = body.auth_mode
         server.identity_mode = body.identity_mode
         server.send_identity_header = body.send_identity_header
-        self._db.add(server)
-        await self._db.commit()
-        await self._db.refresh(server)
-        await self._invalidate(body.name, "created" if created else "updated")
+        if not created:
+            await self._policy.ensure_identity_switch_allowed(server)
+        read = await self._save(server, name=body.name, created=created)
         # SRV-2: validate + discover best-effort; never blocks the API response.
-        if self._discovery is not None:
-            await self._discovery.schedule_probe(server.id)
-        return ServerRead.from_entity(server)
-
-    async def delete(self, name: str) -> None:
-        """Idempotent delete: a missing server still yields success (404 -> 204 semantics)."""
-        server = await self._by_name(name)
-        if server is not None:
-            await self._db.delete(server)  # DOM-2 cascades tools + mappings
-            await self._db.commit()
-            await self._invalidate(name, "deleted")
+        await self._discovery.schedule_probe(server.id)
+        return read
 
     async def rename(self, name: str, new_name: str, *, force: bool) -> ServerRead:
         """Renaming a bundle member is rejected unless force acknowledges that
         client-visible tool names change."""
         server = await self._get(name)
-        try:
-            server_name_adapter.validate_python(new_name)
-        except ValidationError as exc:
-            raise InvalidInputError(str(exc)) from None
-        in_bundle = (
-            await self._db.execute(
-                select(BundleServer).where(BundleServer.server_id == server.id).limit(1)
-            )
-        ).scalar_one_or_none()
+        in_bundle = await self._memberships.one(BundleServer.server_id == server.id)
         if in_bundle is not None and not force:
             raise ConflictError(
                 "server is a bundle member; renaming changes client-visible tool names — "
                 "retry with force=true to acknowledge (SRV-5)"
             )
-        server.name = new_name
-        await self._db.commit()
-        await self._db.refresh(server)
-        await self._invalidate(new_name, "updated")
-        return ServerRead.from_entity(server)
+        return await self._rename(server, new_name, server_name_type)
 
     async def list_tools(self, name: str, *, offset: int, limit: int) -> Page[ToolRead]:
         server = await self._get(name)
-        base = select(Tool).where(Tool.server_id == server.id)
-        total = (
-            await self._db.execute(select(func.count()).select_from(base.subquery()))
-        ).scalar_one()
-        rows = (
-            await self._db.execute(base.order_by(Tool.name).offset(offset).limit(limit))
-        ).scalars()
+        total, rows = await self._tools.page(
+            Tool.server_id == server.id, offset=offset, limit=limit, order_by=(Tool.name,)
+        )
         return Page(
-            items=[ToolRead.from_entity(t) for t in rows],
-            total=total,
-            offset=offset,
-            limit=limit,
+            items=[ToolRead.from_entity(t) for t in rows], total=total, offset=offset, limit=limit
         )
 
     async def refresh_tools(self, name: str) -> DiscoveryResult:
         """Explicit refresh: runs tool discovery now and reports the result."""
         server = await self._get(name)
-        if self._discovery is None:
-            raise UnavailableError("discovery unavailable")
         return await self._discovery.discover(server.id)
-
-    # --- upstream OAuth client config + status (spec 23, UPO-1/5) ---
-
-    async def set_upstream_oauth(
-        self, name: str, body: UpstreamOAuthConfig
-    ) -> UpstreamOAuthClientRead:
-        """Store the pre-registered client config. client_secret is write-only, encrypted."""
-        server = await self._get(name)
-        if self._settings is None or not self._settings.token_encryption_keys:
-            raise PreconditionError("token encryption keys required for upstream OAuth (DEP-9)")
-        cipher = token_cipher(self._settings)
-        client = (
-            await self._db.execute(
-                select(UpstreamOAuthClient).where(UpstreamOAuthClient.server_id == server.id)
-            )
-        ).scalar_one_or_none()
-        if client is None:
-            client = UpstreamOAuthClient(server_id=server.id, client_id=body.client_id)
-        client.client_id = body.client_id
-        if body.client_secret:  # write-only: absent keeps the existing secret
-            client.client_secret_encrypted = cipher.encrypt(body.client_secret)
-        meta = dict(client.metadata_ or {})
-        if body.authorization_url and body.token_url:
-            meta["authorization_endpoint"] = body.authorization_url
-            meta["token_endpoint"] = body.token_url
-        client.metadata_ = meta
-        self._db.add(client)
-        await self._db.commit()
-        return UpstreamOAuthClientRead(
-            server=name, client_id=body.client_id, has_secret=bool(body.client_secret)
-        )
-
-    async def upstream_oauth_status(self, name: str) -> UpstreamOAuthStatusRead:
-        """Report connection status only — never token values."""
-        server = await self._get(name)
-        if self._upstream_tokens is None:
-            return UpstreamOAuthStatusRead(identity_mode=server.identity_mode, configured=False)
-        shared: UpstreamConnectionStatus = await self._upstream_tokens.status(server.id, None)
-        return UpstreamOAuthStatusRead(
-            identity_mode=server.identity_mode, configured=True, shared=shared
-        )
-
-    async def disconnect_upstream_oauth(self, name: str) -> None:
-        """Disconnect the shared upstream token."""
-        server = await self._by_name(name)
-        if server is None:
-            return
-        if self._upstream_tokens is not None:
-            await self._upstream_tokens.disconnect(server.id, None)

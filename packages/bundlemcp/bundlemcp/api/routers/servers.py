@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
-from bundlemcp.providers import ServerServiceProvider
+from bundlemcp.providers import ServerServiceProvider, UpstreamOAuthConfigServiceProvider
 from bundlemcp.schemas import (
     DiscoveryResult,
     Page,
@@ -82,20 +82,23 @@ async def refresh_tools(
 
 @router.put("/{name}/upstream-oauth")
 async def set_upstream_oauth(
-    name: str, body: UpstreamOAuthConfig, service: ServerServiceProvider, _auth: ServiceAuthProvider
+    name: str,
+    body: UpstreamOAuthConfig,
+    service: UpstreamOAuthConfigServiceProvider,
+    _auth: ServiceAuthProvider,
 ) -> UpstreamOAuthClientRead:
-    return await service.set_upstream_oauth(name, body)
+    return await service.set_client(name, body)
 
 
 @router.get("/{name}/upstream-oauth")
 async def upstream_oauth_status(
-    name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider
+    name: str, service: UpstreamOAuthConfigServiceProvider, _auth: ServiceAuthProvider
 ) -> UpstreamOAuthStatusRead:
-    return await service.upstream_oauth_status(name)
+    return await service.status(name)
 
 
 @router.delete("/{name}/upstream-oauth/token", status_code=status.HTTP_204_NO_CONTENT)
 async def disconnect_upstream_oauth(
-    name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider
+    name: str, service: UpstreamOAuthConfigServiceProvider, _auth: ServiceAuthProvider
 ) -> None:
-    await service.disconnect_upstream_oauth(name)
+    await service.disconnect(name)

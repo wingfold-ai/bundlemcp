@@ -99,8 +99,8 @@ def _tools_payload(view: BundleView) -> list[dict[str, Any]]:
 
 @router.post("/{endpoint_name}/mcp", include_in_schema=False)
 async def mcp_post(endpoint_name: str, request: Request) -> Response:
-    runtime: GatewayRuntime = request.app.state.gateway
-    async with request.app.state.session_factory() as db:
+    runtime: GatewayRuntime = request.app.state.container.gateway
+    async with request.app.state.container.session_factory() as db:
         view = await load_bundle_view(db, endpoint_name)
         if view is None:
             return JSONResponse({"error": "not found"}, status_code=404)
@@ -195,7 +195,7 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
 @router.delete("/{endpoint_name}/mcp", include_in_schema=False)
 async def mcp_delete(endpoint_name: str, request: Request) -> Response:
     """Explicit session termination."""
-    runtime: GatewayRuntime = request.app.state.gateway
+    runtime: GatewayRuntime = request.app.state.container.gateway
     session_id = request.headers.get(SESSION_HEADER, "")
     if session_id:
         await runtime.sessions.delete(session_id)
@@ -210,8 +210,8 @@ async def mcp_get(endpoint_name: str, request: Request) -> Response:
     stream is replica-pinned; messages from other replicas arrive via the
     SignalBus.
     """
-    runtime: GatewayRuntime = request.app.state.gateway
-    async with request.app.state.session_factory() as db:
+    runtime: GatewayRuntime = request.app.state.container.gateway
+    async with request.app.state.container.session_factory() as db:
         view = await load_bundle_view(db, endpoint_name)
         if view is None:
             return JSONResponse({"error": "not found"}, status_code=404)

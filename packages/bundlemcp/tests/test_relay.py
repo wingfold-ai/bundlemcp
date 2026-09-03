@@ -14,6 +14,7 @@ import socket
 import pytest
 import uvicorn
 from bundlemcp.api.app import create_app
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.models import (
     ApiKey,
@@ -115,16 +116,17 @@ async def seed(engine: AsyncEngine) -> None:
         await db.refresh(bundle)
         db.add(BundleServer(bundle_id=bundle.id, server_id=srv.id))
         db.add(Endpoint(name="main", bundle_id=bundle.id, auth_modes=["api_key"]))
-        for tool in (
-            "quick", "slow_with_progress", "hang", "ask_name", "read_roots", "emit_log"
-        ):
+        for tool in ("quick", "slow_with_progress", "hang", "ask_name", "read_roots", "emit_log"):
             db.add(Tool(server_id=srv.id, name=tool, schema_hash="h", input_schema={}))
         await db.commit()
 
 
 def make_app(engine, redis):
     settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://")
-    return create_app(settings, engine=engine, redis=redis, client_factory=upstream_factory)
+    return create_app(
+        settings,
+        overrides=CompositionOverrides(engine=engine, redis=redis, client_factory=upstream_factory),
+    )
 
 
 def _free_port() -> int:
@@ -424,9 +426,7 @@ async def test_elicitation_relayed_to_client(relay_env):
 
     # Drive the GET stream: answer the elicitation request when it arrives.
     async def responder():
-        async with http.stream(
-            "GET", "/main/mcp", headers={"Mcp-Session-Id": session}
-        ) as resp:
+        async with http.stream("GET", "/main/mcp", headers={"Mcp-Session-Id": session}) as resp:
             async for line in resp.aiter_lines():
                 if not line.startswith("data: "):
                     continue
@@ -468,9 +468,7 @@ async def test_roots_relayed_to_client(relay_env):
     session = await _initialize_with_caps(http, {"roots": {}})
 
     async def responder():
-        async with http.stream(
-            "GET", "/main/mcp", headers={"Mcp-Session-Id": session}
-        ) as resp:
+        async with http.stream("GET", "/main/mcp", headers={"Mcp-Session-Id": session}) as resp:
             async for line in resp.aiter_lines():
                 if not line.startswith("data: "):
                     continue

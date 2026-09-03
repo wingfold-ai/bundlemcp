@@ -11,7 +11,7 @@ from redis.asyncio import Redis
 from bundlemcp.crypto import hash_token
 from bundlemcp.models import OAuthClient
 from bundlemcp.oauth.urls import issuer
-from bundlemcp.providers import DbProvider, RedisProvider, SettingsProvider
+from bundlemcp.providers import RedisProvider, SettingsProvider, UnitOfWorkProvider
 
 log = structlog.get_logger(__name__)
 
@@ -78,7 +78,7 @@ async def _check_rate(request: Request, redis: Redis) -> None:
 async def register_client(
     body: RegistrationRequest,
     request: Request,
-    db: DbProvider,
+    uow: UnitOfWorkProvider,
     redis: RedisProvider,
     settings: SettingsProvider,
 ) -> dict:
@@ -104,8 +104,8 @@ async def register_client(
         token_endpoint_auth_method=body.token_endpoint_auth_method,
         scope=body.scope,
     )
-    db.add(client)
-    await db.commit()
+    uow.session.add(client)
+    await uow.commit()
 
     base = issuer(settings)
     response = {

@@ -3,66 +3,66 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import func, select
+from pydantic import BaseModel, Field
 
-from bundlemcp.models import AuditRecord
+from bundlemcp.models import AuditRecord, AuditStatus
 from bundlemcp.schemas import AuditRecordRead, Page
+from bundlemcp.store import Repository, UnitOfWork
+
+
+class AuditFilter(BaseModel):
+    """The narrowing a listing of audit records may ask for; every field is optional."""
+
+    created_from: datetime | None = Field(default=None, description="Earliest call time included")
+    created_to: datetime | None = Field(default=None, description="Latest call time included")
+    endpoint_name: str | None = Field(default=None, description="Only calls on this endpoint")
+    bundle_name: str | None = Field(default=None, description="Only calls into this bundle")
+    server_name: str | None = Field(default=None, description="Only calls routed to this server")
+    tool_name: str | None = Field(
+        default=None,
+        description="Only calls of this tool, matched by upstream or client-visible name",
+    )
+    user_id: uuid.UUID | None = Field(default=None, description="Only calls by this user")
+    api_key_id: uuid.UUID | None = Field(default=None, description="Only calls with this key")
+    status: AuditStatus | None = Field(default=None, description="Only calls with this outcome")
+
+    def criteria(self) -> list[object]:
+        clauses: list[object] = []
+        if self.created_from is not None:
+            clauses.append(AuditRecord.created_at >= self.created_from)
+        if self.created_to is not None:
+            clauses.append(AuditRecord.created_at <= self.created_to)
+        if self.endpoint_name is not None:
+            clauses.append(AuditRecord.endpoint_name == self.endpoint_name)
+        if self.bundle_name is not None:
+            clauses.append(AuditRecord.bundle_name == self.bundle_name)
+        if self.server_name is not None:
+            clauses.append(AuditRecord.server_name == self.server_name)
+        if self.tool_name is not None:
+            clauses.append(
+                (AuditRecord.tool_name == self.tool_name)
+                | (AuditRecord.presented_tool_name == self.tool_name)
+            )
+        if self.user_id is not None:
+            clauses.append(AuditRecord.user_id == self.user_id)
+        if self.api_key_id is not None:
+            clauses.append(AuditRecord.api_key_id == self.api_key_id)
+        if self.status is not None:
+            clauses.append(AuditRecord.status == self.status)
+        return clauses
 
 
 class AuditService:
-    def __init__(self, db: AsyncSession) -> None:
-        self._db = db
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._records = Repository(uow.session, AuditRecord)
 
-    async def list(
-        self,
-        *,
-        offset: int,
-        limit: int,
-        created_from: datetime | None = None,
-        created_to: datetime | None = None,
-        endpoint_name: str | None = None,
-        bundle_name: str | None = None,
-        server_name: str | None = None,
-        tool_name: str | None = None,
-        user_id: uuid.UUID | None = None,
-        api_key_id: uuid.UUID | None = None,
-        status: str | None = None,
-    ) -> Page[AuditRecordRead]:
-        query = select(AuditRecord)
-        if created_from is not None:
-            query = query.where(AuditRecord.created_at >= created_from)
-        if created_to is not None:
-            query = query.where(AuditRecord.created_at <= created_to)
-        if endpoint_name is not None:
-            query = query.where(AuditRecord.endpoint_name == endpoint_name)
-        if bundle_name is not None:
-            query = query.where(AuditRecord.bundle_name == bundle_name)
-        if server_name is not None:
-            query = query.where(AuditRecord.server_name == server_name)
-        if tool_name is not None:
-            # matches either the upstream or the client-visible name
-            query = query.where(
-                (AuditRecord.tool_name == tool_name)
-                | (AuditRecord.presented_tool_name == tool_name)
-            )
-        if user_id is not None:
-            query = query.where(AuditRecord.user_id == user_id)
-        if api_key_id is not None:
-            query = query.where(AuditRecord.api_key_id == api_key_id)
-        if status is not None:
-            query = query.where(AuditRecord.status == status)
-
-        total = (
-            await self._db.execute(select(func.count()).select_from(query.subquery()))
-        ).scalar_one()
-        rows = (
-            await self._db.execute(
-                query.order_by(AuditRecord.created_at.desc(), AuditRecord.id)
-                .offset(offset)
-                .limit(limit)
-            )
-        ).scalars()
+    async def list(self, filter_: AuditFilter, *, offset: int, limit: int) -> Page[AuditRecordRead]:
+        total, rows = await self._records.page(
+            *filter_.criteria(),
+            offset=offset,
+            limit=limit,
+            order_by=(AuditRecord.created_at.desc(), AuditRecord.id),  # type: ignore[attr-defined]
+        )
         return Page(
             items=[AuditRecordRead.from_entity(r) for r in rows],
             total=total,
