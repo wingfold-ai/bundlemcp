@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 from bundlemcp.api.app import create_app
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.gateway.runtime_config import RuntimeConfig, UnknownConfigKey
 from bundlemcp.models import ApiKey, ApiKeyKind
@@ -31,7 +32,7 @@ async def _seed_service_key(engine: AsyncEngine) -> None:
 
 def _app(engine, redis):
     settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://")
-    return create_app(settings, engine=engine, redis=redis)
+    return create_app(settings, overrides=CompositionOverrides(engine=engine, redis=redis))
 
 
 async def test_defaults_served(engine, redis):
@@ -81,7 +82,7 @@ async def test_cross_instance_invalidation(engine, redis: FakeRedis):
         headers={"Authorization": f"Bearer {SERVICE_KEY}"},
     ) as http_a:
         async with app_a.router.lifespan_context(app_a), app_b.router.lifespan_context(app_b):
-            rc_b: RuntimeConfig = app_b.state.runtime_config
+            rc_b: RuntimeConfig = app_b.state.container.runtime_config
             assert await rc_b.get("call_timeout") == 60.0  # cached on B
 
             resp = await http_a.put("/api/v1/config/call_timeout", json={"value": 90})

@@ -6,10 +6,6 @@ from __future__ import annotations
 
 import uuid
 
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import func, select
-
 from bundlemcp.models import Bundle, BundleServer, BundleTool, McpServer, PresentedName, Tool
 from bundlemcp.schemas import (
     BundleMemberRead,
@@ -19,55 +15,25 @@ from bundlemcp.schemas import (
     BundleToolRead,
     BundleToolUpdate,
     BundleUpsert,
-    Page,
     ToolCurationRead,
 )
 from bundlemcp.services.errors import ConflictError, NotFoundError
-from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
+from bundlemcp.services.named_resource_service import NamedResourceService
+from bundlemcp.services.per_user_upstream_policy import PerUserUpstreamPolicy
+from bundlemcp.store import Repository, UnitOfWork
+from bundlemcp.store.invalidation import InvalidationEvent
 
 
-class BundleService:
-    def __init__(self, db: AsyncSession, redis: Redis) -> None:
-        self._db = db
-        self._redis = redis
-
-    async def _by_name(self, name: str) -> Bundle | None:
-        return (
-            await self._db.execute(select(Bundle).where(Bundle.name == name))
-        ).scalar_one_or_none()
-
-    async def _get(self, name: str) -> Bundle:
-        bundle = await self._by_name(name)
-        if bundle is None:
-            raise NotFoundError("bundle not found")
-        return bundle
-
-    async def _server_by_name(self, name: str) -> McpServer | None:
-        return (
-            await self._db.execute(select(McpServer).where(McpServer.name == name))
-        ).scalar_one_or_none()
-
-    async def _invalidate(self, name: str, action: str = "updated") -> None:
-        await publish_invalidation(
-            self._redis, InvalidationEvent(entity_type="bundle", key=name, action=action)
+class BundleService(NamedResourceService[Bundle, BundleRead]):
+    def __init__(self, uow: UnitOfWork) -> None:
+        super().__init__(
+            uow, entity=Bundle, read_model=BundleRead, entity_type="bundle", label="bundle"
         )
-
-    async def list(self, *, offset: int, limit: int) -> Page[BundleRead]:
-        total = (await self._db.execute(select(func.count()).select_from(Bundle))).scalar_one()
-        rows = (
-            await self._db.execute(
-                select(Bundle).order_by(Bundle.created_at, Bundle.id).offset(offset).limit(limit)
-            )
-        ).scalars()
-        return Page(
-            items=[BundleRead.from_entity(b) for b in rows],
-            total=total,
-            offset=offset,
-            limit=limit,
-        )
-
-    async def get(self, name: str) -> BundleRead:
-        return BundleRead.from_entity(await self._get(name))
+        self._servers = Repository(uow.session, McpServer)
+        self._memberships = Repository(uow.session, BundleServer)
+        self._curations = Repository(uow.session, BundleTool)
+        self._tools = Repository(uow.session, Tool)
+        self._policy = PerUserUpstreamPolicy(uow.session)
 
     async def upsert(self, body: BundleUpsert) -> BundleRead:
         bundle = await self._by_name(body.name)
@@ -75,192 +41,154 @@ class BundleService:
         if bundle is None:
             bundle = Bundle(name=body.name)
         bundle.description = body.description
-        self._db.add(bundle)
-        await self._db.commit()
-        await self._db.refresh(bundle)
-        await self._invalidate(body.name, "created" if created else "updated")
-        return BundleRead.from_entity(bundle)
+        return await self._save(bundle, name=body.name, created=created)
 
-    async def delete(self, name: str) -> None:
-        bundle = await self._by_name(name)
-        if bundle is not None:
-            await self._db.delete(bundle)  # DOM-2 cascades mappings + endpoints
-            await self._db.commit()
-            await self._invalidate(name, "deleted")
+    async def _members(self, bundle: Bundle) -> list[tuple[McpServer, BundleServer]]:
+        memberships = await self._memberships.all(BundleServer.bundle_id == bundle.id)
+        pairs: list[tuple[McpServer, BundleServer]] = []
+        for membership in memberships:
+            server = await self._servers.get(membership.server_id)
+            if server is not None:
+                pairs.append((server, membership))
+        pairs.sort(key=lambda pair: pair[0].name)
+        return pairs
 
     async def list_members(self, name: str) -> list[BundleMemberRead]:
         bundle = await self._get(name)
-        rows = (
-            (
-                await self._db.execute(
-                    select(McpServer, BundleServer)
-                    .join(BundleServer, BundleServer.server_id == McpServer.id)
-                    .where(BundleServer.bundle_id == bundle.id)
-                    .order_by(McpServer.name)
-                )
-            )
-            .tuples()
-            .all()
-        )
         return [
             BundleMemberRead(
-                server_id=srv.id,
-                server_name=srv.name,
-                server_url=srv.url,
-                health_status=srv.health_status,
-                enabled=mapping.enabled,
+                server_id=server.id,
+                server_name=server.name,
+                server_url=server.url,
+                health_status=server.health_status,
+                enabled=membership.enabled,
             )
-            for srv, mapping in rows
+            for server, membership in await self._members(bundle)
         ]
 
     async def list_tools(self, name: str) -> list[BundleToolRead]:
         """Curation view: every member server's tools with this bundle's overrides."""
         bundle = await self._get(name)
-        members = (
-            (
-                await self._db.execute(
-                    select(McpServer, BundleServer)
-                    .join(BundleServer, BundleServer.server_id == McpServer.id)
-                    .where(BundleServer.bundle_id == bundle.id)
-                )
-            )
-            .tuples()
-            .all()
-        )
-        server_by_id = {srv.id: (srv, mapping) for srv, mapping in members}
+        server_by_id = {server.id: (server, m) for server, m in await self._members(bundle)}
         if not server_by_id:
             return []
         curation = {
-            bt.tool_id: bt
-            for bt in (
-                await self._db.execute(select(BundleTool).where(BundleTool.bundle_id == bundle.id))
-            ).scalars()
+            c.tool_id: c for c in await self._curations.all(BundleTool.bundle_id == bundle.id)
         }
-        tools = (
-            await self._db.execute(
-                select(Tool)
-                .where(Tool.server_id.in_(server_by_id))  # type: ignore[attr-defined]
-                .order_by(Tool.name)
-            )
-        ).scalars()
-        out: list[BundleToolRead] = []
-        for tool in tools:
-            srv, mapping = server_by_id[tool.server_id]
-            cur = curation.get(tool.id)
-            out.append(
-                BundleToolRead(
-                    tool_id=tool.id,
-                    server_name=srv.name,
-                    name=tool.name,
-                    title=tool.title,
-                    description=tool.description,
-                    member_enabled=mapping.enabled,
-                    enabled=cur.enabled if cur is not None else True,
-                    presented_name=PresentedName.for_tool(
-                        srv.name, tool.name, cur.override_name if cur else None
-                    ),
-                    override_name=cur.override_name if cur else None,
-                    override_title=cur.override_title if cur else None,
-                    override_description=cur.override_description if cur else None,
-                )
-            )
+        tools = await self._tools.all(
+            Tool.server_id.in_(server_by_id),  # type: ignore[attr-defined]
+            order_by=(Tool.name,),
+        )
+        out = [
+            self._tool_read(tool, *server_by_id[tool.server_id], curation.get(tool.id))
+            for tool in tools
+        ]
         out.sort(key=lambda t: (t.server_name, t.name))
         return out
+
+    @staticmethod
+    def _tool_read(
+        tool: Tool, server: McpServer, membership: BundleServer, curation: BundleTool | None
+    ) -> BundleToolRead:
+        override_name = curation.override_name if curation else None
+        return BundleToolRead(
+            tool_id=tool.id,
+            server_name=server.name,
+            name=tool.name,
+            title=tool.title,
+            description=tool.description,
+            member_enabled=membership.enabled,
+            enabled=curation.enabled if curation is not None else True,
+            presented_name=PresentedName.for_tool(server.name, tool.name, override_name),
+            override_name=override_name,
+            override_title=curation.override_title if curation else None,
+            override_description=curation.override_description if curation else None,
+        )
+
+    async def _membership(self, bundle: Bundle, server: McpServer) -> BundleServer | None:
+        return await self._memberships.one(
+            BundleServer.bundle_id == bundle.id, BundleServer.server_id == server.id
+        )
 
     async def set_member(
         self, name: str, server_name: str, body: BundleServerUpdate
     ) -> BundleMembershipRead:
         """Add a member server or toggle its enabled flag; upsert semantics."""
         bundle = await self._get(name)
-        server = await self._server_by_name(server_name)
+        server = await self._servers.by_name(server_name)
         if server is None:
             raise NotFoundError("server not found")
-        mapping = (
-            await self._db.execute(
-                select(BundleServer).where(
-                    BundleServer.bundle_id == bundle.id, BundleServer.server_id == server.id
-                )
-            )
-        ).scalar_one_or_none()
-        if mapping is None:
-            mapping = BundleServer(bundle_id=bundle.id, server_id=server.id)
-        mapping.enabled = body.enabled
-        self._db.add(mapping)
-        await self._db.commit()
-        await self._invalidate(name)
-        return BundleMembershipRead(bundle=name, server=server_name, enabled=mapping.enabled)
+        await self._policy.ensure_membership_allowed(bundle.id, server)
+        membership = await self._membership(bundle, server)
+        if membership is None:
+            membership = BundleServer(bundle_id=bundle.id, server_id=server.id)
+        membership.enabled = body.enabled
+        self._memberships.add(membership)
+        self._invalidate(name)
+        await self._uow.commit()
+        return BundleMembershipRead(bundle=name, server=server_name, enabled=membership.enabled)
 
     async def remove_member(self, name: str, server_name: str) -> None:
         bundle = await self._get(name)
-        server = await self._server_by_name(server_name)
+        server = await self._servers.by_name(server_name)
         if server is None:
             return
-        mapping = (
-            await self._db.execute(
-                select(BundleServer).where(
-                    BundleServer.bundle_id == bundle.id, BundleServer.server_id == server.id
-                )
-            )
-        ).scalar_one_or_none()
-        if mapping is not None:
-            await self._db.delete(mapping)
-            await self._db.commit()
-            await self._invalidate(name)
+        membership = await self._membership(bundle, server)
+        if membership is None:
+            return
+        await self._memberships.delete(membership)
+        self._invalidate(name)
+        await self._uow.commit()
 
     async def curate_tool(
         self, name: str, tool_id: uuid.UUID, body: BundleToolUpdate
     ) -> ToolCurationRead:
         """Per-bundle tool curation: enable/disable plus name/metadata overrides."""
         bundle = await self._get(name)
-        tool = (await self._db.execute(select(Tool).where(Tool.id == tool_id))).scalar_one_or_none()
+        tool = await self._tools.get(tool_id)
         if tool is None:
             raise NotFoundError("tool not found")
-
         if body.override_name is not None:
-            # TM-3: override names unique within the bundle vs other overrides
-            clash = (
-                await self._db.execute(
-                    select(BundleTool).where(
-                        BundleTool.bundle_id == bundle.id,
-                        BundleTool.override_name == body.override_name,
-                        BundleTool.tool_id != tool_id,
-                    )
-                )
-            ).scalar_one_or_none()
-            if clash is not None:
-                raise ConflictError("override_name already used in this bundle (TM-3)")
+            await self._ensure_override_name_free(bundle, tool_id, body.override_name)
 
-        mapping = (
-            await self._db.execute(
-                select(BundleTool).where(
-                    BundleTool.bundle_id == bundle.id, BundleTool.tool_id == tool_id
-                )
-            )
-        ).scalar_one_or_none()
-        if mapping is None:
-            mapping = BundleTool(bundle_id=bundle.id, tool_id=tool_id)
-        mapping.enabled = body.enabled
-        mapping.override_name = body.override_name
-        mapping.override_title = body.override_title
-        mapping.override_description = body.override_description
-        mapping.override_annotations = body.override_annotations
-        self._db.add(mapping)
-        await self._db.commit()
-        await publish_invalidation(
-            self._redis,
-            InvalidationEvent(entity_type="bundle_tool", key=str(tool_id), action="updated"),
+        curation = await self._curations.one(
+            BundleTool.bundle_id == bundle.id, BundleTool.tool_id == tool_id
         )
-        await self._invalidate(name)
-        server = (
-            await self._db.execute(select(McpServer).where(McpServer.id == tool.server_id))
-        ).scalar_one()
+        if curation is None:
+            curation = BundleTool(bundle_id=bundle.id, tool_id=tool_id)
+        curation.enabled = body.enabled
+        curation.override_name = body.override_name
+        curation.override_title = body.override_title
+        curation.override_description = body.override_description
+        curation.override_annotations = body.override_annotations
+        self._curations.add(curation)
+        self._uow.invalidate(
+            InvalidationEvent(entity_type="bundle_tool", key=str(tool_id), action="updated")
+        )
+        self._invalidate(name)
+        await self._uow.commit()
+
+        server = await self._servers.get(tool.server_id)
+        server_name = server.name if server is not None else ""
         return ToolCurationRead(
             bundle=name,
             tool_id=tool_id,
-            enabled=mapping.enabled,
-            presented_name=PresentedName.for_tool(server.name, tool.name, mapping.override_name),
-            override_name=mapping.override_name,
-            override_title=mapping.override_title,
-            override_description=mapping.override_description,
-            override_annotations=mapping.override_annotations,
+            enabled=curation.enabled,
+            presented_name=PresentedName.for_tool(server_name, tool.name, curation.override_name),
+            override_name=curation.override_name,
+            override_title=curation.override_title,
+            override_description=curation.override_description,
+            override_annotations=curation.override_annotations,
         )
+
+    async def _ensure_override_name_free(
+        self, bundle: Bundle, tool_id: uuid.UUID, override_name: str
+    ) -> None:
+        # TM-3: override names unique within the bundle vs other overrides
+        clash = await self._curations.one(
+            BundleTool.bundle_id == bundle.id,
+            BundleTool.override_name == override_name,
+            BundleTool.tool_id != tool_id,
+        )
+        if clash is not None:
+            raise ConflictError("override_name already used in this bundle (TM-3)")

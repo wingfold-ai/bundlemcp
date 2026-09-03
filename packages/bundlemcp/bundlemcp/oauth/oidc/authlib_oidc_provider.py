@@ -1,32 +1,34 @@
+"""The real identity provider, reached over HTTP with authlib verifying its tokens."""
+
+from typing import Any, Self
 from urllib.parse import urlencode
 
-from fastapi import HTTPException
+import httpx
+from authlib.jose import jwt
 
 from bundlemcp.oauth.oidc.oidc_claims import OidcClaims
+from bundlemcp.oauth.oidc.oidc_error import OidcError
 from bundlemcp.settings import Settings
 
 
 class AuthlibOidcProvider:
-    """Real IdP via authlib (used in deployment; compose ships Keycloak)."""
+    """A provider is built from its discovery document, so it is ready once constructed."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, metadata: dict[str, Any]) -> None:
         self._settings = settings
-        self._metadata: dict | None = None
+        self._metadata = metadata
 
-    async def _load_metadata(self) -> dict:
-        if self._metadata is None:
-            import httpx
-
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(self._settings.oidc_discovery_url)
-                resp.raise_for_status()
-                self._metadata = resp.json()
-        return self._metadata
+    @classmethod
+    async def discover(cls, settings: Settings) -> Self:
+        """Fetch the issuer's discovery document and return a provider that can use it."""
+        if not settings.oidc_discovery_url:
+            raise OidcError("no OIDC discovery URL configured")
+        async with httpx.AsyncClient() as client:
+            response = await client.get(settings.oidc_discovery_url)
+            response.raise_for_status()
+            return cls(settings, response.json())
 
     def authorize_url(self, *, state: str, nonce: str, redirect_uri: str) -> str:
-        # discovery is async; deployment preloads metadata at startup. For the
-        # authorize redirect we build from the known authorization endpoint.
-        assert self._metadata is not None, "call preload() at startup"
         params = {
             "response_type": "code",
             "client_id": self._settings.oidc_client_id,
@@ -37,17 +39,10 @@ class AuthlibOidcProvider:
         }
         return f"{self._metadata['authorization_endpoint']}?{urlencode(params)}"
 
-    async def preload(self) -> None:
-        await self._load_metadata()
-
     async def exchange(self, *, code: str, redirect_uri: str, nonce: str) -> OidcClaims:
-        import httpx
-        from authlib.jose import jwt
-
-        meta = await self._load_metadata()
         async with httpx.AsyncClient() as client:
-            token_resp = await client.post(
-                meta["token_endpoint"],
+            token_response = await client.post(
+                self._metadata["token_endpoint"],
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
@@ -56,14 +51,14 @@ class AuthlibOidcProvider:
                     "client_secret": self._settings.oidc_client_secret,
                 },
             )
-            token_resp.raise_for_status()
-            id_token = token_resp.json()["id_token"]
-            jwks_resp = await client.get(meta["jwks_uri"])
-            jwks_resp.raise_for_status()
-        claims = jwt.decode(id_token, jwks_resp.json())
+            token_response.raise_for_status()
+            id_token = token_response.json()["id_token"]
+            jwks_response = await client.get(self._metadata["jwks_uri"])
+            jwks_response.raise_for_status()
+        claims = jwt.decode(id_token, jwks_response.json())
         claims.validate()
         if claims.get("nonce") != nonce:
-            raise HTTPException(400, "nonce mismatch")
+            raise OidcError("nonce mismatch")
         return OidcClaims(
             issuer=claims["iss"],
             sub=claims["sub"],

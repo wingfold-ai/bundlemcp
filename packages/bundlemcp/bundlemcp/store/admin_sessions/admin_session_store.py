@@ -4,16 +4,17 @@ import structlog
 from pydantic import ValidationError
 from redis.asyncio import Redis
 
-from bundlemcp.oauth.adminsessions.admin_session import AdminSession
+from bundlemcp.store.admin_sessions.admin_session import AdminSession
 
 log = structlog.get_logger(__name__)
 
-SESSION_COOKIE = "bmcp_session"
 ADMIN_SESSION_KEY = "bmcp:adminsession:{session_id}"
 DEFAULT_MAX_AGE = 12 * 3600  # seconds; forces re-login (ADM-6)
 
 
 class AdminSessionStore:
+    """Browser sessions for the management UI, kept in Valkey under random ids."""
+
     def __init__(self, redis: Redis, *, max_age: int = DEFAULT_MAX_AGE) -> None:
         self._redis = redis
         self.max_age = max_age
@@ -41,13 +42,3 @@ class AdminSessionStore:
 
     async def delete(self, session_id: str) -> None:
         await self._redis.delete(self._key(session_id))
-
-    def cookie_kwargs(self, secure: bool) -> dict:
-        """httpOnly, SameSite=Lax; Secure iff the public URL is https."""
-        return {
-            "httponly": True,
-            "samesite": "lax",
-            "secure": secure,
-            "max_age": self.max_age,
-            "path": "/",
-        }

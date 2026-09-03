@@ -4,8 +4,8 @@ Uses an injected client factory that inspects the Authorization header the
 gateway attaches, so the whole path is hermetic (no loopback upstream needed).
 """
 
-
 from bundlemcp.api.app import create_app
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.crypto import (
     API_KEY_PREFIX,
     display_prefix,
@@ -127,10 +127,9 @@ def _make_app(engine, redis, factory, provider):
     )
     return create_app(
         settings,
-        engine=engine,
-        redis=redis,
-        client_factory=factory,
-        upstream_oidc_provider=provider,
+        overrides=CompositionOverrides(
+            engine=engine, redis=redis, client_factory=factory, upstream_oidc_provider=provider
+        ),
     )
 
 
@@ -167,7 +166,11 @@ async def test_shared_bearer_attached(engine: AsyncEngine, redis):
     factory = BearerCapturingFactory()
     provider = FakeUpstreamProvider()
     await _save_token(
-        engine, redis, provider, srv.id, None,
+        engine,
+        redis,
+        provider,
+        srv.id,
+        None,
         UpstreamTokens(access_token="tok-shared", expires_in=3600),
     )
     app = _make_app(engine, redis, factory, provider)
@@ -209,7 +212,11 @@ async def test_near_expiry_refreshes_then_attaches(engine, redis):
     factory = BearerCapturingFactory()
     provider = FakeUpstreamProvider()
     await _save_token(
-        engine, redis, provider, srv.id, None,
+        engine,
+        redis,
+        provider,
+        srv.id,
+        None,
         UpstreamTokens(access_token="stale", refresh_token="rt", expires_in=5),
     )
     app = _make_app(engine, redis, factory, provider)
@@ -232,7 +239,11 @@ async def test_reactive_retry_on_upstream_error(engine, redis):
     factory = BearerCapturingFactory(reject={"Bearer stale"})  # first bearer rejected
     provider = FakeUpstreamProvider()
     await _save_token(
-        engine, redis, provider, srv.id, None,
+        engine,
+        redis,
+        provider,
+        srv.id,
+        None,
         UpstreamTokens(access_token="stale", refresh_token="rt", expires_in=3600),
     )
     app = _make_app(engine, redis, factory, provider)
@@ -257,7 +268,10 @@ async def test_no_encryption_keys_errors(engine, redis):
         _env_file=None, database_url="sqlite+aiosqlite://", token_encryption_keys=[]
     )
     app = create_app(
-        settings, engine=engine, redis=redis, client_factory=BearerCapturingFactory()
+        settings,
+        overrides=CompositionOverrides(
+            engine=engine, redis=redis, client_factory=BearerCapturingFactory()
+        ),
     )
     async with AsyncClient(
         transport=ASGITransport(app=app),

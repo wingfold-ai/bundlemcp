@@ -2,31 +2,29 @@
 
 from typing import Any
 
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
-
 from bundlemcp.models import ConfigEntry
 from bundlemcp.schemas import ConfigEntryRead
 from bundlemcp.services.config_service.config_registry import DEFAULTS, coerce
 from bundlemcp.services.config_service.unknown_config_key import UnknownConfigKey
 from bundlemcp.services.errors import InvalidInputError, NotFoundError
-from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
+from bundlemcp.store import Repository, UnitOfWork
+from bundlemcp.store.invalidation import InvalidationEvent
 
 
 class ConfigService:
-    def __init__(self, db: AsyncSession, redis: Redis) -> None:
-        self._db = db
-        self._redis = redis
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+        self._entries = Repository(uow.session, ConfigEntry)
 
-    async def _row(self, key: str) -> ConfigEntry | None:
-        return (
-            await self._db.execute(select(ConfigEntry).where(ConfigEntry.key == key))
-        ).scalar_one_or_none()
+    def _invalidate(self, key: str, action: str) -> None:
+        # STP-1
+        self._uow.invalidate(
+            InvalidationEvent(entity_type="config", key=key, action=action)  # type: ignore[arg-type]
+        )
 
     async def effective(self) -> dict[str, Any]:
         """Effective config: defaults overlaid with stored overrides."""
-        rows = (await self._db.execute(select(ConfigEntry))).scalars().all()
+        rows = await self._entries.all()
         overrides = {r.key: r.value for r in rows if r.key in DEFAULTS}
         return {key: overrides.get(key, default) for key, (default, _t) in DEFAULTS.items()}
 
@@ -38,26 +36,23 @@ class ConfigService:
         except ValueError as exc:
             raise InvalidInputError(str(exc)) from None
 
-        row = await self._row(key)
+        row = await self._entries.get(key)
         if row is None:
             row = ConfigEntry(key=key, value=coerced)
         else:
             row.value = coerced
-        self._db.add(row)
-        await self._db.commit()
-        await publish_invalidation(
-            self._redis, InvalidationEvent(entity_type="config", key=key, action="updated")
-        )  # STP-1
+        self._entries.add(row)
+        self._invalidate(key, "updated")
+        await self._uow.commit()
         return ConfigEntryRead(key=key, value=coerced)
 
     async def reset(self, key: str) -> None:
         """Remove the override; the default applies again."""
         if key not in DEFAULTS:
             return
-        row = await self._row(key)
-        if row is not None:
-            await self._db.delete(row)
-            await self._db.commit()
-            await publish_invalidation(
-                self._redis, InvalidationEvent(entity_type="config", key=key, action="deleted")
-            )
+        row = await self._entries.get(key)
+        if row is None:
+            return
+        await self._entries.delete(row)
+        self._invalidate(key, "deleted")
+        await self._uow.commit()

@@ -42,7 +42,8 @@ See [spec/00-overview.md](spec/00-overview.md) and
   lives in `bundlemcp/services/` and DTOs in `bundlemcp/schemas/` — both
   framework-free (no FastAPI, no `bundlemcp.api` import) so `api/`, `gateway/`,
   `oauth/`, and `bootstrap` consume them as peers (ADR-0019/0020). `api/` is
-  routers + FastAPI wiring only.
+  routers plus the composition root, and `services/` sit on a `Repository` +
+  `UnitOfWork` (ADR-0025).
 
 ## Development
 
@@ -94,6 +95,11 @@ See [spec/00-overview.md](spec/00-overview.md) and
 
 @.claude/docs/module-naming.md
 
+- **Value objects and entity behavior.** Nothing crosses a layer as a tuple or
+  an untyped dict; a fact about an entity (`server.requires_per_user_token`,
+  `token.is_usable`) is a property on the entity, written once. Services take
+  a `UnitOfWork` and query through `Repository[T]`; invariants that span
+  resources are policy objects (`PerUserUpstreamPolicy`). See ADR-0024/0025.
 - New behavior starts with a spec update in `/spec`; keep requirement IDs
   stable.
 - Local aliases (`state = self._app.state`) must add meaning, not save typing —

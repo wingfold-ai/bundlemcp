@@ -3,6 +3,7 @@
 import json
 
 from bundlemcp.api.app import create_app
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.models import (
     ApiKey,
@@ -16,10 +17,11 @@ from bundlemcp.models import (
     UpstreamOAuthToken,
     User,
 )
-from bundlemcp.oauth.adminsessions import SESSION_COOKIE, AdminSession
+from bundlemcp.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.oauth.upstream_client import UpstreamMetadata, UpstreamTokens
 from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
+from bundlemcp.store.admin_sessions import AdminSession
 from cryptography.fernet import Fernet
 from httpx import ASGITransport, AsyncClient
 
@@ -38,7 +40,9 @@ REFRESHED_ACCESS_TOKEN = "refreshed-access-token-plaintext-sentinel"
 
 class FakeProvider:
     async def discover(self, server_url):
-        return UpstreamMetadata(authorization_endpoint="https://idp/a", token_endpoint="https://idp/t")
+        return UpstreamMetadata(
+            authorization_endpoint="https://idp/a", token_endpoint="https://idp/t"
+        )
 
     def authorize_url(self, meta, *, client_id, redirect_uri, state, code_challenge, scope):
         return f"{meta.authorization_endpoint}?state={state}&client_id={client_id}"
@@ -56,14 +60,20 @@ class FakeProvider:
 
 
 def _settings():
-    return Settings(_env_file=None, database_url="sqlite+aiosqlite://",
-                    public_url=PUBLIC_URL, token_encryption_keys=[KEY])
+    return Settings(
+        _env_file=None,
+        database_url="sqlite+aiosqlite://",
+        public_url=PUBLIC_URL,
+        token_encryption_keys=[KEY],
+    )
 
 
 def _make_app(engine, redis, provider=None):
     return create_app(
-        _settings(), engine=engine, redis=redis,
-        upstream_oidc_provider=provider or FakeProvider(),
+        _settings(),
+        overrides=CompositionOverrides(
+            engine=engine, redis=redis, upstream_oidc_provider=provider or FakeProvider()
+        ),
     )
 
 
@@ -71,13 +81,17 @@ async def _seed(engine, *, identity_mode=IdentityMode.SHARED, with_client=True) 
     async with session_factory(engine)() as db:
         db.add(
             ApiKey(
-                name="svc", key_hash=hash_token(SERVICE_KEY),
-                key_prefix=display_prefix(SERVICE_KEY), kind=ApiKeyKind.SERVICE,
+                name="svc",
+                key_hash=hash_token(SERVICE_KEY),
+                key_prefix=display_prefix(SERVICE_KEY),
+                kind=ApiKeyKind.SERVICE,
             )
         )
         srv = McpServer(
-            name="up", url="https://up/mcp",
-            auth_mode=ServerAuthMode.UPSTREAM_OAUTH, identity_mode=identity_mode,
+            name="up",
+            url="https://up/mcp",
+            auth_mode=ServerAuthMode.UPSTREAM_OAUTH,
+            identity_mode=identity_mode,
         )
         db.add(srv)
         await db.commit()
@@ -96,8 +110,10 @@ async def _admin_client(engine, redis, provider=None):
         await db.commit()
         await db.refresh(admin)
     http = AsyncClient(
-        transport=ASGITransport(app=app), base_url=PUBLIC_URL,
-        headers={"Authorization": f"Bearer {SERVICE_KEY}"}, follow_redirects=False,
+        transport=ASGITransport(app=app),
+        base_url=PUBLIC_URL,
+        headers={"Authorization": f"Bearer {SERVICE_KEY}"},
+        follow_redirects=False,
     )
     return app, http, admin
 
@@ -107,7 +123,7 @@ async def test_connect_flow_stores_encrypted_token(engine, redis):
     app, http, admin = await _admin_client(engine, redis)
     async with http:
         async with app.router.lifespan_context(app):
-            sid = await app.state.admin_sessions.create(
+            sid = await app.state.container.admin_sessions.create(
                 AdminSession(user_id=str(admin.id), email=admin.email, is_admin=True)
             )
             http.cookies.set(SESSION_COOKIE, sid)
@@ -146,7 +162,7 @@ async def test_connect_requires_admin_for_shared(engine, redis):
         transport=ASGITransport(app=app), base_url=PUBLIC_URL, follow_redirects=False
     ) as http:
         async with app.router.lifespan_context(app):
-            sid = await app.state.admin_sessions.create(
+            sid = await app.state.container.admin_sessions.create(
                 AdminSession(user_id=str(u.id), email=u.email, is_admin=False)
             )
             http.cookies.set(SESSION_COOKIE, sid)
@@ -158,7 +174,8 @@ async def test_set_client_config_and_status(engine, redis):
     await _seed(engine, with_client=False)
     app = _make_app(engine, redis)
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url=PUBLIC_URL,
+        transport=ASGITransport(app=app),
+        base_url=PUBLIC_URL,
         headers={"Authorization": f"Bearer {SERVICE_KEY}"},
     ) as http:
         async with app.router.lifespan_context(app):
@@ -188,15 +205,18 @@ async def test_upo6_endpoint_rejects_none_with_per_user_upstream(engine, redis):
 
     app = _make_app(engine, redis)
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url=PUBLIC_URL,
+        transport=ASGITransport(app=app),
+        base_url=PUBLIC_URL,
         headers={"Authorization": f"Bearer {SERVICE_KEY}"},
     ) as http:
         async with app.router.lifespan_context(app):
             resp = await http.put(
                 "/api/v1/endpoints/e",
                 json={
-                    "name": "e", "bundle_name": "b",
-                    "auth_modes": ["none"], "allow_unauthenticated": True,
+                    "name": "e",
+                    "bundle_name": "b",
+                    "auth_modes": ["none"],
+                    "allow_unauthenticated": True,
                 },
             )
     assert resp.status_code == 409
@@ -215,15 +235,84 @@ async def test_upo6_allows_oauth_endpoint_with_per_user_upstream(engine, redis):
 
     app = _make_app(engine, redis)
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url=PUBLIC_URL,
+        transport=ASGITransport(app=app),
+        base_url=PUBLIC_URL,
         headers={"Authorization": f"Bearer {SERVICE_KEY}"},
     ) as http:
         async with app.router.lifespan_context(app):
             resp = await http.put(
                 "/api/v1/endpoints/e",
                 json={
-                    "name": "e", "bundle_name": "b",
-                    "auth_modes": ["oauth"], "profile": "claude",
+                    "name": "e",
+                    "bundle_name": "b",
+                    "auth_modes": ["oauth"],
+                    "profile": "claude",
                 },
             )
     assert resp.status_code == 200
+
+
+async def test_upo6_membership_rejects_per_user_upstream_behind_none_endpoint(engine, redis):
+    """UPO-6: a per_user upstream can't join a bundle a none-auth endpoint already exposes."""
+    await _seed(engine, identity_mode=IdentityMode.PER_USER)
+    app = _make_app(engine, redis)
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url=PUBLIC_URL,
+        headers={"Authorization": f"Bearer {SERVICE_KEY}"},
+    ) as http:
+        async with app.router.lifespan_context(app):
+            assert (await http.put("/api/v1/bundles/b", json={"name": "b"})).status_code == 200
+            open_endpoint = await http.put(
+                "/api/v1/endpoints/e",
+                json={
+                    "name": "e",
+                    "bundle_name": "b",
+                    "auth_modes": ["none"],
+                    "allow_unauthenticated": True,
+                },
+            )
+            assert open_endpoint.status_code == 200
+            joined = await http.put("/api/v1/bundles/b/servers/up", json={"enabled": True})
+    assert joined.status_code == 409
+    assert "UPO-6" in joined.json()["detail"]
+
+
+async def test_upo6_identity_switch_rejected_while_none_endpoint_exposes_server(engine, redis):
+    """UPO-6: a member server can't switch to per_user under a none-auth endpoint."""
+    await _seed(engine, identity_mode=IdentityMode.SHARED)
+    app = _make_app(engine, redis)
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url=PUBLIC_URL,
+        headers={"Authorization": f"Bearer {SERVICE_KEY}"},
+    ) as http:
+        async with app.router.lifespan_context(app):
+            assert (await http.put("/api/v1/bundles/b", json={"name": "b"})).status_code == 200
+            assert (
+                await http.put("/api/v1/bundles/b/servers/up", json={"enabled": True})
+            ).status_code == 200
+            assert (
+                await http.put(
+                    "/api/v1/endpoints/e",
+                    json={
+                        "name": "e",
+                        "bundle_name": "b",
+                        "auth_modes": ["none"],
+                        "allow_unauthenticated": True,
+                    },
+                )
+            ).status_code == 200
+            switched = await http.put(
+                "/api/v1/servers/up",
+                json={
+                    "name": "up",
+                    "url": "https://up/mcp",
+                    "auth_mode": "upstream_oauth",
+                    "identity_mode": "per_user",
+                },
+            )
+            unchanged = await http.get("/api/v1/servers/up")
+    assert switched.status_code == 409
+    assert "UPO-6" in switched.json()["detail"]
+    assert unchanged.json()["identity_mode"] == "shared"

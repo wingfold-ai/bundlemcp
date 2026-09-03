@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 from bundlemcp.api.app import create_app
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.models import (
     ApiKey,
@@ -20,9 +21,10 @@ from bundlemcp.models import (
     OAuthAccessToken,
     User,
 )
-from bundlemcp.oauth.adminsessions import SESSION_COOKIE, AdminSession
+from bundlemcp.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
+from bundlemcp.store.admin_sessions import AdminSession
 from fakeredis.aioredis import FakeRedis
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -35,19 +37,15 @@ PUBLIC_URL = "http://gw"
 def make_pkce() -> tuple[str, str]:
     verifier = secrets.token_urlsafe(48)
     challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
-        .rstrip(b"=")
-        .decode()
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
     )
     return verifier, challenge
 
 
 @pytest.fixture
 async def oauth_env(engine: AsyncEngine, redis: FakeRedis):
-    settings = Settings(
-        _env_file=None, database_url="sqlite+aiosqlite://", public_url=PUBLIC_URL
-    )
-    app = create_app(settings, engine=engine, redis=redis)
+    settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://", public_url=PUBLIC_URL)
+    app = create_app(settings, overrides=CompositionOverrides(engine=engine, redis=redis))
 
     factory = session_factory(engine)
     async with factory() as db:
@@ -78,7 +76,7 @@ async def oauth_env(engine: AsyncEngine, redis: FakeRedis):
     ) as http:
         async with app.router.lifespan_context(app):
             # seed a browser session for the user (login flow tested separately)
-            session_id = await app.state.admin_sessions.create(
+            session_id = await app.state.container.admin_sessions.create(
                 AdminSession(user_id=str(user.id), email=user.email, is_admin=False)
             )
             http.cookies.set(SESSION_COOKIE, session_id)
@@ -281,7 +279,7 @@ async def test_refresh_rotation_revokes_old(oauth_env):
     assert replay.status_code == 400  # rotated away
 
     # old access token row is revoked
-    async with app.state.session_factory() as db:
+    async with app.state.container.session_factory() as db:
         rows = (await db.execute(select(OAuthAccessToken))).scalars().all()
     assert any(r.revoked for r in rows)
 

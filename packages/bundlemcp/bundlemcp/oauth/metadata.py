@@ -5,7 +5,7 @@ from sqlmodel import select
 
 from bundlemcp.models import Endpoint
 from bundlemcp.oauth.urls import endpoint_resource, issuer
-from bundlemcp.providers import DbProvider, SettingsProvider
+from bundlemcp.providers import SettingsProvider, UnitOfWorkProvider
 
 router = APIRouter(tags=["oauth"])
 
@@ -34,11 +34,11 @@ async def authorization_server_metadata(settings: SettingsProvider) -> dict:
 
 @router.get("/.well-known/oauth-protected-resource/{endpoint_name}/mcp", include_in_schema=False)
 async def protected_resource_metadata(
-    endpoint_name: str, db: DbProvider, settings: SettingsProvider
+    endpoint_name: str, uow: UnitOfWorkProvider, settings: SettingsProvider
 ) -> dict:
     """RFC 9728, per endpoint — the 401 challenge points here."""
     ep = (
-        await db.execute(select(Endpoint).where(Endpoint.name == endpoint_name))
+        await uow.session.execute(select(Endpoint).where(Endpoint.name == endpoint_name))
     ).scalar_one_or_none()
     if ep is None or not ep.enabled:
         raise HTTPException(404, "unknown resource")

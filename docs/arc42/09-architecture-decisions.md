@@ -31,6 +31,7 @@ in the same PR as the change they govern
 | [0022](../adr/0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | Permissively-licensed store; redis-py client unchanged; RESP-generic |
 | [0023](../adr/0023-import-contracts-and-shared-providers.md) | Import contracts enforce layer direction | Layering is checked in CI, not by review |
 | [0024](../adr/0024-value-objects-and-rich-entities.md) | Value objects at the edge; behavior on entities | No tuples or dicts cross layers; rules live once; typed columns |
+| [0025](../adr/0025-repository-unit-of-work-and-container.md) | Repository per entity, unit of work per request, typed container | Queries written once; invalidation after commit; atomic bootstrap; UPO-6 at all three edges |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

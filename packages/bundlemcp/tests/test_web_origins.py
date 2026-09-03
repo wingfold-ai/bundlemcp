@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 from bundlemcp.api.app import create_app
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.oauth.oidc import OidcClaims
 from bundlemcp.settings import Settings
 from fakeredis.aioredis import FakeRedis
@@ -27,7 +28,9 @@ async def env(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[tuple]:
         web_origins=[WEB_ORIGIN],
     )
     provider = FakeOidcProvider()
-    app = create_app(settings, engine=engine, redis=redis, oidc_provider=provider)
+    app = create_app(
+        settings, overrides=CompositionOverrides(engine=engine, redis=redis, oidc_provider=provider)
+    )
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url=PUBLIC_URL, follow_redirects=False
     ) as http:
@@ -54,9 +57,7 @@ async def test_web_origin_passes_csrf_check(env):
     assert ok.status_code == 200
 
     # non-allowlisted origins are still rejected
-    bad = await http.put(
-        "/api/v1/servers/s1", json=body, headers={"Origin": "http://evil.example"}
-    )
+    bad = await http.put("/api/v1/servers/s1", json=body, headers={"Origin": "http://evil.example"})
     assert bad.status_code == 403
 
 
