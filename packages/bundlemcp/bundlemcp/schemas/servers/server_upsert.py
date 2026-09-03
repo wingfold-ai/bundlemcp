@@ -2,14 +2,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from bundlemcp.models import ServerAuthMode
-from bundlemcp.schemas.validation import validate_name
+from bundlemcp.models import IdentityMode, ServerAuthMode
+from bundlemcp.schemas.resource_names import ServerName
 
 
 class ServerUpsert(BaseModel):
     """Body for POST /servers and PUT /servers/{name}."""
 
-    name: str = Field(
+    name: ServerName = Field(
         description="Unique server name; lowercase letters, digits and hyphens, and it may "
         "not contain a double underscore because that separates server from tool"
     )
@@ -30,8 +30,8 @@ class ServerUpsert(BaseModel):
         default=ServerAuthMode.NONE,
         description="How the gateway authenticates to this server",
     )
-    identity_mode: Literal["shared", "per_user"] = Field(
-        default="shared",
+    identity_mode: IdentityMode = Field(
+        default=IdentityMode.SHARED,
         description="Whether all callers share one upstream identity or each gets their own",
     )
     send_identity_header: bool = Field(
@@ -48,14 +48,6 @@ class ServerUpsert(BaseModel):
         description="Confirm a rename that would otherwise be rejected, accepting that bundles "
         "and tool names derived from the old name change with it",
     )
-
-    @field_validator("name")
-    @classmethod
-    def name_rules(cls, v: str) -> str:
-        validate_name(v)
-        if "__" in v:
-            raise ValueError("server names must not contain '__' (DOM-4/BND-2)")
-        return v
 
     @field_validator("url")
     @classmethod

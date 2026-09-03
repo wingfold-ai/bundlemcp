@@ -2,10 +2,11 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Column, ForeignKey
+from sqlalchemy import JSON, Column, ForeignKey, String
 from sqlmodel import Field, SQLModel
 
 from bundlemcp.models.base import _ts, utcnow
+from bundlemcp.models.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.models.endpoint_profile import EndpointProfile
 
 
@@ -24,12 +25,13 @@ class Endpoint(SQLModel, table=True):
         sa_column=Column(ForeignKey("bundles.id", ondelete="CASCADE"), index=True),
         description="Bundle this endpoint exposes",
     )
-    profile: str = Field(
+    profile: EndpointProfile = Field(
         default=EndpointProfile.DEFAULT,
+        sa_type=String,
         description="Client profile shaping the responses for a particular consumer",
     )
-    auth_modes: list[str] = Field(
-        default_factory=lambda: ["api_key"],
+    auth_modes: list[EndpointAuthMode] = Field(
+        default_factory=lambda: [EndpointAuthMode.API_KEY],
         sa_column=Column(JSON),
         description="Accepted credentials: oauth, api_key, or none for an open endpoint",
     )
@@ -49,3 +51,11 @@ class Endpoint(SQLModel, table=True):
         sa_column=_ts(onupdate=utcnow),
         description="When the record was last changed",
     )
+
+    def accepts(self, mode: EndpointAuthMode) -> bool:
+        return mode in self.auth_modes
+
+    @property
+    def is_anonymous_only(self) -> bool:
+        """The endpoint takes no credentials at all, so every caller is nobody."""
+        return set(self.auth_modes) == {EndpointAuthMode.NONE}

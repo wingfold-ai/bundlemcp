@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import structlog
 from redis.asyncio import Redis
@@ -13,18 +13,13 @@ from bundlemcp.oauth.upstream_client.needs_connect import NeedsConnect
 from bundlemcp.oauth.upstream_client.upstream_metadata import UpstreamMetadata
 from bundlemcp.oauth.upstream_client.upstream_oauth_provider import UpstreamOAuthProvider
 from bundlemcp.oauth.upstream_client.upstream_tokens import UpstreamTokens
+from bundlemcp.schemas import UpstreamConnectionStatus
 
 log = structlog.get_logger("bundlemcp.oauth.upstream_client")
 
 REFRESH_LOCK_KEY = "bmcp:upstream-refresh:{server_id}:{user_key}"
 REFRESH_SKEW = timedelta(seconds=60)  # refresh this long before actual expiry
 REFRESH_LOCK_TTL = 30  # seconds
-
-
-def _aware(dt: datetime | None) -> datetime | None:
-    if dt is not None and dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt
 
 
 def _user_key(user_id: uuid.UUID | None) -> str:
@@ -68,20 +63,20 @@ class UpstreamTokenStore:
             db.add(row)
             await db.commit()
 
-    async def status(self, server_id: uuid.UUID, user_id: uuid.UUID | None) -> dict:
+    async def status(
+        self, server_id: uuid.UUID, user_id: uuid.UUID | None
+    ) -> UpstreamConnectionStatus:
         """Connection status only — never token values."""
         async with self._sessions() as db:
             row = await self._row(db, server_id, user_id)
         if row is None:
-            return {"connected": False}
-        expires = _aware(row.expires_at)
-        expired = expires is not None and expires < utcnow()
-        return {
-            "connected": row.is_valid and not expired,
-            "expires_at": expires.isoformat() if expires else None,
-            "account_hint": row.account_hint,
-            "valid": row.is_valid,
-        }
+            return UpstreamConnectionStatus()
+        return UpstreamConnectionStatus(
+            connected=row.is_connected,
+            valid=row.is_valid,
+            expires_at=row.expires_at,
+            account_hint=row.account_hint,
+        )
 
     async def disconnect(self, server_id: uuid.UUID, user_id: uuid.UUID | None) -> None:
         async with self._sessions() as db:
@@ -153,9 +148,9 @@ class UpstreamTokenStore:
             if row is None or not row.is_valid:
                 raise NeedsConnect(server.name)
             tokens = self._decode(row)
-            expires = _aware(row.expires_at)
+            fresh = not row.expires_within(REFRESH_SKEW)
 
-        if not force and (expires is None or expires - REFRESH_SKEW > utcnow()):
+        if not force and fresh:
             return tokens.access_token  # still fresh
 
         # near/at expiry (or forced) -> refresh under a single-flight lock (UPO-4)
@@ -178,8 +173,7 @@ class UpstreamTokenStore:
                     row = await self._row(db, server.id, user_id)
                 if row is None or not row.is_valid:
                     raise NeedsConnect(server.name, "refresh_failed")
-                expires = _aware(row.expires_at)
-                if expires is None or expires - REFRESH_SKEW > utcnow():
+                if not row.expires_within(REFRESH_SKEW):
                     return self._decode(row).access_token
             raise NeedsConnect(server.name, "refresh_timeout")
 

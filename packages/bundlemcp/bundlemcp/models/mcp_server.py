@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, String
 from sqlmodel import Field, SQLModel
 
 from bundlemcp.models.base import _ts, utcnow
@@ -31,12 +31,14 @@ class McpServer(SQLModel, table=True):
         sa_column=Column(JSON),
         description="Client headers passed through, mapped from incoming to upstream name",
     )
-    auth_mode: str = Field(
+    auth_mode: ServerAuthMode = Field(
         default=ServerAuthMode.NONE,
+        sa_type=String,
         description="How the gateway authenticates to this server",
     )
-    identity_mode: str = Field(
+    identity_mode: IdentityMode = Field(
         default=IdentityMode.SHARED,
+        sa_type=String,
         description="Whether callers share one upstream identity or each gets their own",
     )
     send_identity_header: bool = Field(  # FWD-3
@@ -49,8 +51,9 @@ class McpServer(SQLModel, table=True):
         description="What the server advertised at its last probe. A key is present exactly "
         "when that capability was advertised",
     )
-    health_status: str = Field(
+    health_status: HealthStatus = Field(
         default=HealthStatus.UNKNOWN,
+        sa_type=String,
         description="Result of the most recent probe: ok, error or unknown",
     )
     last_error: str | None = Field(default=None, description="Why the last probe failed, if it did")
@@ -62,3 +65,16 @@ class McpServer(SQLModel, table=True):
         sa_column=_ts(onupdate=utcnow),
         description="When the record was last changed",
     )
+
+    @property
+    def uses_upstream_oauth(self) -> bool:
+        return self.auth_mode == ServerAuthMode.UPSTREAM_OAUTH
+
+    @property
+    def is_per_user(self) -> bool:
+        return self.identity_mode == IdentityMode.PER_USER
+
+    @property
+    def requires_per_user_token(self) -> bool:
+        """Each caller must have connected their own upstream account to use this server."""
+        return self.uses_upstream_oauth and self.is_per_user

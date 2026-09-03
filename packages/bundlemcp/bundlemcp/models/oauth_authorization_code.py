@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import Column, ForeignKey
 from sqlmodel import Field, SQLModel
 
-from bundlemcp.models.base import _ts
+from bundlemcp.models.base import _ts, utcnow
 
 
 class OAuthAuthorizationCode(SQLModel, table=True):
@@ -38,3 +38,8 @@ class OAuthAuthorizationCode(SQLModel, table=True):
         default=False,
         description="Whether the code has been redeemed. A code works exactly once",
     )
+
+    @property
+    def is_redeemable(self) -> bool:
+        """Unused and not yet expired, so it may still be exchanged for tokens."""
+        return not self.used and self.expires_at >= utcnow()

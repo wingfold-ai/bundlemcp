@@ -31,7 +31,7 @@ class ApiKeyService:
             )
         ).scalars()
         return Page(
-            items=[ApiKeyRead.model_validate(k) for k in rows],
+            items=[ApiKeyRead.from_entity(k) for k in rows],
             total=total,
             offset=offset,
             limit=limit,
@@ -50,7 +50,7 @@ class ApiKeyService:
         self._db.add(key)
         await self._db.commit()
         await self._db.refresh(key)
-        return ApiKeyCreated(**ApiKeyRead.model_validate(key).model_dump(), key=value)
+        return ApiKeyCreated(**ApiKeyRead.from_entity(key).model_dump(), key=value)
 
     async def deactivate(self, key_id: uuid.UUID) -> ApiKeyRead:
         """Takes effect via a published invalidation event, not cache TTL."""
@@ -64,7 +64,7 @@ class ApiKeyService:
             self._redis,
             InvalidationEvent(entity_type="api_key", key=str(key_id), action="updated"),
         )
-        return ApiKeyRead.model_validate(key)
+        return ApiKeyRead.from_entity(key)
 
     async def delete(self, key_id: uuid.UUID) -> None:
         key = await self._by_id(key_id)

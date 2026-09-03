@@ -11,7 +11,6 @@ from fastapi.responses import StreamingResponse
 
 from bundlemcp.gateway.composition import BundleView
 from bundlemcp.gateway.mcp_endpoint.call_outcome import CallOutcome
-from bundlemcp.gateway.mcp_endpoint.caller_identity import caller_sub
 from bundlemcp.gateway.mcp_endpoint.forwarded_headers import forwarded_headers
 from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
 from bundlemcp.gateway.mcp_endpoint.jsonrpc import rpc_error, rpc_result
@@ -132,7 +131,7 @@ async def handle_call(
     arguments = params.get("arguments") or {}
     rpc_id = body.get("id")
 
-    sub = caller_sub(record)
+    sub = record.identity.sub
 
     pt = view.resolve(presented_name)
     audit_kwargs = dict(
@@ -140,9 +139,9 @@ async def handle_call(
         endpoint_name=view.endpoint.name,
         bundle_name=view.bundle.name,
         presented_tool_name=presented_name,
-        user_id=uuid.UUID(record.user_id) if record.user_id else None,
-        api_key_id=uuid.UUID(record.api_key_id) if record.api_key_id else None,
-        auth_method=record.auth_method,
+        user_id=record.identity.user_uuid,
+        api_key_id=record.identity.api_key_uuid,
+        auth_method=record.identity.auth_method,
         session_id=record.session_id,
     )
     if pt is None:
@@ -174,11 +173,9 @@ async def handle_call(
             return rpc_error(rpc_id, -32000, "upstream OAuth not configured on this gateway")
         per_user = pt.server.identity_mode == IdentityMode.PER_USER
         if per_user:
-            if record.user_id is None:  # UPO-6 guard (should be unreachable)
-                return rpc_error(
-                    rpc_id, -32000, "per_user upstream requires an authenticated user"
-                )
-            upstream_token_user = uuid.UUID(record.user_id)
+            upstream_token_user = record.identity.user_uuid
+            if upstream_token_user is None:  # UPO-6 guard (should be unreachable)
+                return rpc_error(rpc_id, -32000, "per_user upstream requires an authenticated user")
         try:
             access = await runtime.upstream_tokens.ensure_access_token(
                 pt.server, upstream_token_user
@@ -196,7 +193,7 @@ async def handle_call(
 
     ctx = MeterContext(
         sub=sub,
-        email=record.user_email,
+        email=record.identity.user_email,
         endpoint=view.endpoint.name,
         bundle=view.bundle.name,
         server=pt.server.name,

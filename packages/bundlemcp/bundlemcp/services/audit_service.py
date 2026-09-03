@@ -64,7 +64,7 @@ class AuditService:
             )
         ).scalars()
         return Page(
-            items=[AuditRecordRead.model_validate(r) for r in rows],
+            items=[AuditRecordRead.from_entity(r) for r in rows],
             total=total,
             offset=offset,
             limit=limit,

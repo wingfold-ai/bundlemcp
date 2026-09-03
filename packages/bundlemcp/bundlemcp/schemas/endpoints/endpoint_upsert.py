@@ -1,14 +1,14 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
-from bundlemcp.models import RESERVED_ENDPOINT_NAMES, EndpointAuthMode, EndpointProfile
+from bundlemcp.models import EndpointAuthMode, EndpointProfile
 from bundlemcp.schemas.endpoints.rate_limit_config import RateLimitConfig
-from bundlemcp.schemas.validation import validate_name
+from bundlemcp.schemas.resource_names import EndpointName
 
 
 class EndpointUpsert(BaseModel):
     """Body for creating or replacing an endpoint."""
 
-    name: str = Field(
+    name: EndpointName = Field(
         description="Unique endpoint name; it becomes the URL path segment clients call"
     )
     bundle_name: str = Field(description="Bundle this endpoint exposes")
@@ -37,14 +37,6 @@ class EndpointUpsert(BaseModel):
         description="Confirm a rename that would otherwise be rejected, accepting that clients "
         "using the old name will break",
     )
-
-    @field_validator("name")
-    @classmethod
-    def name_rules(cls, v: str) -> str:
-        validate_name(v)
-        if v.lower() in RESERVED_ENDPOINT_NAMES:
-            raise ValueError(f"'{v}' is a reserved endpoint name (EP-1)")
-        return v
 
     @model_validator(mode="after")
     def auth_and_profile_rules(self) -> "EndpointUpsert":

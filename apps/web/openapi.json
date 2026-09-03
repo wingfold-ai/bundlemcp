@@ -2,8 +2,10 @@
   "components": {
     "schemas": {
       "ApiKeyCreate": {
+        "description": "Body for creating an API key.",
         "properties": {
           "endpoint_ids": {
+            "description": "Endpoints an endpoint-kind key may call; empty means every endpoint",
             "items": {
               "format": "uuid",
               "type": "string"
@@ -12,15 +14,12 @@
             "type": "array"
           },
           "kind": {
+            "$ref": "#/components/schemas/ApiKeyKind",
             "default": "endpoint",
-            "enum": [
-              "endpoint",
-              "service"
-            ],
-            "title": "Kind",
-            "type": "string"
+            "description": "'endpoint' keys call MCP endpoints; 'service' keys call the management API"
           },
           "name": {
+            "description": "Human-readable label for the key, shown in listings",
             "title": "Name",
             "type": "string"
           }
@@ -32,13 +31,16 @@
         "type": "object"
       },
       "ApiKeyCreated": {
+        "description": "A newly created key, including the secret.",
         "properties": {
           "created_at": {
+            "description": "When the key was created",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
           "endpoint_ids": {
+            "description": "Endpoints this key may call; empty means every endpoint",
             "items": {
               "type": "string"
             },
@@ -46,25 +48,29 @@
             "type": "array"
           },
           "id": {
+            "description": "Identifier of the key",
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
           "is_active": {
+            "description": "Whether the key is currently accepted",
             "title": "Is Active",
             "type": "boolean"
           },
           "key": {
+            "description": "The secret value. Returned only in this response and never again, so store it now",
             "title": "Key",
             "type": "string"
           },
           "key_prefix": {
+            "description": "Leading characters of the secret, enough to recognise which key this is",
             "title": "Key Prefix",
             "type": "string"
           },
           "kind": {
-            "title": "Kind",
-            "type": "string"
+            "$ref": "#/components/schemas/ApiKeyKind",
+            "description": "'endpoint' for MCP access, 'service' for the management API"
           },
           "last_used_at": {
             "anyOf": [
@@ -76,9 +82,11 @@
                 "type": "null"
               }
             ],
+            "description": "When the key last authenticated a request; null if never used",
             "title": "Last Used At"
           },
           "name": {
+            "description": "Human-readable label given at creation",
             "title": "Name",
             "type": "string"
           }
@@ -97,14 +105,25 @@
         "title": "ApiKeyCreated",
         "type": "object"
       },
+      "ApiKeyKind": {
+        "enum": [
+          "endpoint",
+          "service"
+        ],
+        "title": "ApiKeyKind",
+        "type": "string"
+      },
       "ApiKeyRead": {
+        "description": "An API key as listed; the secret itself is never returned.",
         "properties": {
           "created_at": {
+            "description": "When the key was created",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
           "endpoint_ids": {
+            "description": "Endpoints this key may call; empty means every endpoint",
             "items": {
               "type": "string"
             },
@@ -112,21 +131,24 @@
             "type": "array"
           },
           "id": {
+            "description": "Identifier of the key",
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
           "is_active": {
+            "description": "Whether the key is currently accepted",
             "title": "Is Active",
             "type": "boolean"
           },
           "key_prefix": {
+            "description": "Leading characters of the secret, enough to recognise which key this is",
             "title": "Key Prefix",
             "type": "string"
           },
           "kind": {
-            "title": "Kind",
-            "type": "string"
+            "$ref": "#/components/schemas/ApiKeyKind",
+            "description": "'endpoint' for MCP access, 'service' for the management API"
           },
           "last_used_at": {
             "anyOf": [
@@ -138,9 +160,11 @@
                 "type": "null"
               }
             ],
+            "description": "When the key last authenticated a request; null if never used",
             "title": "Last Used At"
           },
           "name": {
+            "description": "Human-readable label given at creation",
             "title": "Name",
             "type": "string"
           }
@@ -159,6 +183,7 @@
         "type": "object"
       },
       "AuditRecordRead": {
+        "description": "One recorded tool call, successful or not.",
         "properties": {
           "api_key_id": {
             "anyOf": [
@@ -170,24 +195,27 @@
                 "type": "null"
               }
             ],
+            "description": "API key used, when one was",
             "title": "Api Key Id"
           },
           "auth_method": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/EndpointAuthMode"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Auth Method"
+            "description": "How the caller authenticated: oauth, api_key or none"
           },
           "bundle_name": {
+            "description": "Bundle the endpoint exposed at the time of the call",
             "title": "Bundle Name",
             "type": "string"
           },
           "created_at": {
+            "description": "When the call was recorded",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
@@ -201,6 +229,7 @@
                 "type": "null"
               }
             ],
+            "description": "Why a denied call was refused, such as a metering or rate-limit decision",
             "title": "Denied Reason"
           },
           "duration_ms": {
@@ -212,6 +241,7 @@
                 "type": "null"
               }
             ],
+            "description": "Time spent on the upstream call; null when the call was denied",
             "title": "Duration Ms"
           },
           "endpoint_id": {
@@ -224,9 +254,11 @@
                 "type": "null"
               }
             ],
+            "description": "Endpoint the call arrived on; null once that endpoint is deleted",
             "title": "Endpoint Id"
           },
           "endpoint_name": {
+            "description": "Endpoint name as it was at the time of the call",
             "title": "Endpoint Name",
             "type": "string"
           },
@@ -239,9 +271,11 @@
                 "type": "null"
               }
             ],
+            "description": "Failure detail when the call errored",
             "title": "Error Message"
           },
           "id": {
+            "description": "Identifier of the audit record",
             "format": "uuid",
             "title": "Id",
             "type": "string"
@@ -255,6 +289,7 @@
                 "type": "null"
               }
             ],
+            "description": "Tool name as the client used it, including any override",
             "title": "Presented Tool Name"
           },
           "server_name": {
@@ -266,6 +301,7 @@
                 "type": "null"
               }
             ],
+            "description": "Upstream server the call was routed to; null if it never got that far",
             "title": "Server Name"
           },
           "session_id": {
@@ -277,11 +313,12 @@
                 "type": "null"
               }
             ],
+            "description": "MCP session the call belonged to",
             "title": "Session Id"
           },
           "status": {
-            "title": "Status",
-            "type": "string"
+            "$ref": "#/components/schemas/AuditStatus",
+            "description": "Outcome: success, error or denied"
           },
           "tool_name": {
             "anyOf": [
@@ -292,6 +329,7 @@
                 "type": "null"
               }
             ],
+            "description": "Upstream tool name, without the bundle prefix",
             "title": "Tool Name"
           },
           "user_id": {
@@ -304,6 +342,7 @@
                 "type": "null"
               }
             ],
+            "description": "Authenticated user, when OAuth was used",
             "title": "User Id"
           }
         },
@@ -328,27 +367,40 @@
         "title": "AuditRecordRead",
         "type": "object"
       },
+      "AuditStatus": {
+        "enum": [
+          "success",
+          "error",
+          "denied"
+        ],
+        "title": "AuditStatus",
+        "type": "string"
+      },
       "BundleMemberRead": {
         "description": "A server's membership in a bundle.",
         "properties": {
           "enabled": {
+            "description": "Whether this membership contributes tools; disabling hides them without losing their curation",
             "title": "Enabled",
             "type": "boolean"
           },
           "health_status": {
-            "title": "Health Status",
-            "type": "string"
+            "$ref": "#/components/schemas/HealthStatus",
+            "description": "Result of the most recent probe: ok, error or unknown"
           },
           "server_id": {
+            "description": "Identifier of the member server",
             "format": "uuid",
             "title": "Server Id",
             "type": "string"
           },
           "server_name": {
+            "description": "Name of the member server",
             "title": "Server Name",
             "type": "string"
           },
           "server_url": {
+            "description": "Streamable HTTP URL the server is reached at",
             "title": "Server Url",
             "type": "string"
           }
@@ -363,9 +415,38 @@
         "title": "BundleMemberRead",
         "type": "object"
       },
+      "BundleMembershipRead": {
+        "description": "The result of adding a server to a bundle or toggling its membership.",
+        "properties": {
+          "bundle": {
+            "description": "Bundle the server belongs to",
+            "title": "Bundle",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Whether the membership currently contributes tools",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "server": {
+            "description": "Member server",
+            "title": "Server",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bundle",
+          "server",
+          "enabled"
+        ],
+        "title": "BundleMembershipRead",
+        "type": "object"
+      },
       "BundleRead": {
+        "description": "A bundle as stored.",
         "properties": {
           "created_at": {
+            "description": "When the bundle was created",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
@@ -379,18 +460,22 @@
                 "type": "null"
               }
             ],
+            "description": "Free-text note about what this bundle is for",
             "title": "Description"
           },
           "id": {
+            "description": "Identifier of the bundle",
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
           "name": {
+            "description": "Unique bundle name",
             "title": "Name",
             "type": "string"
           },
           "updated_at": {
+            "description": "When the bundle was last changed",
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
@@ -407,9 +492,11 @@
         "type": "object"
       },
       "BundleServerUpdate": {
+        "description": "Body for toggling one server's membership in a bundle.",
         "properties": {
           "enabled": {
             "default": true,
+            "description": "Whether the server's tools are served through this bundle",
             "title": "Enabled",
             "type": "boolean"
           }
@@ -429,17 +516,21 @@
                 "type": "null"
               }
             ],
+            "description": "Upstream description, before any override",
             "title": "Description"
           },
           "enabled": {
+            "description": "Whether this tool is served through the bundle; true unless curated off",
             "title": "Enabled",
             "type": "boolean"
           },
           "member_enabled": {
+            "description": "Whether the owning server's membership is enabled; a disabled member hides its tools regardless of their own toggle",
             "title": "Member Enabled",
             "type": "boolean"
           },
           "name": {
+            "description": "Tool name as the upstream server reports it",
             "title": "Name",
             "type": "string"
           },
@@ -452,6 +543,7 @@
                 "type": "null"
               }
             ],
+            "description": "Replacement description set on this bundle",
             "title": "Override Description"
           },
           "override_name": {
@@ -463,6 +555,7 @@
                 "type": "null"
               }
             ],
+            "description": "Replacement name set on this bundle",
             "title": "Override Name"
           },
           "override_title": {
@@ -474,13 +567,16 @@
                 "type": "null"
               }
             ],
+            "description": "Replacement title set on this bundle",
             "title": "Override Title"
           },
           "presented_name": {
+            "description": "Name clients see: the override if set, otherwise 'server__tool'",
             "title": "Presented Name",
             "type": "string"
           },
           "server_name": {
+            "description": "Server that provides the tool",
             "title": "Server Name",
             "type": "string"
           },
@@ -493,9 +589,11 @@
                 "type": "null"
               }
             ],
+            "description": "Upstream display title, before any override",
             "title": "Title"
           },
           "tool_id": {
+            "description": "Identifier of the cached upstream tool",
             "format": "uuid",
             "title": "Tool Id",
             "type": "string"
@@ -522,6 +620,7 @@
         "properties": {
           "enabled": {
             "default": true,
+            "description": "Whether this tool is served through the bundle",
             "title": "Enabled",
             "type": "boolean"
           },
@@ -535,6 +634,7 @@
                 "type": "null"
               }
             ],
+            "description": "Replacement MCP annotations for this bundle",
             "title": "Override Annotations"
           },
           "override_description": {
@@ -546,6 +646,7 @@
                 "type": "null"
               }
             ],
+            "description": "Replacement description for this bundle, for tailoring what the calling model is told about the tool",
             "title": "Override Description"
           },
           "override_name": {
@@ -557,6 +658,7 @@
                 "type": "null"
               }
             ],
+            "description": "Replacement name clients see instead of 'server__tool'; must still be unique within the bundle",
             "title": "Override Name"
           },
           "override_title": {
@@ -568,6 +670,7 @@
                 "type": "null"
               }
             ],
+            "description": "Replacement display title for this bundle",
             "title": "Override Title"
           }
         },
@@ -575,6 +678,7 @@
         "type": "object"
       },
       "BundleUpsert": {
+        "description": "Body for creating or replacing a bundle.",
         "properties": {
           "description": {
             "anyOf": [
@@ -585,9 +689,11 @@
                 "type": "null"
               }
             ],
+            "description": "Free-text note about what this bundle is for",
             "title": "Description"
           },
           "name": {
+            "description": "Unique bundle name; lowercase letters, digits and hyphens",
             "title": "Name",
             "type": "string"
           }
@@ -598,9 +704,31 @@
         "title": "BundleUpsert",
         "type": "object"
       },
+      "ConfigEntryRead": {
+        "description": "One runtime-tunable setting after a change.",
+        "properties": {
+          "key": {
+            "description": "Name of the setting",
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "description": "The value now in effect, in the type the key declares",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "ConfigEntryRead",
+        "type": "object"
+      },
       "ConfigValue": {
+        "description": "A runtime-tunable configuration value.",
         "properties": {
           "value": {
+            "description": "The value to store, coerced to the type the key declares",
             "title": "Value"
           }
         },
@@ -611,22 +739,27 @@
         "type": "object"
       },
       "ConsentRead": {
+        "description": "A user's standing consent for one OAuth client on one endpoint.",
         "properties": {
           "client_id": {
+            "description": "OAuth client the consent was granted to",
             "title": "Client Id",
             "type": "string"
           },
           "endpoint_id": {
+            "description": "Endpoint the consent covers",
             "format": "uuid",
             "title": "Endpoint Id",
             "type": "string"
           },
           "granted_at": {
+            "description": "When the user granted it",
             "format": "date-time",
             "title": "Granted At",
             "type": "string"
           },
           "id": {
+            "description": "Identifier of the consent record",
             "format": "uuid",
             "title": "Id",
             "type": "string"
@@ -639,6 +772,37 @@
           "granted_at"
         ],
         "title": "ConsentRead",
+        "type": "object"
+      },
+      "DiscoveryResult": {
+        "description": "Outcome of one probe against an upstream server.",
+        "properties": {
+          "changed": {
+            "default": 0,
+            "description": "Tools written to the cache because their definition hash moved",
+            "title": "Changed",
+            "type": "integer"
+          },
+          "discovered": {
+            "default": 0,
+            "description": "Tools the upstream reported in this probe",
+            "title": "Discovered",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the probe failed; None when it succeeded",
+            "title": "Error"
+          }
+        },
+        "title": "DiscoveryResult",
         "type": "object"
       },
       "EndpointAuthMode": {
@@ -659,41 +823,80 @@
         "title": "EndpointProfile",
         "type": "string"
       },
+      "EndpointProfileRead": {
+        "description": "One of the client profiles an endpoint can be shaped for.",
+        "properties": {
+          "description": {
+            "description": "What the profile changes about the served surface",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/EndpointProfile",
+            "description": "Profile identifier to use in an endpoint's profile"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A caveat operators should know before choosing this profile, if any",
+            "title": "Warning"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "EndpointProfileRead",
+        "type": "object"
+      },
       "EndpointRead": {
+        "description": "An endpoint as stored.",
         "properties": {
           "auth_modes": {
+            "description": "Accepted credentials: oauth, api_key, or none for an open endpoint",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EndpointAuthMode"
             },
             "title": "Auth Modes",
             "type": "array"
           },
           "bundle_id": {
+            "description": "Bundle this endpoint exposes",
             "format": "uuid",
             "title": "Bundle Id",
             "type": "string"
           },
           "created_at": {
+            "description": "When the endpoint was created",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
           "enabled": {
+            "description": "Whether the endpoint currently serves requests",
             "title": "Enabled",
             "type": "boolean"
           },
           "id": {
+            "description": "Identifier of the endpoint",
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
           "name": {
+            "description": "Unique endpoint name; it forms the URL path segment",
             "title": "Name",
             "type": "string"
           },
           "profile": {
-            "title": "Profile",
-            "type": "string"
+            "$ref": "#/components/schemas/EndpointProfile",
+            "description": "Client profile shaping the responses, such as the claude or chatgpt profile"
           },
           "rate_limit": {
             "anyOf": [
@@ -705,9 +908,11 @@
                 "type": "null"
               }
             ],
+            "description": "Rate-limit configuration; null when the endpoint is unlimited",
             "title": "Rate Limit"
           },
           "updated_at": {
+            "description": "When the endpoint was last changed",
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
@@ -728,13 +933,16 @@
         "type": "object"
       },
       "EndpointUpsert": {
+        "description": "Body for creating or replacing an endpoint.",
         "properties": {
           "allow_unauthenticated": {
             "default": false,
+            "description": "Confirms an intentionally open endpoint. Required whenever auth_modes is ['none'], so an endpoint is never left unauthenticated by accident",
             "title": "Allow Unauthenticated",
             "type": "boolean"
           },
           "auth_modes": {
+            "description": "Accepted credentials. 'none' is only valid on its own and additionally requires allow_unauthenticated",
             "items": {
               "$ref": "#/components/schemas/EndpointAuthMode"
             },
@@ -742,26 +950,31 @@
             "type": "array"
           },
           "bundle_name": {
+            "description": "Bundle this endpoint exposes",
             "title": "Bundle Name",
             "type": "string"
           },
           "enabled": {
             "default": true,
+            "description": "Whether the endpoint serves requests once saved",
             "title": "Enabled",
             "type": "boolean"
           },
           "force": {
             "default": false,
+            "description": "Confirm a rename that would otherwise be rejected, accepting that clients using the old name will break",
             "title": "Force",
             "type": "boolean"
           },
           "name": {
+            "description": "Unique endpoint name; it becomes the URL path segment clients call",
             "title": "Name",
             "type": "string"
           },
           "profile": {
             "$ref": "#/components/schemas/EndpointProfile",
-            "default": "default"
+            "default": "default",
+            "description": "Client profile shaping the responses for a particular consumer"
           },
           "rate_limit": {
             "anyOf": [
@@ -771,7 +984,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Rate limits for this endpoint; omit for unlimited"
           }
         },
         "required": [
@@ -794,6 +1008,23 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HealthStatus": {
+        "enum": [
+          "ok",
+          "error",
+          "unknown"
+        ],
+        "title": "HealthStatus",
+        "type": "string"
+      },
+      "IdentityMode": {
+        "enum": [
+          "shared",
+          "per_user"
+        ],
+        "title": "IdentityMode",
+        "type": "string"
+      },
       "MeRead": {
         "description": "The caller's own identity: session user (admin or not) or service key.",
         "properties": {
@@ -807,6 +1038,7 @@
                 "type": "null"
               }
             ],
+            "description": "The service key used; null for browser sessions",
             "title": "Api Key Id"
           },
           "display_name": {
@@ -818,6 +1050,7 @@
                 "type": "null"
               }
             ],
+            "description": "Display name of the signed-in user",
             "title": "Display Name"
           },
           "email": {
@@ -829,14 +1062,22 @@
                 "type": "null"
               }
             ],
+            "description": "Email of the signed-in user",
             "title": "Email"
           },
           "is_admin": {
             "default": false,
+            "description": "Whether the caller may use the management API",
             "title": "Is Admin",
             "type": "boolean"
           },
           "kind": {
+            "description": "What authenticated this call: an admin session, a signed-in user without admin rights, or a service API key",
+            "enum": [
+              "admin",
+              "user",
+              "service"
+            ],
             "title": "Kind",
             "type": "string"
           },
@@ -850,6 +1091,7 @@
                 "type": "null"
               }
             ],
+            "description": "The signed-in user; null for service keys",
             "title": "User Id"
           }
         },
@@ -862,6 +1104,7 @@
       "Page_ApiKeyRead_": {
         "properties": {
           "items": {
+            "description": "The page of results",
             "items": {
               "$ref": "#/components/schemas/ApiKeyRead"
             },
@@ -869,14 +1112,17 @@
             "type": "array"
           },
           "limit": {
+            "description": "Maximum records this page may contain",
             "title": "Limit",
             "type": "integer"
           },
           "offset": {
+            "description": "Records skipped before this page",
             "title": "Offset",
             "type": "integer"
           },
           "total": {
+            "description": "Total matching records, ignoring offset and limit",
             "title": "Total",
             "type": "integer"
           }
@@ -893,6 +1139,7 @@
       "Page_AuditRecordRead_": {
         "properties": {
           "items": {
+            "description": "The page of results",
             "items": {
               "$ref": "#/components/schemas/AuditRecordRead"
             },
@@ -900,14 +1147,17 @@
             "type": "array"
           },
           "limit": {
+            "description": "Maximum records this page may contain",
             "title": "Limit",
             "type": "integer"
           },
           "offset": {
+            "description": "Records skipped before this page",
             "title": "Offset",
             "type": "integer"
           },
           "total": {
+            "description": "Total matching records, ignoring offset and limit",
             "title": "Total",
             "type": "integer"
           }
@@ -924,6 +1174,7 @@
       "Page_BundleRead_": {
         "properties": {
           "items": {
+            "description": "The page of results",
             "items": {
               "$ref": "#/components/schemas/BundleRead"
             },
@@ -931,14 +1182,17 @@
             "type": "array"
           },
           "limit": {
+            "description": "Maximum records this page may contain",
             "title": "Limit",
             "type": "integer"
           },
           "offset": {
+            "description": "Records skipped before this page",
             "title": "Offset",
             "type": "integer"
           },
           "total": {
+            "description": "Total matching records, ignoring offset and limit",
             "title": "Total",
             "type": "integer"
           }
@@ -955,6 +1209,7 @@
       "Page_EndpointRead_": {
         "properties": {
           "items": {
+            "description": "The page of results",
             "items": {
               "$ref": "#/components/schemas/EndpointRead"
             },
@@ -962,14 +1217,17 @@
             "type": "array"
           },
           "limit": {
+            "description": "Maximum records this page may contain",
             "title": "Limit",
             "type": "integer"
           },
           "offset": {
+            "description": "Records skipped before this page",
             "title": "Offset",
             "type": "integer"
           },
           "total": {
+            "description": "Total matching records, ignoring offset and limit",
             "title": "Total",
             "type": "integer"
           }
@@ -986,6 +1244,7 @@
       "Page_ServerRead_": {
         "properties": {
           "items": {
+            "description": "The page of results",
             "items": {
               "$ref": "#/components/schemas/ServerRead"
             },
@@ -993,14 +1252,17 @@
             "type": "array"
           },
           "limit": {
+            "description": "Maximum records this page may contain",
             "title": "Limit",
             "type": "integer"
           },
           "offset": {
+            "description": "Records skipped before this page",
             "title": "Offset",
             "type": "integer"
           },
           "total": {
+            "description": "Total matching records, ignoring offset and limit",
             "title": "Total",
             "type": "integer"
           }
@@ -1017,6 +1279,7 @@
       "Page_ToolRead_": {
         "properties": {
           "items": {
+            "description": "The page of results",
             "items": {
               "$ref": "#/components/schemas/ToolRead"
             },
@@ -1024,14 +1287,17 @@
             "type": "array"
           },
           "limit": {
+            "description": "Maximum records this page may contain",
             "title": "Limit",
             "type": "integer"
           },
           "offset": {
+            "description": "Records skipped before this page",
             "title": "Offset",
             "type": "integer"
           },
           "total": {
+            "description": "Total matching records, ignoring offset and limit",
             "title": "Total",
             "type": "integer"
           }
@@ -1048,6 +1314,7 @@
       "Page_UserRead_": {
         "properties": {
           "items": {
+            "description": "The page of results",
             "items": {
               "$ref": "#/components/schemas/UserRead"
             },
@@ -1055,14 +1322,17 @@
             "type": "array"
           },
           "limit": {
+            "description": "Maximum records this page may contain",
             "title": "Limit",
             "type": "integer"
           },
           "offset": {
+            "description": "Records skipped before this page",
             "title": "Offset",
             "type": "integer"
           },
           "total": {
+            "description": "Total matching records, ignoring offset and limit",
             "title": "Total",
             "type": "integer"
           }
@@ -1087,15 +1357,18 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Limit shared by every caller of the endpoint; omit for no overall cap"
           },
           "fail_closed": {
             "default": false,
+            "description": "Whether requests are denied when the rate-limit store is unreachable. False keeps serving traffic unlimited during an outage",
             "title": "Fail Closed",
             "type": "boolean"
           },
           "include_initialize_list": {
             "default": false,
+            "description": "Whether initialize and tools/list count against these limits; by default only tool calls do",
             "title": "Include Initialize List",
             "type": "boolean"
           },
@@ -1107,20 +1380,24 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Limit applied per caller, keyed by OAuth user, else API key, else client IP"
           }
         },
         "title": "RateLimitConfig",
         "type": "object"
       },
       "RateRule": {
+        "description": "One fixed-window rate limit.",
         "properties": {
           "limit": {
+            "description": "Requests permitted within each window",
             "exclusiveMinimum": 0.0,
             "title": "Limit",
             "type": "integer"
           },
           "window_seconds": {
+            "description": "Length of the window in seconds",
             "exclusiveMinimum": 0.0,
             "title": "Window Seconds",
             "type": "integer"
@@ -1143,18 +1420,21 @@
         "type": "string"
       },
       "ServerRead": {
+        "description": "An upstream server as stored, with header values withheld.",
         "properties": {
           "auth_mode": {
-            "title": "Auth Mode",
-            "type": "string"
+            "$ref": "#/components/schemas/ServerAuthMode",
+            "description": "How the gateway authenticates to this server"
           },
           "capabilities": {
             "additionalProperties": true,
             "default": {},
+            "description": "What the server advertised at its last probe: which of tools, prompts, resources, completions and logging it supports, with its listChanged and subscribe flags",
             "title": "Capabilities",
             "type": "object"
           },
           "created_at": {
+            "description": "When the server was registered",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
@@ -1168,27 +1448,30 @@
                 "type": "null"
               }
             ],
+            "description": "Free-text note about what this server provides",
             "title": "Description"
           },
           "forward_headers": {
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Client headers passed through, mapped from incoming name to upstream name",
             "title": "Forward Headers",
             "type": "object"
           },
           "health_status": {
-            "title": "Health Status",
-            "type": "string"
+            "$ref": "#/components/schemas/HealthStatus",
+            "description": "Result of the most recent probe: ok, error or unknown"
           },
           "id": {
+            "description": "Identifier of the server",
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
           "identity_mode": {
-            "title": "Identity Mode",
-            "type": "string"
+            "$ref": "#/components/schemas/IdentityMode",
+            "description": "Whether callers share one upstream identity or each gets their own"
           },
           "last_error": {
             "anyOf": [
@@ -1199,18 +1482,22 @@
                 "type": "null"
               }
             ],
+            "description": "Why the last probe failed, if it did",
             "title": "Last Error"
           },
           "name": {
+            "description": "Unique server name",
             "title": "Name",
             "type": "string"
           },
           "send_identity_header": {
+            "description": "Whether the calling user's identity is forwarded upstream",
             "title": "Send Identity Header",
             "type": "boolean"
           },
           "static_header_names": {
             "default": [],
+            "description": "Names of the headers sent upstream. Values are write-only and never leave the API, so only the names appear here",
             "items": {
               "type": "string"
             },
@@ -1218,11 +1505,13 @@
             "type": "array"
           },
           "updated_at": {
+            "description": "When the server was last changed",
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
           },
           "url": {
+            "description": "Streamable HTTP URL the server is reached at",
             "title": "Url",
             "type": "string"
           }
@@ -1249,7 +1538,8 @@
         "properties": {
           "auth_mode": {
             "$ref": "#/components/schemas/ServerAuthMode",
-            "default": "none"
+            "default": "none",
+            "description": "How the gateway authenticates to this server"
           },
           "description": {
             "anyOf": [
@@ -1260,10 +1550,12 @@
                 "type": "null"
               }
             ],
+            "description": "Free-text note about what this server provides",
             "title": "Description"
           },
           "force": {
             "default": false,
+            "description": "Confirm a rename that would otherwise be rejected, accepting that bundles and tool names derived from the old name change with it",
             "title": "Force",
             "type": "boolean"
           },
@@ -1271,24 +1563,23 @@
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Client headers to pass through, mapped from incoming name to upstream name",
             "title": "Forward Headers",
             "type": "object"
           },
           "identity_mode": {
+            "$ref": "#/components/schemas/IdentityMode",
             "default": "shared",
-            "enum": [
-              "shared",
-              "per_user"
-            ],
-            "title": "Identity Mode",
-            "type": "string"
+            "description": "Whether all callers share one upstream identity or each gets their own"
           },
           "name": {
+            "description": "Unique server name; lowercase letters, digits and hyphens, and it may not contain a double underscore because that separates server from tool",
             "title": "Name",
             "type": "string"
           },
           "send_identity_header": {
             "default": true,
+            "description": "Whether the calling user's identity is forwarded to the upstream server",
             "title": "Send Identity Header",
             "type": "boolean"
           },
@@ -1296,6 +1587,7 @@
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Headers sent on every upstream request, for credentials the server needs. Values are write-only and never returned",
             "title": "Static Headers",
             "type": "object"
           },
@@ -1309,9 +1601,11 @@
                 "type": "null"
               }
             ],
+            "description": "Upstream transport. Only streamable-http is supported; the field exists so payloads that state it explicitly are accepted",
             "title": "Transport"
           },
           "url": {
+            "description": "Streamable HTTP URL of the upstream MCP server",
             "title": "Url",
             "type": "string"
           }
@@ -1323,7 +1617,95 @@
         "title": "ServerUpsert",
         "type": "object"
       },
+      "ToolCurationRead": {
+        "description": "How one tool is curated within a bundle, as stored after an update.",
+        "properties": {
+          "bundle": {
+            "description": "Bundle the curation applies to",
+            "title": "Bundle",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Whether the tool is served through this bundle",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "override_annotations": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replacement MCP annotations, when set",
+            "title": "Override Annotations"
+          },
+          "override_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replacement description, when one is set",
+            "title": "Override Description"
+          },
+          "override_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replacement name, when one is set",
+            "title": "Override Name"
+          },
+          "override_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replacement display title, when one is set",
+            "title": "Override Title"
+          },
+          "presented_name": {
+            "description": "Name clients now see: the override if set, otherwise 'server__tool'",
+            "title": "Presented Name",
+            "type": "string"
+          },
+          "tool_id": {
+            "description": "Tool being curated",
+            "format": "uuid",
+            "title": "Tool Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bundle",
+          "tool_id",
+          "enabled",
+          "presented_name",
+          "override_name",
+          "override_title",
+          "override_description",
+          "override_annotations"
+        ],
+        "title": "ToolCurationRead",
+        "type": "object"
+      },
       "ToolRead": {
+        "description": "A tool definition as cached from its upstream server.",
         "properties": {
           "annotations": {
             "anyOf": [
@@ -1335,6 +1717,7 @@
                 "type": "null"
               }
             ],
+            "description": "MCP tool annotations such as read-only and destructive hints",
             "title": "Annotations"
           },
           "description": {
@@ -1346,28 +1729,34 @@
                 "type": "null"
               }
             ],
+            "description": "Description the upstream server reports",
             "title": "Description"
           },
           "id": {
+            "description": "Identifier of the cached tool",
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
           "input_schema": {
             "additionalProperties": true,
+            "description": "JSON Schema for the tool's arguments",
             "title": "Input Schema",
             "type": "object"
           },
           "last_seen_at": {
+            "description": "When the tool was last reported by its server. A stale value means the tool has disappeared upstream and is no longer served",
             "format": "date-time",
             "title": "Last Seen At",
             "type": "string"
           },
           "name": {
+            "description": "Tool name as the upstream server reports it",
             "title": "Name",
             "type": "string"
           },
           "server_id": {
+            "description": "Server that provides the tool",
             "format": "uuid",
             "title": "Server Id",
             "type": "string"
@@ -1381,6 +1770,7 @@
                 "type": "null"
               }
             ],
+            "description": "Display title the upstream server reports",
             "title": "Title"
           }
         },
@@ -1397,6 +1787,77 @@
         "title": "ToolRead",
         "type": "object"
       },
+      "UpstreamConnectionStatus": {
+        "description": "Whether one upstream OAuth connection currently works, without any token material.",
+        "properties": {
+          "account_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Masked account or email identifying the connected account",
+            "title": "Account Hint"
+          },
+          "connected": {
+            "default": false,
+            "description": "Whether a valid, unexpired token set is stored",
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the current access token expires, if known",
+            "title": "Expires At"
+          },
+          "valid": {
+            "default": false,
+            "description": "Whether the upstream last accepted the stored tokens; false after a failed refresh until the account is reconnected",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "title": "UpstreamConnectionStatus",
+        "type": "object"
+      },
+      "UpstreamOAuthClientRead": {
+        "description": "The stored upstream OAuth client registration, secret withheld.",
+        "properties": {
+          "client_id": {
+            "description": "Client id at the upstream authorization server",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "has_secret": {
+            "description": "Whether a client secret is stored. The secret itself is never returned",
+            "title": "Has Secret",
+            "type": "boolean"
+          },
+          "server": {
+            "description": "Server the client is registered for",
+            "title": "Server",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server",
+          "client_id",
+          "has_secret"
+        ],
+        "title": "UpstreamOAuthClientRead",
+        "type": "object"
+      },
       "UpstreamOAuthConfig": {
         "description": "Pre-registered upstream OAuth client + optional explicit endpoints.",
         "properties": {
@@ -1409,9 +1870,11 @@
                 "type": "null"
               }
             ],
+            "description": "Authorization endpoint, when it cannot be discovered automatically",
             "title": "Authorization Url"
           },
           "client_id": {
+            "description": "Client id registered with the upstream authorization server",
             "title": "Client Id",
             "type": "string"
           },
@@ -1424,6 +1887,7 @@
                 "type": "null"
               }
             ],
+            "description": "Client secret for the upstream authorization server. Write-only; it is never returned",
             "title": "Client Secret"
           },
           "token_url": {
@@ -1435,6 +1899,7 @@
                 "type": "null"
               }
             ],
+            "description": "Token endpoint, when it cannot be discovered automatically",
             "title": "Token Url"
           }
         },
@@ -1444,7 +1909,39 @@
         "title": "UpstreamOAuthConfig",
         "type": "object"
       },
+      "UpstreamOAuthStatusRead": {
+        "description": "Connection state of a server's upstream OAuth, never its token values.",
+        "properties": {
+          "configured": {
+            "description": "Whether this gateway can store upstream tokens at all; false until token encryption keys are configured",
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "identity_mode": {
+            "$ref": "#/components/schemas/IdentityMode",
+            "description": "Whether callers share one upstream identity or each connects their own"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamConnectionStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "State of the shared connection; null when upstream OAuth is not configured"
+          }
+        },
+        "required": [
+          "identity_mode",
+          "configured"
+        ],
+        "title": "UpstreamOAuthStatusRead",
+        "type": "object"
+      },
       "UserRead": {
+        "description": "A user provisioned from the identity provider at login.",
         "properties": {
           "display_name": {
             "anyOf": [
@@ -1455,6 +1952,7 @@
                 "type": "null"
               }
             ],
+            "description": "Display name from the identity provider",
             "title": "Display Name"
           },
           "email": {
@@ -1466,18 +1964,22 @@
                 "type": "null"
               }
             ],
+            "description": "Email claim from the identity provider, if it sent one",
             "title": "Email"
           },
           "id": {
+            "description": "Identifier of the user",
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
           "is_active": {
+            "description": "Whether the user may authenticate; deactivating also ends their sessions",
             "title": "Is Active",
             "type": "boolean"
           },
           "is_admin": {
+            "description": "Whether the user held admin rights at their most recent login",
             "title": "Is Admin",
             "type": "boolean"
           }
@@ -2225,9 +2727,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Add Or Update Member Api V1 Bundles  Name  Servers  Server Name  Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/BundleMembershipRead"
                 }
               }
             },
@@ -2335,9 +2835,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Curate Tool Api V1 Bundles  Name  Tools  Tool Id  Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ToolCurationRead"
                 }
               }
             },
@@ -2445,9 +2943,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Set Config Api V1 Config  Key  Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ConfigEntryRead"
                 }
               }
             },
@@ -2536,8 +3032,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/EndpointProfileRead"
                   },
                   "title": "Response List Profiles Api V1 Endpoints Profiles Get",
                   "type": "array"
@@ -3026,9 +3521,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Upstream Oauth Status Api V1 Servers  Name  Upstream Oauth Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/UpstreamOAuthStatusRead"
                 }
               }
             },
@@ -3078,9 +3571,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Set Upstream Oauth Api V1 Servers  Name  Upstream Oauth Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/UpstreamOAuthClientRead"
                 }
               }
             },
@@ -3157,9 +3648,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Refresh Tools Api V1 Servers  Name  Refresh Tools Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/DiscoveryResult"
                 }
               }
             },

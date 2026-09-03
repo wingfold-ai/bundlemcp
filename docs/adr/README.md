@@ -30,3 +30,4 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0021](0021-mcp-surface-completion.md) | Complete the MCP surface: prompts/resources/completions passthrough, capability aggregation, version negotiation, roots/logging relay | accepted |
 | [0022](0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | accepted |
 | [0023](0023-import-contracts-and-shared-providers.md) | Import contracts enforce layer direction; shared providers at library level | accepted |
+| [0024](0024-value-objects-and-rich-entities.md) | Value objects for what crosses the edge; behavior on the entities that own it | accepted |

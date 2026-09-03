@@ -1,20 +1,23 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from bundlemcp.models import ApiKeyKind
+from bundlemcp.schemas.common.entity_read import EntityRead
 
 
-class ApiKeyRead(BaseModel):
+class ApiKeyRead(EntityRead):
     """An API key as listed; the secret itself is never returned."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID = Field(description="Identifier of the key")
     name: str = Field(description="Human-readable label given at creation")
     key_prefix: str = Field(
         description="Leading characters of the secret, enough to recognise which key this is"
     )
-    kind: str = Field(description="'endpoint' for MCP access, 'service' for the management API")
+    kind: ApiKeyKind = Field(
+        description="'endpoint' for MCP access, 'service' for the management API"
+    )
     endpoint_ids: list[str] = Field(
         description="Endpoints this key may call; empty means every endpoint"
     )

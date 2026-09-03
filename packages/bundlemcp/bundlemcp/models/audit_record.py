@@ -1,10 +1,12 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, ForeignKey, Index
+from sqlalchemy import Column, ForeignKey, Index, String
 from sqlmodel import Field, SQLModel
 
+from bundlemcp.models.audit_status import AuditStatus
 from bundlemcp.models.base import _ts, utcnow
+from bundlemcp.models.endpoint_auth_mode import EndpointAuthMode
 
 
 class AuditRecord(SQLModel, table=True):
@@ -52,11 +54,15 @@ class AuditRecord(SQLModel, table=True):
         sa_column=Column(ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True),
         description="API key used, when one was",
     )
-    auth_method: str | None = Field(
-        default=None, description="How the caller authenticated: oauth, api_key or none"
+    auth_method: EndpointAuthMode | None = Field(
+        default=None,
+        sa_type=String,
+        description="How the caller authenticated: oauth, api_key or none",
     )
     session_id: str | None = Field(default=None, description="MCP session the call belonged to")
-    status: str = Field(description="Outcome of the call: success, error or denied")
+    status: AuditStatus = Field(
+        sa_type=String, description="Outcome of the call: success, error or denied"
+    )
     denied_reason: str | None = Field(  # AUD-2
         default=None,
         description="Why a denied call was refused, such as a metering or rate-limit decision",

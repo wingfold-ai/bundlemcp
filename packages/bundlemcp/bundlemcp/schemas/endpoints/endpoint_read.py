@@ -2,21 +2,22 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from bundlemcp.models import EndpointAuthMode, EndpointProfile
+from bundlemcp.schemas.common.entity_read import EntityRead
 
 
-class EndpointRead(BaseModel):
+class EndpointRead(EntityRead):
     """An endpoint as stored."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID = Field(description="Identifier of the endpoint")
     name: str = Field(description="Unique endpoint name; it forms the URL path segment")
     bundle_id: uuid.UUID = Field(description="Bundle this endpoint exposes")
-    profile: str = Field(
+    profile: EndpointProfile = Field(
         description="Client profile shaping the responses, such as the claude or chatgpt profile"
     )
-    auth_modes: list[str] = Field(
+    auth_modes: list[EndpointAuthMode] = Field(
         description="Accepted credentials: oauth, api_key, or none for an open endpoint"
     )
     rate_limit: dict[str, Any] | None = Field(

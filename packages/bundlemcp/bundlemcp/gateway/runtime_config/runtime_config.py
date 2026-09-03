@@ -5,6 +5,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlmodel import select
 
+from bundlemcp.gateway.runtime_config.call_timeouts import CallTimeouts
 from bundlemcp.models import ConfigEntry
 from bundlemcp.services.config_service import DEFAULTS, UnknownConfigKey, coerce
 
@@ -27,6 +28,14 @@ class RuntimeConfig:
             await self._load()
         default, _typ = DEFAULTS[key]
         return self._cache.get(key, default)
+
+    async def call_timeouts(self) -> CallTimeouts:
+        """The current upstream call limits, from overrides or the registry defaults."""
+        return CallTimeouts(
+            call=float(await self.get("call_timeout")),
+            reset_on_progress=bool(await self.get("reset_timeout_on_progress")),
+            max_total=float(await self.get("max_total_timeout")),
+        )
 
     async def all(self) -> dict[str, Any]:
         if not self._loaded:

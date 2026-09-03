@@ -1,15 +1,16 @@
 import uuid
-from typing import Literal
 
 from pydantic import BaseModel, Field
+
+from bundlemcp.models import ApiKeyKind
 
 
 class ApiKeyCreate(BaseModel):
     """Body for creating an API key."""
 
     name: str = Field(description="Human-readable label for the key, shown in listings")
-    kind: Literal["endpoint", "service"] = Field(
-        default="endpoint",
+    kind: ApiKeyKind = Field(
+        default=ApiKeyKind.ENDPOINT,
         description="'endpoint' keys call MCP endpoints; 'service' keys call the management API",
     )
     endpoint_ids: list[uuid.UUID] = Field(

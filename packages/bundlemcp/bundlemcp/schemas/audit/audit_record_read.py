@@ -1,13 +1,14 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from bundlemcp.models import AuditStatus, EndpointAuthMode
+from bundlemcp.schemas.common.entity_read import EntityRead
 
 
-class AuditRecordRead(BaseModel):
+class AuditRecordRead(EntityRead):
     """One recorded tool call, successful or not."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID = Field(description="Identifier of the audit record")
     created_at: datetime = Field(description="When the call was recorded")
@@ -25,11 +26,11 @@ class AuditRecordRead(BaseModel):
     )
     user_id: uuid.UUID | None = Field(description="Authenticated user, when OAuth was used")
     api_key_id: uuid.UUID | None = Field(description="API key used, when one was")
-    auth_method: str | None = Field(
+    auth_method: EndpointAuthMode | None = Field(
         description="How the caller authenticated: oauth, api_key or none"
     )
     session_id: str | None = Field(description="MCP session the call belonged to")
-    status: str = Field(description="Outcome: success, error or denied")
+    status: AuditStatus = Field(description="Outcome: success, error or denied")
     denied_reason: str | None = Field(
         description="Why a denied call was refused, such as a metering or rate-limit decision"
     )
