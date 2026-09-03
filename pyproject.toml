@@ -67,7 +67,7 @@ layers = [
     "bundlemcp.api",
     "bundlemcp.bootstrap",
     "bundlemcp.gateway : bundlemcp.oauth",
-    "bundlemcp.providers",
+    "bundlemcp.http : bundlemcp.providers",
     "bundlemcp.services",
     "bundlemcp.schemas",
     "bundlemcp.models : bundlemcp.store : bundlemcp.crypto",

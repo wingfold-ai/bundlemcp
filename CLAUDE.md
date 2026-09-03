@@ -41,9 +41,10 @@ See [spec/00-overview.md](spec/00-overview.md) and
   `apps/web`), compose stack in `deploy/`. Within the library, business logic
   lives in `bundlemcp/services/` and DTOs in `bundlemcp/schemas/` — both
   framework-free (no FastAPI, no `bundlemcp.api` import) so `api/`, `gateway/`,
-  `oauth/`, and `bootstrap` consume them as peers (ADR-0019/0020). `api/` is
-  routers plus the composition root, and `services/` sit on a `Repository` +
-  `UnitOfWork` (ADR-0025).
+  `oauth/`, and `bootstrap` consume them as peers (ADR-0019/0020). Every HTTP
+  surface is a `Controller` subclass (ADR-0026); `api/` is controllers plus the
+  composition root, and `services/` sit on a `Repository` + `UnitOfWork`
+  (ADR-0025).
 
 ## Development
 
@@ -94,6 +95,12 @@ See [spec/00-overview.md](spec/00-overview.md) and
   justify one file. Where a constant, factory or logger belongs instead is in:
 
 @.claude/docs/module-naming.md
+
+- **Controllers, not route functions.** An HTTP surface is a class deriving
+  from `Controller`; its shared policy is a router-level dependency; handlers
+  call one service method. Rules, and how a new resource is added, are in:
+
+@.claude/docs/controllers.md
 
 - **Value objects and entity behavior.** Nothing crosses a layer as a tuple or
   an untyped dict; a fact about an entity (`server.requires_per_user_token`,
