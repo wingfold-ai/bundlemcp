@@ -41,6 +41,10 @@ class UpstreamTokenStore:
         self._redis = redis
         self._provider = provider
 
+    @property
+    def configured(self) -> bool:
+        return True
+
     async def save(
         self,
         server_id: uuid.UUID,

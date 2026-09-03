@@ -32,6 +32,10 @@ class AuditWriter:
                 pass
             self._task = None
 
+    async def drain(self) -> None:
+        """Wait until every queued record has been written."""
+        await self._queue.join()
+
     def record(self, record: AuditRecord) -> None:
         """Fire-and-forget; never blocks or raises into the call path."""
         try:

@@ -70,7 +70,7 @@ in this repo, the test above wins.
 
 ## Worked example
 
-`bundlemcp/api/app.py` (`_Lifecycle`) is the reference case, and it contains
+`bundlemcp/api/composition.py` (`CompositionRoot`) is the reference case, and it contains
 the one comparison worth internalising — two aliases that look identical and
 land on opposite sides of the line:
 
@@ -84,7 +84,7 @@ reach, and that — not the usage count — is what separates them under rules 1
 and 2. Six uses of `self._settings` still would not qualify.
 
 But `state` appeared in four methods, which is rule 5's signal, and rule 5
-outranks rule 2. So the resolution was neither alias: `_Lifecycle` holds
+outranks rule 2. So the resolution was neither alias: `CompositionRoot` holds
 `self._state = app.state` once in `__init__` (verified safe — Starlette assigns
 `app.state` exactly once and never rebinds it) and every method uses it
 directly. `self._settings` and `self._overrides` are always spelled out.

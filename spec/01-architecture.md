@@ -55,10 +55,11 @@ bundlemcp/
 │       ├── models/           # SQLModel entities (02-domain-model)
 │       ├── gateway/          # FastMCP bundle serving, sessions, middleware
 │       ├── oauth/            # OAuth 2.1 server + upstream OAuth client
-│       ├── api/              # management REST API routers + FastAPI wiring
+│       ├── api/              # management REST API routers + composition root
+│       ├── providers/        # FastAPI providers for shared collaborators
 │       ├── services/         # framework-free business logic (any layer consumes)
 │       ├── schemas/          # Pydantic DTOs (shared contracts)
-│       ├── store/            # repositories (Postgres) + Redis accessors
+│       ├── store/            # Repository + UnitOfWork (Postgres), Redis accessors
 │       └── ...
 ├── apps/
 │   ├── gateway/              # main.py composition root + Dockerfile

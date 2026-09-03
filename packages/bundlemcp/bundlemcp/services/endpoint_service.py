@@ -1,85 +1,37 @@
 """Endpoint business logic: CRUD, auth-mode/profile rules, rate-limit config."""
 
-from pydantic import ValidationError
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import func, select
-
 from bundlemcp.models import Bundle, Endpoint
-from bundlemcp.schemas import EndpointRead, EndpointUpsert, Page
-from bundlemcp.schemas.resource_names import endpoint_name as endpoint_name_adapter
-from bundlemcp.services.errors import ConflictError, InvalidInputError, NotFoundError
-from bundlemcp.services.validators import endpoint_violates_per_user_upstream
-from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
+from bundlemcp.schemas import EndpointRead, EndpointUpsert
+from bundlemcp.schemas.resource_names import endpoint_name as endpoint_name_type
+from bundlemcp.services.errors import ConflictError, NotFoundError
+from bundlemcp.services.named_resource_service import NamedResourceService
+from bundlemcp.services.per_user_upstream_policy import PerUserUpstreamPolicy
+from bundlemcp.store import Repository, UnitOfWork
 
 
-class EndpointService:
-    def __init__(self, db: AsyncSession, redis: Redis) -> None:
-        self._db = db
-        self._redis = redis
-
-    async def _by_name(self, name: str) -> Endpoint | None:
-        return (
-            await self._db.execute(select(Endpoint).where(Endpoint.name == name))
-        ).scalar_one_or_none()
-
-    async def _get(self, name: str) -> Endpoint:
-        ep = await self._by_name(name)
-        if ep is None:
-            raise NotFoundError("endpoint not found")
-        return ep
-
-    async def _invalidate(self, name: str, action: str) -> None:
-        await publish_invalidation(
-            self._redis, InvalidationEvent(entity_type="endpoint", key=name, action=action)
+class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
+    def __init__(self, uow: UnitOfWork) -> None:
+        super().__init__(
+            uow, entity=Endpoint, read_model=EndpointRead, entity_type="endpoint", label="endpoint"
         )
-
-    async def list(self, *, offset: int, limit: int) -> Page[EndpointRead]:
-        total = (await self._db.execute(select(func.count()).select_from(Endpoint))).scalar_one()
-        rows = (
-            await self._db.execute(
-                select(Endpoint)
-                .order_by(Endpoint.created_at, Endpoint.id)
-                .offset(offset)
-                .limit(limit)
-            )
-        ).scalars()
-        return Page(
-            items=[EndpointRead.from_entity(e) for e in rows],
-            total=total,
-            offset=offset,
-            limit=limit,
-        )
-
-    async def get(self, name: str) -> EndpointRead:
-        return EndpointRead.from_entity(await self._get(name))
+        self._bundles = Repository(uow.session, Bundle)
+        self._policy = PerUserUpstreamPolicy(uow.session)
 
     async def upsert(self, body: EndpointUpsert) -> EndpointRead:
-        bundle = (
-            await self._db.execute(select(Bundle).where(Bundle.name == body.bundle_name))
-        ).scalar_one_or_none()
+        bundle = await self._bundles.by_name(body.bundle_name)
         if bundle is None:
             raise NotFoundError("bundle not found")
-        # UPO-6: a none-only endpoint can't expose a bundle with a per_user upstream
-        if await endpoint_violates_per_user_upstream(self._db, bundle.id, body.auth_modes):
-            raise ConflictError(
-                "a 'none'-auth endpoint cannot expose a bundle with a per_user upstream "
-                "server (UPO-6)"
-            )
-        ep = await self._by_name(body.name)
-        created = ep is None
-        if ep is None:
-            ep = Endpoint(name=body.name, bundle_id=bundle.id)
-        ep.bundle_id = bundle.id
-        ep.profile = body.profile
-        ep.auth_modes = list(body.auth_modes)
-        ep.rate_limit = body.rate_limit.model_dump() if body.rate_limit else None
-        ep.enabled = body.enabled
-        self._db.add(ep)
-        await self._db.commit()
-        await self._db.refresh(ep)
-        await self._invalidate(body.name, "created" if created else "updated")
-        return EndpointRead.from_entity(ep)
+        await self._policy.ensure_endpoint_allowed(bundle.id, body.auth_modes)
+        endpoint = await self._by_name(body.name)
+        created = endpoint is None
+        if endpoint is None:
+            endpoint = Endpoint(name=body.name, bundle_id=bundle.id)
+        endpoint.bundle_id = bundle.id
+        endpoint.profile = body.profile
+        endpoint.auth_modes = list(body.auth_modes)
+        endpoint.rate_limit = body.rate_limit.model_dump() if body.rate_limit else None
+        endpoint.enabled = body.enabled
+        return await self._save(endpoint, name=body.name, created=created)
 
     async def rename(self, name: str, new_name: str, *, force: bool) -> EndpointRead:
         """Renaming breaks every connected client's URL, so force is required."""
@@ -88,20 +40,5 @@ class EndpointService:
                 "renaming an endpoint changes its public URL and breaks connected clients — "
                 "retry with force=true (EP-8)"
             )
-        ep = await self._get(name)
-        try:
-            endpoint_name_adapter.validate_python(new_name)
-        except ValidationError as exc:
-            raise InvalidInputError(str(exc)) from None
-        ep.name = new_name
-        await self._db.commit()
-        await self._db.refresh(ep)
-        await self._invalidate(new_name, "updated")
-        return EndpointRead.from_entity(ep)
-
-    async def delete(self, name: str) -> None:
-        ep = await self._by_name(name)
-        if ep is not None:
-            await self._db.delete(ep)
-            await self._db.commit()
-            await self._invalidate(name, "deleted")
+        endpoint = await self._get(name)
+        return await self._rename(endpoint, new_name, endpoint_name_type)

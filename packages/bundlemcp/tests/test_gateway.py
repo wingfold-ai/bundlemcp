@@ -5,11 +5,15 @@ curation, PROF-3 chatgpt re-annotation, MID-2/3 metering, AUD-1/2 audit,
 FWD-2/3 identity forwarding.
 """
 
+from contextlib import asynccontextmanager
 
 import pytest
 from bundlemcp.api.app import create_app
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.gateway.metering import MeterContext, MeterDecision
+from bundlemcp.gateway.metrics import Counters
+from bundlemcp.gateway.ratelimit import AuthFailureLimiter, RateLimiter
 from bundlemcp.models import (
     ApiKey,
     ApiKeyKind,
@@ -96,13 +100,17 @@ class RecordingHook:
         self.post_calls.append((ctx, status, duration_ms))
 
 
-@pytest.fixture
-async def gateway(engine: AsyncEngine, redis: FakeRedis):
-    settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://")
-    app = create_app(settings, engine=engine, redis=redis, client_factory=upstream_factory)
+def _overrides(engine, redis, **extra) -> CompositionOverrides:
+    return CompositionOverrides(
+        engine=engine, redis=redis, client_factory=upstream_factory, **extra
+    )
 
-    hook = RecordingHook()
 
+def _settings(**extra) -> Settings:
+    return Settings(_env_file=None, database_url="sqlite+aiosqlite://", **extra)
+
+
+async def _seed(engine: AsyncEngine) -> None:
     factory = session_factory(engine)
     async with factory() as db:
         db.add(
@@ -138,14 +146,29 @@ async def gateway(engine: AsyncEngine, redis: FakeRedis):
                 db.add(Tool(server_id=srv.id, name=tn, schema_hash="h", input_schema={}))
         await db.commit()
 
+
+@asynccontextmanager
+async def _running(engine, settings: Settings, overrides: CompositionOverrides):
+    """The composed app, seeded and serving, with an authenticated endpoint client."""
+    await _seed(engine)
+    app = create_app(settings, overrides=overrides)
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://gw",
         headers={"Authorization": f"Bearer {ENDPOINT_KEY}"},
     ) as http:
         async with app.router.lifespan_context(app):
-            app.state.gateway.metering = hook
-            yield http, app, hook
+            yield http, app
+
+
+@pytest.fixture
+async def gateway(engine: AsyncEngine, redis: FakeRedis):
+    hook = RecordingHook()
+    async with _running(engine, _settings(), _overrides(engine, redis, metering_hook=hook)) as (
+        http,
+        app,
+    ):
+        yield http, app, hook
 
 
 async def _initialize(http, endpoint="main") -> str:
@@ -212,10 +235,8 @@ async def test_initialize_tools_only_when_no_member_caps(gateway):
 async def test_initialize_aggregates_member_capabilities(gateway):
     """PROT-11: prompts/resources/completions/logging advertised iff a member supports them."""
     http, app, hook = gateway
-    async with app.state.session_factory() as db:
-        echo = (
-            await db.execute(select(McpServer).where(McpServer.name == "echo"))
-        ).scalar_one()
+    async with app.state.container.session_factory() as db:
+        echo = (await db.execute(select(McpServer).where(McpServer.name == "echo"))).scalar_one()
         echo.capabilities = {
             "prompts": {"listChanged": True},
             "resources": {"subscribe": True, "listChanged": True},
@@ -262,7 +283,10 @@ async def test_prompts_get_routes_and_deprefixes(gateway):
     http, app, hook = gateway
     session = await _initialize(http)
     resp = await _rpc(
-        http, "main", session, "prompts/get",
+        http,
+        "main",
+        session,
+        "prompts/get",
         {"name": "echo__greet", "arguments": {"name": "Ada"}},
     )
     result = resp.json()["result"]
@@ -282,9 +306,14 @@ async def test_completion_routes_prompt_ref(gateway):
     http, app, hook = gateway
     session = await _initialize(http)
     resp = await _rpc(
-        http, "main", session, "completion/complete",
-        {"ref": {"type": "ref/prompt", "name": "echo__greet"},
-         "argument": {"name": "name", "value": "A"}},
+        http,
+        "main",
+        session,
+        "completion/complete",
+        {
+            "ref": {"type": "ref/prompt", "name": "echo__greet"},
+            "argument": {"name": "name", "value": "A"},
+        },
     )
     body = resp.json()
     assert "result" in body and "completion" in body["result"]
@@ -378,21 +407,18 @@ class BoomHook:
 
 
 @pytest.mark.parametrize("fail_open", [True, False])
-async def test_metering_unavailable_follows_gateway_policy(gateway, fail_open):
+async def test_metering_unavailable_follows_gateway_policy(engine, redis, fail_open):
     """MID-3: an unavailable hook is allowed or denied by settings, not by the hook object."""
-    http, app, _ = gateway
-    session = await _initialize(http)
-    app.state.gateway.metering = BoomHook()
-    app.state.gateway.settings = Settings(
-        _env_file=None,
-        database_url="sqlite+aiosqlite://",
-        metering_hook_fail_open=fail_open,
-    )
-
-    resp = await _rpc(
-        http, "main", session, "tools/call", {"name": "echo__say", "arguments": {"text": "x"}}
-    )
-    body = resp.json()
+    settings = _settings(metering_hook_fail_open=fail_open)
+    async with _running(engine, settings, _overrides(engine, redis, metering_hook=BoomHook())) as (
+        http,
+        _app,
+    ):
+        session = await _initialize(http)
+        resp = await _rpc(
+            http, "main", session, "tools/call", {"name": "echo__say", "arguments": {"text": "x"}}
+        )
+        body = resp.json()
     if fail_open:
         assert body["result"]["content"][0]["text"] == "echo:x"
     else:
@@ -434,7 +460,7 @@ async def test_delete_terminates_session(gateway):
 async def test_disabled_tool_hidden_and_blocked(gateway):
     """TM-2 in list AND call."""
     http, app, hook = gateway
-    factory = app.state.session_factory
+    factory = app.state.container.session_factory
     async with factory() as db:
         bundle = (await db.execute(select(Bundle))).scalar_one()
         tool = (await db.execute(select(Tool).where(Tool.name == "say"))).scalar_one()
@@ -454,7 +480,7 @@ async def test_disabled_tool_hidden_and_blocked(gateway):
 async def test_override_rename_routes_back(gateway):
     """TM-3: override name is presented and maps back to the origin tool."""
     http, app, hook = gateway
-    factory = app.state.session_factory
+    factory = app.state.container.session_factory
     async with factory() as db:
         bundle = (await db.execute(select(Bundle))).scalar_one()
         tool = (await db.execute(select(Tool).where(Tool.name == "say"))).scalar_one()
@@ -501,8 +527,8 @@ async def test_audit_records_written(gateway):
     await _rpc(http, "main", session, "tools/call", say_b)
 
     # audit is async (AUD-3) — drain the queue
-    await app.state.gateway.audit._queue.join()
-    async with app.state.session_factory() as db:
+    await app.state.container.audit.drain()
+    async with app.state.container.session_factory() as db:
         records = (await db.execute(select(AuditRecord))).scalars().all()
     statuses = sorted(r.status for r in records)
     assert statuses == ["denied", "success"]
@@ -514,7 +540,7 @@ async def test_audit_records_written(gateway):
 
 
 async def _set_rate_limit(app, config: dict, endpoint: str = "main") -> None:
-    async with app.state.session_factory() as db:
+    async with app.state.container.session_factory() as db:
         ep = (await db.execute(select(Endpoint).where(Endpoint.name == endpoint))).scalar_one()
         ep.rate_limit = config
         db.add(ep)
@@ -535,7 +561,7 @@ async def test_endpoint_limit_trips_with_retry_after(gateway):
     assert int(third.headers["Retry-After"]) > 0
     # RATE-3: a rejection is a metric, not an upstream call
     assert len(hook.pre_calls) == 2
-    assert app.state.counters.get("rate_limit_rejections") == 1
+    assert app.state.container.counters.get("rate_limit_rejections") == 1
 
 
 async def test_per_client_limit_isolates_callers(gateway):
@@ -544,7 +570,7 @@ async def test_per_client_limit_isolates_callers(gateway):
     await _set_rate_limit(app, {"per_client": {"limit": 1, "window_seconds": 100}})
 
     other_key = generate_token(API_KEY_PREFIX)
-    async with app.state.session_factory() as db:
+    async with app.state.container.session_factory() as db:
         db.add(
             ApiKey(
                 name="k2",
@@ -591,15 +617,17 @@ async def test_include_initialize_list_opt_in(gateway):
         app,
         {"endpoint": {"limit": 1, "window_seconds": 100}, "include_initialize_list": True},
     )
-    assert (await http.post(
-        "/main/mcp",
-        json={
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {"protocolVersion": "2025-11-25", "capabilities": {}},
-        },
-    )).status_code == 200
+    assert (
+        await http.post(
+            "/main/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {"protocolVersion": "2025-11-25", "capabilities": {}},
+            },
+        )
+    ).status_code == 200
     second = await http.post(
         "/main/mcp",
         json={
@@ -612,109 +640,103 @@ async def test_include_initialize_list_opt_in(gateway):
     assert second.status_code == 429
 
 
-async def test_rate_limit_fails_open_on_redis_error(gateway):
+class BoomRedis:
+    """A live store that is down: every rate-limit check raises."""
+
+    async def time(self):
+        raise ConnectionError("down")
+
+
+async def test_rate_limit_fails_open_on_redis_error(engine, redis):
     """RATE-6: a Redis outage never blocks a call (default fail-open)."""
-    from bundlemcp.gateway.ratelimit import RateLimiter
-
-    http, app, hook = gateway
-    await _set_rate_limit(app, {"endpoint": {"limit": 1, "window_seconds": 100}})
-
-    class BoomRedis:
-        async def time(self):
-            raise ConnectionError("down")
-
-    app.state.gateway.rate_limiter = RateLimiter(BoomRedis(), app.state.counters)
-    session = await _initialize(http)
-    call = {"name": "echo__say", "arguments": {"text": "x"}}
-    for _ in range(3):
-        assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 200
-    assert app.state.counters.get("rate_limit_fail_open") >= 1
+    counters = Counters()
+    overrides = _overrides(
+        engine, redis, counters=counters, rate_limiter=RateLimiter(BoomRedis(), counters)
+    )
+    async with _running(engine, _settings(), overrides) as (http, app):
+        await _set_rate_limit(app, {"endpoint": {"limit": 1, "window_seconds": 100}})
+        session = await _initialize(http)
+        call = {"name": "echo__say", "arguments": {"text": "x"}}
+        for _ in range(3):
+            assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 200
+    assert counters.get("rate_limit_fail_open") >= 1
 
 
-async def test_rate_limit_fail_closed_blocks_on_redis_error(gateway):
+async def test_rate_limit_fail_closed_blocks_on_redis_error(engine, redis):
     """RATE-6: an endpoint may opt into fail-closed — deny on Redis outage."""
-    from bundlemcp.gateway.ratelimit import RateLimiter
-
-    http, app, hook = gateway
-    await _set_rate_limit(
-        app, {"endpoint": {"limit": 1, "window_seconds": 100}, "fail_closed": True}
+    counters = Counters()
+    overrides = _overrides(
+        engine, redis, counters=counters, rate_limiter=RateLimiter(BoomRedis(), counters)
     )
-
-    class BoomRedis:
-        async def time(self):
-            raise ConnectionError("down")
-
-    app.state.gateway.rate_limiter = RateLimiter(BoomRedis(), app.state.counters)
-    session = await _initialize(http)
-    call = {"name": "echo__say", "arguments": {"text": "x"}}
-    assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 429
+    async with _running(engine, _settings(), overrides) as (http, app):
+        await _set_rate_limit(
+            app, {"endpoint": {"limit": 1, "window_seconds": 100}, "fail_closed": True}
+        )
+        session = await _initialize(http)
+        call = {"name": "echo__say", "arguments": {"text": "x"}}
+        assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 429
 
 
-async def test_auth_failure_lockout_by_ip(gateway):
+async def test_auth_failure_lockout_by_ip(engine, redis):
     """RATE-5: repeated bad credentials from one IP get 429 after the threshold."""
-    from bundlemcp.gateway.ratelimit import AuthFailureLimiter
-
-    http, app, hook = gateway
-    app.state.auth_failure_limiter = AuthFailureLimiter(
-        app.state.redis, limit=2, window=100, counters=app.state.counters
-    )
-    bad = {"Authorization": f"Bearer {generate_token(API_KEY_PREFIX)}"}  # unknown key
-    body = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
-    assert (await http.post("/main/mcp", headers=bad, json=body)).status_code == 401
-    assert (await http.post("/main/mcp", headers=bad, json=body)).status_code == 401
-    locked = await http.post("/main/mcp", headers=bad, json=body)
+    counters = Counters()
+    limiter = AuthFailureLimiter(redis, limit=2, window=100, counters=counters)
+    overrides = _overrides(engine, redis, counters=counters, auth_failure_limiter=limiter)
+    async with _running(engine, _settings(), overrides) as (http, _app):
+        bad = {"Authorization": f"Bearer {generate_token(API_KEY_PREFIX)}"}  # unknown key
+        body = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
+        assert (await http.post("/main/mcp", headers=bad, json=body)).status_code == 401
+        assert (await http.post("/main/mcp", headers=bad, json=body)).status_code == 401
+        locked = await http.post("/main/mcp", headers=bad, json=body)
     assert locked.status_code == 429
     assert int(locked.headers["Retry-After"]) > 0
-    assert app.state.counters.get("auth_failure_lockouts") >= 1
-    assert app.state.counters.get("auth_failures") >= 3
+    assert counters.get("auth_failure_lockouts") >= 1
+    assert counters.get("auth_failures") >= 3
 
 
-async def test_token_endpoint_auth_failure_counted(gateway):
+async def test_token_endpoint_auth_failure_counted(engine, redis):
     """RATE-5: a bad OAuth client at the token endpoint is counted and locked out."""
-    from bundlemcp.gateway.ratelimit import AuthFailureLimiter
-
-    http, app, hook = gateway
-    app.state.auth_failure_limiter = AuthFailureLimiter(
-        app.state.redis, limit=1, window=100, counters=app.state.counters
-    )
+    counters = Counters()
+    limiter = AuthFailureLimiter(redis, limit=1, window=100, counters=counters)
+    overrides = _overrides(engine, redis, counters=counters, auth_failure_limiter=limiter)
     form = {
         "grant_type": "authorization_code",
         "code": "x",
         "code_verifier": "y",
         "client_id": "does-not-exist",
     }
-    first = await http.post("/oauth/token", data=form)
-    assert first.status_code == 401  # invalid_client
-    second = await http.post("/oauth/token", data=form)
+    async with _running(engine, _settings(), overrides) as (http, _app):
+        first = await http.post("/oauth/token", data=form)
+        assert first.status_code == 401  # invalid_client
+        second = await http.post("/oauth/token", data=form)
     assert second.status_code == 429
     assert int(second.headers["Retry-After"]) > 0
 
 
-async def test_identity_header_injected_and_spoof_stripped(gateway):
+async def test_identity_header_injected_and_spoof_stripped(engine, redis):
     """FWD-2/FWD-3: X-MCP-User injected from resolved identity; client value ignored."""
-    http, app, hook = gateway
     captured: dict = {}
-    original = app.state.gateway.client_factory
 
-    def capturing_factory(server, extra_headers):
+    def capturing_factory(server, extra_headers, **handlers):
         captured.update(extra_headers)
-        return original(server, extra_headers)
+        return upstream_factory(server, extra_headers)
 
-    app.state.gateway.client_factory = capturing_factory
-    session = await _initialize(http)
-    await http.post(
-        "/main/mcp",
-        headers={
-            "Mcp-Session-Id": session,
-            "X-MCP-User": "spoofed",
-            "x-tenant": "tenant-42",
-        },
-        json={
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "tools/call",
-            "params": {"name": "notes__write_note", "arguments": {"text": "n"}},
-        },
-    )
-    assert captured["X-MCP-User"].startswith("api_key:")  # injected, not "spoofed"
-    assert captured["x-tenant"] == "tenant-42"  # FWD-1 mapping
+    overrides = CompositionOverrides(engine=engine, redis=redis, client_factory=capturing_factory)
+    async with _running(engine, _settings(), overrides) as (http, _app):
+        session = await _initialize(http)
+        await http.post(
+            "/main/mcp",
+            headers={
+                "Mcp-Session-Id": session,
+                "X-MCP-User": "spoofed",
+                "x-tenant": "tenant-42",
+            },
+            json={
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {"name": "notes__write_note", "arguments": {"text": "n"}},
+            },
+        )
+        assert captured["X-MCP-User"].startswith("api_key:")  # injected, not "spoofed"
+        assert captured["x-tenant"] == "tenant-42"  # FWD-1 mapping

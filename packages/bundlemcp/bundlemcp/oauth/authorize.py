@@ -23,8 +23,8 @@ from bundlemcp.models import (
     User,
     utcnow,
 )
-from bundlemcp.oauth.adminsessions import SESSION_COOKIE
 from bundlemcp.oauth.providers import AdminSessionsProvider
+from bundlemcp.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.oauth.urls import endpoint_name_from_resource, issuer
 from bundlemcp.providers import (
     RedisProvider,

@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 import pytest
 from bundlemcp.api.app import create_app
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.models import ApiKey, ApiKeyKind, AuditRecord
 from bundlemcp.settings import Settings
@@ -19,7 +20,7 @@ SERVICE_KEY = generate_token(API_KEY_PREFIX)
 @pytest.fixture
 async def client(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[AsyncClient]:
     settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://")
-    app = create_app(settings, engine=engine, redis=redis)
+    app = create_app(settings, overrides=CompositionOverrides(engine=engine, redis=redis))
 
     factory = session_factory(engine)
     async with factory() as db:

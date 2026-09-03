@@ -2,12 +2,12 @@
 
 from contextlib import asynccontextmanager
 
-import structlog
 from fastapi import FastAPI
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncEngine
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from bundlemcp.api.composition import CompositionRoot
+from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.api.errors import service_error_handler
 from bundlemcp.api.routers import (
     api_keys,
@@ -20,49 +20,28 @@ from bundlemcp.api.routers import (
     users,
 )
 from bundlemcp.gateway import mcp_endpoint
-from bundlemcp.gateway.upstream import ClientFactory
 from bundlemcp.oauth import authorize as oauth_authorize
 from bundlemcp.oauth import metadata as oauth_metadata
-from bundlemcp.oauth import oidc as oauth_oidc
 from bundlemcp.oauth import registration as oauth_registration
 from bundlemcp.oauth import token as oauth_token
 from bundlemcp.oauth import upstream_connect as oauth_upstream_connect
-from bundlemcp.oauth.oidc import OidcProvider
-from bundlemcp.oauth.upstream_client import (
-    UpstreamOAuthProvider,
-)
-from bundlemcp.services.errors import (
-    ServiceError,
-)
+from bundlemcp.oauth.oidc import routes as oauth_oidc
+from bundlemcp.providers import RedisProvider, SessionFactoryProvider
+from bundlemcp.services.errors import ServiceError
 from bundlemcp.settings import Settings, get_settings
-
-log = structlog.get_logger(__name__)
 
 API_PREFIX = "/api/v1"
 
 
 def create_app(
-    settings: Settings | None = None,
-    *,
-    engine: AsyncEngine | None = None,
-    redis: Redis | None = None,
-    client_factory: ClientFactory | None = None,
-    oidc_provider: OidcProvider | None = None,
-    upstream_oidc_provider: UpstreamOAuthProvider | None = None,
+    settings: Settings | None = None, *, overrides: CompositionOverrides | None = None
 ) -> FastAPI:
     settings = settings or get_settings()
+    overrides = overrides or CompositionOverrides()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        async with CompositionRoot(
-            app,
-            settings,
-            engine=engine,
-            redis=redis,
-            client_factory=client_factory,
-            oidc_provider=oidc_provider,
-            upstream_oidc_provider=upstream_oidc_provider,
-        ):
+        async with CompositionRoot(app, settings, overrides):
             yield
 
     app = FastAPI(
@@ -76,8 +55,6 @@ def create_app(
 
     if settings.web_origins:
         # SEC-4: credentials-enabled CORS for exactly the web app's origin(s)
-        from fastapi.middleware.cors import CORSMiddleware
-
         app.add_middleware(
             CORSMiddleware,
             allow_origins=[o.rstrip("/") for o in settings.web_origins],
@@ -111,17 +88,15 @@ def create_app(
     app.include_router(mcp_endpoint.router)  # public /{endpoint}/mcp (EP-1)
 
     @app.get("/healthz", include_in_schema=False)
-    async def healthz() -> dict:
+    async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
     @app.get("/readyz", include_in_schema=False)
-    async def readyz() -> dict:
+    async def readyz(sessions: SessionFactoryProvider, redis: RedisProvider) -> dict[str, str]:
         """Ready means both Postgres and Redis are reachable."""
-        from sqlalchemy import text
-
-        async with app.state.session_factory() as db:
+        async with sessions() as db:
             await db.execute(text("SELECT 1"))
-        await app.state.redis.ping()
+        await redis.ping()
         return {"status": "ready"}
 
     return app

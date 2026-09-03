@@ -1,23 +1,21 @@
 import secrets
-from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlmodel import select
 
 from bundlemcp.models import User
-from bundlemcp.oauth.adminsessions import SESSION_COOKIE, AdminSession
-from bundlemcp.oauth.oidc.authlib_oidc_provider import AuthlibOidcProvider
 from bundlemcp.oauth.oidc.oidc_claims import OidcClaims
-from bundlemcp.oauth.oidc.oidc_provider import OidcProvider
-from bundlemcp.oauth.providers import AdminSessionsProvider
+from bundlemcp.oauth.providers import AdminSessionsProvider, OidcProviderProvider
+from bundlemcp.oauth.session_cookie import SESSION_COOKIE, session_cookie_kwargs
 from bundlemcp.providers import (
     RedisProvider,
     SessionFactoryProvider,
     SettingsProvider,
 )
 from bundlemcp.settings import Settings
+from bundlemcp.store.admin_sessions import AdminSession
 
 log = structlog.get_logger("bundlemcp.oauth.oidc")
 
@@ -26,14 +24,6 @@ OIDC_STATE_KEY = "bmcp:oidcstate:{state}"
 OIDC_STATE_TTL = 600
 
 router = APIRouter(tags=["auth"])
-
-
-def get_oidc_provider(request: Request) -> OidcProvider | None:
-    """None when no OIDC issuer is configured; routes must reject in that case."""
-    return request.app.state.oidc_provider
-
-
-OidcProviderDep = Annotated[OidcProvider | None, Depends(get_oidc_provider)]
 
 
 def is_admin(claims: OidcClaims, settings: Settings) -> bool:
@@ -80,7 +70,7 @@ def _safe_next(next_url: str, settings: Settings) -> str:
 
 @router.get("/login", include_in_schema=False)
 async def login(
-    provider: OidcProviderDep,
+    provider: OidcProviderProvider,
     settings: SettingsProvider,
     redis: RedisProvider,
     next: str = "/",
@@ -101,7 +91,7 @@ async def login(
 
 @router.get("/login/callback", include_in_schema=False)
 async def login_callback(
-    provider: OidcProviderDep,
+    provider: OidcProviderProvider,
     settings: SettingsProvider,
     redis: RedisProvider,
     session_factory: SessionFactoryProvider,
@@ -126,7 +116,11 @@ async def login_callback(
     )
     secure = str(settings.public_url).startswith("https")
     response = RedirectResponse(next_url or "/", status_code=302)
-    response.set_cookie(SESSION_COOKIE, session_id, **admin_sessions.cookie_kwargs(secure))
+    response.set_cookie(
+        SESSION_COOKIE,
+        session_id,
+        **session_cookie_kwargs(secure=secure, max_age=admin_sessions.max_age),
+    )
     log.info("admin.login", user_id=str(user.id), is_admin=user.is_admin)
     return response
 
@@ -139,9 +133,3 @@ async def logout(request: Request, admin_sessions: AdminSessionsProvider):
     response = RedirectResponse("/", status_code=302)
     response.delete_cookie(SESSION_COOKIE, path="/")
     return response
-
-
-def build_provider(settings: Settings) -> OidcProvider | None:
-    if not settings.oidc_discovery_url:
-        return None
-    return AuthlibOidcProvider(settings)

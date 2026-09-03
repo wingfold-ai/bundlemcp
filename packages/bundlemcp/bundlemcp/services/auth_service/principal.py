@@ -1,10 +1,14 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from bundlemcp.services.auth_service.principal_kind import PrincipalKind
 
 
 class Principal(BaseModel):
     """The authenticated management-API caller: an admin user or a service key."""
 
-    kind: str = Field(description="Which credential authenticated the call: 'admin' or 'service'")
+    model_config = ConfigDict(frozen=True)
+
+    kind: PrincipalKind = Field(description="Which credential authenticated the call")
     user_id: str | None = Field(
         default=None, description="Admin user behind the session; None for service keys"
     )
