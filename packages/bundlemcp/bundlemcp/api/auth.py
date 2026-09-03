@@ -9,8 +9,8 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 
-from bundlemcp.api.providers import DbProvider
 from bundlemcp.models import ApiKeyKind
+from bundlemcp.providers import DbProvider
 from bundlemcp.services import AuthService, Principal
 
 

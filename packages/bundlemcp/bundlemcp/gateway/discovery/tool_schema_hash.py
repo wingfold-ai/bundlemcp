@@ -1,7 +1,7 @@
+"""Change detection for cached upstream tool definitions."""
+
 import hashlib
 import json
-
-DEFAULT_MAX_ATTEMPTS = 3  # SRV-4: consecutive failures before health_status=error
 
 
 def tool_schema_hash(

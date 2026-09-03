@@ -11,10 +11,12 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
-from bundlemcp.api.providers import (
-    AuthFailureLimiterProvider,
-    SessionFactoryProvider,
-    SettingsProvider,
+from bundlemcp.crypto import (
+    ACCESS_TOKEN_PREFIX,
+    REFRESH_TOKEN_PREFIX,
+    generate_token,
+    hash_token,
+    tokens_equal,
 )
 from bundlemcp.gateway.proxy import client_ip
 from bundlemcp.gateway.ratelimit import AuthFailureLimiter
@@ -27,13 +29,11 @@ from bundlemcp.models import (
     User,
     utcnow,
 )
+from bundlemcp.oauth.providers import AuthFailureLimiterProvider
 from bundlemcp.oauth.urls import endpoint_resource
-from bundlemcp.security import (
-    ACCESS_TOKEN_PREFIX,
-    REFRESH_TOKEN_PREFIX,
-    generate_token,
-    hash_token,
-    tokens_equal,
+from bundlemcp.providers import (
+    SessionFactoryProvider,
+    SettingsProvider,
 )
 from bundlemcp.services import AuthService
 from bundlemcp.settings import Settings

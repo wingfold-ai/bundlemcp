@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
-from bundlemcp.api.providers import ServerServiceProvider
+from bundlemcp.providers import ServerServiceProvider
 from bundlemcp.schemas import Page, ServerRead, ServerUpsert, ToolRead, UpstreamOAuthConfig
 
 router = APIRouter(prefix="/servers", tags=["servers"])

@@ -5,8 +5,8 @@ from collections.abc import Awaitable, Callable
 import structlog
 from redis.asyncio import Redis
 
-from bundlemcp.store.invalidation._common import INVALIDATION_CHANNEL
 from bundlemcp.store.invalidation.invalidation_event import InvalidationEvent
+from bundlemcp.store.redis import INVALIDATION_CHANNEL
 
 log = structlog.get_logger(__name__)
 

@@ -72,8 +72,8 @@ async def _resolve_oauth_bearer(
 
     Returns (user_id, email) or None.
     """
+    from bundlemcp.crypto import ACCESS_TOKEN_PREFIX, hash_token
     from bundlemcp.models import OAuthAccessToken, User, utcnow
-    from bundlemcp.security import ACCESS_TOKEN_PREFIX, hash_token
 
     auth = request.headers.get("authorization", "")
     if not auth.lower().startswith("bearer ") or not auth[7:].startswith(ACCESS_TOKEN_PREFIX):

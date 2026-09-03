@@ -8,6 +8,7 @@ FWD-2/3 identity forwarding.
 
 import pytest
 from bundlemcp.api.app import create_app
+from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.gateway.metering import MeterContext, MeterDecision
 from bundlemcp.models import (
     ApiKey,
@@ -20,7 +21,6 @@ from bundlemcp.models import (
     McpServer,
     Tool,
 )
-from bundlemcp.security import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
 from fakeredis.aioredis import FakeRedis

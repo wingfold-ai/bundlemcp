@@ -1,11 +1,15 @@
+import structlog
 from redis.asyncio import Redis
 
 from bundlemcp.gateway.metrics import (
     RATE_LIMIT_FAIL_OPEN,
     Counters,
 )
-from bundlemcp.gateway.ratelimit._common import RATE_KEY, log
 from bundlemcp.gateway.ratelimit.rate_result import RateResult
+
+log = structlog.get_logger("bundlemcp.gateway.ratelimit")
+
+RATE_KEY = "bmcp:rate:{scope}:{bucket}"
 
 
 class RateLimiter:

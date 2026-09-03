@@ -9,10 +9,10 @@ root over `create_app`.
 This README is a map. Two subsystems carry the bulk of the complexity and have
 their own deep-dive docs:
 
-- **[gateway/README.md](gateway/README.md)** — the core: the Streamable-HTTP
+- **[bundlemcp/gateway/README.md](bundlemcp/gateway/README.md)** — the core: the Streamable-HTTP
   edge, bundling/composition, tool discovery, sessions, multi-replica
   correctness, state propagation, rate limiting.
-- **[oauth/README.md](oauth/README.md)** — the four authentication mechanisms:
+- **[bundlemcp/oauth/README.md](bundlemcp/oauth/README.md)** — the four authentication mechanisms:
   MCP-client OAuth 2.1, admin OIDC login, management-API keys, and upstream
   auth to protected MCP servers.
 
@@ -37,32 +37,43 @@ bundlemcp/
 │                    Take plain values, return DTOs, raise the domain errors in
 │                    services/errors/. This is where invariants live.
 ├── store/           Persistence accessors: db.py (async engine), redis.py,
-│                    sessions.py (SessionStore), invalidation.py (the
+│                    sessions/ (SessionStore), invalidation/ (the
 │                    cross-replica cache-invalidation bus).
+├── crypto/          Cryptographic handling of secrets: tokens.py (generate,
+│                    SHA-256 hash, constant-time compare) and the Fernet /
+│                    MultiFernet encryption-at-rest for upstream tokens.
+├── settings/        Deploy-time config via BUNDLEMCP_ env vars. Runtime-tunable
+│                    settings live in the Config table, not here.
 ├── gateway/         The MCP serving edge and everything behind it — see
 │                    gateway/README.md.
 ├── oauth/           OAuth 2.1 server, admin OIDC login, upstream OAuth client —
 │                    see oauth/README.md.
+├── providers/       Shared FastAPI providers: collaborators.py (what the
+│                    composition root put on app.state) and services.py
+│                    (request-scoped services), injected into route signatures.
+│                    A package owning its own collaborators exposes them from
+│                    its own providers module (see oauth/providers.py) instead.
 ├── api/             FastAPI wiring ONLY: routers (thin controllers that
-│                    delegate to services), providers.py (DI), auth.py
-│                    (ManagementAuth edge), pagination.py, app.py (the
-│                    application factory + lifespan).
-├── bootstrap.py     Declarative seed: registers servers/bundles/endpoints from
+│                    delegate to services), auth.py (ManagementAuth edge),
+│                    pagination.py, composition.py (the object graph), app.py
+│                    (the application factory + lifespan).
+├── bootstrap/       Declarative seed: registers servers/bundles/endpoints from
 │                    a YAML file on boot, reusing the services (spec 41).
-├── crypto.py        Fernet/MultiFernet encryption at rest for upstream tokens.
-├── security.py      API-key generation, SHA-256 hashing, constant-time compare.
-├── settings.py      Deploy-time config via BUNDLEMCP_ env vars. Runtime-tunable
-│                    settings live in the Config table, not here.
 └── migrations/      Alembic. 0001 creates from the live metadata; later
                      revisions are explicit diffs.
 ```
 
+Every library-level module is a package; nothing sits loose beside them. The
+import direction between them is enforced, not conventional — `uv run
+lint-imports` checks the layer order and that `services/`, `schemas/` and
+`models/` never reach a web framework.
+
 ## Two kinds of configuration
 
-- **Deploy-time** (`settings.py`, `BUNDLEMCP_*` env): database and store URLs,
+- **Deploy-time** (`settings/`, `BUNDLEMCP_*` env): database and store URLs,
   `public_url`, OIDC client, admin emails, encryption keys, web origins. Fixed
   for the life of the process.
-- **Runtime-tunable** (`gateway/runtime_config.py` + the `config_entries`
+- **Runtime-tunable** (`services/config_service/` + the `config_entries`
   table): timeouts, session lifetime, audit retention. Editable live through
   the API/UI; changes propagate to every replica via the invalidation bus.
 

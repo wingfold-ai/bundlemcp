@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, status
 
 from bundlemcp.api.auth import ServiceAuthProvider
-from bundlemcp.api.providers import ConfigServiceProvider
+from bundlemcp.providers import ConfigServiceProvider
 from bundlemcp.schemas import ConfigValue
 
 router = APIRouter(prefix="/config", tags=["config"])

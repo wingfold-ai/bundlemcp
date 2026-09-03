@@ -1,23 +1,29 @@
 import secrets
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlmodel import select
 
-from bundlemcp.api.providers import (
+from bundlemcp.models import User
+from bundlemcp.oauth.adminsessions import SESSION_COOKIE, AdminSession
+from bundlemcp.oauth.oidc.authlib_oidc_provider import AuthlibOidcProvider
+from bundlemcp.oauth.oidc.oidc_claims import OidcClaims
+from bundlemcp.oauth.oidc.oidc_provider import OidcProvider
+from bundlemcp.oauth.providers import AdminSessionsProvider
+from bundlemcp.providers import (
     RedisProvider,
     SessionFactoryProvider,
     SettingsProvider,
 )
-from bundlemcp.models import User
-from bundlemcp.oauth.adminsessions import SESSION_COOKIE, AdminSession
-from bundlemcp.oauth.deps import AdminSessionsProvider
-from bundlemcp.oauth.oidc._common import OIDC_STATE_KEY, OIDC_STATE_TTL, log
-from bundlemcp.oauth.oidc.authlib_oidc_provider import AuthlibOidcProvider
-from bundlemcp.oauth.oidc.oidc_claims import OidcClaims
-from bundlemcp.oauth.oidc.oidc_provider import OidcProvider
 from bundlemcp.settings import Settings
+
+log = structlog.get_logger("bundlemcp.oauth.oidc")
+
+# CSRF state for the authorization redirect, parked in Redis for one login.
+OIDC_STATE_KEY = "bmcp:oidcstate:{state}"
+OIDC_STATE_TTL = 600
 
 router = APIRouter(tags=["auth"])
 

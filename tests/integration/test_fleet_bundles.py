@@ -11,8 +11,8 @@ GSC tool calls return real Search Console data.
 import httpx
 import pytest
 from conftest import GATEWAY_URL, SERVICE_KEY  # noqa: TID252
+from helpers import initialize, mcp_call, wait_ready
 from test_oauth_flow import _drive_login_and_consent, _pkce  # noqa: TID251
-from tests_integration_helpers import initialize, mcp_call, wait_ready
 
 # Every test here drives the application-layer fleet (seo-psi, seo-gsc, dataforseo,
 # hyperframes), which ships as private GHCR images. CI cannot pull those, so it

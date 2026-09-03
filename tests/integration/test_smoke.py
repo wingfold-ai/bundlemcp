@@ -5,7 +5,7 @@ import subprocess
 import httpx
 import pytest
 from conftest import GATEWAY_URL, SERVICE_KEY  # noqa: TID252
-from tests_integration_helpers import initialize, mcp_call, wait_ready
+from helpers import initialize, mcp_call, wait_ready
 
 
 def test_readyz():

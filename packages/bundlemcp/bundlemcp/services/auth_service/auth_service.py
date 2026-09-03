@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from bundlemcp.crypto import API_KEY_PREFIX, hash_token
 from bundlemcp.models import ApiKey, User, utcnow
-from bundlemcp.security import API_KEY_PREFIX, hash_token
 from bundlemcp.services.auth_service.principal import Principal
 
 if TYPE_CHECKING:

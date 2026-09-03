@@ -1,6 +1,8 @@
+"""The registry of runtime-tunable keys: what exists, and how a value is validated."""
+
 from typing import Any
 
-from bundlemcp.gateway.runtime_config.unknown_config_key import UnknownConfigKey
+from bundlemcp.services.config_service.unknown_config_key import UnknownConfigKey
 
 # key -> (default, type). The single registry of runtime-tunable settings.
 DEFAULTS: dict[str, tuple[Any, type]] = {

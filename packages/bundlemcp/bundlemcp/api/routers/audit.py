@@ -10,7 +10,7 @@ from fastapi import APIRouter
 
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
-from bundlemcp.api.providers import AuditServiceProvider
+from bundlemcp.providers import AuditServiceProvider
 from bundlemcp.schemas import AuditRecordRead, Page
 
 router = APIRouter(prefix="/audit-records", tags=["audit"])

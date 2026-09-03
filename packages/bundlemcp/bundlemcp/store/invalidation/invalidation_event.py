@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from bundlemcp.store.invalidation._common import EntityType
+EntityType = Literal["server", "bundle", "bundle_tool", "endpoint", "api_key", "config"]
 
 
 class InvalidationEvent(BaseModel):

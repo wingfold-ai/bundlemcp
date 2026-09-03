@@ -5,9 +5,8 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlmodel import select
 
-from bundlemcp.gateway.runtime_config._common import DEFAULTS, coerce
-from bundlemcp.gateway.runtime_config.unknown_config_key import UnknownConfigKey
 from bundlemcp.models import ConfigEntry
+from bundlemcp.services.config_service import DEFAULTS, UnknownConfigKey, coerce
 
 log = structlog.get_logger(__name__)
 
