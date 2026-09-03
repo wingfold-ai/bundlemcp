@@ -9,7 +9,6 @@ import asyncio
 import json
 import time
 import uuid
-from datetime import UTC
 from typing import Any
 
 import structlog
@@ -24,11 +23,11 @@ from mcp.types import (
 )
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
 
-from bundlemcp.crypto import ACCESS_TOKEN_PREFIX, hash_token
 from bundlemcp.gateway.composition import PREFIX_SEP, BundleView, PresentedTool, load_bundle_view
+from bundlemcp.gateway.composition.aggregate_capabilities import aggregate_capabilities
 from bundlemcp.gateway.mcp_endpoint._call_outcome import _CallOutcome
+from bundlemcp.gateway.mcp_endpoint.forwarded_headers import forwarded_headers
 from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
 from bundlemcp.gateway.metering import MeterContext, MeterDecision, new_idempotency_key
 from bundlemcp.gateway.metrics import RATE_LIMIT_REJECTIONS
@@ -39,10 +38,7 @@ from bundlemcp.models import (
     AuditStatus,
     EndpointAuthMode,
     IdentityMode,
-    OAuthAccessToken,
     ServerAuthMode,
-    User,
-    utcnow,
 )
 from bundlemcp.oauth.upstream_client import NeedsConnect
 from bundlemcp.schemas import RateLimitConfig, RateRule
@@ -56,8 +52,6 @@ router = APIRouter()
 SESSION_HEADER = "mcp-session-id"
 
 # FWD-2: never forwardable, enforced at runtime on top of write-time checks
-DENIED_FORWARD_HEADERS = {"host", "content-length", "cookie", "x-api-key", "mcp-session-id"}
-IDENTITY_HEADER = "X-MCP-User"
 
 
 def _rpc_result(id_: Any, result: dict) -> JSONResponse:
@@ -82,38 +76,6 @@ def _unauthorized(request: Request, endpoint_name: str) -> Response:
     )
 
 
-async def _resolve_oauth_bearer(
-    request: Request, db: AsyncSession, view: BundleView
-) -> tuple[str, str | None] | None:
-    """Direct-DB bearer validation + audience check.
-
-    Returns (user_id, email) or None.
-    """
-    auth = request.headers.get("authorization", "")
-    if not auth.lower().startswith("bearer ") or not auth[7:].startswith(ACCESS_TOKEN_PREFIX):
-        return None
-    row = (
-        await db.execute(
-            select(OAuthAccessToken).where(
-                OAuthAccessToken.access_token_hash == hash_token(auth[7:])
-            )
-        )
-    ).scalar_one_or_none()
-    if row is None or row.revoked:
-        return None
-    expires = row.expires_at
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=UTC)
-    if expires < utcnow():
-        return None
-    if row.endpoint_id != view.endpoint.id:
-        return None  # EP-3a: audience mismatch -> 401 invalid_token
-    user = (await db.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
-    if user is None or not user.is_active:
-        return None
-    return (str(user.id), user.email)
-
-
 async def _authenticate(
     request: Request, db: AsyncSession, view: BundleView
 ) -> tuple[str, str | None, str | None, str | None] | None:
@@ -122,20 +84,23 @@ async def _authenticate(
     Precedence oauth > api_key.
     """
     modes = set(view.endpoint.auth_modes)
+    auth_service = AuthService(db)
+    authorization = request.headers.get("authorization")
     if EndpointAuthMode.OAUTH in modes:
-        oauth = await _resolve_oauth_bearer(request, db, view)
+        oauth = await auth_service.authenticate_oauth_bearer(
+            authorization=authorization, endpoint_id=view.endpoint.id
+        )
         if oauth is not None:
             user_id, email = oauth
             return ("oauth", user_id, email, None)
     if EndpointAuthMode.API_KEY in modes:
-        key = await AuthService(db).authenticate_api_key(
-            authorization=request.headers.get("authorization"),
+        key = await auth_service.authenticate_api_key(
+            authorization=authorization,
             x_api_key=request.headers.get("x-api-key"),
         )
         if key is not None:
-            if key.kind == "endpoint" and key.endpoint_ids:
-                if str(view.endpoint.id) not in key.endpoint_ids:
-                    return None  # scoped key, wrong endpoint (KEY-2)
+            if not auth_service.key_reaches_endpoint(key, view.endpoint.id):
+                return None  # KEY-2
             return ("api_key", None, None, str(key.id))
     if EndpointAuthMode.NONE in modes:
         return ("none", None, None, None)
@@ -218,63 +183,6 @@ async def note_auth_failure(request: Request) -> Response | None:
     return resp
 
 
-def _forward_headers(request: Request, server, sub: str | None) -> dict[str, str]:
-    """Build the extra headers forwarded upstream.
-
-    Applies the server's configured header mappings, skipping denied headers,
-    then injects the gateway's own identity header (any client-supplied
-    identity header is always stripped).
-    """
-    extra: dict[str, str] = {}
-    for client_header, upstream_header in server.forward_headers.items():
-        lower = client_header.lower()
-        if lower in DENIED_FORWARD_HEADERS or lower.startswith(("sec-", "proxy-")):
-            continue
-        value = request.headers.get(client_header)
-        if value is not None:
-            extra[upstream_header] = value
-    # client-supplied identity header is always stripped; gateway injects its own
-    extra.pop(IDENTITY_HEADER, None)
-    if server.send_identity_header and sub is not None:
-        extra[IDENTITY_HEADER] = sub
-    return extra
-
-
-def _aggregate_capabilities(view: BundleView) -> dict[str, Any]:
-    """PROT-11: advertise a capability iff ≥1 enabled member advertises it.
-
-    Source is each member's discovery-time capabilities snapshot (DISC-6), so
-    initialize never fans out to members. The gateway always supports tools.
-    """
-    caps: dict[str, Any] = {"tools": {"listChanged": True}}
-    has_prompts = has_resources = has_completions = has_logging = False
-    resources_subscribe = False
-    for server in view.servers.values():
-        member = server.capabilities or {}
-        if "prompts" in member:
-            has_prompts = True
-        if "resources" in member:
-            has_resources = True
-            if (member.get("resources") or {}).get("subscribe"):
-                resources_subscribe = True
-        if "completions" in member:
-            has_completions = True
-        if "logging" in member:
-            has_logging = True
-    if has_prompts:
-        caps["prompts"] = {"listChanged": True}
-    if has_resources:
-        resources: dict[str, Any] = {"listChanged": True}
-        if resources_subscribe:
-            resources["subscribe"] = True
-        caps["resources"] = resources
-    if has_completions:
-        caps["completions"] = {}
-    if has_logging:
-        caps["logging"] = {}
-    return caps
-
-
 async def _handle_initialize(
     runtime: GatewayRuntime, view: BundleView, body: dict, auth: tuple
 ) -> Response:
@@ -305,7 +213,7 @@ async def _handle_initialize(
         body.get("id"),
         {
             "protocolVersion": negotiated,
-            "capabilities": _aggregate_capabilities(view),  # PROT-11
+            "capabilities": aggregate_capabilities(view),  # PROT-11
             "serverInfo": {"name": f"bundlemcp/{view.bundle.name}", "version": "0.1.0"},
             **({"instructions": view.bundle.description} if view.bundle.description else {}),
         },
@@ -673,7 +581,7 @@ async def _handle_call(
         )
         return _rpc_error(rpc_id, -32000, decision.reason or "call denied")
 
-    extra_headers = _forward_headers(request, pt.server, sub)
+    extra_headers = forwarded_headers(request.headers, pt.server, sub)
     extra_headers.update(upstream_headers)  # spec 23: upstream OAuth bearer wins
     progress_token = (params.get("_meta") or {}).get("progressToken")
     cfg = await _timeout_config(runtime)
@@ -760,7 +668,7 @@ async def _readonly_headers(
 
     Raises NeedsConnect if an upstream_oauth member has no usable token.
     """
-    headers = _forward_headers(request, server, _sub_for(record))
+    headers = forwarded_headers(request.headers, server, _sub_for(record))
     if server.auth_mode == ServerAuthMode.UPSTREAM_OAUTH:
         if runtime.upstream_tokens is None:
             raise NeedsConnect("upstream_oauth_not_configured")
