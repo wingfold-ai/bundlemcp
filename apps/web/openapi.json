@@ -2691,7 +2691,7 @@
         ]
       },
       "put": {
-        "operationId": "add_or_update_member_api_v1_bundles__name__servers__server_name__put",
+        "operationId": "set_member_api_v1_bundles__name__servers__server_name__put",
         "parameters": [
           {
             "in": "path",
@@ -2744,7 +2744,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Add Or Update Member",
+        "summary": "Set Member",
         "tags": [
           "bundles"
         ]
@@ -2752,7 +2752,7 @@
     },
     "/api/v1/bundles/{name}/tools": {
       "get": {
-        "operationId": "list_bundle_tools_api_v1_bundles__name__tools_get",
+        "operationId": "list_tools_api_v1_bundles__name__tools_get",
         "parameters": [
           {
             "in": "path",
@@ -2772,7 +2772,7 @@
                   "items": {
                     "$ref": "#/components/schemas/BundleToolRead"
                   },
-                  "title": "Response List Bundle Tools Api V1 Bundles  Name  Tools Get",
+                  "title": "Response List Tools Api V1 Bundles  Name  Tools Get",
                   "type": "array"
                 }
               }
@@ -2790,7 +2790,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Bundle Tools",
+        "summary": "List Tools",
         "tags": [
           "bundles"
         ]
@@ -3439,7 +3439,7 @@
     },
     "/api/v1/servers/{name}/tools": {
       "get": {
-        "operationId": "list_server_tools_api_v1_servers__name__tools_get",
+        "operationId": "list_tools_api_v1_servers__name__tools_get",
         "parameters": [
           {
             "in": "path",
@@ -3496,7 +3496,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Server Tools",
+        "summary": "List Tools",
         "tags": [
           "servers"
         ]
