@@ -6,7 +6,6 @@ out. It is the one module allowed to name concrete implementations; everything
 downstream receives what it needs rather than reaching for it.
 """
 
-import asyncio
 from contextlib import AsyncExitStack
 
 import structlog
@@ -27,8 +26,8 @@ from bundlemcp.gateway.runtime_config import RuntimeConfig
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.gateway.upstream import default_client_factory
-from bundlemcp.oauth import token as oauth_token
 from bundlemcp.oauth.oidc import OidcProvider, build_provider
+from bundlemcp.oauth.token_purger import TokenPurger
 from bundlemcp.oauth.upstream_client import HttpxUpstreamProvider, UpstreamTokenStore
 from bundlemcp.services import ApiKeyService, NoUpstreamConnections
 from bundlemcp.settings import Settings
@@ -147,7 +146,9 @@ class CompositionRoot:
         await subscriber.start()
         self._stack.push_async_callback(subscriber.stop)
 
-        self._start_purge_loop(sessions)
+        purger = TokenPurger(units)  # OAS-8/SEC-8: expired grants must not linger
+        purger.start()
+        self._stack.callback(purger.stop)
 
         return AppContainer(
             settings=settings,
@@ -201,8 +202,3 @@ class CompositionRoot:
                 await runtime_config.flush()
 
         return on_event
-
-    def _start_purge_loop(self, sessions) -> None:
-        # OAS-8/SEC-8: expired grants and tokens must not linger in the database.
-        task = asyncio.create_task(oauth_token.purge_expired_forever(sessions))
-        self._stack.callback(task.cancel)

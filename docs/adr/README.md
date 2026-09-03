@@ -34,3 +34,4 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0025](0025-repository-unit-of-work-and-container.md) | A repository per entity, a unit of work per request, one typed container | accepted |
 | [0026](0026-controllers.md) | Controllers own an HTTP surface | accepted |
 | [0027](0027-mcp-edge-method-handlers.md) | The MCP edge dispatches through a method registry; a tool call is an object | accepted |
+| [0028](0028-oauth-server-as-services.md) | The OAuth server is services with grant strategies; browser state is typed and single-use | accepted |

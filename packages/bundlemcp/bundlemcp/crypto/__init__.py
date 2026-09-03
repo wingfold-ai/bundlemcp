@@ -15,6 +15,7 @@ keys). Generate one with `cryptography.fernet.Fernet.generate_key()`.
 
 from bundlemcp.crypto.decryption_error import DecryptionError
 from bundlemcp.crypto.encryption_not_configured import EncryptionNotConfigured
+from bundlemcp.crypto.pkce import PkcePair, pkce_challenge, pkce_verifies
 from bundlemcp.crypto.token_cipher import TokenCipher, token_cipher
 from bundlemcp.crypto.tokens import (
     ACCESS_TOKEN_PREFIX,
@@ -32,10 +33,13 @@ __all__ = [
     "REFRESH_TOKEN_PREFIX",
     "DecryptionError",
     "EncryptionNotConfigured",
+    "PkcePair",
     "TokenCipher",
     "display_prefix",
     "generate_token",
     "hash_token",
+    "pkce_challenge",
+    "pkce_verifies",
     "token_cipher",
     "tokens_equal",
 ]
