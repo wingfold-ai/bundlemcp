@@ -6,8 +6,9 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from bundlemcp.gateway.runtime_config import DEFAULTS, UnknownConfigKey, coerce
 from bundlemcp.models import ConfigEntry
+from bundlemcp.services.config_service.config_registry import DEFAULTS, coerce
+from bundlemcp.services.config_service.unknown_config_key import UnknownConfigKey
 from bundlemcp.services.errors import InvalidInputError, NotFoundError
 from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
 

@@ -18,6 +18,8 @@ jobs:
       - run: uv sync --all-packages
       - name: Ruff
         run: uv run ruff check .
+      - name: Import contracts
+        run: uv run lint-imports
       - name: Tests
         run: uv run pytest -q
 

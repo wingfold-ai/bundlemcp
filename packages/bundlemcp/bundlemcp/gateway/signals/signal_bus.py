@@ -2,15 +2,19 @@ import asyncio
 import json
 from typing import Any
 
+import structlog
 from redis.asyncio import Redis
 
-from bundlemcp.gateway.signals._common import SIGNAL_PATTERN, log
 from bundlemcp.gateway.signals.cancel_signal import CancelSignal
 from bundlemcp.gateway.signals.deliver_signal import DeliverSignal
 from bundlemcp.gateway.signals.reply_signal import ReplySignal
 from bundlemcp.gateway.signals.signal_envelope import SignalEnvelope
 from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.store.redis import SIGNAL_CHANNEL
+
+log = structlog.get_logger("bundlemcp.gateway.signals")
+
+SIGNAL_PATTERN = "bmcp:signal:*"
 
 
 class SignalBus:

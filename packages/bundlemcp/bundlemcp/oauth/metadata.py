@@ -3,9 +3,9 @@
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
-from bundlemcp.api.providers import DbProvider, SettingsProvider
 from bundlemcp.models import Endpoint
 from bundlemcp.oauth.urls import endpoint_resource, issuer
+from bundlemcp.providers import DbProvider, SettingsProvider
 
 router = APIRouter(tags=["oauth"])
 

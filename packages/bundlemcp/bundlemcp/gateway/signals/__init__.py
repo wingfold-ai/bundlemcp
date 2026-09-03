@@ -7,11 +7,10 @@ every signal is handled exactly once by whichever replica owns the target
 duplicate-delivery edge cases; the cost is one sub-millisecond Redis hop.
 """
 
-from bundlemcp.gateway.signals._common import SIGNAL_PATTERN, log
 from bundlemcp.gateway.signals.cancel_signal import CancelSignal
 from bundlemcp.gateway.signals.deliver_signal import DeliverSignal
 from bundlemcp.gateway.signals.reply_signal import ReplySignal
-from bundlemcp.gateway.signals.signal_bus import SignalBus
+from bundlemcp.gateway.signals.signal_bus import SIGNAL_PATTERN, SignalBus
 from bundlemcp.gateway.signals.signal_envelope import SignalEnvelope
 from bundlemcp.store.redis import SIGNAL_CHANNEL
 
@@ -23,5 +22,4 @@ __all__ = [
     "ReplySignal",
     "SignalBus",
     "SignalEnvelope",
-    "log",
 ]

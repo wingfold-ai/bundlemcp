@@ -2,6 +2,7 @@ from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 from bundlemcp.crypto.decryption_error import DecryptionError
 from bundlemcp.crypto.encryption_not_configured import EncryptionNotConfigured
+from bundlemcp.settings import Settings
 
 
 class TokenCipher:
@@ -31,3 +32,8 @@ class TokenCipher:
 
     def __repr__(self) -> str:  # never leak key material
         return "TokenCipher(keys=<redacted>)"
+
+
+def token_cipher(settings: Settings) -> TokenCipher:
+    """Build the cipher, raising EncryptionNotConfigured if no keys are set."""
+    return TokenCipher(settings.token_encryption_keys)

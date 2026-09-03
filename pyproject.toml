@@ -15,6 +15,7 @@ dev-dependencies = [
     "fakeredis>=2.30",
     "aiosqlite>=0.21",
     "httpx>=0.28",
+    "import-linter>=2.14",
 ]
 
 [tool.uv.sources]
@@ -39,4 +40,36 @@ asyncio_mode = "auto"
 testpaths = ["packages/bundlemcp/tests"]
 markers = [
     "fleet: integration test requiring the private ultra-mcp GHCR fleet images (skipped in CI)",
+]
+
+# Import-graph contracts. Run with `uv run lint-imports`.
+[tool.importlinter]
+root_package = "bundlemcp"
+# Needed so the framework-free contract below can name third-party modules.
+include_external_packages = true
+# `if TYPE_CHECKING:` imports carry no runtime coupling, so they do not count
+# as layer violations — a service may name a collaborator's type for annotation
+# purposes without depending on it.
+exclude_type_checking_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Business logic and DTOs stay framework-free"
+type = "forbidden"
+source_modules = ["bundlemcp.services", "bundlemcp.schemas", "bundlemcp.models"]
+forbidden_modules = ["fastapi", "starlette"]
+
+[[tool.importlinter.contracts]]
+name = "Layer direction"
+type = "layers"
+# Highest first; a layer may import anything below it and nothing above it.
+# `a : b` marks siblings that share a level and may import each other.
+layers = [
+    "bundlemcp.api",
+    "bundlemcp.bootstrap",
+    "bundlemcp.gateway : bundlemcp.oauth",
+    "bundlemcp.providers",
+    "bundlemcp.services",
+    "bundlemcp.schemas",
+    "bundlemcp.models : bundlemcp.store : bundlemcp.crypto",
+    "bundlemcp.settings",
 ]

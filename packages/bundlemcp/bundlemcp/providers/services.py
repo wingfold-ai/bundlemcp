@@ -1,17 +1,15 @@
-"""FastAPI providers: glue that builds stores and services from app state.
+"""Providers that build a request-scoped service from the shared collaborators.
 
-These are app-owned dependency *providers* (not third-party dependencies): each
-``get_*`` yields a value and the ``*Provider`` alias injects it into a route.
-Auth lives in ``api/auth.py``, pagination in ``api/pagination.py``.
+One per resource, mirroring ``bundlemcp.services``. A route asks for
+``ServerServiceProvider`` and receives a ``ServerService`` bound to this
+request's database session.
 """
 
 from typing import Annotated
 
 from fastapi import Depends, Request
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from bundlemcp.gateway.ratelimit import AuthFailureLimiter
+from bundlemcp.providers.collaborators import DbProvider, RedisProvider
 from bundlemcp.services import (
     ApiKeyService,
     AuditService,
@@ -21,41 +19,6 @@ from bundlemcp.services import (
     ServerService,
     UserService,
 )
-from bundlemcp.settings import Settings
-
-
-async def get_db(request: Request) -> AsyncSession:
-    factory = request.app.state.session_factory
-    async with factory() as session:
-        yield session
-
-
-def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
-    """The factory itself, for handlers that need several short transactions.
-
-    Prefer ``DbProvider`` for a single request-scoped session; take the factory
-    only when the handler deliberately opens and commits more than one.
-    """
-    return request.app.state.session_factory
-
-
-async def get_redis(request: Request) -> Redis:
-    return request.app.state.redis
-
-
-def get_app_settings(request: Request) -> Settings:
-    return request.app.state.settings
-
-
-def get_auth_failure_limiter(request: Request) -> AuthFailureLimiter:
-    return request.app.state.auth_failure_limiter
-
-
-DbProvider = Annotated[AsyncSession, Depends(get_db)]
-SessionFactoryProvider = Annotated[async_sessionmaker[AsyncSession], Depends(get_session_factory)]
-RedisProvider = Annotated[Redis, Depends(get_redis)]
-SettingsProvider = Annotated[Settings, Depends(get_app_settings)]
-AuthFailureLimiterProvider = Annotated[AuthFailureLimiter, Depends(get_auth_failure_limiter)]
 
 
 def get_server_service(request: Request, db: DbProvider, redis: RedisProvider) -> ServerService:

@@ -71,3 +71,8 @@ The "Wiring lives in `deps.py`" decision above now lives in three
 specifically-named modules — `api/providers.py`, `api/auth.py`, and
 `api/pagination.py` — with the `*Dep` aliases renamed to `*Provider`. See the
 [ADR-0020](0020-library-level-service-layer.md) addendum.
+
+> **Superseded in part by [ADR-0023](0023-import-contracts-and-shared-providers.md):**
+> `api/providers.py` is now `bundlemcp/providers.py` and `oauth/deps.py` is now
+> `oauth/providers.py`. The layer direction described here is enforced by
+> import contracts (`uv run lint-imports`) rather than by grep.

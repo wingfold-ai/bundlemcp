@@ -14,15 +14,15 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import select
 
-from bundlemcp.api.providers import (
+from bundlemcp.models import IdentityMode, McpServer
+from bundlemcp.oauth.authorize import PAGE_HEADERS, CurrentSessionUser
+from bundlemcp.oauth.providers import UpstreamTokensProvider
+from bundlemcp.oauth.upstream_client import NeedsConnect
+from bundlemcp.providers import (
     RedisProvider,
     SessionFactoryProvider,
     SettingsProvider,
 )
-from bundlemcp.models import IdentityMode, McpServer
-from bundlemcp.oauth.authorize import PAGE_HEADERS, CurrentSessionUser
-from bundlemcp.oauth.deps import UpstreamTokensProvider
-from bundlemcp.oauth.upstream_client import NeedsConnect
 from bundlemcp.settings import Settings
 
 log = structlog.get_logger(__name__)

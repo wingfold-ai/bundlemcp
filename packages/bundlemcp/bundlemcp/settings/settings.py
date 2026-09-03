@@ -1,7 +1,5 @@
-"""Deploy-time configuration via environment (BUNDLEMCP_ prefix).
+"""The deploy-time configuration model."""
 
-Runtime-tunable settings live in the Config table, not here.
-"""
 
 from functools import lru_cache
 
@@ -126,4 +124,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """The process-wide settings, read from the environment once."""
     return Settings()

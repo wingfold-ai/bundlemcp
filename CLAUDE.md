@@ -57,6 +57,9 @@ See [spec/00-overview.md](spec/00-overview.md) and
 
 - `uv run pytest -q` — hermetic unit tests (no Docker/network); must pass
   before any change is done. `uv run ruff check .` must be clean.
+- `uv run lint-imports` — import contracts (ADR-0023): the layer direction and
+  the framework-free rule for `services/`/`schemas/`/`models/`. Must pass with
+  zero exceptions; never silence a violation with `ignore_imports`.
 - Integration tests run against the compose stack; spec 30 mandates
   restart-under-load and two-replica session tests.
 - Tests reference spec requirement IDs in their names/docstrings where they
@@ -84,6 +87,12 @@ See [spec/00-overview.md](spec/00-overview.md) and
   in `Field`, requirement IDs stay in `#` comments:
 
 @.claude/docs/pydantic-fields.md
+
+- **No `_common.py` / `_functions.py` / `utils.py`.** A module is named for what
+  it holds, not for the kind of object inside it; one function is enough to
+  justify one file. Where a constant, factory or logger belongs instead is in:
+
+@.claude/docs/module-naming.md
 
 - New behavior starts with a spec update in `/spec`; keep requirement IDs
   stable.

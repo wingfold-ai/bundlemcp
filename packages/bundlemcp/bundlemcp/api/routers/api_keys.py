@@ -9,7 +9,7 @@ from fastapi import APIRouter, status
 
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
-from bundlemcp.api.providers import ApiKeyServiceProvider
+from bundlemcp.providers import ApiKeyServiceProvider
 from bundlemcp.schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyRead, Page
 
 router = APIRouter(prefix="/api-keys", tags=["api-keys"])

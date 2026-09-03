@@ -6,7 +6,13 @@ gateway attaches, so the whole path is hermetic (no loopback upstream needed).
 
 
 from bundlemcp.api.app import create_app
-from bundlemcp.crypto import token_cipher
+from bundlemcp.crypto import (
+    API_KEY_PREFIX,
+    display_prefix,
+    generate_token,
+    hash_token,
+    token_cipher,
+)
 from bundlemcp.models import (
     ApiKey,
     ApiKeyKind,
@@ -20,7 +26,6 @@ from bundlemcp.models import (
     UpstreamOAuthClient,
 )
 from bundlemcp.oauth.upstream_client import UpstreamMetadata, UpstreamTokens, UpstreamTokenStore
-from bundlemcp.security import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
 from cryptography.fernet import Fernet

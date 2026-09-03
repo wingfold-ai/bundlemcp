@@ -1,6 +1,8 @@
 """Secret-token helpers: generate, hash, compare.
 
-Only hashes are stored; comparisons run on hashes with constant-time equality.
+One-way handling, as opposed to the reversible cipher in ``token_cipher``:
+only hashes are stored, and comparisons run on hashes with constant-time
+equality.
 """
 
 import hashlib
