@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, String
 from sqlmodel import Field, SQLModel
 
 from bundlemcp.models.api_key_kind import ApiKeyKind
@@ -23,8 +23,9 @@ class ApiKey(SQLModel, table=True):
     key_prefix: str = Field(
         description="Leading characters of the secret, enough to recognise which key this is"
     )
-    kind: str = Field(  # KEY-2
+    kind: ApiKeyKind = Field(  # KEY-2
         default=ApiKeyKind.ENDPOINT,
+        sa_type=String,
         description="'endpoint' keys call MCP endpoints; 'service' keys call the management API",
     )
     endpoint_ids: list[str] = Field(
@@ -41,3 +42,20 @@ class ApiKey(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=utcnow, sa_column=_ts(), description="When the record was created"
     )
+
+    @property
+    def is_service_key(self) -> bool:
+        return self.kind == ApiKeyKind.SERVICE
+
+    def reaches(self, endpoint_id: uuid.UUID) -> bool:
+        """Whether the key may call this endpoint; an unscoped key reaches every one."""
+        # KEY-2
+        if self.kind == ApiKeyKind.ENDPOINT and self.endpoint_ids:
+            return str(endpoint_id) in self.endpoint_ids
+        return True
+
+    def used_within(self, seconds: int, now: datetime) -> bool:
+        """Whether the last recorded use is recent enough to skip another write."""
+        if self.last_used_at is None:
+            return False
+        return (now - self.last_used_at).total_seconds() <= seconds

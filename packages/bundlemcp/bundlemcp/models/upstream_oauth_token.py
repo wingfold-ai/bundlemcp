@@ -1,10 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import Column, ForeignKey, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from bundlemcp.models.base import _ts
+from bundlemcp.models.base import _ts, utcnow
 
 
 class UpstreamOAuthToken(SQLModel, table=True):
@@ -43,3 +43,16 @@ class UpstreamOAuthToken(SQLModel, table=True):
         default=None,
         description="Masked account or email identifying which upstream account this is",
     )
+
+    @property
+    def is_expired(self) -> bool:
+        return self.expires_at is not None and self.expires_at < utcnow()
+
+    @property
+    def is_connected(self) -> bool:
+        """The stored token set is still believed to work upstream."""
+        return self.is_valid and not self.is_expired
+
+    def expires_within(self, skew: timedelta) -> bool:
+        """Whether the access token runs out inside the given window (or already has)."""
+        return self.expires_at is not None and self.expires_at - skew <= utcnow()

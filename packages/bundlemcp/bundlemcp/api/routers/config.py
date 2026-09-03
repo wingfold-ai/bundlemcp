@@ -9,7 +9,7 @@ from fastapi import APIRouter, status
 
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.providers import ConfigServiceProvider
-from bundlemcp.schemas import ConfigValue
+from bundlemcp.schemas import ConfigEntryRead, ConfigValue
 
 router = APIRouter(prefix="/config", tags=["config"])
 
@@ -22,7 +22,7 @@ async def get_config(service: ConfigServiceProvider, _auth: ServiceAuthProvider)
 @router.put("/{key}")
 async def set_config(
     key: str, body: ConfigValue, service: ConfigServiceProvider, _auth: ServiceAuthProvider
-) -> dict[str, Any]:
+) -> ConfigEntryRead:
     return await service.set(key, body.value)
 
 

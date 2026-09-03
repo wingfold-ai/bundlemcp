@@ -8,7 +8,16 @@ from fastapi import APIRouter, HTTPException, status
 from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
 from bundlemcp.providers import ServerServiceProvider
-from bundlemcp.schemas import Page, ServerRead, ServerUpsert, ToolRead, UpstreamOAuthConfig
+from bundlemcp.schemas import (
+    DiscoveryResult,
+    Page,
+    ServerRead,
+    ServerUpsert,
+    ToolRead,
+    UpstreamOAuthClientRead,
+    UpstreamOAuthConfig,
+    UpstreamOAuthStatusRead,
+)
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 
@@ -64,7 +73,7 @@ async def list_server_tools(
 @router.post("/{name}:refresh-tools")
 async def refresh_tools(
     name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider
-) -> dict:
+) -> DiscoveryResult:
     return await service.refresh_tools(name)
 
 
@@ -74,14 +83,14 @@ async def refresh_tools(
 @router.put("/{name}/upstream-oauth")
 async def set_upstream_oauth(
     name: str, body: UpstreamOAuthConfig, service: ServerServiceProvider, _auth: ServiceAuthProvider
-) -> dict:
+) -> UpstreamOAuthClientRead:
     return await service.set_upstream_oauth(name, body)
 
 
 @router.get("/{name}/upstream-oauth")
 async def upstream_oauth_status(
     name: str, service: ServerServiceProvider, _auth: ServiceAuthProvider
-) -> dict:
+) -> UpstreamOAuthStatusRead:
     return await service.upstream_oauth_status(name)
 
 

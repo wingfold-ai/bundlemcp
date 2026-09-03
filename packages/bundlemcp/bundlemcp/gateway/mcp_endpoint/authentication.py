@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bundlemcp.gateway.composition import BundleView
 from bundlemcp.gateway.proxy import client_ip
-from bundlemcp.models import EndpointAuthMode
+from bundlemcp.models import CallerIdentity, EndpointAuthMode
 from bundlemcp.services import AuthService
 
 
@@ -23,11 +23,8 @@ def unauthorized(request: Request, endpoint_name: str) -> Response:
 
 async def authenticate(
     request: Request, db: AsyncSession, view: BundleView
-) -> tuple[str, str | None, str | None, str | None] | None:
-    """Returns (auth_method, user_id, user_email, api_key_id) or None.
-
-    Precedence oauth > api_key.
-    """
+) -> CallerIdentity | None:
+    """Resolve the caller, trying the endpoint's modes in precedence order oauth > api_key."""
     modes = set(view.endpoint.auth_modes)
     auth_service = AuthService(db)
     authorization = request.headers.get("authorization")
@@ -36,19 +33,18 @@ async def authenticate(
             authorization=authorization, endpoint_id=view.endpoint.id
         )
         if oauth is not None:
-            user_id, email = oauth
-            return ("oauth", user_id, email, None)
+            return oauth
     if EndpointAuthMode.API_KEY in modes:
         key = await auth_service.authenticate_api_key(
             authorization=authorization,
             x_api_key=request.headers.get("x-api-key"),
         )
         if key is not None:
-            if not auth_service.key_reaches_endpoint(key, view.endpoint.id):
+            if not key.reaches(view.endpoint.id):
                 return None  # KEY-2
-            return ("api_key", None, None, str(key.id))
+            return CallerIdentity.with_api_key(key.id)
     if EndpointAuthMode.NONE in modes:
-        return ("none", None, None, None)
+        return CallerIdentity.anonymous()
     return None
 
 

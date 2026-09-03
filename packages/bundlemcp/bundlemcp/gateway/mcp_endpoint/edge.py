@@ -36,6 +36,7 @@ from bundlemcp.gateway.mcp_endpoint.passthrough import (
 from bundlemcp.gateway.mcp_endpoint.rate_limit import enforce_rate_limit
 from bundlemcp.gateway.mcp_endpoint.tool_call import handle_call
 from bundlemcp.gateway.protocol_version import SUPPORTED_PROTOCOL_VERSIONS, negotiate_version
+from bundlemcp.models import CallerIdentity
 from bundlemcp.store.sessions import SessionRecord, SessionStore
 
 log = structlog.get_logger(__name__)
@@ -48,9 +49,8 @@ SESSION_HEADER = "mcp-session-id"
 
 
 async def _handle_initialize(
-    runtime: GatewayRuntime, view: BundleView, body: dict, auth: tuple
+    runtime: GatewayRuntime, view: BundleView, body: dict, identity: CallerIdentity
 ) -> Response:
-    auth_method, user_id, user_email, api_key_id = auth
     params = body.get("params") or {}
     negotiated = negotiate_version(params.get("protocolVersion"))  # PROT-12
     if negotiated is None:
@@ -65,10 +65,7 @@ async def _handle_initialize(
         session_id=session_id,
         endpoint_name=view.endpoint.name,
         bundle_name=view.bundle.name,
-        auth_method=auth_method,
-        user_id=user_id,
-        user_email=user_email,
-        api_key_id=api_key_id,
+        identity=identity,
         protocol_version=negotiated,
         client_capabilities=params.get("capabilities") or {},
     )
@@ -120,7 +117,7 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
 
     if method == "initialize":
         limited = await enforce_rate_limit(
-            runtime, request, view, auth[1], auth[3], body.get("id"), is_tool_call=False
+            runtime, request, view, auth, body.get("id"), is_tool_call=False
         )
         if limited is not None:
             return limited
@@ -155,8 +152,7 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
             runtime,
             request,
             view,
-            record.user_id,
-            record.api_key_id,
+            record.identity,
             body.get("id"),
             is_tool_call=False,
         )
@@ -168,8 +164,7 @@ async def mcp_post(endpoint_name: str, request: Request) -> Response:
             runtime,
             request,
             view,
-            record.user_id,
-            record.api_key_id,
+            record.identity,
             body.get("id"),
             is_tool_call=True,
         )

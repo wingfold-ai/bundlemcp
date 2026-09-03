@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC
 from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from bundlemcp.crypto import ACCESS_TOKEN_PREFIX, API_KEY_PREFIX, hash_token
-from bundlemcp.models import ApiKey, OAuthAccessToken, User, utcnow
+from bundlemcp.models import ApiKey, CallerIdentity, OAuthAccessToken, User, utcnow
 from bundlemcp.services.auth_service.principal import Principal
 
 if TYPE_CHECKING:
@@ -47,20 +46,18 @@ class AuthService:
         key = result.scalar_one_or_none()
         if key is None or not key.is_active:
             return None
-        last = key.last_used_at  # sqlite returns naive datetimes — assume UTC
-        if last is not None and last.tzinfo is None:
-            last = last.replace(tzinfo=UTC)
-        if last is None or (utcnow() - last).total_seconds() > _LAST_USED_REFRESH_SECONDS:
-            key.last_used_at = utcnow()
+        now = utcnow()
+        if not key.used_within(_LAST_USED_REFRESH_SECONDS, now):
+            key.last_used_at = now
             await self._db.commit()
         return key
 
     async def authenticate_oauth_bearer(
         self, *, authorization: str | None, endpoint_id: uuid.UUID
-    ) -> tuple[str, str | None] | None:
+    ) -> CallerIdentity | None:
         """Validate an endpoint access token against the database.
 
-        Returns (user_id, email), or None when the header carries no such token,
+        Returns the user's identity, or None when the header carries no such token,
         the token is unknown, revoked or expired, its audience is a different
         endpoint, or its user is gone or deactivated.
         """
@@ -76,12 +73,7 @@ class AuthService:
                 )
             )
         ).scalar_one_or_none()
-        if row is None or row.revoked:
-            return None
-        expires = row.expires_at  # sqlite returns naive datetimes — assume UTC
-        if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=UTC)
-        if expires < utcnow():
+        if row is None or not row.is_usable:
             return None
         if row.endpoint_id != endpoint_id:
             return None  # EP-3a: audience mismatch
@@ -90,13 +82,7 @@ class AuthService:
         ).scalar_one_or_none()
         if user is None or not user.is_active:
             return None
-        return (str(user.id), user.email)
-
-    def key_reaches_endpoint(self, key: ApiKey, endpoint_id: uuid.UUID) -> bool:
-        """Whether a key may be used on this endpoint; unscoped keys reach all (KEY-2)."""
-        if key.kind == "endpoint" and key.endpoint_ids:
-            return str(endpoint_id) in key.endpoint_ids
-        return True
+        return CallerIdentity.oauth_user(user.id, user.email)
 
     async def authenticate_api_key(
         self, *, authorization: str | None, x_api_key: str | None
@@ -115,7 +101,7 @@ class AuthService:
         session = await self._admin_sessions.load(session_id)
         if session is None:
             return None
-        
+
         user = (
             await self._db.execute(select(User).where(User.id == uuid.UUID(session.user_id)))
         ).scalar_one_or_none()

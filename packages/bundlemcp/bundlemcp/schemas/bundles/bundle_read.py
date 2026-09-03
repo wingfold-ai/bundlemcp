@@ -1,13 +1,13 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from bundlemcp.schemas.common.entity_read import EntityRead
 
 
-class BundleRead(BaseModel):
+class BundleRead(EntityRead):
     """A bundle as stored."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID = Field(description="Identifier of the bundle")
     name: str = Field(description="Unique bundle name")

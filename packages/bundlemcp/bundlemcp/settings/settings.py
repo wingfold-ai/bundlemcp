@@ -1,6 +1,5 @@
 """The deploy-time configuration model."""
 
-
 from functools import lru_cache
 
 from pydantic import AnyHttpUrl, Field
@@ -120,6 +119,11 @@ class Settings(BaseSettings):
         pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
         description="Minimum severity written to the structured log",
     )
+
+    @property
+    def public_base(self) -> str:
+        """The public URL as a bare origin-plus-path string, without a trailing slash."""
+        return str(self.public_url).rstrip("/")
 
 
 @lru_cache

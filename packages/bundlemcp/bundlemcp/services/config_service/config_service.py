@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from bundlemcp.models import ConfigEntry
+from bundlemcp.schemas import ConfigEntryRead
 from bundlemcp.services.config_service.config_registry import DEFAULTS, coerce
 from bundlemcp.services.config_service.unknown_config_key import UnknownConfigKey
 from bundlemcp.services.errors import InvalidInputError, NotFoundError
@@ -29,7 +30,7 @@ class ConfigService:
         overrides = {r.key: r.value for r in rows if r.key in DEFAULTS}
         return {key: overrides.get(key, default) for key, (default, _t) in DEFAULTS.items()}
 
-    async def set(self, key: str, value: Any) -> dict[str, Any]:
+    async def set(self, key: str, value: Any) -> ConfigEntryRead:
         try:
             coerced = coerce(key, value)
         except UnknownConfigKey:
@@ -47,7 +48,7 @@ class ConfigService:
         await publish_invalidation(
             self._redis, InvalidationEvent(entity_type="config", key=key, action="updated")
         )  # STP-1
-        return {key: coerced}
+        return ConfigEntryRead(key=key, value=coerced)
 
     async def reset(self, key: str) -> None:
         """Remove the override; the default applies again."""

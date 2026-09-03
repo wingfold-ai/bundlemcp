@@ -2,9 +2,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from bundlemcp.models import CallerIdentity
 from bundlemcp.store.sessions.upstream_binding import UpstreamBinding
 
-SESSION_RECORD_VERSION = 1  # DEP-6: bump only with cross-release read compat
+SESSION_RECORD_VERSION = 2  # DEP-6: bump only with cross-release read compat
 
 
 class SessionRecord(BaseModel):
@@ -17,13 +18,10 @@ class SessionRecord(BaseModel):
     session_id: str = Field(description="Session identifier issued to the client")
     endpoint_name: str = Field(description="Endpoint the session was opened against")
     bundle_name: str = Field(description="Bundle that endpoint exposes")
-    auth_method: str = Field(description="How the client authenticated: oauth, api_key or none")
-    user_id: str | None = Field(default=None, description="Authenticated user, when OAuth was used")
-    user_email: str | None = Field(
-        default=None,
-        description="Email of the authenticated user, passed on to the metering hook",
+    identity: CallerIdentity = Field(
+        description="Who opened the session, resolved once at initialize and reused for "
+        "every call: metering, audit and header forwarding all read this"
     )
-    api_key_id: str | None = Field(default=None, description="API key used, when one was")
     protocol_version: str = Field(
         description="MCP protocol version negotiated when the session opened"
     )

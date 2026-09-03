@@ -12,12 +12,14 @@ from bundlemcp.api.pagination import PageProvider
 from bundlemcp.providers import BundleServiceProvider
 from bundlemcp.schemas import (
     BundleMemberRead,
+    BundleMembershipRead,
     BundleRead,
     BundleServerUpdate,
     BundleToolRead,
     BundleToolUpdate,
     BundleUpsert,
     Page,
+    ToolCurationRead,
 )
 
 router = APIRouter(prefix="/bundles", tags=["bundles"])
@@ -74,7 +76,7 @@ async def add_or_update_member(
     body: BundleServerUpdate,
     service: BundleServiceProvider,
     _auth: ServiceAuthProvider,
-) -> dict:
+) -> BundleMembershipRead:
     return await service.set_member(name, server_name, body)
 
 
@@ -92,5 +94,5 @@ async def curate_tool(
     body: BundleToolUpdate,
     service: BundleServiceProvider,
     _auth: ServiceAuthProvider,
-) -> dict:
+) -> ToolCurationRead:
     return await service.curate_tool(name, tool_id, body)

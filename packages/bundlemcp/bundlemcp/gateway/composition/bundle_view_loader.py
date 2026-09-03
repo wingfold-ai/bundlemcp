@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from bundlemcp.gateway.composition.bundle_view import BundleView
-from bundlemcp.gateway.composition.presented_tool import PREFIX_SEP, PresentedTool
+from bundlemcp.gateway.composition.presented_tool import PresentedTool
 from bundlemcp.models import (
     Bundle,
     BundleServer,
@@ -14,6 +14,7 @@ from bundlemcp.models import (
     Endpoint,
     EndpointProfile,
     McpServer,
+    PresentedName,
     Tool,
 )
 
@@ -84,10 +85,8 @@ async def load_bundle_view(db: AsyncSession, endpoint_name: str) -> BundleView |
             if cur is not None and not cur.enabled:  # TM-2 filter
                 continue
             server = server_by_id[tool.server_id]
-            presented = (
-                cur.override_name
-                if cur is not None and cur.override_name
-                else f"{server.name}{PREFIX_SEP}{tool.name}"
+            presented = PresentedName.for_tool(
+                server.name, tool.name, cur.override_name if cur else None
             )
             annotations = _apply_profile_annotations(endpoint.profile, tool.annotations)
             annotations = _merge_overrides(

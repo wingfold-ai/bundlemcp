@@ -7,6 +7,7 @@ from sqlmodel import func, select
 
 from bundlemcp.models import Bundle, Endpoint
 from bundlemcp.schemas import EndpointRead, EndpointUpsert, Page
+from bundlemcp.schemas.resource_names import endpoint_name as endpoint_name_adapter
 from bundlemcp.services.errors import ConflictError, InvalidInputError, NotFoundError
 from bundlemcp.services.validators import endpoint_violates_per_user_upstream
 from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
@@ -44,14 +45,14 @@ class EndpointService:
             )
         ).scalars()
         return Page(
-            items=[EndpointRead.model_validate(e) for e in rows],
+            items=[EndpointRead.from_entity(e) for e in rows],
             total=total,
             offset=offset,
             limit=limit,
         )
 
     async def get(self, name: str) -> EndpointRead:
-        return EndpointRead.model_validate(await self._get(name))
+        return EndpointRead.from_entity(await self._get(name))
 
     async def upsert(self, body: EndpointUpsert) -> EndpointRead:
         bundle = (
@@ -60,9 +61,7 @@ class EndpointService:
         if bundle is None:
             raise NotFoundError("bundle not found")
         # UPO-6: a none-only endpoint can't expose a bundle with a per_user upstream
-        if await endpoint_violates_per_user_upstream(
-            self._db, bundle.id, [m.value for m in body.auth_modes]
-        ):
+        if await endpoint_violates_per_user_upstream(self._db, bundle.id, body.auth_modes):
             raise ConflictError(
                 "a 'none'-auth endpoint cannot expose a bundle with a per_user upstream "
                 "server (UPO-6)"
@@ -73,14 +72,14 @@ class EndpointService:
             ep = Endpoint(name=body.name, bundle_id=bundle.id)
         ep.bundle_id = bundle.id
         ep.profile = body.profile
-        ep.auth_modes = [m.value for m in body.auth_modes]
+        ep.auth_modes = list(body.auth_modes)
         ep.rate_limit = body.rate_limit.model_dump() if body.rate_limit else None
         ep.enabled = body.enabled
         self._db.add(ep)
         await self._db.commit()
         await self._db.refresh(ep)
         await self._invalidate(body.name, "created" if created else "updated")
-        return EndpointRead.model_validate(ep)
+        return EndpointRead.from_entity(ep)
 
     async def rename(self, name: str, new_name: str, *, force: bool) -> EndpointRead:
         """Renaming breaks every connected client's URL, so force is required."""
@@ -91,15 +90,14 @@ class EndpointService:
             )
         ep = await self._get(name)
         try:
-            # reuse DTO name validation (reserved names, slug)
-            EndpointUpsert(name=new_name, bundle_name="x", allow_unauthenticated=True)
+            endpoint_name_adapter.validate_python(new_name)
         except ValidationError as exc:
             raise InvalidInputError(str(exc)) from None
         ep.name = new_name
         await self._db.commit()
         await self._db.refresh(ep)
         await self._invalidate(new_name, "updated")
-        return EndpointRead.model_validate(ep)
+        return EndpointRead.from_entity(ep)
 
     async def delete(self, name: str) -> None:
         ep = await self._by_name(name)

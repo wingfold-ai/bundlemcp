@@ -25,7 +25,7 @@ class UserService:
             )
         ).scalars()
         return Page(
-            items=[UserRead.model_validate(u) for u in rows],
+            items=[UserRead.from_entity(u) for u in rows],
             total=total,
             offset=offset,
             limit=limit,
@@ -51,7 +51,7 @@ class UserService:
         )
         await self._db.commit()
         await self._db.refresh(user)
-        return UserRead.model_validate(user)
+        return UserRead.from_entity(user)
 
     async def list_consents(self, user_id: uuid.UUID) -> list[ConsentRead]:
         rows = (
@@ -61,7 +61,7 @@ class UserService:
                 )
             )
         ).scalars()
-        return [ConsentRead.model_validate(c) for c in rows]
+        return [ConsentRead.from_entity(c) for c in rows]
 
     async def revoke_consent(self, user_id: uuid.UUID, consent_id: uuid.UUID) -> None:
         """Revoking a consent also revokes the tokens issued under it."""

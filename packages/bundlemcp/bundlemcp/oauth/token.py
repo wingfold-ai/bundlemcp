@@ -4,7 +4,7 @@ import asyncio
 import base64
 import hashlib
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import structlog
 from fastapi import APIRouter, Form, HTTPException, Request
@@ -44,13 +44,6 @@ router = APIRouter(tags=["oauth"])
 
 ACCESS_TOKEN_TTL = timedelta(hours=1)  # OAS-4 (runtime Config later)
 REFRESH_TOKEN_TTL = timedelta(days=7)
-
-
-def _aware(dt: datetime | None) -> datetime | None:
-    """sqlite returns naive datetimes; treat them as UTC."""
-    if dt is not None and dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt
 
 
 def _token_error(error: str, description: str = "", status: int = 400) -> JSONResponse:
@@ -177,12 +170,7 @@ async def token(  # noqa: PLR0911 - protocol branching
                     )
                 )
             ).scalar_one_or_none()
-            if (
-                row is None
-                or row.used
-                or row.client_id != client.client_id
-                or _aware(row.expires_at) < utcnow()
-            ):
+            if row is None or not row.is_redeemable or row.client_id != client.client_id:
                 return await _invalid_grant(request, limiter, settings)
             if redirect_uri != row.redirect_uri:
                 return await _invalid_grant(request, limiter, settings, "redirect_uri mismatch")
@@ -207,12 +195,7 @@ async def token(  # noqa: PLR0911 - protocol branching
                     )
                 )
             ).scalar_one_or_none()
-            if (
-                row is None
-                or row.revoked
-                or row.client_id != client.client_id
-                or _aware(row.refresh_expires_at) < utcnow()
-            ):
+            if row is None or not row.is_refreshable or row.client_id != client.client_id:
                 return await _invalid_grant(request, limiter, settings)
             row.revoked = True  # rotation (OAS-4)
             db.add(row)
@@ -286,7 +269,7 @@ async def introspect(
                     "token_use": "api_key",
                 }
             return {"active": False}
-        if row.revoked or _aware(row.expires_at) < utcnow():
+        if not row.is_usable:
             return {"active": False}
         user = (await db.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
         endpoint = (
@@ -299,7 +282,7 @@ async def introspect(
         "sub": str(row.user_id),
         "client_id": row.client_id,
         "scope": row.scope,
-        "exp": int(_aware(row.expires_at).timestamp()),
+        "exp": int(row.expires_at.timestamp()),
         "aud": endpoint_resource(settings, endpoint.name) if endpoint else None,
         "email": user.email,
     }

@@ -5,21 +5,22 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
-from bundlemcp.models import Bundle, BundleServer, BundleTool, McpServer, Tool
+from bundlemcp.models import Bundle, BundleServer, BundleTool, McpServer, PresentedName, Tool
 from bundlemcp.schemas import (
     BundleMemberRead,
+    BundleMembershipRead,
     BundleRead,
     BundleServerUpdate,
     BundleToolRead,
     BundleToolUpdate,
     BundleUpsert,
     Page,
+    ToolCurationRead,
 )
 from bundlemcp.services.errors import ConflictError, NotFoundError
 from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
@@ -59,14 +60,14 @@ class BundleService:
             )
         ).scalars()
         return Page(
-            items=[BundleRead.model_validate(b) for b in rows],
+            items=[BundleRead.from_entity(b) for b in rows],
             total=total,
             offset=offset,
             limit=limit,
         )
 
     async def get(self, name: str) -> BundleRead:
-        return BundleRead.model_validate(await self._get(name))
+        return BundleRead.from_entity(await self._get(name))
 
     async def upsert(self, body: BundleUpsert) -> BundleRead:
         bundle = await self._by_name(body.name)
@@ -78,7 +79,7 @@ class BundleService:
         await self._db.commit()
         await self._db.refresh(bundle)
         await self._invalidate(body.name, "created" if created else "updated")
-        return BundleRead.model_validate(bundle)
+        return BundleRead.from_entity(bundle)
 
     async def delete(self, name: str) -> None:
         bundle = await self._by_name(name)
@@ -155,10 +156,8 @@ class BundleService:
                     description=tool.description,
                     member_enabled=mapping.enabled,
                     enabled=cur.enabled if cur is not None else True,
-                    presented_name=(
-                        cur.override_name
-                        if cur is not None and cur.override_name
-                        else f"{srv.name}__{tool.name}"
+                    presented_name=PresentedName.for_tool(
+                        srv.name, tool.name, cur.override_name if cur else None
                     ),
                     override_name=cur.override_name if cur else None,
                     override_title=cur.override_title if cur else None,
@@ -170,7 +169,7 @@ class BundleService:
 
     async def set_member(
         self, name: str, server_name: str, body: BundleServerUpdate
-    ) -> dict[str, Any]:
+    ) -> BundleMembershipRead:
         """Add a member server or toggle its enabled flag; upsert semantics."""
         bundle = await self._get(name)
         server = await self._server_by_name(server_name)
@@ -189,7 +188,7 @@ class BundleService:
         self._db.add(mapping)
         await self._db.commit()
         await self._invalidate(name)
-        return {"bundle": name, "server": server_name, "enabled": mapping.enabled}
+        return BundleMembershipRead(bundle=name, server=server_name, enabled=mapping.enabled)
 
     async def remove_member(self, name: str, server_name: str) -> None:
         bundle = await self._get(name)
@@ -210,7 +209,7 @@ class BundleService:
 
     async def curate_tool(
         self, name: str, tool_id: uuid.UUID, body: BundleToolUpdate
-    ) -> dict[str, Any]:
+    ) -> ToolCurationRead:
         """Per-bundle tool curation: enable/disable plus name/metadata overrides."""
         bundle = await self._get(name)
         tool = (await self._db.execute(select(Tool).where(Tool.id == tool_id))).scalar_one_or_none()
@@ -252,4 +251,16 @@ class BundleService:
             InvalidationEvent(entity_type="bundle_tool", key=str(tool_id), action="updated"),
         )
         await self._invalidate(name)
-        return {"bundle": name, "tool_id": str(tool_id), "enabled": mapping.enabled}
+        server = (
+            await self._db.execute(select(McpServer).where(McpServer.id == tool.server_id))
+        ).scalar_one()
+        return ToolCurationRead(
+            bundle=name,
+            tool_id=tool_id,
+            enabled=mapping.enabled,
+            presented_name=PresentedName.for_tool(server.name, tool.name, mapping.override_name),
+            override_name=mapping.override_name,
+            override_title=mapping.override_title,
+            override_description=mapping.override_description,
+            override_annotations=mapping.override_annotations,
+        )

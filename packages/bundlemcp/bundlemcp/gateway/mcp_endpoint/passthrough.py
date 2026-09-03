@@ -14,12 +14,10 @@ import structlog
 from fastapi import Request, Response
 from mcp.types import PromptReference, ResourceTemplateReference
 
-from bundlemcp.gateway.composition import PREFIX_SEP
-from bundlemcp.gateway.mcp_endpoint.caller_identity import caller_sub
 from bundlemcp.gateway.mcp_endpoint.forwarded_headers import forwarded_headers
 from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
 from bundlemcp.gateway.mcp_endpoint.jsonrpc import rpc_error, rpc_result
-from bundlemcp.models import IdentityMode, ServerAuthMode
+from bundlemcp.models import IdentityMode, PresentedName, ServerAuthMode
 from bundlemcp.oauth.upstream_client import NeedsConnect
 from bundlemcp.store.sessions import SessionRecord
 
@@ -33,15 +31,15 @@ async def _readonly_headers(
 
     Raises NeedsConnect if an upstream_oauth member has no usable token.
     """
-    headers = forwarded_headers(request.headers, server, caller_sub(record))
+    headers = forwarded_headers(request.headers, server, record.identity.sub)
     if server.auth_mode == ServerAuthMode.UPSTREAM_OAUTH:
         if runtime.upstream_tokens is None:
             raise NeedsConnect("upstream_oauth_not_configured")
         token_user: uuid.UUID | None = None
         if server.identity_mode == IdentityMode.PER_USER:
-            if record.user_id is None:
+            token_user = record.identity.user_uuid
+            if token_user is None:
                 raise NeedsConnect("per_user_requires_user")
-            token_user = uuid.UUID(record.user_id)
         access = await runtime.upstream_tokens.ensure_access_token(server, token_user)
         headers["Authorization"] = f"Bearer {access}"
     return headers
@@ -96,7 +94,7 @@ async def handle_prompts_list(runtime, request, view, record, rpc_id) -> Respons
             continue
         for prompt in member_prompts:
             entry = _dump(prompt)
-            entry["name"] = f"{server.name}{PREFIX_SEP}{prompt.name}"
+            entry["name"] = PresentedName(server=server.name, name=prompt.name).text
             if entry["name"] in seen:
                 continue
             seen.add(entry["name"])
@@ -107,10 +105,11 @@ async def handle_prompts_list(runtime, request, view, record, rpc_id) -> Respons
 async def handle_prompts_get(runtime, request, view, record, body, rpc_id) -> Response:
     params = body.get("params") or {}
     presented = params.get("name", "")
-    server_name, _, prompt_name = presented.partition(PREFIX_SEP)  # BND-2 first-`__`
-    server = view.servers.get(server_name)
-    if server is None or not prompt_name:
+    parsed = PresentedName.parse(presented)  # BND-2 first-`__`
+    server = view.servers.get(parsed.server) if parsed else None
+    if parsed is None or server is None:
         return rpc_error(rpc_id, -32602, f"unknown prompt: {presented}")
+    prompt_name = parsed.name
     try:
         headers = await _readonly_headers(runtime, request, server, record)
     except NeedsConnect:
@@ -120,7 +119,7 @@ async def handle_prompts_get(runtime, request, view, record, body, rpc_id) -> Re
         async with client:
             result = await client.get_prompt_mcp(prompt_name, params.get("arguments") or None)
     except Exception as exc:
-        log.warning("prompts.get_failed", server=server_name)
+        log.warning("prompts.get_failed", server=server.name)
         return rpc_error(rpc_id, -32000, str(exc)[:200])
     return rpc_result(rpc_id, _dump(result))
 
@@ -135,11 +134,11 @@ async def handle_completion(runtime, request, view, record, body, rpc_id) -> Res
 
     if ref.get("type") == "ref/prompt":
         presented = ref.get("name", "")
-        server_name, _, prompt_name = presented.partition(PREFIX_SEP)
-        server = view.servers.get(server_name)
-        if server is None or not prompt_name:
+        parsed = PresentedName.parse(presented)
+        server = view.servers.get(parsed.server) if parsed else None
+        if parsed is None or server is None:
             return rpc_error(rpc_id, -32602, f"unknown prompt ref: {presented}")
-        member_ref = PromptReference(type="ref/prompt", name=prompt_name)
+        member_ref = PromptReference(type="ref/prompt", name=parsed.name)
         candidates = [server]
     elif ref.get("type") == "ref/resource":
         member_ref = ResourceTemplateReference(type="ref/resource", uri=ref.get("uri", ""))

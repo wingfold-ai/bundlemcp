@@ -1,8 +1,8 @@
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-from bundlemcp.schemas.validation import validate_name
+from bundlemcp.schemas.resource_names import ResourceName
 
 
 class BundleToolUpdate(BaseModel):
@@ -11,7 +11,7 @@ class BundleToolUpdate(BaseModel):
     enabled: bool = Field(
         default=True, description="Whether this tool is served through the bundle"
     )
-    override_name: str | None = Field(
+    override_name: ResourceName | None = Field(
         default=None,
         description="Replacement name clients see instead of 'server__tool'; must still be "
         "unique within the bundle",
@@ -27,10 +27,3 @@ class BundleToolUpdate(BaseModel):
     override_annotations: dict[str, Any] | None = Field(
         default=None, description="Replacement MCP annotations for this bundle"
     )
-
-    @field_validator("override_name")
-    @classmethod
-    def override_name_rules(cls, v: str | None) -> str | None:
-        if v is not None:
-            validate_name(v)
-        return v

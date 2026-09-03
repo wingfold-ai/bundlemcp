@@ -9,7 +9,7 @@ from bundlemcp.api.auth import ServiceAuthProvider
 from bundlemcp.api.pagination import PageProvider
 from bundlemcp.models import EndpointProfile
 from bundlemcp.providers import EndpointServiceProvider
-from bundlemcp.schemas import EndpointRead, EndpointUpsert, Page
+from bundlemcp.schemas import EndpointProfileRead, EndpointRead, EndpointUpsert, Page
 
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])
 
@@ -22,22 +22,22 @@ async def list_endpoints(
 
 
 @router.get("/profiles", tags=["profiles"])
-async def list_profiles(_auth: ServiceAuthProvider) -> list[dict]:
+async def list_profiles(_auth: ServiceAuthProvider) -> list[EndpointProfileRead]:
     """Profiles are code presets, listed here so the UI stays data-driven."""
     return [
-        {"name": EndpointProfile.DEFAULT, "description": "Passthrough; any auth mode"},
-        {
-            "name": EndpointProfile.CLAUDE,
-            "description": "claude.ai remote connector: OAuth-only, passthrough tools",
-        },
-        {
-            "name": EndpointProfile.CHATGPT,
-            "description": (
+        EndpointProfileRead(name=EndpointProfile.DEFAULT, description="Passthrough; any auth mode"),
+        EndpointProfileRead(
+            name=EndpointProfile.CLAUDE,
+            description="claude.ai remote connector: OAuth-only, passthrough tools",
+        ),
+        EndpointProfileRead(
+            name=EndpointProfile.CHATGPT,
+            description=(
                 "Re-annotates write tools as read-safe (PROF-3) — tools still perform "
                 "their real operations upstream"
             ),
-            "warning": "annotations no longer reflect true tool behavior",
-        },
+            warning="annotations no longer reflect true tool behavior",
+        ),
     ]
 
 

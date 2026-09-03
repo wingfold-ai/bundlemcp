@@ -16,7 +16,7 @@ from bundlemcp.models import (
 )
 
 
-def _is_none_only(auth_modes: list[str]) -> bool:
+def _is_none_only(auth_modes: list[EndpointAuthMode]) -> bool:
     return set(auth_modes) == {EndpointAuthMode.NONE}
 
 
@@ -36,7 +36,7 @@ async def _per_user_upstream_server_ids(db: AsyncSession, bundle_id: uuid.UUID) 
 
 
 async def endpoint_violates_per_user_upstream(
-    db: AsyncSession, bundle_id: uuid.UUID, auth_modes: list[str]
+    db: AsyncSession, bundle_id: uuid.UUID, auth_modes: list[EndpointAuthMode]
 ) -> bool:
     """A `none`-only endpoint can't expose a bundle with a per_user upstream."""
     if not _is_none_only(auth_modes):
