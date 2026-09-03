@@ -15,7 +15,7 @@ authenticated; this doc picks up once a request is authorized.
 > a drop-in RESP server; the client is `redis-py` and the URL scheme stays
 > `redis://`, so `redis`-named symbols, `bmcp:` keys, and "Redis pub/sub /
 > server time" below refer to the RESP protocol the code speaks — see
-> [../README.md](../README.md#a-note-on-the-resp-store-valkey-not-redis-adr-0022)
+> [../../README.md](../../README.md#a-note-on-the-resp-store-valkey-not-redis-adr-0022)
 > and ADR-0022.
 
 ---
