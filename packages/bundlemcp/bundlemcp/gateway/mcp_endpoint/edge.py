@@ -5,15 +5,28 @@ server session manager) so that session state lives in Redis and any replica
 serves any request. FastMCP is used for the upstream side.
 """
 
+import asyncio
+import json
 import time
 import uuid
+from datetime import UTC
 from typing import Any
 
 import structlog
 from fastapi import APIRouter, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastmcp.client.elicitation import ElicitResult
+from mcp.types import (
+    CreateMessageResult,
+    PromptReference,
+    ResourceTemplateReference,
+    Root,
+)
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
+from bundlemcp.crypto import ACCESS_TOKEN_PREFIX, hash_token
 from bundlemcp.gateway.composition import PREFIX_SEP, BundleView, PresentedTool, load_bundle_view
 from bundlemcp.gateway.mcp_endpoint._call_outcome import _CallOutcome
 from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
@@ -26,9 +39,13 @@ from bundlemcp.models import (
     AuditStatus,
     EndpointAuthMode,
     IdentityMode,
+    OAuthAccessToken,
     ServerAuthMode,
+    User,
+    utcnow,
 )
 from bundlemcp.oauth.upstream_client import NeedsConnect
+from bundlemcp.schemas import RateLimitConfig, RateRule
 from bundlemcp.services import AuthService
 from bundlemcp.store.sessions import SessionRecord, SessionStore, UpstreamBinding
 
@@ -72,16 +89,9 @@ async def _resolve_oauth_bearer(
 
     Returns (user_id, email) or None.
     """
-    from bundlemcp.crypto import ACCESS_TOKEN_PREFIX, hash_token
-    from bundlemcp.models import OAuthAccessToken, User, utcnow
-
     auth = request.headers.get("authorization", "")
     if not auth.lower().startswith("bearer ") or not auth[7:].startswith(ACCESS_TOKEN_PREFIX):
         return None
-    from datetime import UTC
-
-    from sqlmodel import select
-
     row = (
         await db.execute(
             select(OAuthAccessToken).where(
@@ -157,27 +167,29 @@ async def _enforce_rate_limit(
     initialize/tools/list are exempt unless the endpoint opted in.
     A rejection is a metric, never an audit record.
     """
-    cfg = view.endpoint.rate_limit
-    if not cfg:
+    if not view.endpoint.rate_limit:
         return None
-    if not is_tool_call and not cfg.get("include_initialize_list", False):
+    try:
+        cfg = RateLimitConfig.model_validate(view.endpoint.rate_limit)
+    except ValidationError:
+        # A stored config whose shape has drifted must not take the endpoint
+        # down; serve unlimited and say so loudly.
+        log.warning("ratelimit.config_malformed", endpoint=view.endpoint.name)
         return None
-    fail_closed = bool(cfg.get("fail_closed", False))
-    checks: list[tuple[str, dict]] = []
-    endpoint_rule = cfg.get("endpoint")
-    if endpoint_rule:
-        checks.append((f"ep:{view.endpoint.name}:all", endpoint_rule))
-    per_client_rule = cfg.get("per_client")
-    if per_client_rule:
+    if not is_tool_call and not cfg.include_initialize_list:  # RATE-4
+        return None
+
+    checks: list[tuple[str, RateRule]] = []
+    if cfg.endpoint is not None:
+        checks.append((f"ep:{view.endpoint.name}:all", cfg.endpoint))
+    if cfg.per_client is not None:  # EP-6
         ip = client_ip(request, runtime.settings)
         identity = _rate_identity(user_id, api_key_id, ip)
-        checks.append((f"ep:{view.endpoint.name}:{identity}", per_client_rule))
+        checks.append((f"ep:{view.endpoint.name}:{identity}", cfg.per_client))
+
     for scope, rule in checks:
         result = await runtime.rate_limiter.check(
-            scope,
-            int(rule["limit"]),
-            int(rule["window_seconds"]),
-            fail_closed=fail_closed,
+            scope, rule.limit, rule.window_seconds, fail_closed=cfg.fail_closed
         )
         if not result.allowed:
             runtime.counters.inc(RATE_LIMIT_REJECTIONS)
@@ -317,10 +329,8 @@ def _tools_payload(view: BundleView) -> list[dict[str, Any]]:
 
 
 async def _timeout_config(runtime: GatewayRuntime) -> tuple[float, bool, float]:
-    """Timeout values from runtime config (defaults if unavailable)."""
+    """Timeout values from runtime config; unset keys fall back to the registry."""
     rc = runtime.runtime_config
-    if rc is None:
-        return (60.0, True, 1800.0)
     return (
         float(await rc.get("call_timeout")),
         bool(await rc.get("reset_timeout_on_progress")),
@@ -335,7 +345,6 @@ def _build_relay_handlers(runtime: GatewayRuntime, session_id: str, wait_timeout
     Each request is delivered on the client's GET stream and its reply awaited
     via a correlation future, bounded by the call's timeout.
     """
-    import asyncio
 
     async def _roundtrip(method: str, params: dict) -> dict:
         correlation_id = uuid.uuid4().hex
@@ -351,23 +360,17 @@ def _build_relay_handlers(runtime: GatewayRuntime, session_id: str, wait_timeout
         return reply.get("result", {})
 
     async def elicitation_handler(message, response_type, params, context):
-        from fastmcp.client.elicitation import ElicitResult
-
         payload = params.model_dump(by_alias=True, mode="json", exclude_none=True)
         result = await _roundtrip("elicitation/create", payload)
         return ElicitResult(action=result.get("action", "decline"), content=result.get("content"))
 
     async def sampling_handler(messages, params, context):
-        from mcp.types import CreateMessageResult
-
         payload = params.model_dump(by_alias=True, mode="json", exclude_none=True)
         result = await _roundtrip("sampling/createMessage", payload)
         return CreateMessageResult.model_validate(result)
 
     async def roots_handler(context):
         # PROT-4: relay the upstream's roots/list to the downstream client.
-        from mcp.types import Root
-
         result = await _roundtrip("roots/list", {})
         return [Root.model_validate(r) for r in result.get("roots", [])]
 
@@ -403,8 +406,6 @@ async def _drive_upstream(
     on_progress,
 ) -> _CallOutcome:
     """Run the upstream call with progress-aware timeout and cancellation support."""
-    import asyncio
-
     call_timeout, reset_on_progress, max_total = cfg
     loop = asyncio.get_running_loop()
     last_activity = loop.time()
@@ -500,10 +501,6 @@ def _sse_call_response(
     finalize,
 ) -> Response:
     """Stream notifications/progress, then the final JSON-RPC result."""
-    import asyncio
-    import json as jsonlib
-
-    from fastapi.responses import StreamingResponse
 
     async def gen():
         queue: asyncio.Queue = asyncio.Queue()
@@ -542,7 +539,7 @@ def _sse_call_response(
             while True:
                 kind, data = await queue.get()
                 if kind == "progress":
-                    yield f"data: {jsonlib.dumps(data)}\n\n"
+                    yield f"data: {json.dumps(data)}\n\n"
                     continue
                 outcome: _CallOutcome = data
                 if handle is not None:
@@ -563,7 +560,7 @@ def _sse_call_response(
                             "message": outcome.error_message or "call failed",
                         },
                     }
-                yield f"data: {jsonlib.dumps(msg)}\n\n"
+                yield f"data: {json.dumps(msg)}\n\n"
                 break
         finally:
             if not task.done():
@@ -588,7 +585,7 @@ async def _handle_call(
     arguments = params.get("arguments") or {}
     rpc_id = body.get("id")
 
-    sub = record.user_id or (f"api_key:{record.api_key_id}" if record.api_key_id else None)
+    sub = _sub_for(record)
 
     pt = view.resolve(presented_name)
     audit_kwargs = dict(
@@ -789,7 +786,6 @@ async def _fanout_readonly(runtime, request, record, servers, call):
     Returns a list of (server, result | None) — a None means that member was
     unreachable/unconnected and was omitted (DISC-4: degrade observably).
     """
-    import asyncio
 
     async def _one(server):
         try:
@@ -859,8 +855,6 @@ async def _handle_prompts_get(runtime, request, view, record, body, rpc_id) -> R
 async def _handle_completion(runtime, request, view, record, body, rpc_id) -> Response:
     """PROT-9: route completion to the owning member (prompt ref de-prefixed;
     resource-template ref resolved by URI fan-out)."""
-    from mcp.types import PromptReference, ResourceTemplateReference
-
     params = body.get("params") or {}
     ref = params.get("ref") or {}
     argument = params.get("argument") or {}
@@ -1071,11 +1065,6 @@ async def mcp_get(endpoint_name: str, request: Request) -> Response:
     stream is replica-pinned; messages from other replicas arrive via the
     SignalBus.
     """
-    import asyncio
-    import json as jsonlib
-
-    from fastapi.responses import StreamingResponse
-
     runtime: GatewayRuntime = request.app.state.gateway
     async with request.app.state.session_factory() as db:
         view = await load_bundle_view(db, endpoint_name)
@@ -1099,7 +1088,7 @@ async def mcp_get(endpoint_name: str, request: Request) -> Response:
             while True:
                 try:
                     payload = await asyncio.wait_for(queue.get(), timeout=15)
-                    yield f"data: {jsonlib.dumps(payload)}\n\n"
+                    yield f"data: {json.dumps(payload)}\n\n"
                 except TimeoutError:
                     yield ": keepalive\n\n"
                     await runtime.sessions.touch(session_id)  # stream open = active
