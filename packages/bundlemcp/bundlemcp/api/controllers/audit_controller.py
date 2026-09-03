@@ -6,6 +6,7 @@ from fastapi import Depends
 
 from bundlemcp.api.controllers.management_controller import ManagementController
 from bundlemcp.api.pagination import PageProvider
+from bundlemcp.http import route
 from bundlemcp.providers import AuditServiceProvider
 from bundlemcp.schemas import AuditRecordRead, Page
 from bundlemcp.services import AuditFilter
@@ -18,9 +19,7 @@ class AuditController(ManagementController):
     prefix = "/audit-records"
     tags = ("audit",)
 
-    def register(self) -> None:
-        self.get("", self.list_audit_records)
-
+    @route.get("")
     async def list_audit_records(
         self, service: AuditServiceProvider, page: PageProvider, filter_: AuditFilterQuery
     ) -> Page[AuditRecordRead]:

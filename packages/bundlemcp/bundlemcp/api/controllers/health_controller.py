@@ -2,20 +2,18 @@
 
 from sqlalchemy import text
 
-from bundlemcp.http import Controller
+from bundlemcp.http import Controller, route
 from bundlemcp.providers import RedisProvider, SessionFactoryProvider
 
 
 class HealthController(Controller):
     include_in_schema = False
 
-    def register(self) -> None:
-        self.get("/healthz", self.healthz)
-        self.get("/readyz", self.readyz)
-
+    @route.get("/healthz")
     async def healthz(self) -> dict[str, str]:
         return {"status": "ok"}
 
+    @route.get("/readyz")
     async def readyz(
         self, sessions: SessionFactoryProvider, redis: RedisProvider
     ) -> dict[str, str]:

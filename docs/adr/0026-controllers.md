@@ -13,10 +13,14 @@ health probes were closures inside the app factory.
 ## Decision
 
 - **A `Controller` base class (`bundlemcp/http/controller.py`) declares one
-  HTTP surface.** A subclass names its `prefix` and `tags`, implements
-  `register()` by binding handler methods to paths, and is mounted by the
-  composition root. Handlers are bound methods; FastAPI reads their
-  signatures and return annotations as it would a function's.
+  HTTP surface.** A subclass names its `prefix` and `tags` and marks handler
+  methods with `@route.get` and friends, which record the verb, path and
+  FastAPI options on the method; constructing the controller binds each
+  recorded method, bound to the instance, through `add_api_route` in the
+  order the decorators were written. FastAPI's own decorators cannot be used
+  in a class body: there is no router yet and the method is unbound, so
+  `self` would surface as a query parameter. The recording decorator keeps
+  the familiar look while the base class does the binding.
 - **Shared policy is a router-level dependency.** `ManagementController`
   attaches the admin-session-or-service-key check once, so no route under it
   can forget authentication. Public surfaces derive from `Controller`

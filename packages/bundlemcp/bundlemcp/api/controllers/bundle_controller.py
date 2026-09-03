@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 
 from bundlemcp.api.controllers.management_controller import ManagementController
 from bundlemcp.api.pagination import PageProvider
+from bundlemcp.http import route
 from bundlemcp.providers import BundleServiceProvider
 from bundlemcp.schemas import (
     BundleMemberRead,
@@ -24,26 +25,13 @@ class BundleController(ManagementController):
     prefix = "/bundles"
     tags = ("bundles",)
 
-    def register(self) -> None:
-        self.get("", self.list_bundles)
-        self.put("/{name}", self.upsert_bundle)
-        self.get("/{name}", self.get_bundle)
-        self.delete("/{name}", self.delete_bundle, status_code=status.HTTP_204_NO_CONTENT)
-        self.get("/{name}/servers", self.list_members)
-        self.get("/{name}/tools", self.list_tools)
-        self.put("/{name}/servers/{server_name}", self.set_member)
-        self.delete(
-            "/{name}/servers/{server_name}",
-            self.remove_member,
-            status_code=status.HTTP_204_NO_CONTENT,
-        )
-        self.put("/{name}/tools/{tool_id}", self.curate_tool)
-
+    @route.get("")
     async def list_bundles(
         self, service: BundleServiceProvider, page: PageProvider
     ) -> Page[BundleRead]:
         return await service.list(offset=page.offset, limit=page.limit)
 
+    @route.put("/{name}")
     async def upsert_bundle(
         self, name: str, body: BundleUpsert, service: BundleServiceProvider
     ) -> BundleRead:
@@ -53,20 +41,25 @@ class BundleController(ManagementController):
             )
         return await service.upsert(body)
 
+    @route.get("/{name}")
     async def get_bundle(self, name: str, service: BundleServiceProvider) -> BundleRead:
         return await service.get(name)
 
+    @route.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_bundle(self, name: str, service: BundleServiceProvider) -> None:
         await service.delete(name)
 
+    @route.get("/{name}/servers")
     async def list_members(
         self, name: str, service: BundleServiceProvider
     ) -> list[BundleMemberRead]:
         return await service.list_members(name)
 
+    @route.get("/{name}/tools")
     async def list_tools(self, name: str, service: BundleServiceProvider) -> list[BundleToolRead]:
         return await service.list_tools(name)
 
+    @route.put("/{name}/servers/{server_name}")
     async def set_member(
         self,
         name: str,
@@ -76,11 +69,13 @@ class BundleController(ManagementController):
     ) -> BundleMembershipRead:
         return await service.set_member(name, server_name, body)
 
+    @route.delete("/{name}/servers/{server_name}", status_code=status.HTTP_204_NO_CONTENT)
     async def remove_member(
         self, name: str, server_name: str, service: BundleServiceProvider
     ) -> None:
         await service.remove_member(name, server_name)
 
+    @route.put("/{name}/tools/{tool_id}")
     async def curate_tool(
         self,
         name: str,

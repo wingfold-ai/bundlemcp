@@ -5,23 +5,33 @@ How an HTTP surface is declared in this repo. The decision record is ADR-0026.
 ## One surface, one class
 
 Every group of routes is a subclass of `Controller` (`bundlemcp/http/`). The
-subclass names its `prefix` and `tags`, and `register()` binds handler methods
-to paths:
+subclass names its `prefix` and `tags`, and marks handler methods with
+`@route.get`, `@route.post`, `@route.put` or `@route.delete`:
 
 ```python
 class ServerController(ManagementController):
     prefix = "/servers"
     tags = ("servers",)
 
-    def register(self) -> None:
-        self.get("", self.list_servers)
-        self.put("/{name}", self.upsert_server)
+    @route.get("")
+    async def list_servers(
+        self, service: ServerServiceProvider, page: PageProvider
+    ) -> Page[ServerRead]:
+        ...
 
-    async def upsert_server(
-        self, name: str, body: ServerUpsert, service: ServerServiceProvider
-    ) -> ServerRead:
+    @route.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
+    async def delete_server(self, name: str, service: ServerServiceProvider) -> None:
         ...
 ```
+
+The decorator takes the same keyword options as FastAPI's own (`status_code`,
+`tags`, `response_model_exclude_none`, ...). It does not register anything:
+while the class body runs there is no router and the method is still unbound.
+It records the verb, path and options on the method, and constructing the
+controller binds every recorded method, bound to the instance, through
+`APIRouter.add_api_route`. Routes bind in the order they were written, exactly
+as module-level decorators do, so a literal path such as `/profiles` is
+declared before its parameterised sibling `/{name}`.
 
 Handlers are ordinary bound methods; FastAPI reads their signatures for
 parameters and their return annotation for the response model. A handler does

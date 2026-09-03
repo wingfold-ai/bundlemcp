@@ -4,7 +4,7 @@ no-access page without a privileged call.
 
 from fastapi import HTTPException, Request, status
 
-from bundlemcp.http import Controller
+from bundlemcp.http import Controller, route
 from bundlemcp.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.providers import AdminSessionServiceProvider, AuthServiceProvider
 from bundlemcp.schemas import MeRead
@@ -14,9 +14,7 @@ class MeController(Controller):
     prefix = "/me"
     tags = ("me",)
 
-    def register(self) -> None:
-        self.get("", self.whoami)
-
+    @route.get("")
     async def whoami(
         self,
         request: Request,
