@@ -4,11 +4,11 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
-from bundlemcp.gateway.mcp_endpoint.gateway_runtime import GatewayRuntime
+from bundlemcp.gateway.mcp_endpoint.mcp_edge import McpEdge
 
 
-def get_gateway_runtime(request: Request) -> GatewayRuntime:
-    return request.app.state.container.gateway
+def get_mcp_edge(request: Request) -> McpEdge:
+    return request.app.state.container.mcp_edge
 
 
-GatewayRuntimeProvider = Annotated[GatewayRuntime, Depends(get_gateway_runtime)]
+McpEdgeProvider = Annotated[McpEdge, Depends(get_mcp_edge)]

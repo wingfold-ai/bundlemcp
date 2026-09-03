@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from bundlemcp.crypto import TokenCipher
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
-from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
+from bundlemcp.gateway.mcp_endpoint import McpEdge
 from bundlemcp.gateway.metrics import Counters
-from bundlemcp.gateway.ratelimit import AuthFailureLimiter
+from bundlemcp.gateway.ratelimit import AuthFailureGuard, AuthFailureLimiter, RateLimiter
 from bundlemcp.gateway.runtime_config import RuntimeConfig
 from bundlemcp.oauth.oidc import OidcProvider
 from bundlemcp.oauth.upstream_client import UpstreamTokenStore
@@ -43,8 +43,12 @@ class AppContainer(BaseModel):
     audit: AuditWriter = Field(description="Queued writer for audit records")
     runtime_config: RuntimeConfig = Field(description="Runtime-tunable config, cached per replica")
     counters: Counters = Field(description="In-process metric sink")
+    rate_limiter: RateLimiter = Field(description="Fixed-window limits shared by every edge")
     auth_failure_limiter: AuthFailureLimiter = Field(
-        description="Per-IP lockout after repeated bad credentials"
+        description="Per-IP counter of failed authentications"
+    )
+    auth_failure_guard: AuthFailureGuard = Field(
+        description="Per-IP lockout after repeated bad credentials, for every credential edge"
     )
     token_cipher: TokenCipher | None = Field(  # DEP-9
         repr=False,
@@ -63,4 +67,4 @@ class AppContainer(BaseModel):
     invalidation: InvalidationSubscriber = Field(
         description="This replica's subscription to configuration changes"
     )
-    gateway: GatewayRuntime = Field(description="The collaborators the MCP edge serves with")
+    mcp_edge: McpEdge = Field(description="The Streamable-HTTP edge serving every endpoint")
