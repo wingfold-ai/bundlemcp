@@ -30,9 +30,36 @@ async def db(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
         yield session
 
 
+# Mid-window for every window length the suite uses, so no test starts within
+# rounding distance of a bucket boundary.
+FIXED_CLOCK_SECONDS = 1_700_000_050
+
+
+class ClockedFakeRedis(FakeRedis):
+    """FakeRedis whose ``TIME`` is fixed rather than the wall clock.
+
+    The rate limiter derives its fixed-window bucket from server time, so a
+    suite running on the wall clock straddles a window boundary every so often
+    and a counting assertion fails for reasons that have nothing to do with the
+    code under test. Freezing the clock makes those tests deterministic; a test
+    that wants a rollover asks for one with ``advance``.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._clock_seconds = FIXED_CLOCK_SECONDS
+
+    async def time(self) -> tuple[int, int]:
+        return self._clock_seconds, 0
+
+    def advance(self, seconds: int) -> None:
+        """Move the shared clock forward, e.g. past a rate-limit window edge."""
+        self._clock_seconds += seconds
+
+
 @pytest.fixture
-async def redis() -> AsyncIterator[FakeRedis]:
-    r = FakeRedis(decode_responses=True)
+async def redis() -> AsyncIterator[ClockedFakeRedis]:
+    r = ClockedFakeRedis(decode_responses=True)
     yield r
     await r.flushall()
     await r.aclose()
