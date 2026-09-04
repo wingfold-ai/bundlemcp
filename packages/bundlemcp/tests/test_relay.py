@@ -358,12 +358,18 @@ async def test_progress_resets_timeout(relay_env):
     async with AsyncClient(
         base_url=base_url, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
     ) as admin:
-        # each step sleeps 0.05s; 6 steps = 0.3s total, but no single gap exceeds 0.2s
-        await admin.put("/api/v1/config/call_timeout", json={"value": 0.2})
+        # Each step sleeps 0.05s, so 30 steps run 1.5s in total: past call_timeout,
+        # while no single gap between progress events comes near it. The margin
+        # is deliberately wide because the idle window also spans the upstream
+        # connection handshake, and a loaded CI runner can stall for well over
+        # a tenth of a second at any point.
+        await admin.put("/api/v1/config/call_timeout", json={"value": 1.0})
     session = await _initialize(http)
-    events = await _call_sse(http, session, "relay__slow_with_progress", {"steps": 6})
+    events = await _call_sse(http, session, "relay__slow_with_progress", {"steps": 30})
     final = events[-1]
-    assert final["result"]["content"][0]["text"] == "done"  # completed, not timed out
+    assert "error" not in final, final  # completed, not timed out
+    assert final["result"]["content"][0]["text"] == "done"
+    assert len([e for e in events if e.get("method") == "notifications/progress"]) == 30
 
 
 async def test_cancellation_stops_call(relay_env):

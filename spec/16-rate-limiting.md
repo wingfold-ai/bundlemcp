@@ -48,7 +48,7 @@ own traffic" limitation.
 **Implemented** ([ADR-0018](../docs/adr/0018-rate-limiting.md)). The chosen
 RATE-2 algorithm is the **fixed-window counter** (`INCR`+`EXPIRE`, bucketed by
 Redis `TIME`) — `gateway/ratelimit.py` `RateLimiter`. Enforcement lives in
-`gateway/mcp_endpoint.py`: the endpoint + per-client checks gate `tools/call`
+`gateway/mcp_endpoint/rate_limit_gate.py`: the endpoint + per-client checks gate `tools/call`
 (RATE-1/3/4/6/7), and the gateway-wide `AuthFailureLimiter` (RATE-5) gates the
 MCP edge and the OAuth token endpoint. Client IP derives from
 `gateway/proxy.py::client_ip` (RATE-7 / DEP-2 client-IP half). Rejections and

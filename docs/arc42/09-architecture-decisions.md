@@ -33,6 +33,7 @@ in the same PR as the change they govern
 | [0024](../adr/0024-value-objects-and-rich-entities.md) | Value objects at the edge; behavior on entities | No tuples or dicts cross layers; rules live once; typed columns |
 | [0025](../adr/0025-repository-unit-of-work-and-container.md) | Repository per entity, unit of work per request, typed container | Queries written once; invalidation after commit; atomic bootstrap; UPO-6 at all three edges |
 | [0026](../adr/0026-controllers.md) | Controllers own an HTTP surface | Auth attached once per surface; the app factory lists surfaces |
+| [0027](../adr/0027-mcp-edge-method-handlers.md) | Method registry in the MCP edge; tool call as a pipeline object | One handler class per JSON-RPC method; credentials and rendering written once |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).
