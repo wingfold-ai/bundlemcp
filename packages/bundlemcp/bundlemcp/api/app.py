@@ -20,13 +20,17 @@ from bundlemcp.api.controllers import (
 )
 from bundlemcp.api.errors import service_error_handler
 from bundlemcp.gateway.mcp_endpoint import McpEndpointController
-from bundlemcp.oauth import authorize as oauth_authorize
-from bundlemcp.oauth import metadata as oauth_metadata
-from bundlemcp.oauth import registration as oauth_registration
-from bundlemcp.oauth import token as oauth_token
-from bundlemcp.oauth import upstream_connect as oauth_upstream_connect
-from bundlemcp.oauth.oidc import routes as oauth_oidc
-from bundlemcp.services.errors import ServiceError
+from bundlemcp.oauth.authorize_controller import AuthorizeController
+from bundlemcp.oauth.metadata_controller import OAuthMetadataController
+from bundlemcp.oauth.oauth_error_response import (
+    authorization_redirect_handler,
+    oauth_error_handler,
+)
+from bundlemcp.oauth.oidc.login_controller import LoginController
+from bundlemcp.oauth.registration_controller import ClientRegistrationController
+from bundlemcp.oauth.token_controller import OAuthTokenController
+from bundlemcp.oauth.upstream_connect_controller import UpstreamConnectController
+from bundlemcp.services.errors import AuthorizationRedirectError, OAuthError, ServiceError
 from bundlemcp.settings import Settings, get_settings
 
 API_PREFIX = "/api/v1"
@@ -51,6 +55,8 @@ def create_app(
         docs_url=f"{API_PREFIX}/docs",
     )
     app.add_exception_handler(ServiceError, service_error_handler)
+    app.add_exception_handler(OAuthError, oauth_error_handler)
+    app.add_exception_handler(AuthorizationRedirectError, authorization_redirect_handler)
 
     if settings.web_origins:
         # SEC-4: credentials-enabled CORS for exactly the web app's origin(s)
@@ -74,15 +80,15 @@ def create_app(
     ):
         controller.mount(app, prefix=API_PREFIX)
     # OAuth server routes at root for .well-known discovery (spec 20)
-    for router in (
-        oauth_metadata.router,
-        oauth_registration.router,
-        oauth_authorize.router,
-        oauth_token.router,
-        oauth_oidc.router,
-        oauth_upstream_connect.router,  # spec 23 connect flow
+    for controller in (
+        OAuthMetadataController(),
+        ClientRegistrationController(),
+        AuthorizeController(),
+        OAuthTokenController(),
+        LoginController(),
+        UpstreamConnectController(),  # spec 23 connect flow
     ):
-        app.include_router(router)
+        controller.mount(app)
     UserController().mount(app, prefix=API_PREFIX)  # /api/v1/users (ADM-6, OAS-11)
     HealthController().mount(app)
     McpEndpointController().mount(app)  # public /{endpoint}/mcp (EP-1)

@@ -52,14 +52,15 @@ concern (a tenant header, a feature gate): put it on a base controller, not on
 each handler.
 
 Controllers that are deliberately public (`MeController`, `HealthController`,
-`McpEndpointController`) derive from `Controller` directly, so the absence of
-the policy is visible in the class line.
+the OAuth controllers, `McpEndpointController`) derive from `Controller`
+directly, so the absence of the policy is visible in the class line.
 
 ## Where the classes live
 
 | Surface | Package | Base |
 |---|---|---|
 | Management API | `api/controllers/` | `ManagementController` |
+| OAuth server, admin login, upstream connect | `oauth/` | `Controller` |
 | MCP endpoints | `gateway/mcp_endpoint/` | `Controller` |
 
 `bundlemcp/http/` holds only the base class. It sits beside `providers/` in

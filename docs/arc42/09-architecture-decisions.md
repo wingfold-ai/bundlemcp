@@ -34,6 +34,7 @@ in the same PR as the change they govern
 | [0025](../adr/0025-repository-unit-of-work-and-container.md) | Repository per entity, unit of work per request, typed container | Queries written once; invalidation after commit; atomic bootstrap; UPO-6 at all three edges |
 | [0026](../adr/0026-controllers.md) | Controllers own an HTTP surface | Auth attached once per surface; the app factory lists surfaces |
 | [0027](../adr/0027-mcp-edge-method-handlers.md) | Method registry in the MCP edge; tool call as a pipeline object | One handler class per JSON-RPC method; credentials and rendering written once |
+| [0028](../adr/0028-oauth-server-as-services.md) | OAuth server as services with grant strategies | Thin OAuth controllers; typed single-use browser state; token store split by job |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

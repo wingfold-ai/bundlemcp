@@ -7,10 +7,10 @@ understanding this package.
 
 | # | System | Who | Credential | Validated by | State |
 |---|--------|-----|-----------|--------------|-------|
-| (a) | **MCP client → endpoint** | claude.ai etc. calling `/{endpoint}/mcp` | OAuth 2.1 token (`bmcp_at_…`) **or** API key (`bmcp_sk_…`) | `gateway/mcp_endpoint.py::_authenticate` | DB `oauth_access_tokens`, `api_keys` |
-| (b) | **Admin browser** | a human in the web UI | OIDC session cookie `bmcp_session` | `oauth/oidc.py` + `adminsessions.py` | Redis `bmcp:adminsession:{id}`, user in DB |
-| (c) | **Management-API service** | scripts calling `/api/v1/*` | service-kind API key **or** admin cookie | `api/auth.py::ManagementAuth` → `services/auth_service.py` | DB `api_keys` / Redis session |
-| (d) | **Gateway → protected upstream** | the gateway itself | static headers / gateway-managed OAuth / forwarded caller bearer | `mcp_endpoint.py` + `oauth/upstream_client.py` | DB `upstream_oauth_*` (encrypted) |
+| (a) | **MCP client → endpoint** | claude.ai etc. calling `/{endpoint}/mcp` | OAuth 2.1 token (`bmcp_at_…`) **or** API key (`bmcp_sk_…`) | `gateway/mcp_endpoint/authentication/` (one authenticator per mode) | DB `oauth_access_tokens`, `api_keys` |
+| (b) | **Admin browser** | a human in the web UI | OIDC session cookie `bmcp_session` | `oauth/oidc/login_controller.py` + `store/admin_sessions/` | Redis `bmcp:adminsession:{id}`, user in DB |
+| (c) | **Management-API service** | scripts calling `/api/v1/*` | service-kind API key **or** admin cookie | `api/auth.py::ManagementAuth` → `services/auth_service/` | DB `api_keys` / Redis session |
+| (d) | **Gateway → protected upstream** | the gateway itself | static headers / gateway-managed OAuth / forwarded caller bearer | `gateway/mcp_endpoint/upstream_credentials.py` + `oauth/upstream_client/` | DB `upstream_oauth_*` (encrypted) |
 
 The two switches that select behavior:
 
@@ -33,8 +33,9 @@ Every externally visible URL in all four systems is derived from
 
 This is the full OAuth 2.1 authorization-server flow a remote connector like
 claude.ai uses. All routes are mounted at **root** (no `/api/v1` prefix) so
-`.well-known` discovery works. Files: `metadata.py`, `registration.py`,
-`authorize.py`, `token.py`.
+`.well-known` discovery works. Controllers: `metadata_controller.py`,
+`registration_controller.py`, `authorize_controller.py`, `token_controller.py`;
+the protocol logic behind them is `services/oauth_server/` (ADR-0028).
 
 ### The end-to-end sequence
 
@@ -51,7 +52,7 @@ claude.ai                          gateway                         Keycloak (IdP
    │  POST /{ep}/mcp  Authorization: Bearer bmcp_at_…   (audience-checked)
 ```
 
-### Discovery — `metadata.py`
+### Discovery — `metadata_controller.py`
 
 - `GET /.well-known/oauth-authorization-server` advertises the issuer and
   endpoint URLs, `code` response type, `authorization_code`+`refresh_token`
@@ -60,7 +61,7 @@ claude.ai                          gateway                         Keycloak (IdP
   per-endpoint resource metadata that the `401 WWW-Authenticate` challenge points
   clients at. 404 if the endpoint is missing or disabled.
 
-### Dynamic client registration — `registration.py`
+### Dynamic client registration — `registration_controller.py`
 
 `POST /oauth/register` (201). Rate-limited per IP (10 / hour, fails open).
 Redirect URIs must be `https` (or `http` only for localhost). Mints
@@ -68,7 +69,7 @@ Redirect URIs must be `https` (or `http` only for localhost). Mints
 generated, **hashed** into `OAuthClient.client_secret_hash`, and the plaintext
 returned exactly once (DOM-3). Row lands in `oauth_clients`.
 
-### Authorize — `authorize.py::authorize`
+### Authorize — `authorize_controller.py` + `AuthorizationService`
 
 `GET /oauth/authorize` validates in order (client errors are 400 and never
 redirect; protocol errors redirect with `error=`):
@@ -99,22 +100,22 @@ challenge, the endpoint audience, and a 10-minute expiry.
 > Operational note learned the hard way: the consent token is single-use, so a
 > double-submitted approve returns "consent request expired." And behind a proxy
 > the login bounce **must** rebuild `next` from `public_url` or the flow
-> dead-ends at `/` after login — that's exactly what the `authorize.py` DEP-1
-> comment guards.
+> dead-ends at `/` after login — that's exactly what the DEP-1 comment in
+> `authorize_controller.py` guards.
 
-### Token — `token.py::token`
+### Token — `token_controller.py` + `OAuthTokenService`
 
-`POST /oauth/token`. Client auth (`_authenticate_client`): public clients send
+`POST /oauth/token`. Client auth (`OAuthClientAuthenticator`): public clients send
 `client_id`; confidential clients send the secret (HTTP Basic or form) compared
 constant-time against the stored hash. Client-auth failures feed the per-IP
 auth-failure limiter.
 
-- **`authorization_code`:** look up the code by hash; reject if used, wrong
+- **`authorization_code`** (`AuthorizationCodeGrant`): look up the code by hash; reject if used, wrong
   client, or expired. Verify PKCE (`base64url(sha256(verifier)) == code_challenge`).
   Mark the code used (single-use). Issue a token pair.
-- **`refresh_token`:** look up by refresh-token hash; reject if revoked/expired/
+- **`refresh_token`** (`RefreshTokenGrant`): look up by refresh-token hash; reject if revoked/expired/
   wrong client. **Rotate**: revoke the old row, issue a new pair.
-- **`_issue_pair`:** `access = bmcp_at_…` (1h), `refresh = bmcp_rt_…` (7d). Both
+- **`TokenIssuer`:** `access = bmcp_at_…` (1h), `refresh = bmcp_rt_…` (7d). Both
   stored only as SHA-256 hashes in `oauth_access_tokens`, tagged with the
   `endpoint_id` audience and scope. Response is `no-store`.
 
@@ -131,12 +132,12 @@ auth-failure limiter.
   - This is what makes the seo-gsc pattern work — see [§4](#4-gateway--protected-upstream-system-d).
 - **`POST /oauth/revoke` (RFC 7009)** flips `revoked` on a matching access or
   refresh token; always 200. (Per the RFC it takes no client credential.)
-- **`purge_expired`** (a periodic lifespan task) deletes expired codes, long-dead
-  refresh rows, and never-used stale clients (SEC-8).
+- **`TokenPurgeService`**, run by `TokenPurger` from the composition root, deletes
+  expired codes, long-dead refresh rows, and never-used stale clients (SEC-8).
 
 ### The MCP edge's own validation
 
-Note that `mcp_endpoint.py::_resolve_oauth_bearer` validates presented access
+Note that `OAuthBearerAuthenticator` (via `AuthService.authenticate_oauth_bearer`) validates presented access
 tokens with a **direct DB read** (hash lookup + revoked/expiry/**audience**
 check), independently of `introspect`. The two paths must stay in sync; the
 audience check (`row.endpoint_id == view.endpoint.id`) is what makes a token
@@ -146,18 +147,20 @@ endpoint-bound (EP-3a).
 
 ## 2. Admin OIDC login (system b)
 
-Files: `oidc.py`, `adminsessions.py`. The gateway is an OIDC *relying party* in
+Files: `oidc/login_controller.py`, `oidc/authlib_oidc_provider.py`,
+`store/admin_sessions/`. The gateway is an OIDC *relying party* in
 front of an external IdP (Keycloak in dev); it does not manage passwords.
 
-- **`GET /login?next=`** generates `state` + `nonce` (stored in Redis
-  `bmcp:oidcstate:{state}`, 600s, single-use), then redirects to the IdP. `next`
-  is clamped by `_safe_next` — only a relative `/path` or a `public_url`/
+- **`GET /login?next=`** generates a `nonce` and parks it with `next` as an
+  `OidcLoginState` in a `SingleUseState` (Redis `bmcp:oidcstate:{state}`, 600s,
+  read-once), then redirects to the IdP. `next` is clamped by
+  `clamp_post_login_redirect` — only a relative `/path` or a `public_url`/
   `web_origins` URL is honored, everything else falls back to `/` (open-redirect
   guard).
 - **`GET /login/callback?code&state`** reads-and-deletes the state (CSRF),
   exchanges the code (the provider validates the ID token against JWKS and checks
-  the `nonce`), then `provision_user`.
-- **`provision_user`** is create-or-update by `(oidc_issuer, oidc_sub)`. It
+  the `nonce`), then `UserProvisioningService.provision`.
+- **`provision`** is create-or-update by `(oidc_issuer, oidc_sub)`. It
   refreshes `email`, `display_name`, and **`is_admin` on every login** (ADM-3) —
   `is_admin` is true if the email is in `admin_emails` or the token carries a
   `bundlemcp-admin` group. So revoking someone's admin email demotes them at
@@ -174,9 +177,9 @@ front of an external IdP (Keycloak in dev); it does not manage passwords.
 
 ## 3. Management-API auth (system c)
 
-Files: `api/auth.py`, `services/auth_service.py`, `api/routers/me.py`.
+Files: `api/auth.py`, `services/auth_service/`, `api/controllers/me_controller.py`.
 
-`ManagementAuth` (the `ServiceAuthProvider` dependency on every `/api/v1` route)
+`ManagementAuth` (attached once to `ManagementController`, so every `/api/v1` route inherits it)
 accepts **either** an admin cookie **or** a service-kind API key:
 
 1. **Admin cookie** → `AuthService.admin_principal`. For any state-changing
@@ -220,17 +223,19 @@ request. Simplest case; no per-user identity.
 
 `auth_mode = upstream_oauth`. The gateway is an OAuth client *of the upstream*
 and stores the resulting tokens **encrypted at rest**. Files:
-`upstream_connect.py`, `upstream_client.py`, `crypto.py`.
+`upstream_connect_controller.py`, `upstream_client/`, `../crypto/`.
 
 - **Connect flow:** `GET /oauth/upstream/{server}/connect` (optionally `?as=me`
   for a per-user connection). Requires a signed-in user (bounces to `/login`
   otherwise) and encryption keys (503 otherwise). A *shared* connection needs an
   admin and is rejected for a `per_user` server; `?as=me` binds the token to the
-  user. It builds a PKCE authorize URL, stores single-use state in Redis
-  (`bmcp:upstream-connect:{state}`, 600s), and redirects to the upstream IdP. The
+  user. It builds a PKCE authorize URL (`UpstreamConnectFlow`), parks an
+  `UpstreamConnectState` in a `SingleUseState` (Redis `bmcp:upstream-connect:{state}`,
+  600s, read-once), and redirects to the upstream IdP. The
   callback (`/oauth/upstream/callback`) exchanges the code and saves the encrypted
   token.
-- **Token store (`UpstreamTokenStore`):** keyed `(server_id, user_id)` with
+- **Token store (`UpstreamTokenStore`, a facade over `UpstreamTokenRepository`,
+  `UpstreamConnectFlow` and `UpstreamTokenRefresher`):** keyed `(server_id, user_id)` with
   `user_id NULL = shared` (UPO-2). Tokens live in `upstream_oauth_tokens`
   (Fernet-encrypted JSON), client config in `upstream_oauth_clients`.
   `ensure_access_token` returns a valid bearer, refreshing proactively near
@@ -311,16 +316,22 @@ encrypted with rotating keys and never logged or returned (DOM-3, spec 51).
 
 | File | Responsibility |
 |------|----------------|
-| `metadata.py` | `.well-known` discovery (auth-server + protected-resource) |
-| `registration.py` | Dynamic client registration (`POST /oauth/register`) |
-| `authorize.py` | `/oauth/authorize` + `/oauth/consent`, PKCE, audience, login bounce, code issuance |
-| `token.py` | `/oauth/token`, `/oauth/introspect`, `/oauth/revoke`, `purge_expired` |
-| `oidc.py` | Admin OIDC login: `/login`, `/login/callback`, `/logout`, `provision_user` |
-| `adminsessions.py` | `AdminSessionStore` — the `bmcp_session` cookie/Redis session |
-| `upstream_connect.py` | Upstream OAuth connect flow (`/oauth/upstream/…`) |
-| `upstream_client.py` | `UpstreamTokenStore` — encrypted upstream tokens, refresh, discovery |
-| `urls.py` | The public-URL derivation helpers (§5) |
+| `metadata_controller.py` | `.well-known` discovery (auth-server + protected-resource) |
+| `registration_controller.py` | Dynamic client registration (`POST /oauth/register`) |
+| `authorize_controller.py` | `/oauth/authorize` + `/oauth/consent`; the consent page |
+| `token_controller.py` | `/oauth/token`, `/oauth/introspect`, `/oauth/revoke` |
+| `token_purger.py` | Periodic sweep of expired codes, tokens and stale clients |
+| `oauth_error_response.py` | Renders `OAuthError` / `AuthorizationRedirectError` in RFC shape |
+| `oidc/login_controller.py` | Admin OIDC login: `/login`, `/login/callback`, `/logout` |
+| `oidc/authlib_oidc_provider.py` | The real IdP, built from its discovery document |
+| `session_cookie.py` | The `bmcp_session` cookie name and attributes |
+| `upstream_connect_controller.py` | Upstream OAuth connect flow (`/oauth/upstream/…`) |
+| `upstream_client/` | `UpstreamTokenStore` and the repository, connect flow and refresher behind it |
+| `providers.py` | FastAPI providers for oauth-owned collaborators and the OAuth services |
+| `urls.py` | The endpoint resource identifier (§5) |
+| `../services/oauth_server/` | Grants, token issuance, authorization, registration, provisioning, purge |
+| `../store/admin_sessions/` | `AdminSessionStore` — the Redis-backed browser session |
+| `../store/single_use_state.py` | `SingleUseState[T]` — typed, read-once browser round-trip state |
 | `../api/auth.py` | `ManagementAuth` — the management-API auth edge (§3) |
-| `../services/auth_service.py` | `AuthService`, `Principal` — framework-free credential resolution |
-| `../security.py` | API-key generation, hashing, constant-time compare |
-| `../crypto.py` | `TokenCipher` — Fernet encryption at rest for upstream tokens |
+| `../services/auth_service/` | `AuthService`, `AdminSessionService`, `Principal` |
+| `../crypto/` | Token hashing, PKCE, and `TokenCipher` for encryption at rest |
