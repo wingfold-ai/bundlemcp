@@ -19,7 +19,7 @@ from bundlemcp.api.controllers import (
     UserController,
 )
 from bundlemcp.api.errors import service_error_handler
-from bundlemcp.gateway import mcp_endpoint
+from bundlemcp.gateway.mcp_endpoint import McpEndpointController
 from bundlemcp.oauth import authorize as oauth_authorize
 from bundlemcp.oauth import metadata as oauth_metadata
 from bundlemcp.oauth import registration as oauth_registration
@@ -85,5 +85,5 @@ def create_app(
         app.include_router(router)
     UserController().mount(app, prefix=API_PREFIX)  # /api/v1/users (ADM-6, OAS-11)
     HealthController().mount(app)
-    app.include_router(mcp_endpoint.router)  # public /{endpoint}/mcp (EP-1)
+    McpEndpointController().mount(app)  # public /{endpoint}/mcp (EP-1)
     return app

@@ -1,6 +1,7 @@
-# Controllers
+# Controllers and Method Handlers
 
-How an HTTP surface is declared in this repo. The decision record is ADR-0026.
+How an HTTP surface is declared in this repo, and how the MCP edge serves a
+JSON-RPC method. The decision records are ADR-0026 and ADR-0027.
 
 ## One surface, one class
 
@@ -50,15 +51,16 @@ new route cannot forget it. The same pattern applies to any future shared
 concern (a tenant header, a feature gate): put it on a base controller, not on
 each handler.
 
-Controllers that are deliberately public (`MeController`, `HealthController`)
-derive from `Controller` directly, so the absence of the policy is visible in
-the class line.
+Controllers that are deliberately public (`MeController`, `HealthController`,
+`McpEndpointController`) derive from `Controller` directly, so the absence of
+the policy is visible in the class line.
 
 ## Where the classes live
 
 | Surface | Package | Base |
 |---|---|---|
 | Management API | `api/controllers/` | `ManagementController` |
+| MCP endpoints | `gateway/mcp_endpoint/` | `Controller` |
 
 `bundlemcp/http/` holds only the base class. It sits beside `providers/` in
 the layer contract: glue every delivery package may import, which imports
@@ -73,10 +75,34 @@ nothing above `services/`.
 3. A `get_<resource>_service` provider in `providers/services.py`.
 4. A controller in `api/controllers/`, registered in `api/app.py`.
 
+## The MCP edge: one class per method
+
+`McpEdge` admits the request (endpoint lookup, authentication, session load)
+and hands a `SessionContext` plus a parsed `JsonRpcMessage` to
+`MethodRegistry.dispatch`. The registry maps method names to handler
+instances:
+
+```python
+class PingHandler:
+    async def handle(self, ctx: SessionContext, message: JsonRpcMessage) -> Response:
+        return rpc_result(message.id, {})
+```
+
+A handler declares its collaborators in its constructor and nothing else. To
+add a method, write the class and register it in `McpEdgeAssembly.build()`;
+the dispatcher does not change. Rate limiting is the `RateLimited` decorator
+handler, applied at registration to the methods that count.
+
+`ToolsCallHandler` is the exception in size, not in shape: it resolves the
+presented tool and hands off to a `ToolCall` object that carries the call's
+state through credentials, metering, the upstream call and audit.
+
 ## What not to do
 
 - No free route functions on a module-level `APIRouter`.
 - No `_auth: ServiceAuthProvider` parameter on individual handlers; the base
   controller owns it.
+- No `if method == "..."` chains; no positional bundles of
+  `(runtime, request, view, record, body)`.
 - No reads of `request.app.state.<anything>` outside a `providers` module;
   a handler asks for a `*Provider` parameter.

@@ -9,6 +9,9 @@ fake instead of reaching a real authorization server.
 from bundlemcp.oauth.upstream_client.httpx_upstream_provider import HttpxUpstreamProvider
 from bundlemcp.oauth.upstream_client.needs_connect import NeedsConnect
 from bundlemcp.oauth.upstream_client.upstream_metadata import UpstreamMetadata
+from bundlemcp.oauth.upstream_client.upstream_oauth_not_configured import (
+    UpstreamOAuthNotConfigured,
+)
 from bundlemcp.oauth.upstream_client.upstream_oauth_provider import UpstreamOAuthProvider
 from bundlemcp.oauth.upstream_client.upstream_token_store import (
     REFRESH_LOCK_KEY,
@@ -25,6 +28,7 @@ __all__ = [
     "HttpxUpstreamProvider",
     "NeedsConnect",
     "UpstreamMetadata",
+    "UpstreamOAuthNotConfigured",
     "UpstreamOAuthProvider",
     "UpstreamTokenStore",
     "UpstreamTokens",

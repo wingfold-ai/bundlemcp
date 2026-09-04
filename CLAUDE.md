@@ -98,7 +98,9 @@ See [spec/00-overview.md](spec/00-overview.md) and
 
 - **Controllers, not route functions.** An HTTP surface is a class deriving
   from `Controller`; its shared policy is a router-level dependency; handlers
-  call one service method. Rules, and how a new resource is added, are in:
+  call one service method. The MCP edge dispatches JSON-RPC through a
+  `MethodRegistry` of handler classes, never an `if method ==` chain. Rules,
+  and how a new resource or method is added, are in:
 
 @.claude/docs/controllers.md
 

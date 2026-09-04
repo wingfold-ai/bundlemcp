@@ -19,10 +19,10 @@ from bundlemcp.crypto import TokenCipher, token_cipher
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.discovery import DiscoveryService
 from bundlemcp.gateway.list_changed_notifier import ListChangedNotifier
-from bundlemcp.gateway.mcp_endpoint import GatewayRuntime
+from bundlemcp.gateway.mcp_endpoint import McpEdgeAssembly
 from bundlemcp.gateway.metering import load_metering_hook
 from bundlemcp.gateway.metrics import Counters
-from bundlemcp.gateway.ratelimit import AuthFailureLimiter, RateLimiter
+from bundlemcp.gateway.ratelimit import AuthFailureGuard, AuthFailureLimiter, RateLimiter
 from bundlemcp.gateway.runtime_config import RuntimeConfig
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import StreamRegistry
@@ -119,20 +119,23 @@ class CompositionRoot:
             window=settings.auth_failure_window,
             counters=counters,
         )
-        gateway = GatewayRuntime(
+        auth_failure_guard = AuthFailureGuard(auth_failure_limiter, settings)
+        rate_limiter = overrides.rate_limiter or RateLimiter(redis, counters)
+        mcp_edge = McpEdgeAssembly(
+            settings=settings,
+            session_factory=sessions,
             sessions=session_store,
+            registry=registry,
+            signals=signals,
             metering=overrides.metering_hook or load_metering_hook(settings.metering_hook),
             audit=audit,
             client_factory=client_factory,
             runtime_config=runtime_config,
-            registry=registry,
-            signals=signals,
             upstream_tokens=upstream_tokens,
-            public_url=settings.public_url,
-            rate_limiter=overrides.rate_limiter or RateLimiter(redis, counters),
+            rate_limiter=rate_limiter,
+            auth_failures=auth_failure_guard,
             counters=counters,
-            settings=settings,
-        )
+        ).build()
 
         await self._ensure_initial_service_key(units)
         await BootstrapRunner(units, discovery).run(settings)  # spec 41
@@ -156,14 +159,16 @@ class CompositionRoot:
             audit=audit,
             runtime_config=runtime_config,
             counters=counters,
+            rate_limiter=rate_limiter,
             auth_failure_limiter=auth_failure_limiter,
+            auth_failure_guard=auth_failure_guard,
             token_cipher=cipher,
             upstream_tokens=upstream_tokens,
             upstream_connections=upstream_tokens or NoUpstreamConnections(),
             admin_sessions=AdminSessionStore(redis),
             oidc_provider=await self._build_oidc_provider(),
             invalidation=subscriber,
-            gateway=gateway,
+            mcp_edge=mcp_edge,
         )
 
     def _build_cipher(self) -> TokenCipher | None:

@@ -77,11 +77,13 @@ Write `X | None` only when `None` is a real, reachable state. A field the
 composition root always supplies is **required**, even if that means a longer
 constructor call.
 
-`GatewayRuntime` previously defaulted nine fields to `None` that were never
-`None` in practice. The cost was not theoretical: consumers carried eight
-defensive guards against impossible states, and new code copied the pattern
-because the type demanded it. Making them required deleted every one of those
-guards and made a half-wired runtime unconstructable.
+The MCP edge's wiring object previously defaulted nine fields to `None` that
+were never `None` in practice. The cost was not theoretical: consumers carried
+eight defensive guards against impossible states, and new code copied the
+pattern because the type demanded it. Making them required deleted every one
+of those guards and made a half-wired runtime unconstructable. `AppContainer`
+and `McpEdgeAssembly` follow the same rule today: the two fields that are
+`X | None` (`upstream_tokens`, `oidc_provider`) name real deployment states.
 
 ## Data that crosses a boundary
 
@@ -105,7 +107,7 @@ shape has drifted should degrade predictably, not raise mid-request.
 ## Why this over dataclasses
 
 Uniformity is the stated goal, but the migration paid for itself immediately:
-converting `GatewayRuntime` surfaced a field annotated `str` that every caller
+converting the edge's wiring object surfaced a field annotated `str` that every caller
 had been passing an `AnyHttpUrl` to. The dataclass had hidden it behind a
 `str()` call in `__post_init__` for the life of the class. Validation at the
 construction site is the point — not serialization, and not speed.
