@@ -1,0 +1,43 @@
+import uuid
+from datetime import timedelta
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from bundlemcp.crypto import ACCESS_TOKEN_PREFIX, REFRESH_TOKEN_PREFIX, generate_token, hash_token
+from bundlemcp.models import OAuthAccessToken, utcnow
+from bundlemcp.schemas import TokenResponse
+from bundlemcp.store import Repository
+
+ACCESS_TOKEN_TTL = timedelta(hours=1)  # OAS-4
+REFRESH_TOKEN_TTL = timedelta(days=7)
+
+
+class TokenIssuer:
+    """Mints an access/refresh pair and stores only their hashes."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._tokens = Repository(session, OAuthAccessToken)
+
+    def issue(
+        self, *, client_id: str, user_id: uuid.UUID, endpoint_id: uuid.UUID, scope: str
+    ) -> TokenResponse:
+        access = generate_token(ACCESS_TOKEN_PREFIX)
+        refresh = generate_token(REFRESH_TOKEN_PREFIX)
+        self._tokens.add(
+            OAuthAccessToken(
+                access_token_hash=hash_token(access),
+                refresh_token_hash=hash_token(refresh),
+                client_id=client_id,
+                user_id=user_id,
+                endpoint_id=endpoint_id,
+                scope=scope,
+                expires_at=utcnow() + ACCESS_TOKEN_TTL,
+                refresh_expires_at=utcnow() + REFRESH_TOKEN_TTL,
+            )
+        )
+        return TokenResponse(
+            access_token=access,
+            expires_in=int(ACCESS_TOKEN_TTL.total_seconds()),
+            refresh_token=refresh,
+            scope=scope,
+        )

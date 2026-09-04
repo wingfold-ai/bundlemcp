@@ -6,30 +6,40 @@ The IdP interaction is behind UpstreamOAuthProvider so hermetic tests inject a
 fake instead of reaching a real authorization server.
 """
 
+from bundlemcp.oauth.upstream_client.authorize_start import AuthorizeStart
 from bundlemcp.oauth.upstream_client.httpx_upstream_provider import HttpxUpstreamProvider
 from bundlemcp.oauth.upstream_client.needs_connect import NeedsConnect
+from bundlemcp.oauth.upstream_client.upstream_client_config import UpstreamClientConfig
+from bundlemcp.oauth.upstream_client.upstream_connect_flow import UpstreamConnectFlow
 from bundlemcp.oauth.upstream_client.upstream_metadata import UpstreamMetadata
 from bundlemcp.oauth.upstream_client.upstream_oauth_not_configured import (
     UpstreamOAuthNotConfigured,
 )
 from bundlemcp.oauth.upstream_client.upstream_oauth_provider import UpstreamOAuthProvider
-from bundlemcp.oauth.upstream_client.upstream_token_store import (
+from bundlemcp.oauth.upstream_client.upstream_token_refresher import (
     REFRESH_LOCK_KEY,
     REFRESH_LOCK_TTL,
     REFRESH_SKEW,
-    UpstreamTokenStore,
+    UpstreamTokenRefresher,
 )
+from bundlemcp.oauth.upstream_client.upstream_token_repository import UpstreamTokenRepository
+from bundlemcp.oauth.upstream_client.upstream_token_store import UpstreamTokenStore
 from bundlemcp.oauth.upstream_client.upstream_tokens import UpstreamTokens
 
 __all__ = [
     "REFRESH_LOCK_KEY",
     "REFRESH_LOCK_TTL",
     "REFRESH_SKEW",
+    "AuthorizeStart",
     "HttpxUpstreamProvider",
     "NeedsConnect",
+    "UpstreamClientConfig",
+    "UpstreamConnectFlow",
     "UpstreamMetadata",
     "UpstreamOAuthNotConfigured",
     "UpstreamOAuthProvider",
+    "UpstreamTokenRefresher",
+    "UpstreamTokenRepository",
     "UpstreamTokenStore",
     "UpstreamTokens",
 ]
