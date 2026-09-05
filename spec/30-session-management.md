@@ -11,13 +11,25 @@ impossible, and an entire recovery subsystem existed to paper over it.
 bundlemcp's rule: **a session is data, not an object** — its state lives in
 Redis, any replica can serve it, and restarts are non-events.
 
+MCP 2026-07-28 removed protocol-level sessions altogether: every request is
+self-contained. bundlemcp serves both eras ([PROT-13](32-protocol-passthrough.md)):
+handshake-era clients get the session model below unchanged; modern-era
+requests carry everything a session used to hold (SES-15), so for them the
+any-replica rule is satisfied by construction. What remains replica-pinned in
+both eras is a *live stream*, never a session (SES-13).
+
 ## Requirements
 
-### Downstream sessions (client ↔ bundlemcp)
+### Downstream sessions (handshake-era clients ↔ bundlemcp)
+
+SES-1 to SES-4 apply to clients that open with `initialize`
+(revisions 2025-11-25 and earlier). A modern-era request never creates, reads
+or requires a session record.
 
 - **SES-1** On `initialize`, create a session record in Redis keyed by the
   issued `Mcp-Session-Id`: endpoint, bundle, resolved caller identity,
-  negotiated protocol version/capabilities, timestamps, and a record-schema
+  negotiated protocol version/capabilities, the client's requested log level
+  ([PROT-7](32-protocol-passthrough.md)), timestamps, and a record-schema
   `version` field ([DEP-6](71-deployment.md)). TTL = configurable session
   lifetime, refreshed on activity (a `ping` counts —
   [PROT-8](32-protocol-passthrough.md)).
@@ -33,7 +45,27 @@ Redis, any replica can serve it, and restarts are non-events.
   expired/invalid sessions — never because a different replica answered or
   the gateway restarted ([ARC-10](01-architecture.md)).
 - **SES-4** Explicit `DELETE …/mcp` terminates the session and releases its
-  upstream bindings.
+  upstream bindings. A `DELETE` (or `GET`) without an `Mcp-Session-Id` is
+  answered 405 ([EP-1](14-endpoints.md)).
+
+### Stateless requests (modern-era clients ↔ bundlemcp)
+
+- **SES-15** A request carrying `_meta["io.modelcontextprotocol/protocolVersion"]`
+  is admitted on its own: the caller identity is resolved from its
+  credentials, the protocol version, client capabilities and log level are
+  read from `_meta`, and a per-request routing key replaces the session id for
+  in-flight bookkeeping (cancellation, progress, parked calls). No record is
+  written to Redis and no `Mcp-Session-Id` is minted or echoed; one present on
+  the request is ignored. Any replica serves any modern request without
+  lookup ([ARC-9](01-architecture.md)).
+- **SES-16** A **parked call** ([PROT-18](32-protocol-passthrough.md) park and
+  resume) is the one modern-era object that is replica-pinned: the in-flight
+  upstream call waiting for the client's retry. It is registered on its
+  replica under the correlation id sealed into `requestState`, lives at most
+  for the call's remaining PROT-2 budget, and is reached from any replica via
+  the SES-13 signal bus. A retry that no replica claims within a short grace
+  period falls back to a re-run (PROT-18); a replica that dies loses only the
+  parked calls it held, exactly as it loses its live streams.
 
 ### Upstream connections (bundlemcp ↔ servers)
 
@@ -66,14 +98,19 @@ Redis, any replica can serve it, and restarts are non-events.
 
 ### Cross-replica delivery
 
-- **SES-13** Live streams (a client's GET event stream, an in-flight call's
-  response stream) are pinned to the replica holding them; everything else is
-  not. Messages that must reach a specific stream from another replica —
-  cancellations, list-changed notifications, server→client requests and
-  their responses ([32-protocol-passthrough.md](32-protocol-passthrough.md))
-  — are routed via Redis pub/sub channels keyed by session id, delivered by
-  the replica holding the stream. A message for a session with no live
-  stream anywhere fails fast with a structured error (or is dropped, for
+- **SES-13** Live streams (a handshake client's GET event stream, a modern
+  client's `subscriptions/listen` stream, an in-flight call's response stream,
+  a parked call) are pinned to the replica holding them; everything else is
+  not. Each stream is registered under a **stream key** — endpoint, bundle and
+  a stream id that is the session id for handshake clients and the request id
+  for modern ones — so list-changed fan-out selects streams by endpoint or
+  bundle without loading a session. Messages that must reach a specific stream
+  from another replica — cancellations, list-changed notifications,
+  server→client requests and their responses, MRTR resumes and results
+  ([32-protocol-passthrough.md](32-protocol-passthrough.md)) — are routed via
+  Redis pub/sub channels keyed by stream id or correlation id, delivered by the
+  replica holding the target. A message for a target with no live holder
+  anywhere fails fast with a structured error (or is dropped, for
   notifications).
 
 ### Degradation matrix

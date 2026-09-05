@@ -45,6 +45,15 @@ instead of sharing one credential.
   `/oauth/introspect` ([FWD-4](24-identity-forwarding.md)) authenticate to it
   with their own `service`-kind API key ([KEY-2](22-api-keys.md)) provisioned
   by the admin — introspection is never anonymous ([OAS-5](20-oauth-server.md)).
+- **UPO-8 Issuer validation (RFC 9207):** the connect flow records the
+  upstream authorization server's `issuer` from its validated metadata in the
+  single-use state before redirecting, and on callback applies the RFC 9207
+  §2.4 rule: an `iss` that is present MUST equal the recorded issuer
+  (string comparison, no normalisation) or the callback is rejected before the
+  code is redeemed; an absent `iss` is rejected when the server's metadata
+  advertises `authorization_response_iss_parameter_supported`. Stored
+  credentials are bound to the issuer that granted them and are never
+  presented to another authorization server.
 
 ## Out of scope
 

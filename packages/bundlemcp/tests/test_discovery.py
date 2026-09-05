@@ -10,8 +10,10 @@ from sqlmodel import select
 def make_upstream(tools: list[str]) -> FastMCP:
     mcp = FastMCP("upstream")
     for name in tools:
+
         def _tool(text: str, _n=name) -> str:
             return f"{_n}:{text}"
+
         _tool.__name__ = name
         _tool.__doc__ = f"Tool {name}."
         mcp.tool(_tool)
@@ -20,7 +22,7 @@ def make_upstream(tools: list[str]) -> FastMCP:
 
 def factory_for(upstream: FastMCP):
     def factory(server, extra_headers):
-        return Client(upstream)
+        return Client(upstream, mode=server.protocol_mode)  # SRV-10
 
     return factory
 
@@ -29,10 +31,10 @@ def failing_factory(server, extra_headers):
     raise ConnectionError("upstream down")
 
 
-async def seed_server(engine, name="srv") -> McpServer:
+async def seed_server(engine, name="srv", protocol_mode="auto") -> McpServer:
     factory = session_factory(engine)
     async with factory() as db:
-        server = McpServer(name=name, url="http://upstream:1/mcp")
+        server = McpServer(name=name, url="http://upstream:1/mcp", protocol_mode=protocol_mode)
         db.add(server)
         await db.commit()
         await db.refresh(server)
@@ -81,6 +83,22 @@ async def test_discover_captures_capabilities(engine):
     assert "tools" in srv.capabilities
     assert "prompts" in srv.capabilities
     assert "resources" in srv.capabilities
+
+
+async def test_discover_records_negotiated_protocol_version(engine):
+    """SRV-10/PROT-21: auto mode adopts the modern era; legacy mode keeps the handshake."""
+    modern = await seed_server(engine, name="modern")
+    legacy = await seed_server(engine, name="legacy", protocol_mode="legacy")
+    svc = DiscoveryService(session_factory(engine), factory_for(make_upstream(["alpha"])))
+
+    await svc.discover(modern.id)
+    await svc.discover(legacy.id)
+
+    async with session_factory(engine)() as db:
+        versions = {
+            s.name: s.protocol_version for s in (await db.execute(select(McpServer))).scalars()
+        }
+    assert versions == {"modern": "2026-07-28", "legacy": "2025-11-25"}
 
 
 async def test_rediscovery_is_hash_stable(engine):

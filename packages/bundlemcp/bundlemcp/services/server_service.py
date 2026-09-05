@@ -34,6 +34,7 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         server.auth_mode = body.auth_mode
         server.identity_mode = body.identity_mode
         server.send_identity_header = body.send_identity_header
+        server.protocol_mode = body.protocol_mode  # SRV-10
         if not created:
             await self._policy.ensure_identity_switch_allowed(server)
         read = await self._save(server, name=body.name, created=created)

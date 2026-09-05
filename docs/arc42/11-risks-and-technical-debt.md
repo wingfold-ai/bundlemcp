@@ -9,6 +9,8 @@
 | 5 | **SQLModel maturity** (0.0.x) | Missing ORM features | Escape hatch: SQLModel classes are SQLAlchemy models (spec/01 open question) |
 | 6 | **chatgpt profile re-annotation** deliberately misdeclares write tools as read-safe | User surprise / trust issues if unnoticed | Mandatory UI warning + full audit (PROF-3); documented in [ADR-0007](../adr/0007-endpoint-profiles.md) |
 | 7 | **Latest-stable policy churn** | Breaking upgrades arrive continuously | Min-version pins + CI gate; specs are framework-agnostic |
+| 8 | **Protocol-era drift** — MCP 2026-07-28 removed sessions, the handshake and server-initiated requests; major clients adopt at different speeds (Copilot modern, Claude/ChatGPT/Gemini/Cursor handshake as of 2026-09) | An edge on one era loses the other's clients | Dual-era edge with one dialect per revision ([ADR-0029](../adr/0029-dialects-and-dual-era-edge.md)); conformance suite per revision in CI; `legacy_protocol_enabled` to retire the handshake era |
+| 9 | **Park-and-resume MRTR** ([PROT-18](../../spec/32-protocol-passthrough.md)) pins an in-flight upstream call to a replica between a modern client's two requests | Replica loss mid-elicitation | Bounded by the call's timeout budget; re-run fallback answers the retry; pass-through (no pinning) whenever the upstream is modern |
 
 ## Known technical debt (accepted, tracked)
 
@@ -23,6 +25,11 @@
   an active call need a persistent upstream connection that the per-call model
   (ADR-0012) lacks. Advertised + delivered within an active-call window; full
   between-call push lands with connection pooling (SES-8).
+- `subscriptions/listen` acknowledges only `toolsListChanged`
+  ([PROT-17](../../spec/32-protocol-passthrough.md)) — prompt/resource
+  list-changed and resource subscriptions wait for the same pooling.
+- Protocol extensions (Tasks, MCP Apps) are not proxied and not advertised
+  (PROT-11).
 - Single scope in OAuth; audience-only binding (OAS-10) — fine-grained scopes
   deferred.
 - Inspector covers tools only (spec/53 out-of-scope list).

@@ -12,16 +12,22 @@ surfaces (claude.ai vs ChatGPT vs internal scripts).
 
 ## Requirements
 
-- **EP-1** URL scheme: `POST/GET/DELETE https://<host>/{endpoint_name}/mcp`
-  (Streamable HTTP per current MCP spec). `endpoint_name` is globally unique,
-  slug-safe, and MUST NOT be a reserved first path segment (`api`, `oauth`,
-  `.well-known`, `healthz`, `readyz`, `metrics`, `docs`, `login`, `consent`,
-  `static` — validated at write time). No SSE (`/sse`) and no REST bridge
-  (`/api`) routes exist (decision log).
-- **EP-1a** `GET /{endpoint_name}/mcp` (the server→client event stream) MUST
-  be supported — it carries list-changed notifications, server→client
-  requests, and out-of-call messages required by
-  [32-protocol-passthrough.md](32-protocol-passthrough.md).
+- **EP-1** URL scheme: `POST https://<host>/{endpoint_name}/mcp` (Streamable
+  HTTP). `endpoint_name` is globally unique, slug-safe, and MUST NOT be a
+  reserved first path segment (`api`, `oauth`, `.well-known`, `healthz`,
+  `readyz`, `metrics`, `docs`, `login`, `consent`, `static` — validated at
+  write time). No SSE (`/sse`) and no REST bridge (`/api`) routes exist
+  (decision log). The one endpoint serves every supported protocol revision
+  ([PROT-13](32-protocol-passthrough.md)): modern-era clients (2026-07-28+)
+  use POST only; `GET` and `DELETE` without an `Mcp-Session-Id` answer
+  `405 Method Not Allowed`.
+- **EP-1a** *(handshake-era clients)* `GET /{endpoint_name}/mcp` (the
+  server→client event stream) and `DELETE` (session end) MUST be supported for
+  a request carrying a valid `Mcp-Session-Id` — the GET stream carries
+  list-changed notifications, server→client requests, and out-of-call messages
+  required by [32-protocol-passthrough.md](32-protocol-passthrough.md). Modern
+  clients obtain the equivalent stream with `subscriptions/listen`
+  ([PROT-17](32-protocol-passthrough.md)).
 - **EP-2** An endpoint references exactly one bundle; a bundle may have any
   number of endpoints. Deleting a bundle deletes its endpoints
   ([DOM-2](02-domain-model.md)).
@@ -69,4 +75,5 @@ surfaces (claude.ai vs ChatGPT vs internal scripts).
 ## Open questions
 
 - ~~Whether `GET /{endpoint_name}/mcp` can 405 in v1.~~ **Resolved:** required
-  (EP-1a) — the full-bidirectional decision depends on it.
+  (EP-1a) for handshake-era sessions — the full-bidirectional decision depends
+  on it; 405 for requests without a session, as MCP 2026-07-28 prescribes.
