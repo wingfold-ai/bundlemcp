@@ -22,6 +22,16 @@ class AuthorizationServerMetadata(BaseModel):
         description="How clients may authenticate at the token endpoint",
     )
     scopes_supported: list[str] = Field(default=["mcp"], description="Scopes a client may request")
+    authorization_response_iss_parameter_supported: bool = Field(  # OAS-14
+        default=True,
+        description="Every authorization response carries the issuer in 'iss' (RFC 9207), "
+        "which clients must compare with this document's issuer",
+    )
+    client_id_metadata_document_supported: bool = Field(  # OAS-13
+        default=True,
+        description="A client may use the https URL of its metadata document as its "
+        "client_id instead of registering",
+    )
 
     @classmethod
     def for_issuer(cls, issuer: str) -> "AuthorizationServerMetadata":

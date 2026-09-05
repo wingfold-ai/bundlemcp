@@ -93,6 +93,8 @@ class UpstreamConnectController(Controller):
                 user_id=user_id,
                 code_verifier=start.code_verifier,
                 redirect_uri=redirect_uri,
+                issuer=start.issuer,
+                iss_required=start.iss_required,
             ),
             token=state,
         )
@@ -106,12 +108,26 @@ class UpstreamConnectController(Controller):
         store: UpstreamTokensProvider,
         code: str = "",
         state: str = "",
+        iss: str = "",
+        error: str = "",
+        error_description: str = "",
     ) -> Response:
         if store is None:
             raise HTTPException(503, "upstream OAuth not configured (no encryption keys)")
         pending = await states.take(state)  # single-use (CSRF)
         if pending is None:
             raise HTTPException(400, "invalid or expired connect state")
+        # UPO-8 (RFC 9207 section 2.4): checked before the code is redeemed and
+        # before any error the response carries is acted on.
+        if iss:
+            if pending.issuer is None or iss != pending.issuer:
+                raise HTTPException(400, "authorization server issuer mismatch")
+        elif pending.iss_required:
+            raise HTTPException(400, "authorization response lacks the iss the server advertises")
+        if error:
+            raise HTTPException(
+                400, f"upstream authorization failed: {error} {error_description}".strip()
+            )
         server = await Repository(uow.session, McpServer).get(pending.server_id)
         if server is None:
             raise HTTPException(404, "server not found")

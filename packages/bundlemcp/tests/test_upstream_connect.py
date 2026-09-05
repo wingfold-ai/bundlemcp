@@ -41,7 +41,10 @@ REFRESHED_ACCESS_TOKEN = "refreshed-access-token-plaintext-sentinel"
 class FakeProvider:
     async def discover(self, server_url):
         return UpstreamMetadata(
-            authorization_endpoint="https://idp/a", token_endpoint="https://idp/t"
+            authorization_endpoint="https://idp/a",
+            token_endpoint="https://idp/t",
+            issuer="https://idp",
+            authorization_response_iss_parameter_supported=True,
         )
 
     def authorize_url(self, meta, *, client_id, redirect_uri, state, code_challenge, scope):
@@ -135,8 +138,11 @@ async def test_connect_flow_stores_encrypted_token(engine, redis):
             assert loc.startswith("https://idp/a?state=")
             state = loc.split("state=")[1].split("&")[0]
 
-            # callback exchanges + stores
-            cb = await http.get("/oauth/upstream/callback", params={"code": "xyz", "state": state})
+            # callback exchanges + stores (UPO-8: iss matches the recorded issuer)
+            cb = await http.get(
+                "/oauth/upstream/callback",
+                params={"code": "xyz", "state": state, "iss": "https://idp"},
+            )
             assert cb.status_code == 200
             assert "Connected" in cb.text
 
@@ -148,6 +154,49 @@ async def test_connect_flow_stores_encrypted_token(engine, redis):
             assert row.user_id is None  # shared connection
             assert REFRESH_TOKEN not in row.tokens_encrypted  # ciphertext, not plaintext
             assert row.account_hint == "me@x"
+
+
+async def _connect_state(http, path="/oauth/upstream/up/connect") -> str:
+    resp = await http.get(path)
+    assert resp.status_code == 302, resp.text
+    return resp.headers["location"].split("state=")[1].split("&")[0]
+
+
+async def test_callback_validates_the_issuer(engine, redis):
+    """UPO-8 (RFC 9207): a wrong or missing iss is refused before the code is redeemed."""
+    await _seed(engine)
+    app, http, admin = await _admin_client(engine, redis)
+    async with http:
+        async with app.router.lifespan_context(app):
+            sid = await app.state.container.admin_sessions.create(
+                AdminSession(user_id=str(admin.id), email=admin.email, is_admin=True)
+            )
+            http.cookies.set(SESSION_COOKIE, sid)
+
+            state = await _connect_state(http)
+            wrong = await http.get(
+                "/oauth/upstream/callback",
+                params={"code": "xyz", "state": state, "iss": "https://evil"},
+            )
+            assert wrong.status_code == 400 and "issuer mismatch" in wrong.text
+
+            state = await _connect_state(http)
+            missing = await http.get(
+                "/oauth/upstream/callback", params={"code": "xyz", "state": state}
+            )
+            assert missing.status_code == 400 and "iss" in missing.text
+
+            state = await _connect_state(http)
+            failed = await http.get(
+                "/oauth/upstream/callback",
+                params={"error": "access_denied", "state": state, "iss": "https://idp"},
+            )
+            assert failed.status_code == 400 and "access_denied" in failed.text
+
+            from sqlmodel import select
+
+            async with session_factory(engine)() as db:
+                assert (await db.execute(select(UpstreamOAuthToken))).first() is None
 
 
 async def test_connect_requires_admin_for_shared(engine, redis):

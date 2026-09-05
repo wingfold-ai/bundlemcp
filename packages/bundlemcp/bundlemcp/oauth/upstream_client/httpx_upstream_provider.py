@@ -40,6 +40,10 @@ class HttpxUpstreamProvider:
                     token_endpoint=data["token_endpoint"],
                     registration_endpoint=data.get("registration_endpoint"),
                     scopes_supported=data.get("scopes_supported", []),
+                    issuer=data.get("issuer"),
+                    authorization_response_iss_parameter_supported=bool(
+                        data.get("authorization_response_iss_parameter_supported", False)
+                    ),
                 )
         raise NeedsConnect("upstream", "no_oauth_metadata")
 

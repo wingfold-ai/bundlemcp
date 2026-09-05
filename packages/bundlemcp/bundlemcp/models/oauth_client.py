@@ -32,6 +32,11 @@ class OAuthClient(SQLModel, table=True):
         default="none", description="How the client authenticates at the token endpoint"
     )
     scope: str = Field(default="mcp", description="Space-separated scopes the client may request")
+    application_type: str | None = Field(  # OAS-2
+        default=None,
+        description="'web' or 'native' as the client registered itself; absent when it did not "
+        "say or was described by a metadata document",
+    )
     created_at: datetime = Field(
         default_factory=utcnow, sa_column=_ts(), description="When the client registered"
     )

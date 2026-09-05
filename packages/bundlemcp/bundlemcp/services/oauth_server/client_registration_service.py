@@ -1,12 +1,11 @@
 """Dynamic client registration (RFC 7591)."""
 
 import secrets
-from urllib.parse import urlparse
 
 from bundlemcp.crypto import hash_token
 from bundlemcp.models import OAuthClient
 from bundlemcp.schemas import ClientRegistrationRequest, ClientRegistrationResponse
-from bundlemcp.services.errors import InvalidInputError
+from bundlemcp.services.oauth_server.redirect_uri_rule import check_redirect_uri
 from bundlemcp.store import Repository, UnitOfWork
 
 
@@ -16,18 +15,9 @@ class ClientRegistrationService:
         self._public_base = public_base
         self._clients = Repository(uow.session, OAuthClient)
 
-    @staticmethod
-    def _check_redirect_uri(uri: str) -> None:
-        parsed = urlparse(uri)
-        if parsed.scheme == "https" and parsed.hostname:
-            return
-        if parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1"):
-            return  # native/dev clients
-        raise InvalidInputError(f"invalid_redirect_uri: {uri}")
-
     async def register(self, request: ClientRegistrationRequest) -> ClientRegistrationResponse:
         for uri in request.redirect_uris:
-            self._check_redirect_uri(uri)
+            check_redirect_uri(uri)
         client_id = f"bmcp_client_{secrets.token_urlsafe(16)}"
         client_secret: str | None = None
         if request.token_endpoint_auth_method != "none":
@@ -41,6 +31,7 @@ class ClientRegistrationService:
                 grant_types=request.grant_types,
                 token_endpoint_auth_method=request.token_endpoint_auth_method,
                 scope=request.scope,
+                application_type=request.application_type,
             )
         )
         await self._uow.commit()
@@ -53,6 +44,7 @@ class ClientRegistrationService:
             response_types=request.response_types,
             token_endpoint_auth_method=request.token_endpoint_auth_method,
             scope=request.scope,
+            application_type=request.application_type,
             authorization_endpoint=f"{self._public_base}/oauth/authorize",
             token_endpoint=f"{self._public_base}/oauth/token",
         )
