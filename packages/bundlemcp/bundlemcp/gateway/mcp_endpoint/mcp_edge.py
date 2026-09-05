@@ -9,7 +9,6 @@ handshake-era request is served through the session it opened with
 """
 
 import asyncio
-import json
 import uuid
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
@@ -35,20 +34,21 @@ from bundlemcp.gateway.mcp_endpoint.endpoint_context import EndpointContext
 from bundlemcp.gateway.mcp_endpoint.handlers import SESSION_HEADER
 from bundlemcp.gateway.mcp_endpoint.jsonrpc import rpc_error
 from bundlemcp.gateway.mcp_endpoint.jsonrpc_message import JsonRpcMessage
+from bundlemcp.gateway.mcp_endpoint.log_levels import LOG_LEVELS
 from bundlemcp.gateway.mcp_endpoint.method_handler import MethodHandler
 from bundlemcp.gateway.mcp_endpoint.method_registry import MethodRegistry
 from bundlemcp.gateway.mcp_endpoint.request_context import RequestContext
 from bundlemcp.gateway.mcp_endpoint.request_rejected import RequestRejected
+from bundlemcp.gateway.mcp_endpoint.sse import (
+    KEEPALIVE_SECONDS,
+    SSE_HEADERS,
+    SSE_KEEPALIVE,
+    sse_data,
+)
 from bundlemcp.gateway.ratelimit import AuthFailureGuard
 from bundlemcp.gateway.signals import SignalBus
-from bundlemcp.gateway.streams import StreamRegistry
+from bundlemcp.gateway.streams import STREAM_CLOSING, StreamKey, StreamRegistry
 from bundlemcp.store.sessions import SessionRecord, SessionStore
-
-KEEPALIVE_SECONDS = 15
-SSE_HEADERS = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}
-LOG_LEVELS = frozenset(
-    {"debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"}
-)
 
 
 def _method_not_allowed() -> Response:
@@ -137,25 +137,31 @@ class McpEdge:
             request_ctx = await self._admit_session(ctx, endpoint_name)
         except RequestRejected as rejected:
             return rejected.response
-        queue = self._registry.register_stream(request_ctx.routing_key)
+        key = StreamKey(
+            endpoint_name=request_ctx.view.endpoint.name,
+            bundle_name=request_ctx.view.bundle.name,
+            stream_id=request_ctx.routing_key,
+        )
+        queue = self._registry.register_stream(key)
         return StreamingResponse(
-            self._events(request_ctx.routing_key, queue),
-            media_type="text/event-stream",
-            headers=SSE_HEADERS,
+            self._events(key, queue), media_type="text/event-stream", headers=SSE_HEADERS
         )
 
-    async def _events(self, session_id: str, queue: asyncio.Queue) -> AsyncIterator[str]:
+    async def _events(self, key: StreamKey, queue: asyncio.Queue) -> AsyncIterator[str]:
         try:
             yield ": connected\n\n"
             while True:
                 try:
                     payload = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_SECONDS)
-                    yield f"data: {json.dumps(payload)}\n\n"
                 except TimeoutError:
-                    yield ": keepalive\n\n"
-                    await self._sessions.touch(session_id)  # stream open = active
+                    yield SSE_KEEPALIVE
+                    await self._sessions.touch(key.stream_id)  # stream open = active
+                    continue
+                if payload is STREAM_CLOSING:
+                    return
+                yield sse_data(payload)
         finally:
-            self._registry.unregister_stream(session_id, queue)
+            self._registry.unregister_stream(key, queue)
 
     async def _admit(self, request: Request, endpoint_name: str) -> EndpointContext:
         """Resolve the endpoint and authenticate the caller, or reject the request."""
@@ -243,7 +249,7 @@ class McpEdge:
             identity=ctx.identity,
             dialect=dialect,
             client_capabilities=record.client_capabilities,
-            log_level=None,
+            log_level=record.log_level,
             routing_key=record.session_id,
             session=record,
         )

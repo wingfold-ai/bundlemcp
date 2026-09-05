@@ -1,3 +1,5 @@
+import asyncio
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from bundlemcp.gateway.audit import AuditWriter
@@ -29,4 +31,8 @@ class ToolCallSupport(BaseModel):
     runtime_config: RuntimeConfig = Field(description="Source of the call timeouts")
     metering_fail_open: bool = Field(
         description="Whether a call proceeds when the metering hook itself fails"
+    )
+    detached: set[asyncio.Task] = Field(
+        default_factory=set,
+        description="Accounting tasks for calls whose client disconnected, kept alive until done",
     )

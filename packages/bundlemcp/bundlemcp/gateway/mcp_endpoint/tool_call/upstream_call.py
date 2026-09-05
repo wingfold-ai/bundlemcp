@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
+from mcp.types import LOG_LEVEL_META_KEY
 
 from bundlemcp.gateway.composition import PresentedTool
 from bundlemcp.gateway.mcp_endpoint.tool_call.call_outcome import (
@@ -44,6 +45,7 @@ class UpstreamCall:
         headers: dict[str, str],
         session: SessionRecord | None,
         client_capabilities: dict[str, Any],
+        log_level: str | None,
         relay: ClientRelay,
         handle: CallHandle | None,
         timeouts: CallTimeouts,
@@ -58,6 +60,7 @@ class UpstreamCall:
         self._headers = headers
         self._session = session
         self._client_capabilities = client_capabilities
+        self._log_level = log_level
         self._relay = relay
         self._handle = handle
         self._timeouts = timeouts
@@ -85,8 +88,10 @@ class UpstreamCall:
                         identity_key=self._session.identity.sub,
                     ),
                 )
+            # PROT-20: a modern upstream emits log messages only when asked per request.
+            meta = {LOG_LEVEL_META_KEY: self._log_level} if self._log_level is not None else None
             return await client.call_tool_mcp(
-                self._tool.tool.name, self._arguments, progress_handler=self._progress
+                self._tool.tool.name, self._arguments, progress_handler=self._progress, meta=meta
             )
 
     async def _watchdog(self, task: asyncio.Task[Any]) -> None:

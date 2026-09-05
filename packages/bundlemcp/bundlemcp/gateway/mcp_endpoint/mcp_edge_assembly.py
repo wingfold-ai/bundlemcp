@@ -21,6 +21,7 @@ from bundlemcp.gateway.mcp_endpoint.handlers import (
     ResourcesSubscribeHandler,
     ResourceTemplatesListHandler,
     ServerDiscoverHandler,
+    SubscriptionsListenHandler,
     ToolsListHandler,
 )
 from bundlemcp.gateway.mcp_endpoint.mcp_edge import McpEdge
@@ -103,7 +104,8 @@ class McpEdgeAssembly(BaseModel):
                 "resources/read": ResourcesReadHandler(fanout),
                 "resources/subscribe": ResourcesSubscribeHandler(),
                 "resources/unsubscribe": ResourcesSubscribeHandler(),
-                "logging/setLevel": LoggingSetLevelHandler(),
+                "logging/setLevel": LoggingSetLevelHandler(self.sessions),
+                "subscriptions/listen": SubscriptionsListenHandler(self.registry),
                 "notifications/cancelled": CancelledNotificationHandler(self.signals),
             }
         )

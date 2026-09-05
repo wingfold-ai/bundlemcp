@@ -142,9 +142,10 @@ class CompositionRoot:
         subscriber = InvalidationSubscriber(redis)  # STP-2: one subscriber per replica
         subscriber.on_reconnect_flush(runtime_config.flush)
         subscriber.on_event(self._config_flush(runtime_config))
-        subscriber.on_event(ListChangedNotifier(registry, session_store).on_invalidation)
+        subscriber.on_event(ListChangedNotifier(registry).on_invalidation)
         await subscriber.start()
         self._stack.push_async_callback(subscriber.stop)
+        self._stack.callback(registry.close_streams)  # PROT-17: streams end with a result
 
         purger = TokenPurger(units)  # OAS-8/SEC-8: expired grants must not linger
         purger.start()

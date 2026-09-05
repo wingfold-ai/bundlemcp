@@ -5,6 +5,7 @@ ASGI-transport style like test_gateway: the upstream is an in-process FastMCP
 server behind the injected client factory.
 """
 
+import json
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -157,6 +158,18 @@ async def _modern(http, method, params=None, *, headers_override=None, **kw):
     return await http.post("/main/mcp", json=body, headers=headers)
 
 
+def _message(resp) -> dict[str, Any]:
+    """The JSON-RPC message in a response: a JSON body, or the last event of an SSE body.
+
+    A modern tools/call is always streamed (PROT-19); the ASGI transport buffers
+    the whole stream, so the final event is the message.
+    """
+    if resp.headers["content-type"].startswith("text/event-stream"):
+        data = [line[6:] for line in resp.text.splitlines() if line.startswith("data: ")]
+        return json.loads(data[-1])
+    return resp.json()
+
+
 async def test_discover_advertises_versions_capabilities_and_hints(http):
     """PROT-14/PROT-16: server/discover needs no session and carries every modern field."""
     resp = await _modern(http, "server/discover")
@@ -185,7 +198,8 @@ async def test_tools_list_is_stateless_and_cacheable(http):
 async def test_tools_call_returns_shaped_result(http):
     resp = await _modern(http, "tools/call", {"name": "echo__say", "arguments": {"text": "hi"}})
     assert resp.status_code == 200, resp.text
-    result = resp.json()["result"]
+    assert resp.headers["content-type"].startswith("text/event-stream")  # PROT-19
+    result = _message(resp)["result"]
     assert result["content"][0]["text"] == "echo:hi"
     assert result["resultType"] == "complete"
     assert result["_meta"][SERVER_INFO_META_KEY]["name"] == "bundlemcp/main"
@@ -226,7 +240,7 @@ async def test_mcp_param_header_validated_against_arguments(http):
 
     right = await _modern(http, "tools/call", params, headers_override={"Mcp-Param-Region": "eu"})
     assert right.status_code == 200, right.text
-    assert right.json()["result"]["content"][0]["text"] == "eu:q"
+    assert _message(right)["result"]["content"][0]["text"] == "eu:q"
 
 
 async def test_get_and_delete_without_session_are_405(http):
