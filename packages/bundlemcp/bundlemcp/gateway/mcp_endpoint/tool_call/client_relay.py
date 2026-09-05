@@ -15,14 +15,11 @@ from fastmcp.client.elicitation import ElicitResult
 from mcp.types import CreateMessageResult, Root
 
 from bundlemcp.gateway.mcp_endpoint.log_levels import at_least
+from bundlemcp.gateway.mcp_endpoint.mrtr import InputChannel, RelayRejected
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import StreamRegistry
 
 NotificationSink = Callable[[dict[str, Any]], Awaitable[None]]
-
-
-class RelayRejected(Exception):
-    """The client answered a relayed request with an error."""
 
 
 def _as_function(method: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
@@ -57,15 +54,19 @@ class ClientRelay:
         *,
         log_level: str | None,
         on_notification: NotificationSink | None,
+        channel: InputChannel | None,
     ) -> None:
         # on_notification is None when log messages belong on the client's own
-        # notification stream (handshake era) rather than the call's response
+        # notification stream (handshake era) rather than the call's response;
+        # channel is None in the handshake era, where requests go out on that
+        # stream, and set for a modern client (PROT-18)
         self._registry = registry
         self._signals = signals
         self._routing_key = routing_key
         self._wait_timeout = wait_timeout
         self._log_level = log_level
         self._on_notification = on_notification
+        self._channel = channel
 
     def client_kwargs(self, capabilities: Mapping[str, Any]) -> dict[str, Any]:
         """The handler keyword arguments for the upstream client, gated by capability."""
@@ -85,6 +86,8 @@ class ClientRelay:
         return kwargs
 
     async def _roundtrip(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
+        if self._channel is not None:
+            return await self._channel.ask(method, params)
         correlation_id = uuid.uuid4().hex
         future = self._registry.register_reply(correlation_id)
         request = {"jsonrpc": "2.0", "id": correlation_id, "method": method, "params": params}

@@ -8,6 +8,7 @@ from redis.asyncio import Redis
 from bundlemcp.gateway.signals.cancel_signal import CancelSignal
 from bundlemcp.gateway.signals.deliver_signal import DeliverSignal
 from bundlemcp.gateway.signals.reply_signal import ReplySignal
+from bundlemcp.gateway.signals.resume_signal import ResumeSignal
 from bundlemcp.gateway.signals.signal_envelope import SignalEnvelope
 from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.store.redis import SIGNAL_CHANNEL
@@ -37,6 +38,12 @@ class SignalBus:
     async def reply(self, correlation_id: str, payload: dict[str, Any]) -> None:
         await self._publish(
             correlation_id, ReplySignal(correlation_id=correlation_id, payload=payload)
+        )
+
+    async def resume(self, correlation_id: str, phase: str, payload: dict[str, Any]) -> None:
+        await self._publish(
+            correlation_id,
+            ResumeSignal(correlation_id=correlation_id, phase=phase, payload=payload),
         )
 
     async def _publish(self, routing_key: str, signal) -> None:
@@ -87,3 +94,5 @@ class SignalBus:
             self._registry.deliver_local(signal.stream_id, signal.payload)
         elif isinstance(signal, ReplySignal):
             self._registry.reply_local(signal.correlation_id, signal.payload)
+        elif isinstance(signal, ResumeSignal):
+            self._registry.resume_local(signal.correlation_id, signal.phase, signal.payload)

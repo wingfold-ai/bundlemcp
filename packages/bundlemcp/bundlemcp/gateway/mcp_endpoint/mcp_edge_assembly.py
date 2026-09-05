@@ -3,6 +3,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from bundlemcp.crypto import TokenCipher
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.dialect import DialectRegistry
 from bundlemcp.gateway.mcp_endpoint.authentication import EndpointAuthentication
@@ -45,8 +46,8 @@ from bundlemcp.store.sessions import SessionStore
 class McpEdgeAssembly(BaseModel):
     """The inputs to one MCP edge, and the recipe that wires them into handlers.
 
-    Every field is required apart from ``upstream_tokens``, which is None exactly
-    when no token encryption keys are configured.
+    Every field is required apart from ``upstream_tokens`` and ``state_cipher``,
+    which are None exactly when no token encryption keys are configured.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -65,6 +66,10 @@ class McpEdgeAssembly(BaseModel):
     upstream_tokens: UpstreamTokenStore | None = Field(
         description="Store for upstream OAuth tokens; None when no encryption keys are configured"
     )
+    state_cipher: TokenCipher | None = Field(
+        description="Seals a modern client's requestState; None when no encryption keys are "
+        "configured"
+    )
     rate_limiter: RateLimiter = Field(description="Fixed-window limits per endpoint and client")
     auth_failures: AuthFailureGuard = Field(description="Per-IP lockout on bad credentials")
     counters: Counters = Field(description="In-process metric sink")
@@ -74,7 +79,9 @@ class McpEdgeAssembly(BaseModel):
         cache_hints = CacheHints(self.runtime_config)
         gate = RateLimitGate(self.rate_limiter, self.counters, self.settings)
         credentials = UpstreamCredentialResolver(self.upstream_tokens, self.settings.public_base)
-        fanout = MemberFanout(self.client_factory, credentials)
+        fanout = MemberFanout(
+            self.client_factory, credentials, self.registry, self.signals, self.runtime_config
+        )
         tool_calls = ToolsCallHandler(
             ToolCallSupport(
                 metering=self.metering,
@@ -86,6 +93,7 @@ class McpEdgeAssembly(BaseModel):
                 signals=self.signals,
                 runtime_config=self.runtime_config,
                 metering_fail_open=self.settings.metering_hook_fail_open,
+                state_cipher=self.state_cipher,
             )
         )
         methods = MethodRegistry(

@@ -14,6 +14,7 @@ class StreamRegistry:
         self._streams: dict[str, tuple[StreamKey, asyncio.Queue]] = {}
         self._calls: dict[tuple[str, str], CallHandle] = {}
         self._replies: dict[str, asyncio.Future] = {}  # correlation_id -> reply future
+        self._resumes: dict[str, asyncio.Queue] = {}  # correlation_id -> a retry's event queue
 
     # --- notification streams: a handshake GET stream or a subscriptions/listen stream ---
 
@@ -74,4 +75,22 @@ class StreamRegistry:
         if future is None or future.done():
             return False
         future.set_result(payload)
+        return True
+
+    # --- a modern client's retry, waiting for the parked call's events (PROT-18) ---
+
+    def register_resume(self, correlation_id: str) -> asyncio.Queue:
+        queue: asyncio.Queue = asyncio.Queue()
+        self._resumes[correlation_id] = queue
+        return queue
+
+    def unregister_resume(self, correlation_id: str, queue: asyncio.Queue) -> None:
+        if self._resumes.get(correlation_id) is queue:
+            del self._resumes[correlation_id]
+
+    def resume_local(self, correlation_id: str, phase: str, payload: dict[str, Any]) -> bool:
+        queue = self._resumes.get(correlation_id)
+        if queue is None:
+            return False
+        queue.put_nowait((phase, payload))
         return True

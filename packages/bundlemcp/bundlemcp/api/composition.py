@@ -131,6 +131,7 @@ class CompositionRoot:
             client_factory=client_factory,
             runtime_config=runtime_config,
             upstream_tokens=upstream_tokens,
+            state_cipher=cipher,
             rate_limiter=rate_limiter,
             auth_failures=auth_failure_guard,
             counters=counters,

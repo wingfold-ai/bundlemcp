@@ -207,7 +207,11 @@ one used.
   client declared support for in `_meta` capabilities are placed in
   `inputRequests` (PROT-5). Without token encryption keys the bridge is
   unavailable and reports so with a structured error rather than sealing
-  plaintext.
+  plaintext. *Residual:* both strategies are implemented for `tools/call`;
+  on `prompts/get` and `resources/read` a modern client is not yet bridged
+  (a handshake upstream's request fails fast, a modern upstream's
+  `input_required` is reported as an error), while a handshake client is
+  relayed on every method.
 - **PROT-19 Cancellation by disconnect.** Modern `tools/call` responses are
   always streamed (`text/event-stream`, progress optional), so the client
   closing the stream is an unambiguous cancellation that the gateway applies
