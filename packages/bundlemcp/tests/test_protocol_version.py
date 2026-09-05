@@ -1,30 +1,40 @@
-"""Protocol-version negotiation unit tests (PROT-12)."""
+"""Handshake-era version negotiation (PROT-12)."""
 
 from bundlemcp.gateway.protocol_version import (
-    LATEST_PROTOCOL_VERSION,
-    SUPPORTED_PROTOCOL_VERSIONS,
-    negotiate_version,
+    HANDSHAKE_PROTOCOL_VERSIONS,
+    negotiate_handshake_version,
 )
 
+NEWEST = HANDSHAKE_PROTOCOL_VERSIONS[0]
 
-def test_blank_request_gets_latest():
-    assert negotiate_version(None) == LATEST_PROTOCOL_VERSION
-    assert negotiate_version("") == LATEST_PROTOCOL_VERSION
+
+def negotiate(requested):
+    return negotiate_handshake_version(requested, HANDSHAKE_PROTOCOL_VERSIONS)
+
+
+def test_blank_request_gets_newest():
+    assert negotiate(None) == NEWEST
+    assert negotiate("") == NEWEST
 
 
 def test_exact_supported_version_echoed():
-    for v in SUPPORTED_PROTOCOL_VERSIONS:
-        assert negotiate_version(v) == v
+    for v in HANDSHAKE_PROTOCOL_VERSIONS:
+        assert negotiate(v) == v
 
 
-def test_newer_than_known_offers_latest():
-    assert negotiate_version("2099-01-01") == LATEST_PROTOCOL_VERSION
+def test_newer_than_known_offers_newest():
+    assert negotiate("2099-01-01") == NEWEST
 
 
-def test_within_window_downgrades_to_highest_supported():
-    # between the oldest and newest but not an exact match → highest supported ≤ requested
-    assert negotiate_version("2025-09-01") == "2025-06-18"
+def test_within_window_downgrades_to_newest_supported():
+    assert negotiate("2025-07-01") == "2025-06-18"
+    assert negotiate("2025-04-01") == "2025-03-26"
 
 
 def test_older_than_window_fails():
-    assert negotiate_version("2024-01-01") is None
+    assert negotiate("2024-11-05") is None
+
+
+def test_no_supported_versions_fails():
+    """With the handshake era switched off there is nothing to negotiate."""
+    assert negotiate_handshake_version("2025-11-25", []) is None

@@ -42,19 +42,22 @@ class UpstreamCall:
         tool: PresentedTool,
         arguments: dict[str, Any],
         headers: dict[str, str],
-        session: SessionRecord,
+        session: SessionRecord | None,
+        client_capabilities: dict[str, Any],
         relay: ClientRelay,
         handle: CallHandle | None,
         timeouts: CallTimeouts,
         on_progress: ProgressCallback | None,
     ) -> None:
-        # handle is None when the client sent no request id, so nothing can cancel it
+        # handle is None when the client sent no request id, so nothing can cancel it;
+        # session is None for a modern-era client, which has none to bind to (SES-15)
         self._client_factory = client_factory
         self._sessions = sessions
         self._tool = tool
         self._arguments = arguments
         self._headers = headers
         self._session = session
+        self._client_capabilities = client_capabilities
         self._relay = relay
         self._handle = handle
         self._timeouts = timeouts
@@ -71,15 +74,17 @@ class UpstreamCall:
             await self._on_progress(progress, total, message)
 
     async def _call(self) -> Any:
-        handlers = self._relay.client_kwargs(self._session.client_capabilities)
+        handlers = self._relay.client_kwargs(self._client_capabilities)
         client = self._client_factory(self._tool.server, self._headers, **handlers)
         async with client:
-            await self._sessions.set_binding(
-                self._session.session_id,
-                UpstreamBinding(
-                    server_name=self._tool.server.name, identity_key=self._session.identity.sub
-                ),
-            )
+            if self._session is not None:  # SES-6 bookkeeping, handshake sessions only
+                await self._sessions.set_binding(
+                    self._session.session_id,
+                    UpstreamBinding(
+                        server_name=self._tool.server.name,
+                        identity_key=self._session.identity.sub,
+                    ),
+                )
             return await client.call_tool_mcp(
                 self._tool.tool.name, self._arguments, progress_handler=self._progress
             )

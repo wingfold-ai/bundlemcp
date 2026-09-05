@@ -1,20 +1,32 @@
-"""The Streamable-HTTP edge: admit the caller, find the session, hand the message on.
+"""The Streamable-HTTP edge: admit the caller, pick the client's dialect, hand the message on.
 
 Implemented directly rather than through FastMCP's server session manager so
 that session state lives in Valkey and any replica serves any request. FastMCP
-is used for the upstream side only.
+is used for the upstream side only. One endpoint serves every supported MCP
+revision: a modern-era request is self-describing and served statelessly, a
+handshake-era request is served through the session it opened with
+``initialize``.
 """
 
 import asyncio
 import json
-from collections.abc import AsyncIterator
+import uuid
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
+from mcp.shared.inbound import (
+    ERROR_CODE_HTTP_STATUS,
+    InboundLadderRejection,
+    classify_inbound_request,
+)
+from mcp.types import INVALID_PARAMS, INVALID_REQUEST, LOG_LEVEL_META_KEY, PARSE_ERROR
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bundlemcp.gateway.composition import load_bundle_view
+from bundlemcp.gateway.dialect import DialectRegistry
 from bundlemcp.gateway.mcp_endpoint.authentication import (
     EndpointAuthentication,
     unauthorized_challenge,
@@ -25,16 +37,23 @@ from bundlemcp.gateway.mcp_endpoint.jsonrpc import rpc_error
 from bundlemcp.gateway.mcp_endpoint.jsonrpc_message import JsonRpcMessage
 from bundlemcp.gateway.mcp_endpoint.method_handler import MethodHandler
 from bundlemcp.gateway.mcp_endpoint.method_registry import MethodRegistry
+from bundlemcp.gateway.mcp_endpoint.request_context import RequestContext
 from bundlemcp.gateway.mcp_endpoint.request_rejected import RequestRejected
-from bundlemcp.gateway.mcp_endpoint.session_context import SessionContext
 from bundlemcp.gateway.ratelimit import AuthFailureGuard
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.store.sessions import SessionRecord, SessionStore
 
-PARSE_ERROR = -32700
 KEEPALIVE_SECONDS = 15
 SSE_HEADERS = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}
+LOG_LEVELS = frozenset(
+    {"debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"}
+)
+
+
+def _method_not_allowed() -> Response:
+    # EP-1: the modern era is POST-only; GET/DELETE exist for handshake sessions.
+    return Response(status_code=405, headers={"Allow": "POST"})
 
 
 class McpEdge:
@@ -49,6 +68,7 @@ class McpEdge:
         signals: SignalBus,
         authentication: EndpointAuthentication,
         auth_failures: AuthFailureGuard,
+        dialects: DialectRegistry,
         initialize: MethodHandler[EndpointContext],
         methods: MethodRegistry,
         public_base: str,
@@ -59,6 +79,7 @@ class McpEdge:
         self._signals = signals
         self._authentication = authentication
         self._auth_failures = auth_failures
+        self._dialects = dialects
         self._initialize = initialize
         self._methods = methods
         self._public_base = public_base
@@ -67,46 +88,58 @@ class McpEdge:
         try:
             ctx = await self._admit(request, endpoint_name)
             message = await self._parse(request)
-            if message.method == "initialize":
+            # PROT-13: the client's opening decides the dialect, once per request.
+            if message.has_modern_meta:
+                request_ctx = self._admit_modern(ctx, message)
+            elif message.method == "initialize":
                 return await self._initialize.handle(ctx, message)
-            session = await self._session_of(request, endpoint_name)
+            else:
+                request_ctx = await self._admit_session(ctx, endpoint_name)
         except RequestRejected as rejected:
             return rejected.response
 
-        await self._sessions.touch(session.session_id)  # SES-1 (+ PROT-8 for ping)
-        session_ctx = SessionContext(
-            request=ctx.request, view=ctx.view, identity=ctx.identity, session=session
-        )
-        if message.is_response:
-            # PROT-4: the client's reply to a server->client request — route it
-            # to the awaiting call.
-            if message.id is not None:
-                await self._signals.reply(str(message.id), message.body())
-            return Response(status_code=202)
-        return await self._methods.dispatch(session_ctx, message)
+        if request_ctx.session is not None:
+            await self._sessions.touch(request_ctx.session.session_id)  # SES-1 (+ PROT-8)
+            if message.is_response:
+                # PROT-4: the client's reply to a server->client request — route
+                # it to the awaiting call.
+                if message.id is not None:
+                    await self._signals.reply(str(message.id), message.body())
+                return Response(status_code=202)
+        elif message.is_response:
+            return rpc_error(
+                None,
+                INVALID_REQUEST,
+                "a modern-era client sends requests and notifications only",
+                status=400,
+            )
+        return await self._methods.dispatch(request_ctx, message)
 
     async def close_session(self, request: Request, endpoint_name: str) -> Response:
-        """Explicit session termination."""
+        """Explicit session termination (handshake era only)."""
         session_id = request.headers.get(SESSION_HEADER, "")
-        if session_id:
-            await self._sessions.delete(session_id)
+        if not session_id:
+            return _method_not_allowed()
+        await self._sessions.delete(session_id)
         return Response(status_code=204)
 
     async def open_stream(self, request: Request, endpoint_name: str) -> Response:
-        """The server->client event stream (SSE).
+        """The server->client event stream of a handshake session (SSE).
 
         Carries list_changed notifications and server->client requests. The open
         stream is replica-pinned; messages from other replicas arrive via the
-        signal bus.
+        signal bus. Modern clients open the equivalent with subscriptions/listen.
         """
+        if not request.headers.get(SESSION_HEADER):
+            return _method_not_allowed()
         try:
-            await self._admit(request, endpoint_name)
-            session = await self._session_of(request, endpoint_name)
+            ctx = await self._admit(request, endpoint_name)
+            request_ctx = await self._admit_session(ctx, endpoint_name)
         except RequestRejected as rejected:
             return rejected.response
-        queue = self._registry.register_stream(session.session_id)
+        queue = self._registry.register_stream(request_ctx.routing_key)
         return StreamingResponse(
-            self._events(session.session_id, queue),
+            self._events(request_ctx.routing_key, queue),
             media_type="text/event-stream",
             headers=SSE_HEADERS,
         )
@@ -145,10 +178,84 @@ class McpEdge:
         except (ValueError, ValidationError):
             raise RequestRejected(rpc_error(None, PARSE_ERROR, "parse error", status=400)) from None
 
-    async def _session_of(self, request: Request, endpoint_name: str) -> SessionRecord:
+    def _admit_modern(self, ctx: EndpointContext, message: JsonRpcMessage) -> RequestContext:
+        """Validate the per-request envelope and mirrored headers (PROT-13, PROT-15)."""
+        route = classify_inbound_request(
+            message.body(),
+            headers=_lowercase(ctx.request.headers),
+            supported_modern_versions=self._dialects.modern_versions,
+        )
+        if isinstance(route, InboundLadderRejection):
+            raise RequestRejected(_rejection(message, route.code, route.message, route.data))
+        dialect = self._dialects.modern(route.protocol_version)
+        if dialect is None:  # pragma: no cover - the ladder already checked the version
+            raise RequestRejected(
+                _rejection(message, INVALID_PARAMS, "unsupported protocol version", None)
+            )
+        log_level = message.meta.get(LOG_LEVEL_META_KEY)
+        if log_level is not None and log_level not in LOG_LEVELS:  # PROT-20
+            raise RequestRejected(
+                _rejection(message, INVALID_PARAMS, f"unknown log level {log_level!r}", None)
+            )
+        capabilities = route.client_capabilities
+        return RequestContext(
+            request=ctx.request,
+            view=ctx.view,
+            identity=ctx.identity,
+            dialect=dialect,
+            client_capabilities=dict(capabilities) if isinstance(capabilities, Mapping) else {},
+            log_level=log_level,
+            routing_key=uuid.uuid4().hex,  # SES-15: no session, a per-request key
+            session=None,
+        )
+
+    async def _admit_session(self, ctx: EndpointContext, endpoint_name: str) -> RequestContext:
+        """Load the handshake session the request names, or reject the request."""
+        session_id = ctx.request.headers.get(SESSION_HEADER, "")
+        if not session_id:
+            # PROT-13: neither era's opening — tell a dual-era client what to do.
+            supported = self._dialects.modern_versions + self._dialects.handshake_versions
+            raise RequestRejected(
+                rpc_error(
+                    None,
+                    INVALID_PARAMS,
+                    "params._meta must carry io.modelcontextprotocol/protocolVersion and "
+                    "io.modelcontextprotocol/clientCapabilities, or the request must belong "
+                    f"to a session opened with initialize; supported: {', '.join(supported)}",
+                    status=400,
+                    data={"supported": supported},
+                )
+            )
         # SES-2/SES-3: everything but initialize requires a live session record
-        session_id = request.headers.get(SESSION_HEADER, "")
-        record = await self._sessions.load(session_id) if session_id else None
-        if record is None or record.endpoint_name != endpoint_name:
+        record = await self._sessions.load(session_id)
+        dialect = self._dialects.handshake(record.protocol_version) if record else None
+        if record is None or dialect is None or record.endpoint_name != endpoint_name:
             raise RequestRejected(JSONResponse({"error": "session not found"}, status_code=404))
-        return record
+        return self._session_context(ctx, record, dialect)
+
+    @staticmethod
+    def _session_context(
+        ctx: EndpointContext, record: SessionRecord, dialect: Any
+    ) -> RequestContext:
+        return RequestContext(
+            request=ctx.request,
+            view=ctx.view,
+            identity=ctx.identity,
+            dialect=dialect,
+            client_capabilities=record.client_capabilities,
+            log_level=None,
+            routing_key=record.session_id,
+            session=record,
+        )
+
+
+def _lowercase(headers: Mapping[str, str]) -> dict[str, str]:
+    return {name.lower(): value for name, value in headers.items()}
+
+
+def _rejection(
+    message: JsonRpcMessage, code: int, text: str, data: dict[str, Any] | None
+) -> Response:
+    return rpc_error(
+        message.id, code, text, status=ERROR_CODE_HTTP_STATUS.get(code, 400), data=data
+    )

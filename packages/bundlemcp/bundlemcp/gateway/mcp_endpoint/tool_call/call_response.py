@@ -23,7 +23,7 @@ class BufferedCallResponse:
         started = time.monotonic()
         outcome = await call.execute(None)
         await call.finish(outcome, started)
-        return JSONResponse(outcome.jsonrpc(call.rpc_id))
+        return JSONResponse(outcome.jsonrpc(call.rpc_id, call.shape))
 
 
 class StreamedCallResponse:
@@ -60,7 +60,7 @@ class StreamedCallResponse:
                         continue
                     outcome: CallOutcome = data
                     await call.finish(outcome, started)
-                    yield f"data: {json.dumps(outcome.jsonrpc(call.rpc_id))}\n\n"
+                    yield f"data: {json.dumps(outcome.jsonrpc(call.rpc_id, call.shape))}\n\n"
                     return
             finally:
                 if not task.done():

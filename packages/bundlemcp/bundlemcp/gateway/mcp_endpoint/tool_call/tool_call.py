@@ -1,16 +1,18 @@
 """One tools/call from admission to audit: authorise, meter, drive the upstream, account."""
 
 import time
+from collections.abc import Callable
 from typing import Any
 
 import structlog
 from fastapi import Response
 
 from bundlemcp.gateway.composition import PresentedTool
+from bundlemcp.gateway.dialect import Era
 from bundlemcp.gateway.mcp_endpoint.forwarded_headers import forwarded_headers
 from bundlemcp.gateway.mcp_endpoint.jsonrpc import rpc_error
 from bundlemcp.gateway.mcp_endpoint.jsonrpc_message import JsonRpcMessage
-from bundlemcp.gateway.mcp_endpoint.session_context import SessionContext
+from bundlemcp.gateway.mcp_endpoint.request_context import RequestContext
 from bundlemcp.gateway.mcp_endpoint.tool_call.audit_context import AuditContext
 from bundlemcp.gateway.mcp_endpoint.tool_call.call_outcome import UPSTREAM_FAILURE, CallOutcome
 from bundlemcp.gateway.mcp_endpoint.tool_call.call_response import (
@@ -41,7 +43,7 @@ class ToolCall:
     def __init__(
         self,
         support: ToolCallSupport,
-        ctx: SessionContext,
+        ctx: RequestContext,
         message: JsonRpcMessage,
         tool: PresentedTool,
     ) -> None:
@@ -59,6 +61,11 @@ class ToolCall:
     @property
     def rpc_id(self) -> Any:
         return self._message.id
+
+    @property
+    def shape(self) -> Callable[[dict[str, Any]], dict[str, Any]]:
+        """How a result payload is decorated for this client's revision."""
+        return self._ctx.shape
 
     async def run(self) -> Response:
         # spec 23: resolve the upstream bearer BEFORE metering, so an unconnected
@@ -86,7 +93,7 @@ class ToolCall:
         self._timeouts = await self._support.runtime_config.call_timeouts()
         if self.rpc_id is not None:
             self._handle = self._support.registry.register_call(
-                self._ctx.session.session_id, str(self.rpc_id)
+                self._ctx.routing_key, str(self.rpc_id)
             )
         # PROT-1: with a progressToken, stream progress as SSE and deliver the
         # result as the final event. Otherwise the buffered JSON path.
@@ -146,9 +153,14 @@ class ToolCall:
         relay = ClientRelay(
             self._support.registry,
             self._support.signals,
-            self._ctx.session.session_id,
+            self._ctx.routing_key,
             self._timeouts.max_total,
         )
+        # PROT-5: only capabilities the client advertised are offered upstream.
+        # A modern client has no stream to relay on; its requests for input are
+        # answered with input_required (PROT-18), so no relay handler is offered
+        # and an upstream that needs one fails fast instead of waiting.
+        capabilities = self._ctx.client_capabilities if self._ctx.era is Era.HANDSHAKE else {}
         return UpstreamCall(
             client_factory=self._support.client_factory,
             sessions=self._support.sessions,
@@ -156,6 +168,7 @@ class ToolCall:
             arguments=self._arguments,
             headers=headers,
             session=self._ctx.session,
+            client_capabilities=capabilities,
             relay=relay,
             handle=self._handle,
             timeouts=self._timeouts,

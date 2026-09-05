@@ -5,7 +5,7 @@ from mcp.types import PromptReference, ResourceTemplateReference
 from bundlemcp.gateway.mcp_endpoint.handlers.member_fanout import MemberFanout, dump
 from bundlemcp.gateway.mcp_endpoint.jsonrpc import rpc_error, rpc_result
 from bundlemcp.gateway.mcp_endpoint.jsonrpc_message import JsonRpcMessage
-from bundlemcp.gateway.mcp_endpoint.session_context import SessionContext
+from bundlemcp.gateway.mcp_endpoint.request_context import RequestContext
 from bundlemcp.models import PresentedName
 
 log = structlog.get_logger(__name__)
@@ -20,7 +20,7 @@ class CompletionHandler:
     def __init__(self, fanout: MemberFanout) -> None:
         self._fanout = fanout
 
-    async def handle(self, ctx: SessionContext, message: JsonRpcMessage) -> Response:
+    async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         # PROT-9
         ref = message.param("ref", {})
         argument = message.param("argument", {})
@@ -48,5 +48,5 @@ class CompletionHandler:
             except Exception:
                 log.warning("completion.member_failed", server=server.name)
                 continue
-            return rpc_result(message.id, dump(result))
-        return rpc_result(message.id, EMPTY_COMPLETION)
+            return rpc_result(message.id, ctx.shape(dump(result)))
+        return rpc_result(message.id, ctx.shape(dict(EMPTY_COMPLETION)))

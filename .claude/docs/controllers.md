@@ -78,15 +78,18 @@ nothing above `services/`.
 
 ## The MCP edge: one class per method
 
-`McpEdge` admits the request (endpoint lookup, authentication, session load)
-and hands a `SessionContext` plus a parsed `JsonRpcMessage` to
-`MethodRegistry.dispatch`. The registry maps method names to handler
+`McpEdge` admits the request (endpoint lookup, authentication, then the
+client's dialect: per-request `_meta` for a modern-era client, the session
+record for a handshake-era one) and hands a `RequestContext` plus a parsed
+`JsonRpcMessage` to `MethodRegistry.dispatch`. A handler returns results
+through `ctx.shape(...)`, so the revision-specific fields are added in one
+place (`gateway/dialect/`). The registry maps method names to handler
 instances:
 
 ```python
 class PingHandler:
-    async def handle(self, ctx: SessionContext, message: JsonRpcMessage) -> Response:
-        return rpc_result(message.id, {})
+    async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
+        return rpc_result(message.id, ctx.shape({}))
 ```
 
 A handler declares its collaborators in its constructor and nothing else. To

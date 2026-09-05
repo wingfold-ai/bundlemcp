@@ -12,6 +12,8 @@ DEFAULTS: dict[str, tuple[Any, type]] = {
     "max_total_timeout": (1800.0, float),
     # SES-10 (seconds; 0 = no idle expiry)
     "session_lifetime": (86400, int),
+    # PROT-16 (milliseconds a client may keep a tools/prompts/resources list)
+    "list_cache_ttl_ms": (300000, int),
     # SRV-4
     "server_error_attempts": (3, int),
     # AUD-5 (days)

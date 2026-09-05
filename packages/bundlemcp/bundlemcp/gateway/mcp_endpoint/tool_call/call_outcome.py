@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -25,11 +26,13 @@ class CallOutcome(BaseModel):
         """The upstream answered, even if with an error result."""
         return self.result is not None
 
-    def jsonrpc(self, rpc_id: Any) -> dict[str, Any]:
-        """The message the client receives for this outcome."""
+    def jsonrpc(
+        self, rpc_id: Any, shape: Callable[[dict[str, Any]], dict[str, Any]]
+    ) -> dict[str, Any]:
+        """The message the client receives for this outcome, shaped for its revision."""
         if self.result is not None:
             payload = self.result.model_dump(by_alias=True, mode="json", exclude_none=True)
-            return {"jsonrpc": "2.0", "id": rpc_id, "result": payload}
+            return {"jsonrpc": "2.0", "id": rpc_id, "result": shape(payload)}
         return {
             "jsonrpc": "2.0",
             "id": rpc_id,

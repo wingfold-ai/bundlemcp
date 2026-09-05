@@ -4,7 +4,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bundlemcp.gateway.audit import AuditWriter
+from bundlemcp.gateway.dialect import DialectRegistry
 from bundlemcp.gateway.mcp_endpoint.authentication import EndpointAuthentication
+from bundlemcp.gateway.mcp_endpoint.cache_hints import CacheHints
 from bundlemcp.gateway.mcp_endpoint.handlers import (
     CancelledNotificationHandler,
     CompletionHandler,
@@ -18,6 +20,7 @@ from bundlemcp.gateway.mcp_endpoint.handlers import (
     ResourcesReadHandler,
     ResourcesSubscribeHandler,
     ResourceTemplatesListHandler,
+    ServerDiscoverHandler,
     ToolsListHandler,
 )
 from bundlemcp.gateway.mcp_endpoint.mcp_edge import McpEdge
@@ -66,6 +69,8 @@ class McpEdgeAssembly(BaseModel):
     counters: Counters = Field(description="In-process metric sink")
 
     def build(self) -> McpEdge:
+        dialects = DialectRegistry.default(legacy_enabled=self.settings.legacy_protocol_enabled)
+        cache_hints = CacheHints(self.runtime_config)
         gate = RateLimitGate(self.rate_limiter, self.counters, self.settings)
         credentials = UpstreamCredentialResolver(self.upstream_tokens, self.settings.public_base)
         fanout = MemberFanout(self.client_factory, credentials)
@@ -85,13 +90,16 @@ class McpEdgeAssembly(BaseModel):
         methods = MethodRegistry(
             {
                 "ping": PingHandler(),
-                "tools/list": RateLimited(ToolsListHandler(), gate, tool_call=False),
+                "server/discover": RateLimited(
+                    ServerDiscoverHandler(dialects, cache_hints), gate, tool_call=False
+                ),
+                "tools/list": RateLimited(ToolsListHandler(cache_hints), gate, tool_call=False),
                 "tools/call": RateLimited(tool_calls, gate, tool_call=True),
-                "prompts/list": PromptsListHandler(fanout),
+                "prompts/list": PromptsListHandler(fanout, cache_hints),
                 "prompts/get": PromptsGetHandler(fanout),
                 "completion/complete": CompletionHandler(fanout),
-                "resources/list": ResourcesListHandler(fanout),
-                "resources/templates/list": ResourceTemplatesListHandler(fanout),
+                "resources/list": ResourcesListHandler(fanout, cache_hints),
+                "resources/templates/list": ResourceTemplatesListHandler(fanout, cache_hints),
                 "resources/read": ResourcesReadHandler(fanout),
                 "resources/subscribe": ResourcesSubscribeHandler(),
                 "resources/unsubscribe": ResourcesSubscribeHandler(),
@@ -106,7 +114,10 @@ class McpEdgeAssembly(BaseModel):
             signals=self.signals,
             authentication=EndpointAuthentication(),
             auth_failures=self.auth_failures,
-            initialize=RateLimited(InitializeHandler(self.sessions), gate, tool_call=False),
+            dialects=dialects,
+            initialize=RateLimited(
+                InitializeHandler(self.sessions, dialects), gate, tool_call=False
+            ),
             methods=methods,
             public_base=self.settings.public_base,
         )

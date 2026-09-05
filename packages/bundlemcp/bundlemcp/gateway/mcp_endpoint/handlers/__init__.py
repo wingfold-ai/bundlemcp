@@ -23,6 +23,9 @@ from bundlemcp.gateway.mcp_endpoint.handlers.resources_read_handler import Resou
 from bundlemcp.gateway.mcp_endpoint.handlers.resources_subscribe_handler import (
     ResourcesSubscribeHandler,
 )
+from bundlemcp.gateway.mcp_endpoint.handlers.server_discover_handler import (
+    ServerDiscoverHandler,
+)
 from bundlemcp.gateway.mcp_endpoint.handlers.tools_list_handler import ToolsListHandler
 
 __all__ = [
@@ -39,5 +42,6 @@ __all__ = [
     "ResourcesListHandler",
     "ResourcesReadHandler",
     "ResourcesSubscribeHandler",
+    "ServerDiscoverHandler",
     "ToolsListHandler",
 ]
