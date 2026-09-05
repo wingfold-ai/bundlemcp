@@ -246,8 +246,10 @@ one used.
 prompts/resources/completions routing (PROT-9), capability aggregation
 (PROT-11), handshake version negotiation (PROT-12), and the roots/logging
 relay (PROT-4/PROT-7) on the request/response path and within an active call.
-**Being implemented** ([ADR-0029](../docs/adr/0029-dialects-and-dual-era-edge.md),
-[ADR-0030](../docs/adr/0030-fastmcp-4.md)): PROT-13 to PROT-22.
+**Implemented** ([ADR-0029](../docs/adr/0029-dialects-and-dual-era-edge.md),
+[ADR-0030](../docs/adr/0030-fastmcp-4.md)): PROT-13 to PROT-22, with the
+PROT-17 (only `toolsListChanged` acknowledged) and PROT-18 (`tools/call` only
+for modern clients) residuals noted in place.
 **Pooling-dependent residual:** any upstream→client *push* that must arrive
 between calls — `notifications/resources/updated`, PROT-7 upstream
 `notifications/message`, and PROT-10 upstream `*/list_changed` **outside an

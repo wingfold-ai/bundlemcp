@@ -20,6 +20,35 @@ authenticated; this doc picks up once a request is authorized.
 
 ---
 
+## 0. Two protocol eras on one endpoint
+
+MCP 2026-07-28 removed the `initialize` handshake, the `Mcp-Session-Id`
+session, the HTTP GET stream and server-initiated requests. The edge serves
+that revision **and** the handshake revisions (2025-11-25 and earlier) on the
+same URL, picking a *dialect* once per request (`dialect/`, PROT-13):
+
+| Client opens with | Dialect | Where its facts come from |
+|---|---|---|
+| `params._meta["io.modelcontextprotocol/protocolVersion"]` | modern (2026-07-28) | the request itself: version, capabilities, log level; validated with the SDK's inbound ladder incl. `Mcp-Method`/`Mcp-Name`/`Mcp-Param-*` headers (PROT-15) |
+| `initialize` | handshake, negotiated (PROT-12) | a session record written to the RESP store |
+| `Mcp-Session-Id` | the session's handshake dialect | the session record |
+| none of these | — | `400` / `-32602` naming the supported versions, so a dual-era client falls back |
+
+Handlers see one `RequestContext` and call `ctx.shape(result)`; the dialect adds
+`resultType`, `_meta.serverInfo` and `ttlMs`/`cacheScope` for modern clients and
+leaves handshake results untouched (PROT-16). Modern-only methods:
+`server/discover` (PROT-14) and `subscriptions/listen` (PROT-17, a long-lived
+POST stream that replaces the GET stream; `GET`/`DELETE` without a session id
+answer 405). Handshake-only: `ping`, `logging/setLevel`, `resources/subscribe`.
+A modern `tools/call` is always streamed, so a client disconnect is its
+cancellation (PROT-19). When an upstream asks for client input during a modern
+client's call, `mrtr/` turns it into an `input_required` result the client
+answers by retrying: pass-through of the upstream's own result for a modern
+upstream, park-and-resume over the signal bus for a handshake upstream, re-run
+as the fallback (PROT-18). The upstream leg negotiates its own era per server
+(`McpServer.protocol_mode`, PROT-21). The lifecycle below shows a handshake
+client; a modern request skips the session steps.
+
 ## 1. The request lifecycle
 
 A `tools/call` to `POST /{endpoint_name}/mcp` (`mcp_endpoint.py::mcp_post`)
