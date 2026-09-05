@@ -30,7 +30,10 @@ class AuditRecordRead(EntityRead):
         description="How the caller authenticated: oauth, api_key or none"
     )
     session_id: str | None = Field(description="MCP session the call belonged to")
-    status: AuditStatus = Field(description="Outcome: success, error or denied")
+    status: AuditStatus = Field(
+        description="Outcome: success, error, denied, or input_required when the call paused for "
+        "the client's input and continues on its retry"
+    )
     denied_reason: str | None = Field(
         description="Why a denied call was refused, such as a metering or rate-limit decision"
     )

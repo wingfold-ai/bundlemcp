@@ -1,13 +1,23 @@
 from fastapi import Response
+from mcp.types import INVALID_PARAMS
 
-from bundlemcp.gateway.mcp_endpoint.jsonrpc import rpc_result
+from bundlemcp.gateway.mcp_endpoint.jsonrpc import rpc_error, rpc_result
 from bundlemcp.gateway.mcp_endpoint.jsonrpc_message import JsonRpcMessage
-from bundlemcp.gateway.mcp_endpoint.session_context import SessionContext
+from bundlemcp.gateway.mcp_endpoint.log_levels import LOG_LEVELS
+from bundlemcp.gateway.mcp_endpoint.request_context import RequestContext
+from bundlemcp.store.sessions import SessionStore
 
 
 class LoggingSetLevelHandler:
-    """Accepted; the level applies on each member's next connection."""
+    """Remember the level on the session; each upstream call relays messages from it on."""
 
-    async def handle(self, ctx: SessionContext, message: JsonRpcMessage) -> Response:
-        # PROT-7: per-call model — no standing upstream connection to set it on now.
-        return rpc_result(message.id, {})
+    def __init__(self, sessions: SessionStore) -> None:
+        self._sessions = sessions
+
+    async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
+        level = message.param("level")
+        if level not in LOG_LEVELS:
+            return rpc_error(message.id, INVALID_PARAMS, f"unknown log level {level!r}")
+        if ctx.session is not None:  # PROT-7: a handshake client's level lives on its session
+            await self._sessions.set_log_level(ctx.session.session_id, level)
+        return rpc_result(message.id, ctx.shape({}))

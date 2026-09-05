@@ -30,6 +30,11 @@ class SessionRecord(BaseModel):
         description="What the client advertised it supports, which decides the relay handlers "
         "attached to upstream calls",
     )
+    log_level: str | None = Field(  # PROT-7
+        default=None,
+        description="Minimum level of upstream log messages the client asked for with "
+        "logging/setLevel; None until it asks",
+    )
     bindings: dict[str, UpstreamBinding] = Field(
         default_factory=dict,
         description="Attachments to upstream sessions, keyed by server name",

@@ -6,9 +6,12 @@ stays in Redis; cross-replica messages reach these objects via the SignalBus.
 """
 
 from bundlemcp.gateway.streams.call_handle import CallHandle
-from bundlemcp.gateway.streams.stream_registry import StreamRegistry
+from bundlemcp.gateway.streams.stream_key import StreamKey
+from bundlemcp.gateway.streams.stream_registry import STREAM_CLOSING, StreamRegistry
 
 __all__ = [
+    "STREAM_CLOSING",
     "CallHandle",
+    "StreamKey",
     "StreamRegistry",
 ]

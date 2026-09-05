@@ -9,8 +9,10 @@ def rpc_result(id_: Any, result: dict) -> JSONResponse:
     return JSONResponse({"jsonrpc": "2.0", "id": id_, "result": result})
 
 
-def rpc_error(id_: Any, code: int, message: str, status: int = 200) -> JSONResponse:
-    return JSONResponse(
-        {"jsonrpc": "2.0", "id": id_, "error": {"code": code, "message": message}},
-        status_code=status,
-    )
+def rpc_error(
+    id_: Any, code: int, message: str, status: int = 200, data: dict[str, Any] | None = None
+) -> JSONResponse:
+    error: dict[str, Any] = {"code": code, "message": message}
+    if data is not None:
+        error["data"] = data
+    return JSONResponse({"jsonrpc": "2.0", "id": id_, "error": error}, status_code=status)

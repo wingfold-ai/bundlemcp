@@ -6,9 +6,14 @@ from typing import Any
 import structlog
 from fastmcp import Client
 
+from bundlemcp.gateway.dialect import Era
 from bundlemcp.gateway.mcp_endpoint.forwarded_headers import forwarded_headers
-from bundlemcp.gateway.mcp_endpoint.session_context import SessionContext
+from bundlemcp.gateway.mcp_endpoint.request_context import RequestContext
+from bundlemcp.gateway.mcp_endpoint.tool_call.client_relay import ClientRelay
 from bundlemcp.gateway.mcp_endpoint.upstream_credentials import UpstreamCredentialResolver
+from bundlemcp.gateway.runtime_config import RuntimeConfig
+from bundlemcp.gateway.signals import SignalBus
+from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.gateway.upstream import ClientFactory
 from bundlemcp.models import McpServer
 from bundlemcp.oauth.upstream_client import NeedsConnect, UpstreamOAuthNotConfigured
@@ -30,29 +35,53 @@ class MemberFanout:
     """
 
     def __init__(
-        self, client_factory: ClientFactory, credentials: UpstreamCredentialResolver
+        self,
+        client_factory: ClientFactory,
+        credentials: UpstreamCredentialResolver,
+        registry: StreamRegistry,
+        signals: SignalBus,
+        runtime_config: RuntimeConfig,
     ) -> None:
         self._client_factory = client_factory
         self._credentials = credentials
+        self._registry = registry
+        self._signals = signals
+        self._runtime_config = runtime_config
 
     @property
     def credentials(self) -> UpstreamCredentialResolver:
         return self._credentials
 
-    async def client_for(self, ctx: SessionContext, server: McpServer) -> Client:
+    async def client_for(self, ctx: RequestContext, server: McpServer) -> Client:
         """A client for one member, with forwarded headers and its upstream bearer attached."""
         headers = forwarded_headers(ctx.request.headers, server, ctx.identity.sub)
         headers.update(await self._credentials.headers_for(server, ctx.identity))
-        return self._client_factory(server, headers)
+        handlers: dict[str, Any] = {}
+        if ctx.era is Era.HANDSHAKE:
+            # PROT-4: a handshake client's GET stream answers an upstream's requests
+            # for input on any method. A modern client's requests on prompts/get
+            # and resources/read are not bridged yet (PROT-18 residual).
+            timeouts = await self._runtime_config.call_timeouts()
+            relay = ClientRelay(
+                self._registry,
+                self._signals,
+                ctx.routing_key,
+                timeouts.max_total,
+                log_level=ctx.log_level,
+                on_notification=None,
+                channel=None,
+            )
+            handlers = relay.client_kwargs(ctx.client_capabilities)
+        return self._client_factory(server, headers, **handlers)
 
-    async def call(self, ctx: SessionContext, server: McpServer, call: MemberCall) -> Any:
+    async def call(self, ctx: RequestContext, server: McpServer, call: MemberCall) -> Any:
         """Run one call against one member; connection errors propagate to the caller."""
         client = await self.client_for(ctx, server)
         async with client:
             return await call(client)
 
     async def each(
-        self, ctx: SessionContext, call: MemberCall
+        self, ctx: RequestContext, call: MemberCall
     ) -> list[tuple[McpServer, Any | None]]:
         """Every member's answer, with None where a member could not be asked."""
         results: list[tuple[McpServer, Any | None]] = []
@@ -67,7 +96,7 @@ class MemberFanout:
                 results.append((server, None))
         return results
 
-    async def first(self, ctx: SessionContext, call: MemberCall) -> Any | None:
+    async def first(self, ctx: RequestContext, call: MemberCall) -> Any | None:
         """The first member that answers, or None when none does."""
         for server in ctx.view.servers.values():
             try:
@@ -79,7 +108,7 @@ class MemberFanout:
 
     async def merged(
         self,
-        ctx: SessionContext,
+        ctx: RequestContext,
         call: MemberCall,
         *,
         key: str,

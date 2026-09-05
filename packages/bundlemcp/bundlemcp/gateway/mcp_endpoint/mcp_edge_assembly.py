@@ -3,8 +3,11 @@
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from bundlemcp.crypto import TokenCipher
 from bundlemcp.gateway.audit import AuditWriter
+from bundlemcp.gateway.dialect import DialectRegistry
 from bundlemcp.gateway.mcp_endpoint.authentication import EndpointAuthentication
+from bundlemcp.gateway.mcp_endpoint.cache_hints import CacheHints
 from bundlemcp.gateway.mcp_endpoint.handlers import (
     CancelledNotificationHandler,
     CompletionHandler,
@@ -18,6 +21,8 @@ from bundlemcp.gateway.mcp_endpoint.handlers import (
     ResourcesReadHandler,
     ResourcesSubscribeHandler,
     ResourceTemplatesListHandler,
+    ServerDiscoverHandler,
+    SubscriptionsListenHandler,
     ToolsListHandler,
 )
 from bundlemcp.gateway.mcp_endpoint.mcp_edge import McpEdge
@@ -41,8 +46,8 @@ from bundlemcp.store.sessions import SessionStore
 class McpEdgeAssembly(BaseModel):
     """The inputs to one MCP edge, and the recipe that wires them into handlers.
 
-    Every field is required apart from ``upstream_tokens``, which is None exactly
-    when no token encryption keys are configured.
+    Every field is required apart from ``upstream_tokens`` and ``state_cipher``,
+    which are None exactly when no token encryption keys are configured.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -61,14 +66,22 @@ class McpEdgeAssembly(BaseModel):
     upstream_tokens: UpstreamTokenStore | None = Field(
         description="Store for upstream OAuth tokens; None when no encryption keys are configured"
     )
+    state_cipher: TokenCipher | None = Field(
+        description="Seals a modern client's requestState; None when no encryption keys are "
+        "configured"
+    )
     rate_limiter: RateLimiter = Field(description="Fixed-window limits per endpoint and client")
     auth_failures: AuthFailureGuard = Field(description="Per-IP lockout on bad credentials")
     counters: Counters = Field(description="In-process metric sink")
 
     def build(self) -> McpEdge:
+        dialects = DialectRegistry.default(legacy_enabled=self.settings.legacy_protocol_enabled)
+        cache_hints = CacheHints(self.runtime_config)
         gate = RateLimitGate(self.rate_limiter, self.counters, self.settings)
         credentials = UpstreamCredentialResolver(self.upstream_tokens, self.settings.public_base)
-        fanout = MemberFanout(self.client_factory, credentials)
+        fanout = MemberFanout(
+            self.client_factory, credentials, self.registry, self.signals, self.runtime_config
+        )
         tool_calls = ToolsCallHandler(
             ToolCallSupport(
                 metering=self.metering,
@@ -80,22 +93,27 @@ class McpEdgeAssembly(BaseModel):
                 signals=self.signals,
                 runtime_config=self.runtime_config,
                 metering_fail_open=self.settings.metering_hook_fail_open,
+                state_cipher=self.state_cipher,
             )
         )
         methods = MethodRegistry(
             {
                 "ping": PingHandler(),
-                "tools/list": RateLimited(ToolsListHandler(), gate, tool_call=False),
+                "server/discover": RateLimited(
+                    ServerDiscoverHandler(dialects, cache_hints), gate, tool_call=False
+                ),
+                "tools/list": RateLimited(ToolsListHandler(cache_hints), gate, tool_call=False),
                 "tools/call": RateLimited(tool_calls, gate, tool_call=True),
-                "prompts/list": PromptsListHandler(fanout),
+                "prompts/list": PromptsListHandler(fanout, cache_hints),
                 "prompts/get": PromptsGetHandler(fanout),
                 "completion/complete": CompletionHandler(fanout),
-                "resources/list": ResourcesListHandler(fanout),
-                "resources/templates/list": ResourceTemplatesListHandler(fanout),
+                "resources/list": ResourcesListHandler(fanout, cache_hints),
+                "resources/templates/list": ResourceTemplatesListHandler(fanout, cache_hints),
                 "resources/read": ResourcesReadHandler(fanout),
                 "resources/subscribe": ResourcesSubscribeHandler(),
                 "resources/unsubscribe": ResourcesSubscribeHandler(),
-                "logging/setLevel": LoggingSetLevelHandler(),
+                "logging/setLevel": LoggingSetLevelHandler(self.sessions),
+                "subscriptions/listen": SubscriptionsListenHandler(self.registry),
                 "notifications/cancelled": CancelledNotificationHandler(self.signals),
             }
         )
@@ -106,7 +124,10 @@ class McpEdgeAssembly(BaseModel):
             signals=self.signals,
             authentication=EndpointAuthentication(),
             auth_failures=self.auth_failures,
-            initialize=RateLimited(InitializeHandler(self.sessions), gate, tool_call=False),
+            dialects=dialects,
+            initialize=RateLimited(
+                InitializeHandler(self.sessions, dialects), gate, tool_call=False
+            ),
             methods=methods,
             public_base=self.settings.public_base,
         )

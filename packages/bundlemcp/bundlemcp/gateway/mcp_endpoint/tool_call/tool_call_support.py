@@ -1,5 +1,8 @@
+import asyncio
+
 from pydantic import BaseModel, ConfigDict, Field
 
+from bundlemcp.crypto import TokenCipher
 from bundlemcp.gateway.audit import AuditWriter
 from bundlemcp.gateway.mcp_endpoint.upstream_credentials import UpstreamCredentialResolver
 from bundlemcp.gateway.metering import MeteringHook
@@ -29,4 +32,18 @@ class ToolCallSupport(BaseModel):
     runtime_config: RuntimeConfig = Field(description="Source of the call timeouts")
     metering_fail_open: bool = Field(
         description="Whether a call proceeds when the metering hook itself fails"
+    )
+    state_cipher: TokenCipher | None = Field(
+        description="Seals the requestState a modern client echoes on a retry; None when no "
+        "token encryption keys are configured, which makes input_required unavailable"
+    )
+    resume_grace: float = Field(
+        default=2.0,
+        gt=0,
+        description="Seconds a retry waits for some replica to claim its answers before the "
+        "parked call is presumed lost and the call is re-run",
+    )
+    detached: set[asyncio.Task] = Field(
+        default_factory=set,
+        description="Runners of streamed calls, kept alive past their response until done",
     )
