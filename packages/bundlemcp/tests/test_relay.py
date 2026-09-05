@@ -674,8 +674,12 @@ def _modern(method, params=None, *, id_=1, log_level=None):
     return {"jsonrpc": "2.0", "id": id_, "method": method, "params": params}, headers
 
 
-async def _listen_until(http, predicate, *, filter_, id_=7, timeout=5):
-    """Open subscriptions/listen and return (ack, first event matching predicate)."""
+async def _listen_until(http, predicate, *, filter_, acknowledged, id_=7, timeout=5):
+    """Open subscriptions/listen and return (ack, first event matching predicate).
+
+    ``acknowledged`` is set once the acknowledgement arrived, so a test can make
+    its change only when the stream is registered and cannot miss the event.
+    """
     body, headers = _modern("subscriptions/listen", {"notifications": filter_}, id_=id_)
 
     async def reader():
@@ -689,6 +693,7 @@ async def _listen_until(http, predicate, *, filter_, id_=7, timeout=5):
                 event = json.loads(line[6:])
                 if ack is None:
                     ack = event
+                    acknowledged.set()
                     continue
                 if predicate(event):
                     return ack, event
@@ -700,9 +705,10 @@ async def _listen_until(http, predicate, *, filter_, id_=7, timeout=5):
 async def test_subscriptions_listen_acknowledges_and_relays_list_changed(relay_env):
     """PROT-17: the ack names only what the gateway honours; list_changed is tagged."""
     http, app, base_url = relay_env
+    acknowledged = asyncio.Event()
 
     async def change_config():
-        await asyncio.sleep(0.3)
+        await asyncio.wait_for(acknowledged.wait(), timeout=5)
         async with AsyncClient(
             base_url=base_url, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
         ) as admin:
@@ -716,6 +722,7 @@ async def test_subscriptions_listen_acknowledges_and_relays_list_changed(relay_e
         http,
         lambda e: e.get("method") == "notifications/tools/list_changed",
         filter_={"toolsListChanged": True, "resourceSubscriptions": ["res://x"]},
+        acknowledged=acknowledged,
     )
     await changer
     assert ack["method"] == "notifications/subscriptions/acknowledged"
@@ -732,9 +739,10 @@ async def test_subscriptions_listen_cross_instance(relay_env, engine, redis):
         async with AsyncClient(
             base_url=base_b, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}, timeout=10
         ) as http_b:
+            acknowledged = asyncio.Event()
 
             async def change_on_a():
-                await asyncio.sleep(0.3)
+                await asyncio.wait_for(acknowledged.wait(), timeout=5)
                 async with AsyncClient(
                     base_url=base_a, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
                 ) as admin:
@@ -748,6 +756,7 @@ async def test_subscriptions_listen_cross_instance(relay_env, engine, redis):
                 http_b,
                 lambda e: e.get("method") == "notifications/tools/list_changed",
                 filter_={"toolsListChanged": True},
+                acknowledged=acknowledged,
             )
             await changer
             assert event is not None
