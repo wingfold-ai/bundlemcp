@@ -10,7 +10,7 @@ view: containers — "bundlemcp — Containers"
 
 | Block | Responsibility | Spec |
 |---|---|---|
-| **Gateway** (FastAPI + FastMCP v3) | Bundle endpoints (bidirectional MCP proxy), OAuth 2.1 server, management REST API, middleware/metering, bootstrap | 10–33, 40–42 |
+| **Gateway** (FastAPI + FastMCP v4) | Bundle endpoints (bidirectional MCP proxy), OAuth 2.1 server, management REST API, middleware/metering, bootstrap | 10–33, 40–42 |
 | **Admin Web App** (Nuxt 4) | Management UI; pure client of `/api/v1` with generated types | [60](../../spec/60-admin-ui.md) |
 | **Postgres** | Durable: config, users, tokens, tool cache, audit | [02](../../spec/02-domain-model.md) |
 | **Redis** | Live: sessions, bindings, rate limits, log ring, pub/sub | [30](../../spec/30-session-management.md), [33](../../spec/33-state-propagation.md) |

@@ -5,7 +5,7 @@
 ## Summary
 
 A small, horizontally scalable two-service system: a Python **gateway**
-(FastAPI + FastMCP v3) that serves both the MCP endpoints and the management
+(FastAPI + FastMCP v4) that serves both the MCP endpoints and the management
 REST API, and a **Nuxt 4 web app** for administration. Postgres holds all
 durable state, Redis holds all live state. Pydantic models are the single
 source of truth from database row to frontend type.
@@ -14,7 +14,7 @@ source of truth from database row to frontend type.
 
 | Layer | Choice | Verified latest (2026-07) |
 |---|---|---|
-| MCP framework | **FastMCP v3** (proxying, composition, middleware) | 3.4.2 |
+| MCP framework | **FastMCP v4** on MCP SDK v2 (dual-era client; proxying, composition, middleware) | 4.0.3 / 2.1.1 (2026-09) |
 | HTTP/API | **FastAPI** on uvicorn | — |
 | Models/ORM | **SQLModel** (Pydantic-native, on SQLAlchemy 2.0 async + asyncpg) | 0.0.39 |
 | Migrations | **Alembic** | — |

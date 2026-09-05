@@ -111,7 +111,7 @@ class UpstreamCall:
         canceller = asyncio.create_task(self._canceller(task))
         try:
             result = await task
-            status = CallStatus.ERROR if result.isError else CallStatus.SUCCESS  # MID-3
+            status = CallStatus.ERROR if result.is_error else CallStatus.SUCCESS  # MID-3
             return CallOutcome(status=status, result=result)
         except asyncio.CancelledError:
             if self._cancelled:

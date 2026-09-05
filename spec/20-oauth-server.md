@@ -19,7 +19,10 @@ application layer can resolve a stable `sub`.
   the endpoints' 401 challenges ([EP-3](14-endpoints.md)).
 - **OAS-2 Dynamic Client Registration** (RFC 7591): `POST /oauth/register`,
   open registration, public clients (`token_endpoint_auth_method: none`)
-  by default, redirect URIs validated (https or localhost).
+  by default, redirect URIs validated (https or localhost); an
+  `application_type` sent by the client is accepted and stored. MCP 2026-07-28
+  deprecates DCR in favour of Client ID Metadata Documents (OAS-13); it stays
+  supported for clients that have not moved (ChatGPT, Claude as of 2026-09).
 - **OAS-3 Authorization code + PKCE**: `GET /oauth/authorize` requires an
   authenticated browser session — if absent, redirect into the OIDC login and
   return to complete the flow. S256 PKCE REQUIRED for public clients. Codes
@@ -65,6 +68,17 @@ application layer can resolve a stable `sub`.
   [SEC-6](70-security.md) hardening headers.
 - **OAS-12** Dynamic client registration abuse controls per
   [SEC-8](70-security.md).
+- **OAS-13 Client ID Metadata Documents:** a `client_id` that is an `https://`
+  URL identifies a client by its metadata document. The authorize endpoint
+  fetches the document (through the egress policy, [SEC-1](70-security.md)),
+  requires its `client_id` to echo the URL, validates `redirect_uris` against
+  it, and caches it for its `Cache-Control` lifetime (bounded, default 1 h) in
+  the RESP store. Such clients need no registration; consent (OAS-11) shows the
+  document's `client_name`. Advertised via
+  `client_id_metadata_document_supported: true` in OAS-1 metadata.
+- **OAS-14 Issuer identification (RFC 9207):** every authorization response,
+  including error redirects, carries `iss=<issuer>`, and OAS-1 metadata sets
+  `authorization_response_iss_parameter_supported: true`.
 
 ## Out of scope
 

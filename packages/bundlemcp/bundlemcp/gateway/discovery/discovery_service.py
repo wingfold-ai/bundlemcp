@@ -25,11 +25,14 @@ class DiscoveryService:
       definition is unchanged costs nothing; ``last_seen_at`` is touched on
       every sighting, so a tool that disappears upstream goes stale and stops
       being served rather than being deleted, keeping its curation.
-    - **Advertised capabilities** — which of tools/prompts/resources/
-      completions/logging the server supports, plus its listChanged and
-      subscribe flags, taken from the upstream ``initialize`` result onto
-      ``McpServer.capabilities``. That snapshot is what capability gating
-      reads when serving.
+    - **Advertised capabilities and protocol revision** — which of tools/
+      prompts/resources/completions/logging the server supports, plus its
+      listChanged and subscribe flags, taken from whatever the connection
+      negotiated (the ``initialize`` result or the ``server/discover`` result)
+      onto ``McpServer.capabilities``, and the negotiated MCP revision onto
+      ``McpServer.protocol_version``. The snapshot is what capability gating
+      reads when serving; the revision tells an operator which era the
+      upstream speaks.
     - **Health** — consecutive failures are counted per server; at
       ``max_attempts`` the server flips to error with its last error recorded,
       and any success resets the streak.
@@ -76,16 +79,19 @@ class DiscoveryService:
                 client = self._client_factory(server, {})
                 async with client:
                     upstream_tools = await client.list_tools()
-                    init = client.initialize_result
+                    capabilities = client.server_capabilities
+                    protocol_version = client.protocol_version
             except Exception as exc:
                 return await self._record_failure(db, server, str(exc))
 
-            # DISC-6: snapshot the upstream's advertised capabilities for PROT-11.
-            if init is not None and init.capabilities is not None:
-                server.capabilities = init.capabilities.model_dump(
+            # DISC-6: snapshot the upstream's advertised capabilities for PROT-11,
+            # and the revision negotiated with it (SRV-10).
+            if capabilities is not None:
+                server.capabilities = capabilities.model_dump(
                     mode="json", by_alias=True, exclude_none=True
                 )
-                db.add(server)
+            server.protocol_version = protocol_version
+            db.add(server)
             result = await self._sync_tools(db, server, upstream_tools)
             await self._record_success(db, server)
             return result
@@ -101,7 +107,7 @@ class DiscoveryService:
         now = utcnow()
         for ut in upstream_tools:
             annotations = ut.annotations.model_dump(exclude_none=True) if ut.annotations else None
-            input_schema = ut.inputSchema or {}
+            input_schema = ut.input_schema or {}
             digest = tool_schema_hash(ut.name, ut.title, ut.description, input_schema, annotations)
             row = existing.get(ut.name)
             if row is None:

@@ -1490,6 +1490,23 @@
             "title": "Name",
             "type": "string"
           },
+          "protocol_mode": {
+            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to initialize), 'legacy' (always initialize), or a pinned revision date such as '2026-07-28'",
+            "title": "Protocol Mode",
+            "type": "string"
+          },
+          "protocol_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MCP revision negotiated at the last successful probe; null until the server has been reached once",
+            "title": "Protocol Version"
+          },
           "send_identity_header": {
             "description": "Whether the calling user's identity is forwarded upstream",
             "title": "Send Identity Header",
@@ -1525,6 +1542,8 @@
           "auth_mode",
           "identity_mode",
           "send_identity_header",
+          "protocol_mode",
+          "protocol_version",
           "health_status",
           "last_error",
           "created_at",
@@ -1575,6 +1594,13 @@
           "name": {
             "description": "Unique server name; lowercase letters, digits and hyphens, and it may not contain a double underscore because that separates server from tool",
             "title": "Name",
+            "type": "string"
+          },
+          "protocol_mode": {
+            "default": "auto",
+            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision",
+            "pattern": "^(auto|legacy|\\d{4}-\\d{2}-\\d{2})$",
+            "title": "Protocol Mode",
             "type": "string"
           },
           "send_identity_header": {

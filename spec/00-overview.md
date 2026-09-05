@@ -40,7 +40,7 @@ serves any session; restarts are non-events. See
 [30-session-management.md](30-session-management.md).
 
 The rewrite also switches to the maintainer's home stack — Python
-(FastAPI + FastMCP v3, Pydantic everywhere) and Nuxt 4 — and strips features
+(FastAPI + FastMCP v4, Pydantic everywhere) and Nuxt 4 — and strips features
 that don't serve the bundling mission (see the decision log in
 [README.md](README.md)).
 

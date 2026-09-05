@@ -21,8 +21,9 @@ resolution, Node+Python runtime images).
   [02-domain-model.md](02-domain-model.md).
 - **SRV-2** Create/update/delete/list/get MUST be available in the management
   API ([40-management-api.md](40-management-api.md)) and the UI. Create and
-  update MUST validate the config by attempting an MCP `initialize` +
-  `tools/list` against the upstream, storing discovered tools on success
+  update MUST validate the config by connecting to the upstream (protocol
+  negotiation per SRV-10) and running `tools/list`, storing discovered tools on
+  success
   ([11-tool-discovery.md](11-tool-discovery.md)). A failed probe stores the
   server with `health_status=error` (explicitly allowed: registering a server
   that isn't up yet), never blocks creation from the API.
@@ -46,6 +47,13 @@ resolution, Node+Python runtime images).
   interval (`Config`) pings registered servers so `health_status` stays fresh
   even for servers not currently receiving traffic; off by default
   (opportunistic updates per SRV-4 remain the baseline).
+- **SRV-10** Protocol era per upstream ([PROT-21](32-protocol-passthrough.md)):
+  a server has a `protocol_mode` — `auto` (default: probe `server/discover`,
+  fall back to `initialize`), `legacy` (always the `initialize` handshake, for
+  upstreams whose tools need server-initiated requests), or a pinned modern
+  revision (`YYYY-MM-DD`). Discovery records the negotiated revision as
+  `protocol_version`, shown in the API and UI so an operator can see which
+  upstreams still speak the handshake era.
 
 ## The stdio pattern (documentation, not code)
 

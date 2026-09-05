@@ -51,6 +51,17 @@ class McpServer(SQLModel, table=True):
         description="What the server advertised at its last probe. A key is present exactly "
         "when that capability was advertised",
     )
+    protocol_mode: str = Field(  # SRV-10
+        default="auto",
+        sa_type=String,
+        description="How the gateway negotiates the MCP revision with this server: 'auto' "
+        "probes server/discover and falls back to the initialize handshake, 'legacy' always "
+        "uses the handshake, and a revision date pins that revision",
+    )
+    protocol_version: str | None = Field(  # SRV-10
+        default=None,
+        description="MCP revision negotiated at the last successful probe, absent until then",
+    )
     health_status: HealthStatus = Field(
         default=HealthStatus.UNKNOWN,
         sa_type=String,

@@ -27,7 +27,7 @@ with an ADR in the same PR), diagrams as LikeC4 models in `docs/likec4/`
 See [spec/00-overview.md](spec/00-overview.md) and
 [spec/01-architecture.md](spec/01-architecture.md). Core rules:
 
-- **Stack:** FastAPI + FastMCP v3, SQLModel (Pydantic-native, SQLAlchemy 2.0
+- **Stack:** FastAPI + FastMCP v4, SQLModel (Pydantic-native, SQLAlchemy 2.0
   async + asyncpg, Alembic), Valkey (BSD-3, RESP; via the MIT redis-py client —
   ADR-0022), Nuxt 4 + Nuxt UI v4. Always adopt the
   latest stable versions.

@@ -35,29 +35,29 @@ acceptable. Shared structure:
 ### Bundling core
 | Spec | Contents |
 |---|---|
-| [10-server-registry.md](10-server-registry.md) | Upstream MCP server CRUD (Streamable HTTP only) |
+| [10-server-registry.md](10-server-registry.md) | Upstream MCP server CRUD (Streamable HTTP only), per-server protocol era |
 | [11-tool-discovery.md](11-tool-discovery.md) | Tool discovery and Postgres cache |
 | [12-bundles.md](12-bundles.md) | Bundle composition, tool prefixing, collisions |
 | [13-tool-management.md](13-tool-management.md) | Per-bundle tool enable/disable + overrides |
-| [14-endpoints.md](14-endpoints.md) | Public endpoints, N per bundle, auth modes |
+| [14-endpoints.md](14-endpoints.md) | Public endpoints, N per bundle, auth modes, one URL for every protocol era |
 | [15-endpoint-profiles.md](15-endpoint-profiles.md) | claude.ai / chatgpt / default profiles |
 | [16-rate-limiting.md](16-rate-limiting.md) | Redis-backed per-endpoint rate limits |
 
 ### Authentication & identity
 | Spec | Contents |
 |---|---|
-| [20-oauth-server.md](20-oauth-server.md) | Built-in OAuth 2.1 server for MCP clients (DCR, PKCE, introspection) |
+| [20-oauth-server.md](20-oauth-server.md) | Built-in OAuth 2.1 server for MCP clients (CIMD + DCR, PKCE, RFC 9207, introspection) |
 | [21-admin-auth.md](21-admin-auth.md) | OIDC-only admin login |
 | [22-api-keys.md](22-api-keys.md) | API keys for non-OAuth clients |
-| [23-upstream-oauth.md](23-upstream-oauth.md) | OAuth toward protected upstreams, per-(server,user) tokens |
+| [23-upstream-oauth.md](23-upstream-oauth.md) | OAuth toward protected upstreams, per-(server,user) tokens, issuer validation |
 | [24-identity-forwarding.md](24-identity-forwarding.md) | Header forwarding + `X-MCP-User` |
 
 ### Runtime & platform
 | Spec | Contents |
 |---|---|
-| [30-session-management.md](30-session-management.md) | Restart-safe, replica-agnostic MCP sessions |
+| [30-session-management.md](30-session-management.md) | Restart-safe, replica-agnostic handshake sessions; stateless modern requests |
 | [31-middleware.md](31-middleware.md) | Tool-call middleware chain + metering hook |
-| [32-protocol-passthrough.md](32-protocol-passthrough.md) | Full bidirectional MCP proxy (progress, cancellation, sampling, elicitation) |
+| [32-protocol-passthrough.md](32-protocol-passthrough.md) | Full bidirectional MCP proxy across protocol eras (dialects, MRTR bridge, subscriptions) |
 | [33-state-propagation.md](33-state-propagation.md) | Cross-replica config invalidation |
 | [40-management-api.md](40-management-api.md) | Service-authenticated REST management API |
 | [41-bootstrap.md](41-bootstrap.md) | Idempotent startup provisioning |
