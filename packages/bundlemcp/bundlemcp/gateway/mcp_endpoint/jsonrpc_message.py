@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from mcp.types import PROTOCOL_VERSION_META_KEY
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -41,8 +42,18 @@ class JsonRpcMessage(BaseModel):
         return self.method is not None and self.method.startswith("notifications/")
 
     @property
+    def meta(self) -> dict[str, Any]:
+        meta = self.params.get("_meta")
+        return meta if isinstance(meta, dict) else {}
+
+    @property
+    def has_modern_meta(self) -> bool:
+        """Whether the request names its protocol revision the modern-era way."""
+        return PROTOCOL_VERSION_META_KEY in self.meta
+
+    @property
     def progress_token(self) -> Any:
-        return (self.params.get("_meta") or {}).get("progressToken")
+        return self.meta.get("progressToken")
 
     def param(self, key: str, default: Any = None) -> Any:
         value = self.params.get(key)

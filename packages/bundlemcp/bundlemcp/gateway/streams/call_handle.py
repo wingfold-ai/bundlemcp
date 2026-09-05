@@ -8,13 +8,11 @@ class CallHandle(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    session_id: str = Field(description="Session the call belongs to")
+    routing_key: str = Field(
+        description="Session id or per-request id the call is addressed by from other replicas"
+    )
     request_id: str = Field(description="JSON-RPC id the client used, for matching cancellations")
     cancel_event: asyncio.Event = Field(
         default_factory=asyncio.Event,
         description="Set when a cancellation arrives for this call",
-    )
-    progress_queue: asyncio.Queue = Field(  # PROT-1
-        default_factory=asyncio.Queue,
-        description="Progress notifications from the upstream, drained by the SSE writer",
     )

@@ -1,5 +1,6 @@
 import json
 import secrets
+from collections.abc import Callable
 
 from redis.asyncio import Redis
 from redis.asyncio.client import Pipeline
@@ -45,7 +46,25 @@ class SessionStore:
         await self._redis.delete(self._key(session_id))
 
     async def set_binding(self, session_id: str, binding: UpstreamBinding) -> SessionRecord | None:
-        """Atomically add/replace one binding (WATCH-based check-and-set)."""
+        """Atomically add/replace one binding."""
+
+        def bind(record: SessionRecord) -> None:
+            record.bindings[binding.server_name] = binding
+
+        return await self._update(session_id, bind)
+
+    async def set_log_level(self, session_id: str, level: str) -> SessionRecord | None:
+        """Atomically record the log level the client asked for."""
+
+        def set_level(record: SessionRecord) -> None:
+            record.log_level = level
+
+        return await self._update(session_id, set_level)
+
+    async def _update(
+        self, session_id: str, mutate: Callable[[SessionRecord], None]
+    ) -> SessionRecord | None:
+        """Apply one change to a record under WATCH-based check-and-set (SES-1a)."""
         key = self._key(session_id)
         async with self._redis.pipeline(transaction=True) as pipe:
             while True:
@@ -56,7 +75,7 @@ class SessionStore:
                         await pipe.unwatch()
                         return None
                     record = SessionRecord(**json.loads(raw))
-                    record.bindings[binding.server_name] = binding
+                    mutate(record)
                     pipe.multi()
                     await self._set(pipe, key, record)
                     await pipe.execute()

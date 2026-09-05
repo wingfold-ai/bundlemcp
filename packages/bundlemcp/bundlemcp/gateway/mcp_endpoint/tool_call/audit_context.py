@@ -3,7 +3,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field
 
 from bundlemcp.gateway.composition import PresentedTool
-from bundlemcp.gateway.mcp_endpoint.session_context import SessionContext
+from bundlemcp.gateway.mcp_endpoint.request_context import RequestContext
 from bundlemcp.models import AuditRecord, AuditStatus, EndpointAuthMode
 
 
@@ -19,12 +19,15 @@ class AuditContext(BaseModel):
     user_id: uuid.UUID | None = Field(description="Authenticated user, when OAuth was used")
     api_key_id: uuid.UUID | None = Field(description="API key used, when one was")
     auth_method: EndpointAuthMode = Field(description="How the caller authenticated")
-    session_id: str = Field(description="MCP session the call belonged to")
+    session_id: str = Field(
+        description="Routing key of the call: the MCP session for a handshake client, the "
+        "request id for a modern one"
+    )
     server_name: str | None = Field(default=None, description="Upstream server, once resolved")
     tool_name: str | None = Field(default=None, description="Upstream tool name, once resolved")
 
     @classmethod
-    def for_request(cls, ctx: SessionContext, presented_tool_name: str) -> "AuditContext":
+    def for_request(cls, ctx: RequestContext, presented_tool_name: str) -> "AuditContext":
         return cls(
             endpoint_id=ctx.view.endpoint.id,
             endpoint_name=ctx.view.endpoint.name,
@@ -33,7 +36,7 @@ class AuditContext(BaseModel):
             user_id=ctx.identity.user_uuid,
             api_key_id=ctx.identity.api_key_uuid,
             auth_method=ctx.identity.auth_method,
-            session_id=ctx.session.session_id,
+            session_id=ctx.routing_key,
         )
 
     def resolved(self, tool: PresentedTool) -> "AuditContext":

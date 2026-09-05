@@ -114,6 +114,13 @@ class Settings(BaseSettings):
         "exists yet, so the management API is reachable headlessly. Ignored once one exists",
     )
 
+    legacy_protocol_enabled: bool = Field(  # PROT-13
+        default=True,
+        description="Whether MCP revisions before 2026-07-28 (the initialize handshake and "
+        "sessions) are still served. Switch off once every client speaks the stateless "
+        "revisions; modern-era requests are unaffected",
+    )
+
     log_level: str = Field(
         default="INFO",
         pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",

@@ -8,6 +8,7 @@ from redis.asyncio import Redis
 from bundlemcp.gateway.signals.cancel_signal import CancelSignal
 from bundlemcp.gateway.signals.deliver_signal import DeliverSignal
 from bundlemcp.gateway.signals.reply_signal import ReplySignal
+from bundlemcp.gateway.signals.resume_signal import ResumeSignal
 from bundlemcp.gateway.signals.signal_envelope import SignalEnvelope
 from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.store.redis import SIGNAL_CHANNEL
@@ -26,19 +27,27 @@ class SignalBus:
 
     # --- publish API ---
 
-    async def cancel(self, session_id: str, request_id: str) -> None:
-        await self._publish(session_id, CancelSignal(session_id=session_id, request_id=request_id))
+    async def cancel(self, routing_key: str, request_id: str) -> None:
+        await self._publish(
+            routing_key, CancelSignal(routing_key=routing_key, request_id=request_id)
+        )
 
-    async def deliver(self, session_id: str, payload: dict[str, Any]) -> None:
-        await self._publish(session_id, DeliverSignal(session_id=session_id, payload=payload))
+    async def deliver(self, stream_id: str, payload: dict[str, Any]) -> None:
+        await self._publish(stream_id, DeliverSignal(stream_id=stream_id, payload=payload))
 
     async def reply(self, correlation_id: str, payload: dict[str, Any]) -> None:
         await self._publish(
             correlation_id, ReplySignal(correlation_id=correlation_id, payload=payload)
         )
 
+    async def resume(self, correlation_id: str, phase: str, payload: dict[str, Any]) -> None:
+        await self._publish(
+            correlation_id,
+            ResumeSignal(correlation_id=correlation_id, phase=phase, payload=payload),
+        )
+
     async def _publish(self, routing_key: str, signal) -> None:
-        channel = SIGNAL_CHANNEL.format(session_id=routing_key)
+        channel = SIGNAL_CHANNEL.format(routing_key=routing_key)
         await self._redis.publish(channel, SignalEnvelope(signal=signal).model_dump_json())
 
     # --- subscription loop ---
@@ -80,8 +89,10 @@ class SignalBus:
 
     def _dispatch(self, signal) -> None:
         if isinstance(signal, CancelSignal):
-            self._registry.cancel_local(signal.session_id, signal.request_id)
+            self._registry.cancel_local(signal.routing_key, signal.request_id)
         elif isinstance(signal, DeliverSignal):
-            self._registry.deliver_local(signal.session_id, signal.payload)
+            self._registry.deliver_local(signal.stream_id, signal.payload)
         elif isinstance(signal, ReplySignal):
             self._registry.reply_local(signal.correlation_id, signal.payload)
+        elif isinstance(signal, ResumeSignal):
+            self._registry.resume_local(signal.correlation_id, signal.phase, signal.payload)

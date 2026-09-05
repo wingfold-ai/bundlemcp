@@ -24,6 +24,7 @@ from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, has
 from bundlemcp.models import (
     ApiKey,
     ApiKeyKind,
+    AuditRecord,
     Bundle,
     BundleServer,
     Endpoint,
@@ -35,8 +36,18 @@ from bundlemcp.store import session_factory
 from fakeredis.aioredis import FakeRedis
 from fastmcp import Client, Context, FastMCP
 from httpx import AsyncClient
-from mcp.types import ElicitRequest, ElicitRequestFormParams, InputRequiredResult
+from mcp.shared.inbound import NAME_BEARING_METHODS
+from mcp.shared.subscriptions import SUBSCRIPTION_ID_META_KEY
+from mcp.types import (
+    CLIENT_CAPABILITIES_META_KEY,
+    LOG_LEVEL_META_KEY,
+    PROTOCOL_VERSION_META_KEY,
+    ElicitRequest,
+    ElicitRequestFormParams,
+    InputRequiredResult,
+)
 from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlmodel import select
 
 SERVICE_KEY = generate_token(API_KEY_PREFIX)
 ENDPOINT_KEY = generate_token(API_KEY_PREFIX)
@@ -596,9 +607,15 @@ async def test_roots_relayed_to_client(relay_env):
 
 
 async def test_logging_relayed_to_client_stream(relay_env):
-    """PROT-7: an upstream log notification reaches the client's GET stream."""
+    """PROT-7: after logging/setLevel, an upstream log notification reaches the GET stream."""
     http, app, base_url = relay_env
-    session = await _initialize_with_caps(http, {"logging": {}})
+    session = await _initialize(http)
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={"jsonrpc": "2.0", "id": 3, "method": "logging/setLevel", "params": {"level": "info"}},
+    )
+    assert resp.status_code == 200, resp.text
 
     reader = asyncio.create_task(
         _read_stream_until(http, session, lambda e: e.get("method") == "notifications/message")
@@ -637,3 +654,162 @@ async def test_elicitation_not_advertised_yields_error(relay_env):
     # the tool's elicit() fails (no handler) -> upstream returns an error result
     body = resp.json()
     assert body["result"]["isError"] is True
+
+
+# --- modern-era clients (2026-07-28): subscriptions/listen, per-request logs, disconnect ----
+
+MODERN = "2026-07-28"
+
+
+def _modern(method, params=None, *, id_=1, log_level=None):
+    """A modern-era request body and the headers that mirror it (PROT-13/15)."""
+    params = dict(params or {})
+    meta = {PROTOCOL_VERSION_META_KEY: MODERN, CLIENT_CAPABILITIES_META_KEY: {}}
+    if log_level is not None:
+        meta[LOG_LEVEL_META_KEY] = log_level
+    params["_meta"] = meta
+    headers = {"MCP-Protocol-Version": MODERN, "Mcp-Method": method}
+    if method in NAME_BEARING_METHODS:
+        headers["Mcp-Name"] = params[NAME_BEARING_METHODS[method]]
+    return {"jsonrpc": "2.0", "id": id_, "method": method, "params": params}, headers
+
+
+async def _listen_until(http, predicate, *, filter_, acknowledged, id_=7, timeout=5):
+    """Open subscriptions/listen and return (ack, first event matching predicate).
+
+    ``acknowledged`` is set once the acknowledgement arrived, so a test can make
+    its change only when the stream is registered and cannot miss the event.
+    """
+    body, headers = _modern("subscriptions/listen", {"notifications": filter_}, id_=id_)
+
+    async def reader():
+        ack = None
+        async with http.stream("POST", "/main/mcp", headers=headers, json=body) as resp:
+            assert resp.status_code == 200, await resp.aread()
+            assert resp.headers["content-type"].startswith("text/event-stream")
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                event = json.loads(line[6:])
+                if ack is None:
+                    ack = event
+                    acknowledged.set()
+                    continue
+                if predicate(event):
+                    return ack, event
+        return ack, None
+
+    return await asyncio.wait_for(reader(), timeout=timeout)
+
+
+async def test_subscriptions_listen_acknowledges_and_relays_list_changed(relay_env):
+    """PROT-17: the ack names only what the gateway honours; list_changed is tagged."""
+    http, app, base_url = relay_env
+    acknowledged = asyncio.Event()
+
+    async def change_config():
+        await asyncio.wait_for(acknowledged.wait(), timeout=5)
+        async with AsyncClient(
+            base_url=base_url, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
+        ) as admin:
+            resp = await admin.put(
+                "/api/v1/bundles/main", json={"name": "main", "description": "updated"}
+            )
+            assert resp.status_code == 200
+
+    changer = asyncio.create_task(change_config())
+    ack, event = await _listen_until(
+        http,
+        lambda e: e.get("method") == "notifications/tools/list_changed",
+        filter_={"toolsListChanged": True, "resourceSubscriptions": ["res://x"]},
+        acknowledged=acknowledged,
+    )
+    await changer
+    assert ack["method"] == "notifications/subscriptions/acknowledged"
+    assert ack["params"]["notifications"] == {"toolsListChanged": True}
+    assert ack["params"]["_meta"][SUBSCRIPTION_ID_META_KEY] == 7
+    assert event["params"]["_meta"][SUBSCRIPTION_ID_META_KEY] == 7
+
+
+async def test_subscriptions_listen_cross_instance(relay_env, engine, redis):
+    """PROT-17 + SES-13: a listen stream on replica B hears a change made through A."""
+    http_a, app_a, base_a = relay_env
+    app_b = make_app(engine, redis)
+    async with running_app(app_b) as base_b:
+        async with AsyncClient(
+            base_url=base_b, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}, timeout=10
+        ) as http_b:
+            acknowledged = asyncio.Event()
+
+            async def change_on_a():
+                await asyncio.wait_for(acknowledged.wait(), timeout=5)
+                async with AsyncClient(
+                    base_url=base_a, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
+                ) as admin:
+                    resp = await admin.put(
+                        "/api/v1/bundles/main", json={"name": "main", "description": "via A"}
+                    )
+                    assert resp.status_code == 200
+
+            changer = asyncio.create_task(change_on_a())
+            _ack, event = await _listen_until(
+                http_b,
+                lambda e: e.get("method") == "notifications/tools/list_changed",
+                filter_={"toolsListChanged": True},
+                acknowledged=acknowledged,
+            )
+            await changer
+            assert event is not None
+
+
+async def _modern_call_events(http, name, arguments, *, log_level=None, id_=9):
+    body, headers = _modern(
+        "tools/call", {"name": name, "arguments": arguments}, id_=id_, log_level=log_level
+    )
+    events = []
+    async with http.stream("POST", "/main/mcp", headers=headers, json=body) as resp:
+        assert resp.status_code == 200, await resp.aread()
+        assert resp.headers["content-type"].startswith("text/event-stream")
+        async for line in resp.aiter_lines():
+            if line.startswith("data: "):
+                msg = json.loads(line[6:])
+                events.append(msg)
+                if msg.get("id") == id_:
+                    break
+    return events
+
+
+async def test_modern_call_streams_logs_at_requested_level(relay_env):
+    """PROT-19/PROT-20: a modern call is streamed; logs arrive on it when a level was set."""
+    http, app, base_url = relay_env
+    events = await _modern_call_events(http, "relay__emit_log", {}, log_level="info")
+    logs = [e for e in events if e.get("method") == "notifications/message"]
+    assert logs and "hello-log" in json.dumps(logs[0]["params"])
+    assert events[-1]["result"]["content"][0]["text"] == "logged"
+    assert events[-1]["result"]["resultType"] == "complete"
+
+
+async def test_modern_call_without_log_level_gets_no_logs(relay_env):
+    http, app, base_url = relay_env
+    events = await _modern_call_events(http, "relay__emit_log", {})
+    assert [e for e in events if e.get("method") == "notifications/message"] == []
+    assert events[-1]["result"]["content"][0]["text"] == "logged"
+
+
+async def test_modern_client_disconnect_cancels_the_call(relay_env):
+    """PROT-19: closing the response stream cancels the upstream call and it is accounted."""
+    http, app, base_url = relay_env
+    body, headers = _modern("tools/call", {"name": "relay__hang", "arguments": {"seconds": 30}})
+    async with http.stream("POST", "/main/mcp", headers=headers, json=body) as resp:
+        assert resp.status_code == 200
+        # leave without reading: the client goes away mid-call
+
+    for _ in range(50):
+        await asyncio.sleep(0.05)
+        await app.state.container.audit.drain()
+        async with app.state.container.session_factory() as db:
+            records = (await db.execute(select(AuditRecord))).scalars().all()
+        if any(r.tool_name == "hang" for r in records):
+            break
+    hang = next(r for r in records if r.tool_name == "hang")
+    assert (hang.status, hang.error_message) == ("error", "cancelled")

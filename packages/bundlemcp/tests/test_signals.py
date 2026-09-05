@@ -3,10 +3,12 @@
 import asyncio
 
 from bundlemcp.gateway.signals import SignalBus
-from bundlemcp.gateway.streams import StreamRegistry
+from bundlemcp.gateway.streams import StreamKey, StreamRegistry
 from fakeredis.aioredis import FakeRedis
 
 BusPair = tuple[SignalBus, StreamRegistry, SignalBus, StreamRegistry]
+
+S1 = StreamKey(endpoint_name="main", bundle_name="main", stream_id="s1")
 
 
 async def _bus_pair(redis: FakeRedis) -> BusPair:
@@ -21,7 +23,7 @@ async def _bus_pair(redis: FakeRedis) -> BusPair:
 async def test_deliver_reaches_owning_replica_exactly_once(redis):
     bus_a, reg_a, bus_b, reg_b = _b = await _bus_pair(redis)
     try:
-        queue = reg_b.register_stream("s1")  # stream lives on replica B
+        queue = reg_b.register_stream(S1)  # stream lives on replica B
         await bus_a.deliver("s1", {"method": "notifications/tools/list_changed"})
 
         payload = await asyncio.wait_for(queue.get(), timeout=2)
@@ -38,7 +40,7 @@ async def test_publisher_own_stream_receives_once(redis):
     """Publish-only design: the publishing replica's own stream gets one copy."""
     bus_a, reg_a, bus_b, reg_b = await _bus_pair(redis)
     try:
-        queue = reg_a.register_stream("s1")
+        queue = reg_a.register_stream(S1)
         await bus_a.deliver("s1", {"method": "ping"})
         await asyncio.wait_for(queue.get(), timeout=2)
         await asyncio.sleep(0.1)

@@ -10,7 +10,7 @@ from bundlemcp.gateway.mcp_endpoint.jsonrpc_message import JsonRpcMessage
 class MethodHandler[C: EndpointContext](Protocol):
     """Serves one JSON-RPC method for a request in context ``C``.
 
-    Handlers for methods that need a live session take a ``SessionContext``;
+    Handlers for methods that need a live session take a ``RequestContext``;
     the one method that creates the session, initialize, takes the bare
     ``EndpointContext``.
     """

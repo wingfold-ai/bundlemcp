@@ -207,7 +207,11 @@ one used.
   client declared support for in `_meta` capabilities are placed in
   `inputRequests` (PROT-5). Without token encryption keys the bridge is
   unavailable and reports so with a structured error rather than sealing
-  plaintext.
+  plaintext. *Residual:* both strategies are implemented for `tools/call`;
+  on `prompts/get` and `resources/read` a modern client is not yet bridged
+  (a handshake upstream's request fails fast, a modern upstream's
+  `input_required` is reported as an error), while a handshake client is
+  relayed on every method.
 - **PROT-19 Cancellation by disconnect.** Modern `tools/call` responses are
   always streamed (`text/event-stream`, progress optional), so the client
   closing the stream is an unambiguous cancellation that the gateway applies
@@ -242,8 +246,10 @@ one used.
 prompts/resources/completions routing (PROT-9), capability aggregation
 (PROT-11), handshake version negotiation (PROT-12), and the roots/logging
 relay (PROT-4/PROT-7) on the request/response path and within an active call.
-**Being implemented** ([ADR-0029](../docs/adr/0029-dialects-and-dual-era-edge.md),
-[ADR-0030](../docs/adr/0030-fastmcp-4.md)): PROT-13 to PROT-22.
+**Implemented** ([ADR-0029](../docs/adr/0029-dialects-and-dual-era-edge.md),
+[ADR-0030](../docs/adr/0030-fastmcp-4.md)): PROT-13 to PROT-22, with the
+PROT-17 (only `toolsListChanged` acknowledged) and PROT-18 (`tools/call` only
+for modern clients) residuals noted in place.
 **Pooling-dependent residual:** any upstream→client *push* that must arrive
 between calls — `notifications/resources/updated`, PROT-7 upstream
 `notifications/message`, and PROT-10 upstream `*/list_changed` **outside an

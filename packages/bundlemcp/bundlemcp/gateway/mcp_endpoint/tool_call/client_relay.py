@@ -1,8 +1,9 @@
-"""Server-to-client requests relayed back down to the MCP client.
+"""An upstream's requests for client input, and its log messages, carried back to the client.
 
-Each request goes out on the client's GET stream and its reply is awaited on a
-correlation future, so the replica holding the stream answers it wherever the
-call is running.
+For a handshake-era client each request goes out on its GET stream and the
+reply is awaited on a correlation future, so the replica holding the stream
+answers it wherever the call is running. Log messages go the same way, or into
+the call's own response stream when the caller supplies a sink for them.
 """
 
 import asyncio
@@ -13,12 +14,12 @@ from typing import Any
 from fastmcp.client.elicitation import ElicitResult
 from mcp.types import CreateMessageResult, Root
 
+from bundlemcp.gateway.mcp_endpoint.log_levels import at_least
+from bundlemcp.gateway.mcp_endpoint.mrtr import InputChannel, RelayRejected
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import StreamRegistry
 
-
-class RelayRejected(Exception):
-    """The client answered a relayed request with an error."""
+NotificationSink = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 def _as_function(method: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
@@ -36,41 +37,61 @@ def _as_function(method: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitab
 
 
 class ClientRelay:
-    """The client-side capabilities an upstream may call on during one tool call.
+    """The client-side capabilities an upstream may call on during one call.
 
-    Only the capabilities the client advertised at initialize are offered to
-    the upstream client; the rest stay unset so the upstream sees them as
-    unsupported rather than failing mid-call.
+    Only the capabilities the client advertised are offered to the upstream
+    client; the rest stay unset so the upstream sees them as unsupported rather
+    than failing mid-call. Log messages are offered when the client asked for a
+    level, and only those at or above it are relayed.
     """
 
     def __init__(
-        self, registry: StreamRegistry, signals: SignalBus, session_id: str, wait_timeout: float
+        self,
+        registry: StreamRegistry,
+        signals: SignalBus,
+        routing_key: str,
+        wait_timeout: float,
+        *,
+        log_level: str | None,
+        on_notification: NotificationSink | None,
+        channel: InputChannel | None,
     ) -> None:
+        # on_notification is None when log messages belong on the client's own
+        # notification stream (handshake era) rather than the call's response;
+        # channel is None in the handshake era, where requests go out on that
+        # stream, and set for a modern client (PROT-18)
         self._registry = registry
         self._signals = signals
-        self._session_id = session_id
+        self._routing_key = routing_key
         self._wait_timeout = wait_timeout
+        self._log_level = log_level
+        self._on_notification = on_notification
+        self._channel = channel
 
     def client_kwargs(self, capabilities: Mapping[str, Any]) -> dict[str, Any]:
         """The handler keyword arguments for the upstream client, gated by capability."""
-        # PROT-5: capability intersection; PROT-4 names the `roots` kwarg; PROT-7 logging
+        # PROT-5: capability intersection; PROT-4 names the `roots` kwarg
         offered: dict[str, tuple[str, Callable[..., Any]]] = {
             "elicitation": ("elicitation_handler", self.elicit),
             "sampling": ("sampling_handler", self.sample),
             "roots": ("roots", self.roots),
-            "logging": ("log_handler", self.log),
         }
-        return {
+        kwargs = {
             kwarg: _as_function(handler)
             for capability, (kwarg, handler) in offered.items()
             if capability in capabilities
         }
+        if self._log_level is not None:  # PROT-7 / PROT-20
+            kwargs["log_handler"] = _as_function(self.log)
+        return kwargs
 
     async def _roundtrip(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
+        if self._channel is not None:
+            return await self._channel.ask(method, params)
         correlation_id = uuid.uuid4().hex
         future = self._registry.register_reply(correlation_id)
         request = {"jsonrpc": "2.0", "id": correlation_id, "method": method, "params": params}
-        await self._signals.deliver(self._session_id, request)
+        await self._signals.deliver(self._routing_key, request)
         try:
             reply = await asyncio.wait_for(future, timeout=self._wait_timeout)
         finally:
@@ -96,7 +117,14 @@ class ClientRelay:
         return [Root.model_validate(r) for r in result.get("roots", [])]
 
     async def log(self, message: Any) -> None:
-        await self._signals.deliver(
-            self._session_id,
-            {"jsonrpc": "2.0", "method": "notifications/message", "params": self._dump(message)},
-        )
+        if self._log_level is not None and not at_least(str(message.level), self._log_level):
+            return
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "notifications/message",
+            "params": self._dump(message),
+        }
+        if self._on_notification is not None:
+            await self._on_notification(payload)
+        else:
+            await self._signals.deliver(self._routing_key, payload)
