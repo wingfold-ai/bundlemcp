@@ -38,6 +38,14 @@ class ServerUpsert(BaseModel):
         default=True,
         description="Whether the calling user's identity is forwarded to the upstream server",
     )
+    protocol_mode: str = Field(  # SRV-10
+        default="auto",
+        pattern=r"^(auto|legacy|\d{4}-\d{2}-\d{2})$",
+        description="How the gateway negotiates the MCP revision with this server: 'auto' "
+        "(probe server/discover, fall back to the initialize handshake), 'legacy' (always "
+        "the handshake, for servers whose tools need server-initiated requests), or a "
+        "revision date such as '2026-07-28' to pin that revision",
+    )
     transport: Literal["streamable-http"] | None = Field(  # API-4
         default=None,
         description="Upstream transport. Only streamable-http is supported; the field exists "

@@ -134,8 +134,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Add Or Update Member */
-        put: operations["add_or_update_member_api_v1_bundles__name__servers__server_name__put"];
+        /** Set Member */
+        put: operations["set_member_api_v1_bundles__name__servers__server_name__put"];
         post?: never;
         /** Remove Member */
         delete: operations["remove_member_api_v1_bundles__name__servers__server_name__delete"];
@@ -151,8 +151,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Bundle Tools */
-        get: operations["list_bundle_tools_api_v1_bundles__name__tools_get"];
+        /** List Tools */
+        get: operations["list_tools_api_v1_bundles__name__tools_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -346,8 +346,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Server Tools */
-        get: operations["list_server_tools_api_v1_servers__name__tools_get"];
+        /** List Tools */
+        get: operations["list_tools_api_v1_servers__name__tools_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -497,157 +497,306 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** ApiKeyCreate */
+        /**
+         * ApiKeyCreate
+         * @description Body for creating an API key.
+         */
         ApiKeyCreate: {
-            /** Endpoint Ids */
+            /**
+             * Endpoint Ids
+             * @description Endpoints an endpoint-kind key may call; empty means every endpoint
+             */
             endpoint_ids?: string[];
             /**
-             * Kind
+             * @description 'endpoint' keys call MCP endpoints; 'service' keys call the management API
              * @default endpoint
-             * @enum {string}
              */
-            kind: "endpoint" | "service";
-            /** Name */
+            kind: components["schemas"]["ApiKeyKind"];
+            /**
+             * Name
+             * @description Human-readable label for the key, shown in listings
+             */
             name: string;
         };
-        /** ApiKeyCreated */
+        /**
+         * ApiKeyCreated
+         * @description A newly created key, including the secret.
+         */
         ApiKeyCreated: {
             /**
              * Created At
              * Format: date-time
+             * @description When the key was created
              */
             created_at: string;
-            /** Endpoint Ids */
+            /**
+             * Endpoint Ids
+             * @description Endpoints this key may call; empty means every endpoint
+             */
             endpoint_ids: string[];
             /**
              * Id
              * Format: uuid
+             * @description Identifier of the key
              */
             id: string;
-            /** Is Active */
+            /**
+             * Is Active
+             * @description Whether the key is currently accepted
+             */
             is_active: boolean;
-            /** Key */
+            /**
+             * Key
+             * @description The secret value. Returned only in this response and never again, so store it now
+             */
             key: string;
-            /** Key Prefix */
+            /**
+             * Key Prefix
+             * @description Leading characters of the secret, enough to recognise which key this is
+             */
             key_prefix: string;
-            /** Kind */
-            kind: string;
-            /** Last Used At */
+            /** @description 'endpoint' for MCP access, 'service' for the management API */
+            kind: components["schemas"]["ApiKeyKind"];
+            /**
+             * Last Used At
+             * @description When the key last authenticated a request; null if never used
+             */
             last_used_at: string | null;
-            /** Name */
+            /**
+             * Name
+             * @description Human-readable label given at creation
+             */
             name: string;
         };
-        /** ApiKeyRead */
+        /**
+         * ApiKeyKind
+         * @enum {string}
+         */
+        ApiKeyKind: "endpoint" | "service";
+        /**
+         * ApiKeyRead
+         * @description An API key as listed; the secret itself is never returned.
+         */
         ApiKeyRead: {
             /**
              * Created At
              * Format: date-time
+             * @description When the key was created
              */
             created_at: string;
-            /** Endpoint Ids */
+            /**
+             * Endpoint Ids
+             * @description Endpoints this key may call; empty means every endpoint
+             */
             endpoint_ids: string[];
             /**
              * Id
              * Format: uuid
+             * @description Identifier of the key
              */
             id: string;
-            /** Is Active */
+            /**
+             * Is Active
+             * @description Whether the key is currently accepted
+             */
             is_active: boolean;
-            /** Key Prefix */
+            /**
+             * Key Prefix
+             * @description Leading characters of the secret, enough to recognise which key this is
+             */
             key_prefix: string;
-            /** Kind */
-            kind: string;
-            /** Last Used At */
+            /** @description 'endpoint' for MCP access, 'service' for the management API */
+            kind: components["schemas"]["ApiKeyKind"];
+            /**
+             * Last Used At
+             * @description When the key last authenticated a request; null if never used
+             */
             last_used_at: string | null;
-            /** Name */
+            /**
+             * Name
+             * @description Human-readable label given at creation
+             */
             name: string;
         };
-        /** AuditRecordRead */
+        /**
+         * AuditRecordRead
+         * @description One recorded tool call, successful or not.
+         */
         AuditRecordRead: {
-            /** Api Key Id */
+            /**
+             * Api Key Id
+             * @description API key used, when one was
+             */
             api_key_id: string | null;
-            /** Auth Method */
-            auth_method: string | null;
-            /** Bundle Name */
+            /** @description How the caller authenticated: oauth, api_key or none */
+            auth_method: components["schemas"]["EndpointAuthMode"] | null;
+            /**
+             * Bundle Name
+             * @description Bundle the endpoint exposed at the time of the call
+             */
             bundle_name: string;
             /**
              * Created At
              * Format: date-time
+             * @description When the call was recorded
              */
             created_at: string;
-            /** Denied Reason */
+            /**
+             * Denied Reason
+             * @description Why a denied call was refused, such as a metering or rate-limit decision
+             */
             denied_reason: string | null;
-            /** Duration Ms */
+            /**
+             * Duration Ms
+             * @description Time spent on the upstream call; null when the call was denied
+             */
             duration_ms: number | null;
-            /** Endpoint Id */
+            /**
+             * Endpoint Id
+             * @description Endpoint the call arrived on; null once that endpoint is deleted
+             */
             endpoint_id: string | null;
-            /** Endpoint Name */
+            /**
+             * Endpoint Name
+             * @description Endpoint name as it was at the time of the call
+             */
             endpoint_name: string;
-            /** Error Message */
+            /**
+             * Error Message
+             * @description Failure detail when the call errored
+             */
             error_message: string | null;
             /**
              * Id
              * Format: uuid
+             * @description Identifier of the audit record
              */
             id: string;
-            /** Presented Tool Name */
+            /**
+             * Presented Tool Name
+             * @description Tool name as the client used it, including any override
+             */
             presented_tool_name: string | null;
-            /** Server Name */
+            /**
+             * Server Name
+             * @description Upstream server the call was routed to; null if it never got that far
+             */
             server_name: string | null;
-            /** Session Id */
+            /**
+             * Session Id
+             * @description MCP session the call belonged to
+             */
             session_id: string | null;
-            /** Status */
-            status: string;
-            /** Tool Name */
+            /** @description Outcome: success, error or denied */
+            status: components["schemas"]["AuditStatus"];
+            /**
+             * Tool Name
+             * @description Upstream tool name, without the bundle prefix
+             */
             tool_name: string | null;
-            /** User Id */
+            /**
+             * User Id
+             * @description Authenticated user, when OAuth was used
+             */
             user_id: string | null;
         };
+        /**
+         * AuditStatus
+         * @enum {string}
+         */
+        AuditStatus: "success" | "error" | "denied";
         /**
          * BundleMemberRead
          * @description A server's membership in a bundle.
          */
         BundleMemberRead: {
-            /** Enabled */
+            /**
+             * Enabled
+             * @description Whether this membership contributes tools; disabling hides them without losing their curation
+             */
             enabled: boolean;
-            /** Health Status */
-            health_status: string;
+            /** @description Result of the most recent probe: ok, error or unknown */
+            health_status: components["schemas"]["HealthStatus"];
             /**
              * Server Id
              * Format: uuid
+             * @description Identifier of the member server
              */
             server_id: string;
-            /** Server Name */
+            /**
+             * Server Name
+             * @description Name of the member server
+             */
             server_name: string;
-            /** Server Url */
+            /**
+             * Server Url
+             * @description Streamable HTTP URL the server is reached at
+             */
             server_url: string;
         };
-        /** BundleRead */
+        /**
+         * BundleMembershipRead
+         * @description The result of adding a server to a bundle or toggling its membership.
+         */
+        BundleMembershipRead: {
+            /**
+             * Bundle
+             * @description Bundle the server belongs to
+             */
+            bundle: string;
+            /**
+             * Enabled
+             * @description Whether the membership currently contributes tools
+             */
+            enabled: boolean;
+            /**
+             * Server
+             * @description Member server
+             */
+            server: string;
+        };
+        /**
+         * BundleRead
+         * @description A bundle as stored.
+         */
         BundleRead: {
             /**
              * Created At
              * Format: date-time
+             * @description When the bundle was created
              */
             created_at: string;
-            /** Description */
+            /**
+             * Description
+             * @description Free-text note about what this bundle is for
+             */
             description: string | null;
             /**
              * Id
              * Format: uuid
+             * @description Identifier of the bundle
              */
             id: string;
-            /** Name */
+            /**
+             * Name
+             * @description Unique bundle name
+             */
             name: string;
             /**
              * Updated At
              * Format: date-time
+             * @description When the bundle was last changed
              */
             updated_at: string;
         };
-        /** BundleServerUpdate */
+        /**
+         * BundleServerUpdate
+         * @description Body for toggling one server's membership in a bundle.
+         */
         BundleServerUpdate: {
             /**
              * Enabled
+             * @description Whether the server's tools are served through this bundle
              * @default true
              */
             enabled: boolean;
@@ -657,29 +806,60 @@ export interface components {
          * @description A member server's tool with this bundle's curation applied.
          */
         BundleToolRead: {
-            /** Description */
+            /**
+             * Description
+             * @description Upstream description, before any override
+             */
             description: string | null;
-            /** Enabled */
+            /**
+             * Enabled
+             * @description Whether this tool is served through the bundle; true unless curated off
+             */
             enabled: boolean;
-            /** Member Enabled */
+            /**
+             * Member Enabled
+             * @description Whether the owning server's membership is enabled; a disabled member hides its tools regardless of their own toggle
+             */
             member_enabled: boolean;
-            /** Name */
+            /**
+             * Name
+             * @description Tool name as the upstream server reports it
+             */
             name: string;
-            /** Override Description */
+            /**
+             * Override Description
+             * @description Replacement description set on this bundle
+             */
             override_description: string | null;
-            /** Override Name */
+            /**
+             * Override Name
+             * @description Replacement name set on this bundle
+             */
             override_name: string | null;
-            /** Override Title */
+            /**
+             * Override Title
+             * @description Replacement title set on this bundle
+             */
             override_title: string | null;
-            /** Presented Name */
+            /**
+             * Presented Name
+             * @description Name clients see: the override if set, otherwise 'server__tool'
+             */
             presented_name: string;
-            /** Server Name */
+            /**
+             * Server Name
+             * @description Server that provides the tool
+             */
             server_name: string;
-            /** Title */
+            /**
+             * Title
+             * @description Upstream display title, before any override
+             */
             title: string | null;
             /**
              * Tool Id
              * Format: uuid
+             * @description Identifier of the cached upstream tool
              */
             tool_id: string;
         };
@@ -690,51 +870,127 @@ export interface components {
         BundleToolUpdate: {
             /**
              * Enabled
+             * @description Whether this tool is served through the bundle
              * @default true
              */
             enabled: boolean;
-            /** Override Annotations */
+            /**
+             * Override Annotations
+             * @description Replacement MCP annotations for this bundle
+             */
             override_annotations?: {
                 [key: string]: unknown;
             } | null;
-            /** Override Description */
+            /**
+             * Override Description
+             * @description Replacement description for this bundle, for tailoring what the calling model is told about the tool
+             */
             override_description?: string | null;
-            /** Override Name */
+            /**
+             * Override Name
+             * @description Replacement name clients see instead of 'server__tool'; must still be unique within the bundle
+             */
             override_name?: string | null;
-            /** Override Title */
+            /**
+             * Override Title
+             * @description Replacement display title for this bundle
+             */
             override_title?: string | null;
         };
-        /** BundleUpsert */
+        /**
+         * BundleUpsert
+         * @description Body for creating or replacing a bundle.
+         */
         BundleUpsert: {
-            /** Description */
+            /**
+             * Description
+             * @description Free-text note about what this bundle is for
+             */
             description?: string | null;
-            /** Name */
+            /**
+             * Name
+             * @description Unique bundle name; lowercase letters, digits and hyphens
+             */
             name: string;
         };
-        /** ConfigValue */
-        ConfigValue: {
-            /** Value */
+        /**
+         * ConfigEntryRead
+         * @description One runtime-tunable setting after a change.
+         */
+        ConfigEntryRead: {
+            /**
+             * Key
+             * @description Name of the setting
+             */
+            key: string;
+            /**
+             * Value
+             * @description The value now in effect, in the type the key declares
+             */
             value: unknown;
         };
-        /** ConsentRead */
+        /**
+         * ConfigValue
+         * @description A runtime-tunable configuration value.
+         */
+        ConfigValue: {
+            /**
+             * Value
+             * @description The value to store, coerced to the type the key declares
+             */
+            value: unknown;
+        };
+        /**
+         * ConsentRead
+         * @description A user's standing consent for one OAuth client on one endpoint.
+         */
         ConsentRead: {
-            /** Client Id */
+            /**
+             * Client Id
+             * @description OAuth client the consent was granted to
+             */
             client_id: string;
             /**
              * Endpoint Id
              * Format: uuid
+             * @description Endpoint the consent covers
              */
             endpoint_id: string;
             /**
              * Granted At
              * Format: date-time
+             * @description When the user granted it
              */
             granted_at: string;
             /**
              * Id
              * Format: uuid
+             * @description Identifier of the consent record
              */
             id: string;
+        };
+        /**
+         * DiscoveryResult
+         * @description Outcome of one probe against an upstream server.
+         */
+        DiscoveryResult: {
+            /**
+             * Changed
+             * @description Tools written to the cache because their definition hash moved
+             * @default 0
+             */
+            changed: number;
+            /**
+             * Discovered
+             * @description Tools the upstream reported in this probe
+             * @default 0
+             */
+            discovered: number;
+            /**
+             * Error
+             * @description Why the probe failed; None when it succeeded
+             */
+            error?: string | null;
         };
         /**
          * EndpointAuthMode
@@ -746,66 +1002,122 @@ export interface components {
          * @enum {string}
          */
         EndpointProfile: "default" | "claude" | "chatgpt";
-        /** EndpointRead */
+        /**
+         * EndpointProfileRead
+         * @description One of the client profiles an endpoint can be shaped for.
+         */
+        EndpointProfileRead: {
+            /**
+             * Description
+             * @description What the profile changes about the served surface
+             */
+            description: string;
+            /** @description Profile identifier to use in an endpoint's profile */
+            name: components["schemas"]["EndpointProfile"];
+            /**
+             * Warning
+             * @description A caveat operators should know before choosing this profile, if any
+             */
+            warning?: string | null;
+        };
+        /**
+         * EndpointRead
+         * @description An endpoint as stored.
+         */
         EndpointRead: {
-            /** Auth Modes */
-            auth_modes: string[];
+            /**
+             * Auth Modes
+             * @description Accepted credentials: oauth, api_key, or none for an open endpoint
+             */
+            auth_modes: components["schemas"]["EndpointAuthMode"][];
             /**
              * Bundle Id
              * Format: uuid
+             * @description Bundle this endpoint exposes
              */
             bundle_id: string;
             /**
              * Created At
              * Format: date-time
+             * @description When the endpoint was created
              */
             created_at: string;
-            /** Enabled */
+            /**
+             * Enabled
+             * @description Whether the endpoint currently serves requests
+             */
             enabled: boolean;
             /**
              * Id
              * Format: uuid
+             * @description Identifier of the endpoint
              */
             id: string;
-            /** Name */
+            /**
+             * Name
+             * @description Unique endpoint name; it forms the URL path segment
+             */
             name: string;
-            /** Profile */
-            profile: string;
-            /** Rate Limit */
+            /** @description Client profile shaping the responses, such as the claude or chatgpt profile */
+            profile: components["schemas"]["EndpointProfile"];
+            /**
+             * Rate Limit
+             * @description Rate-limit configuration; null when the endpoint is unlimited
+             */
             rate_limit: {
                 [key: string]: unknown;
             } | null;
             /**
              * Updated At
              * Format: date-time
+             * @description When the endpoint was last changed
              */
             updated_at: string;
         };
-        /** EndpointUpsert */
+        /**
+         * EndpointUpsert
+         * @description Body for creating or replacing an endpoint.
+         */
         EndpointUpsert: {
             /**
              * Allow Unauthenticated
+             * @description Confirms an intentionally open endpoint. Required whenever auth_modes is ['none'], so an endpoint is never left unauthenticated by accident
              * @default false
              */
             allow_unauthenticated: boolean;
-            /** Auth Modes */
+            /**
+             * Auth Modes
+             * @description Accepted credentials. 'none' is only valid on its own and additionally requires allow_unauthenticated
+             */
             auth_modes?: components["schemas"]["EndpointAuthMode"][];
-            /** Bundle Name */
+            /**
+             * Bundle Name
+             * @description Bundle this endpoint exposes
+             */
             bundle_name: string;
             /**
              * Enabled
+             * @description Whether the endpoint serves requests once saved
              * @default true
              */
             enabled: boolean;
             /**
              * Force
+             * @description Confirm a rename that would otherwise be rejected, accepting that clients using the old name will break
              * @default false
              */
             force: boolean;
-            /** Name */
+            /**
+             * Name
+             * @description Unique endpoint name; it becomes the URL path segment clients call
+             */
             name: string;
-            /** @default default */
+            /**
+             * @description Client profile shaping the responses for a particular consumer
+             * @default default
+             */
             profile: components["schemas"]["EndpointProfile"];
+            /** @description Rate limits for this endpoint; omit for unlimited */
             rate_limit?: components["schemas"]["RateLimitConfig"] | null;
         };
         /** HTTPValidationError */
@@ -814,101 +1126,212 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HealthStatus
+         * @enum {string}
+         */
+        HealthStatus: "ok" | "error" | "unknown";
+        /**
+         * IdentityMode
+         * @enum {string}
+         */
+        IdentityMode: "shared" | "per_user";
+        /**
          * MeRead
          * @description The caller's own identity: session user (admin or not) or service key.
          */
         MeRead: {
-            /** Api Key Id */
+            /**
+             * Api Key Id
+             * @description The service key used; null for browser sessions
+             */
             api_key_id?: string | null;
-            /** Display Name */
+            /**
+             * Display Name
+             * @description Display name of the signed-in user
+             */
             display_name?: string | null;
-            /** Email */
+            /**
+             * Email
+             * @description Email of the signed-in user
+             */
             email?: string | null;
             /**
              * Is Admin
+             * @description Whether the caller may use the management API
              * @default false
              */
             is_admin: boolean;
-            /** Kind */
-            kind: string;
-            /** User Id */
+            /**
+             * Kind
+             * @description What authenticated this call: an admin session, a signed-in user without admin rights, or a service API key
+             * @enum {string}
+             */
+            kind: "admin" | "user" | "service";
+            /**
+             * User Id
+             * @description The signed-in user; null for service keys
+             */
             user_id?: string | null;
         };
         /** Page[ApiKeyRead] */
         Page_ApiKeyRead_: {
-            /** Items */
+            /**
+             * Items
+             * @description The page of results
+             */
             items: components["schemas"]["ApiKeyRead"][];
-            /** Limit */
+            /**
+             * Limit
+             * @description Maximum records this page may contain
+             */
             limit: number;
-            /** Offset */
+            /**
+             * Offset
+             * @description Records skipped before this page
+             */
             offset: number;
-            /** Total */
+            /**
+             * Total
+             * @description Total matching records, ignoring offset and limit
+             */
             total: number;
         };
         /** Page[AuditRecordRead] */
         Page_AuditRecordRead_: {
-            /** Items */
+            /**
+             * Items
+             * @description The page of results
+             */
             items: components["schemas"]["AuditRecordRead"][];
-            /** Limit */
+            /**
+             * Limit
+             * @description Maximum records this page may contain
+             */
             limit: number;
-            /** Offset */
+            /**
+             * Offset
+             * @description Records skipped before this page
+             */
             offset: number;
-            /** Total */
+            /**
+             * Total
+             * @description Total matching records, ignoring offset and limit
+             */
             total: number;
         };
         /** Page[BundleRead] */
         Page_BundleRead_: {
-            /** Items */
+            /**
+             * Items
+             * @description The page of results
+             */
             items: components["schemas"]["BundleRead"][];
-            /** Limit */
+            /**
+             * Limit
+             * @description Maximum records this page may contain
+             */
             limit: number;
-            /** Offset */
+            /**
+             * Offset
+             * @description Records skipped before this page
+             */
             offset: number;
-            /** Total */
+            /**
+             * Total
+             * @description Total matching records, ignoring offset and limit
+             */
             total: number;
         };
         /** Page[EndpointRead] */
         Page_EndpointRead_: {
-            /** Items */
+            /**
+             * Items
+             * @description The page of results
+             */
             items: components["schemas"]["EndpointRead"][];
-            /** Limit */
+            /**
+             * Limit
+             * @description Maximum records this page may contain
+             */
             limit: number;
-            /** Offset */
+            /**
+             * Offset
+             * @description Records skipped before this page
+             */
             offset: number;
-            /** Total */
+            /**
+             * Total
+             * @description Total matching records, ignoring offset and limit
+             */
             total: number;
         };
         /** Page[ServerRead] */
         Page_ServerRead_: {
-            /** Items */
+            /**
+             * Items
+             * @description The page of results
+             */
             items: components["schemas"]["ServerRead"][];
-            /** Limit */
+            /**
+             * Limit
+             * @description Maximum records this page may contain
+             */
             limit: number;
-            /** Offset */
+            /**
+             * Offset
+             * @description Records skipped before this page
+             */
             offset: number;
-            /** Total */
+            /**
+             * Total
+             * @description Total matching records, ignoring offset and limit
+             */
             total: number;
         };
         /** Page[ToolRead] */
         Page_ToolRead_: {
-            /** Items */
+            /**
+             * Items
+             * @description The page of results
+             */
             items: components["schemas"]["ToolRead"][];
-            /** Limit */
+            /**
+             * Limit
+             * @description Maximum records this page may contain
+             */
             limit: number;
-            /** Offset */
+            /**
+             * Offset
+             * @description Records skipped before this page
+             */
             offset: number;
-            /** Total */
+            /**
+             * Total
+             * @description Total matching records, ignoring offset and limit
+             */
             total: number;
         };
         /** Page[UserRead] */
         Page_UserRead_: {
-            /** Items */
+            /**
+             * Items
+             * @description The page of results
+             */
             items: components["schemas"]["UserRead"][];
-            /** Limit */
+            /**
+             * Limit
+             * @description Maximum records this page may contain
+             */
             limit: number;
-            /** Offset */
+            /**
+             * Offset
+             * @description Records skipped before this page
+             */
             offset: number;
-            /** Total */
+            /**
+             * Total
+             * @description Total matching records, ignoring offset and limit
+             */
             total: number;
         };
         /**
@@ -916,24 +1339,37 @@ export interface components {
          * @description Per-endpoint rate limits. Stored as JSON on the endpoint.
          */
         RateLimitConfig: {
+            /** @description Limit shared by every caller of the endpoint; omit for no overall cap */
             endpoint?: components["schemas"]["RateRule"] | null;
             /**
              * Fail Closed
+             * @description Whether requests are denied when the rate-limit store is unreachable. False keeps serving traffic unlimited during an outage
              * @default false
              */
             fail_closed: boolean;
             /**
              * Include Initialize List
+             * @description Whether initialize and tools/list count against these limits; by default only tool calls do
              * @default false
              */
             include_initialize_list: boolean;
+            /** @description Limit applied per caller, keyed by OAuth user, else API key, else client IP */
             per_client?: components["schemas"]["RateRule"] | null;
         };
-        /** RateRule */
+        /**
+         * RateRule
+         * @description One fixed-window rate limit.
+         */
         RateRule: {
-            /** Limit */
+            /**
+             * Limit
+             * @description Requests permitted within each window
+             */
             limit: number;
-            /** Window Seconds */
+            /**
+             * Window Seconds
+             * @description Length of the window in seconds
+             */
             window_seconds: number;
         };
         /**
@@ -941,12 +1377,16 @@ export interface components {
          * @enum {string}
          */
         ServerAuthMode: "none" | "static_headers" | "upstream_oauth";
-        /** ServerRead */
+        /**
+         * ServerRead
+         * @description An upstream server as stored, with header values withheld.
+         */
         ServerRead: {
-            /** Auth Mode */
-            auth_mode: string;
+            /** @description How the gateway authenticates to this server */
+            auth_mode: components["schemas"]["ServerAuthMode"];
             /**
              * Capabilities
+             * @description What the server advertised at its last probe: which of tools, prompts, resources, completions and logging it supports, with its listChanged and subscribe flags
              * @default {}
              */
             capabilities: {
@@ -955,40 +1395,72 @@ export interface components {
             /**
              * Created At
              * Format: date-time
+             * @description When the server was registered
              */
             created_at: string;
-            /** Description */
+            /**
+             * Description
+             * @description Free-text note about what this server provides
+             */
             description: string | null;
-            /** Forward Headers */
+            /**
+             * Forward Headers
+             * @description Client headers passed through, mapped from incoming name to upstream name
+             */
             forward_headers: {
                 [key: string]: string;
             };
-            /** Health Status */
-            health_status: string;
+            /** @description Result of the most recent probe: ok, error or unknown */
+            health_status: components["schemas"]["HealthStatus"];
             /**
              * Id
              * Format: uuid
+             * @description Identifier of the server
              */
             id: string;
-            /** Identity Mode */
-            identity_mode: string;
-            /** Last Error */
+            /** @description Whether callers share one upstream identity or each gets their own */
+            identity_mode: components["schemas"]["IdentityMode"];
+            /**
+             * Last Error
+             * @description Why the last probe failed, if it did
+             */
             last_error: string | null;
-            /** Name */
+            /**
+             * Name
+             * @description Unique server name
+             */
             name: string;
-            /** Send Identity Header */
+            /**
+             * Protocol Mode
+             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to initialize), 'legacy' (always initialize), or a pinned revision date such as '2026-07-28'
+             */
+            protocol_mode: string;
+            /**
+             * Protocol Version
+             * @description MCP revision negotiated at the last successful probe; null until the server has been reached once
+             */
+            protocol_version: string | null;
+            /**
+             * Send Identity Header
+             * @description Whether the calling user's identity is forwarded upstream
+             */
             send_identity_header: boolean;
             /**
              * Static Header Names
+             * @description Names of the headers sent upstream. Values are write-only and never leave the API, so only the names appear here
              * @default []
              */
             static_header_names: string[];
             /**
              * Updated At
              * Format: date-time
+             * @description When the server was last changed
              */
             updated_at: string;
-            /** Url */
+            /**
+             * Url
+             * @description Streamable HTTP URL the server is reached at
+             */
             url: string;
         };
         /**
@@ -996,101 +1468,291 @@ export interface components {
          * @description Body for POST /servers and PUT /servers/{name}.
          */
         ServerUpsert: {
-            /** @default none */
+            /**
+             * @description How the gateway authenticates to this server
+             * @default none
+             */
             auth_mode: components["schemas"]["ServerAuthMode"];
-            /** Description */
+            /**
+             * Description
+             * @description Free-text note about what this server provides
+             */
             description?: string | null;
             /**
              * Force
+             * @description Confirm a rename that would otherwise be rejected, accepting that bundles and tool names derived from the old name change with it
              * @default false
              */
             force: boolean;
-            /** Forward Headers */
+            /**
+             * Forward Headers
+             * @description Client headers to pass through, mapped from incoming name to upstream name
+             */
             forward_headers?: {
                 [key: string]: string;
             };
             /**
-             * Identity Mode
+             * @description Whether all callers share one upstream identity or each gets their own
              * @default shared
-             * @enum {string}
              */
-            identity_mode: "shared" | "per_user";
-            /** Name */
+            identity_mode: components["schemas"]["IdentityMode"];
+            /**
+             * Name
+             * @description Unique server name; lowercase letters, digits and hyphens, and it may not contain a double underscore because that separates server from tool
+             */
             name: string;
             /**
+             * Protocol Mode
+             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision
+             * @default auto
+             */
+            protocol_mode: string;
+            /**
              * Send Identity Header
+             * @description Whether the calling user's identity is forwarded to the upstream server
              * @default true
              */
             send_identity_header: boolean;
-            /** Static Headers */
+            /**
+             * Static Headers
+             * @description Headers sent on every upstream request, for credentials the server needs. Values are write-only and never returned
+             */
             static_headers?: {
                 [key: string]: string;
             };
-            /** Transport */
+            /**
+             * Transport
+             * @description Upstream transport. Only streamable-http is supported; the field exists so payloads that state it explicitly are accepted
+             */
             transport?: "streamable-http" | null;
-            /** Url */
+            /**
+             * Url
+             * @description Streamable HTTP URL of the upstream MCP server
+             */
             url: string;
         };
-        /** ToolRead */
+        /**
+         * ToolCurationRead
+         * @description How one tool is curated within a bundle, as stored after an update.
+         */
+        ToolCurationRead: {
+            /**
+             * Bundle
+             * @description Bundle the curation applies to
+             */
+            bundle: string;
+            /**
+             * Enabled
+             * @description Whether the tool is served through this bundle
+             */
+            enabled: boolean;
+            /**
+             * Override Annotations
+             * @description Replacement MCP annotations, when set
+             */
+            override_annotations: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Override Description
+             * @description Replacement description, when one is set
+             */
+            override_description: string | null;
+            /**
+             * Override Name
+             * @description Replacement name, when one is set
+             */
+            override_name: string | null;
+            /**
+             * Override Title
+             * @description Replacement display title, when one is set
+             */
+            override_title: string | null;
+            /**
+             * Presented Name
+             * @description Name clients now see: the override if set, otherwise 'server__tool'
+             */
+            presented_name: string;
+            /**
+             * Tool Id
+             * Format: uuid
+             * @description Tool being curated
+             */
+            tool_id: string;
+        };
+        /**
+         * ToolRead
+         * @description A tool definition as cached from its upstream server.
+         */
         ToolRead: {
-            /** Annotations */
+            /**
+             * Annotations
+             * @description MCP tool annotations such as read-only and destructive hints
+             */
             annotations: {
                 [key: string]: unknown;
             } | null;
-            /** Description */
+            /**
+             * Description
+             * @description Description the upstream server reports
+             */
             description: string | null;
             /**
              * Id
              * Format: uuid
+             * @description Identifier of the cached tool
              */
             id: string;
-            /** Input Schema */
+            /**
+             * Input Schema
+             * @description JSON Schema for the tool's arguments
+             */
             input_schema: {
                 [key: string]: unknown;
             };
             /**
              * Last Seen At
              * Format: date-time
+             * @description When the tool was last reported by its server. A stale value means the tool has disappeared upstream and is no longer served
              */
             last_seen_at: string;
-            /** Name */
+            /**
+             * Name
+             * @description Tool name as the upstream server reports it
+             */
             name: string;
             /**
              * Server Id
              * Format: uuid
+             * @description Server that provides the tool
              */
             server_id: string;
-            /** Title */
+            /**
+             * Title
+             * @description Display title the upstream server reports
+             */
             title: string | null;
+        };
+        /**
+         * UpstreamConnectionStatus
+         * @description Whether one upstream OAuth connection currently works, without any token material.
+         */
+        UpstreamConnectionStatus: {
+            /**
+             * Account Hint
+             * @description Masked account or email identifying the connected account
+             */
+            account_hint?: string | null;
+            /**
+             * Connected
+             * @description Whether a valid, unexpired token set is stored
+             * @default false
+             */
+            connected: boolean;
+            /**
+             * Expires At
+             * @description When the current access token expires, if known
+             */
+            expires_at?: string | null;
+            /**
+             * Valid
+             * @description Whether the upstream last accepted the stored tokens; false after a failed refresh until the account is reconnected
+             * @default false
+             */
+            valid: boolean;
+        };
+        /**
+         * UpstreamOAuthClientRead
+         * @description The stored upstream OAuth client registration, secret withheld.
+         */
+        UpstreamOAuthClientRead: {
+            /**
+             * Client Id
+             * @description Client id at the upstream authorization server
+             */
+            client_id: string;
+            /**
+             * Has Secret
+             * @description Whether a client secret is stored. The secret itself is never returned
+             */
+            has_secret: boolean;
+            /**
+             * Server
+             * @description Server the client is registered for
+             */
+            server: string;
         };
         /**
          * UpstreamOAuthConfig
          * @description Pre-registered upstream OAuth client + optional explicit endpoints.
          */
         UpstreamOAuthConfig: {
-            /** Authorization Url */
+            /**
+             * Authorization Url
+             * @description Authorization endpoint, when it cannot be discovered automatically
+             */
             authorization_url?: string | null;
-            /** Client Id */
+            /**
+             * Client Id
+             * @description Client id registered with the upstream authorization server
+             */
             client_id: string;
-            /** Client Secret */
+            /**
+             * Client Secret
+             * @description Client secret for the upstream authorization server. Write-only; it is never returned
+             */
             client_secret?: string | null;
-            /** Token Url */
+            /**
+             * Token Url
+             * @description Token endpoint, when it cannot be discovered automatically
+             */
             token_url?: string | null;
         };
-        /** UserRead */
+        /**
+         * UpstreamOAuthStatusRead
+         * @description Connection state of a server's upstream OAuth, never its token values.
+         */
+        UpstreamOAuthStatusRead: {
+            /**
+             * Configured
+             * @description Whether this gateway can store upstream tokens at all; false until token encryption keys are configured
+             */
+            configured: boolean;
+            /** @description Whether callers share one upstream identity or each connects their own */
+            identity_mode: components["schemas"]["IdentityMode"];
+            /** @description State of the shared connection; null when upstream OAuth is not configured */
+            shared?: components["schemas"]["UpstreamConnectionStatus"] | null;
+        };
+        /**
+         * UserRead
+         * @description A user provisioned from the identity provider at login.
+         */
         UserRead: {
-            /** Display Name */
+            /**
+             * Display Name
+             * @description Display name from the identity provider
+             */
             display_name: string | null;
-            /** Email */
+            /**
+             * Email
+             * @description Email claim from the identity provider, if it sent one
+             */
             email: string | null;
             /**
              * Id
              * Format: uuid
+             * @description Identifier of the user
              */
             id: string;
-            /** Is Active */
+            /**
+             * Is Active
+             * @description Whether the user may authenticate; deactivating also ends their sessions
+             */
             is_active: boolean;
-            /** Is Admin */
+            /**
+             * Is Admin
+             * @description Whether the user held admin rights at their most recent login
+             */
             is_admin: boolean;
         };
         /** ValidationError */
@@ -1243,6 +1905,8 @@ export interface operations {
     list_audit_records_api_v1_audit_records_get: {
         parameters: {
             query?: {
+                offset?: number;
+                limit?: number;
                 created_from?: string | null;
                 created_to?: string | null;
                 endpoint_name?: string | null;
@@ -1251,9 +1915,7 @@ export interface operations {
                 tool_name?: string | null;
                 user_id?: string | null;
                 api_key_id?: string | null;
-                status?: string | null;
-                offset?: number;
-                limit?: number;
+                status?: components["schemas"]["AuditStatus"] | null;
             };
             header?: never;
             path?: never;
@@ -1439,7 +2101,7 @@ export interface operations {
             };
         };
     };
-    add_or_update_member_api_v1_bundles__name__servers__server_name__put: {
+    set_member_api_v1_bundles__name__servers__server_name__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -1461,9 +2123,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["BundleMembershipRead"];
                 };
             };
             /** @description Validation Error */
@@ -1507,7 +2167,7 @@ export interface operations {
             };
         };
     };
-    list_bundle_tools_api_v1_bundles__name__tools_get: {
+    list_tools_api_v1_bundles__name__tools_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -1560,9 +2220,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ToolCurationRead"];
                 };
             };
             /** @description Validation Error */
@@ -1619,9 +2277,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ConfigEntryRead"];
                 };
             };
             /** @description Validation Error */
@@ -1711,9 +2367,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["EndpointProfileRead"][];
                 };
             };
         };
@@ -1994,7 +2648,7 @@ export interface operations {
             };
         };
     };
-    list_server_tools_api_v1_servers__name__tools_get: {
+    list_tools_api_v1_servers__name__tools_get: {
         parameters: {
             query?: {
                 offset?: number;
@@ -2045,9 +2699,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UpstreamOAuthStatusRead"];
                 };
             };
             /** @description Validation Error */
@@ -2082,9 +2734,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UpstreamOAuthClientRead"];
                 };
             };
             /** @description Validation Error */
@@ -2144,9 +2794,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscoveryResult"];
                 };
             };
             /** @description Validation Error */

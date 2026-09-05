@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.116",
-    "fastmcp>=3.4",
+    "fastmcp>=4.0.3",
     "sqlmodel>=0.0.39",
     "sqlalchemy[asyncio]>=2.0",
     "asyncpg>=0.30",

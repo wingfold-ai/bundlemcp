@@ -2,8 +2,13 @@
 
 SSE streaming can't go through httpx's ASGITransport (it buffers the whole
 response), so these tests run the gateway on a real loopback uvicorn server —
-still hermetic (no Docker, no external network; the upstream is in-process
+still hermetic (no Docker, no external network; the upstreams are in-process
 FastMCP via the injected client factory).
+
+Two upstreams cover both protocol eras (PROT-21): ``relay`` is reached with the
+handshake (``mode="legacy"``) and asks for client input with server-initiated
+requests; ``modern`` is reached at 2026-07-28 and asks with an
+``InputRequiredResult``. A handshake-era client sees both the same way (PROT-4).
 """
 
 import asyncio
@@ -30,6 +35,7 @@ from bundlemcp.store import session_factory
 from fakeredis.aioredis import FakeRedis
 from fastmcp import Client, Context, FastMCP
 from httpx import AsyncClient
+from mcp.types import ElicitRequest, ElicitRequestFormParams, InputRequiredResult
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 SERVICE_KEY = generate_token(API_KEY_PREFIX)
@@ -74,8 +80,8 @@ async def ask_name(ctx: Context) -> str:
 @relay_server.tool
 async def read_roots(ctx: Context) -> str:
     """Requests the client's roots (server->client roots/list, PROT-4)."""
-    roots = await ctx.list_roots()
-    return f"roots:{len(roots)}"
+    result = await ctx.session.list_roots()
+    return f"roots:{len(result.roots)}"
 
 
 @relay_server.tool
@@ -85,8 +91,40 @@ async def emit_log(ctx: Context) -> str:
     return "logged"
 
 
+# --- in-process modern upstream (2026-07-28): asks with input_required -------
+
+modern_server = FastMCP("modern")
+
+
+@modern_server.tool(name="ask_name")
+async def modern_ask_name(ctx: Context) -> InputRequiredResult | str:
+    """Asks for a name with the MRTR guard pattern (PROT-18 upstream side)."""
+    answer = (ctx.input_responses or {}).get("name")
+    if answer is not None and answer.action == "accept":
+        return f"hello {answer.content['value']}"
+    return InputRequiredResult(
+        input_requests={
+            "name": ElicitRequest(
+                params=ElicitRequestFormParams(
+                    message="What is your name?",
+                    requested_schema={
+                        "type": "object",
+                        "properties": {"value": {"type": "string"}},
+                    },
+                )
+            )
+        },
+        request_state="ask-name",
+    )
+
+
+UPSTREAMS = {"relay": relay_server, "modern": modern_server}
+
+
 def upstream_factory(server, extra_headers, **handlers):
-    return Client(relay_server, **handlers)
+    # `relay` is pinned to the handshake era by its protocol_mode (SRV-10);
+    # `modern` negotiates 2026-07-28 through server/discover.
+    return Client(UPSTREAMS[server.name], mode=server.protocol_mode, **handlers)
 
 
 async def seed(engine: AsyncEngine) -> None:
@@ -108,16 +146,20 @@ async def seed(engine: AsyncEngine) -> None:
                 ),
             ]
         )
-        srv = McpServer(name="relay", url="http://relay/mcp")
+        srv = McpServer(name="relay", url="http://relay/mcp", protocol_mode="legacy")
+        modern = McpServer(name="modern", url="http://modern/mcp")
         bundle = Bundle(name="main")
-        db.add_all([srv, bundle])
+        db.add_all([srv, modern, bundle])
         await db.commit()
         await db.refresh(srv)
+        await db.refresh(modern)
         await db.refresh(bundle)
         db.add(BundleServer(bundle_id=bundle.id, server_id=srv.id))
+        db.add(BundleServer(bundle_id=bundle.id, server_id=modern.id))
         db.add(Endpoint(name="main", bundle_id=bundle.id, auth_modes=["api_key"]))
         for tool in ("quick", "slow_with_progress", "hang", "ask_name", "read_roots", "emit_log"):
             db.add(Tool(server_id=srv.id, name=tool, schema_hash="h", input_schema={}))
+        db.add(Tool(server_id=modern.id, name="ask_name", schema_hash="h", input_schema={}))
         await db.commit()
 
 
@@ -466,6 +508,49 @@ async def test_elicitation_relayed_to_client(relay_env):
     )
     await asyncio.wait_for(responder_task, timeout=5)
     assert resp.json()["result"]["content"][0]["text"] == "hello Ada"
+
+
+async def test_elicitation_from_modern_upstream_relayed_to_legacy_client(relay_env):
+    """PROT-4/PROT-21: a modern upstream's input_required reaches a handshake client
+    as elicitation/create on its GET stream, and the reply completes the upstream call."""
+    http, app, base_url = relay_env
+    session = await _initialize_with_caps(http, {"elicitation": {}})
+
+    async def responder():
+        async with http.stream("GET", "/main/mcp", headers={"Mcp-Session-Id": session}) as resp:
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                msg = json.loads(line[6:])
+                if msg.get("method") == "elicitation/create":
+                    async with AsyncClient(
+                        base_url=base_url, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}
+                    ) as c:
+                        await c.post(
+                            "/main/mcp",
+                            headers={"Mcp-Session-Id": session},
+                            json={
+                                "jsonrpc": "2.0",
+                                "id": msg["id"],
+                                "result": {"action": "accept", "content": {"value": "Grace"}},
+                            },
+                        )
+                    return
+
+    responder_task = asyncio.create_task(responder())
+    await asyncio.sleep(0.2)
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={
+            "jsonrpc": "2.0",
+            "id": 8,
+            "method": "tools/call",
+            "params": {"name": "modern__ask_name", "arguments": {}},
+        },
+    )
+    await asyncio.wait_for(responder_task, timeout=5)
+    assert resp.json()["result"]["content"][0]["text"] == "hello Grace"
 
 
 async def test_roots_relayed_to_client(relay_env):

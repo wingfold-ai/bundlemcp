@@ -35,6 +35,15 @@ class ServerRead(EntityRead):
         description="What the server advertised at its last probe: which of tools, prompts, "
         "resources, completions and logging it supports, with its listChanged and subscribe flags",
     )
+    protocol_mode: str = Field(  # SRV-10
+        description="How the gateway negotiates the MCP revision with this server: 'auto' "
+        "(probe server/discover, fall back to initialize), 'legacy' (always initialize), "
+        "or a pinned revision date such as '2026-07-28'",
+    )
+    protocol_version: str | None = Field(  # SRV-10
+        description="MCP revision negotiated at the last successful probe; null until the "
+        "server has been reached once"
+    )
     health_status: HealthStatus = Field(
         description="Result of the most recent probe: ok, error or unknown"
     )
