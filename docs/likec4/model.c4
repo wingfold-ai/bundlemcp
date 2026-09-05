@@ -32,7 +32,7 @@ model {
   }
 
   mcpClient = external 'MCP Clients' {
-    description 'claude.ai, ChatGPT, scripts and other MCP consumers'
+    description 'claude.ai, ChatGPT, Copilot, scripts and other MCP consumers — handshake-era (initialize) and modern-era (2026-07-28) clients alike'
     style {
       shape browser
     }
@@ -43,7 +43,7 @@ model {
   }
 
   upstreams = external 'Upstream MCP Servers' {
-    description 'Streamable HTTP MCP servers (containers or hosted); stdio servers via sidecar'
+    description 'Streamable HTTP MCP servers of either protocol era (containers or hosted); stdio servers via sidecar'
   }
 
   appLayer = external 'Application Layer (ultra-mcp)' {
@@ -54,8 +54,8 @@ model {
     description 'Self-hostable MCP bundling gateway'
 
     gateway = container 'Gateway' {
-      description 'Serves bundle endpoints (full bidirectional MCP proxy), OAuth 2.1 server, management REST API, middleware/metering'
-      technology 'Python, FastAPI, FastMCP v3'
+      description 'Serves bundle endpoints (full bidirectional MCP proxy, one dialect per protocol revision), OAuth 2.1 server, management REST API, middleware/metering'
+      technology 'Python, FastAPI, FastMCP v4'
     }
 
     web = container 'Admin Web App' {
@@ -79,8 +79,8 @@ model {
 
   // context relationships
   admin -> web 'manages via browser' 'HTTPS'
-  mcpClient -[mcp]-> gateway 'calls bundle endpoints /{endpoint}/mcp, OAuth 2.1 w/ DCR+PKCE'
-  gateway -[mcp]-> upstreams 'aggregates; forwards identity (X-MCP-User, headers)'
+  mcpClient -[mcp]-> gateway 'calls bundle endpoints /{endpoint}/mcp (any supported revision), OAuth 2.1 w/ CIMD or DCR + PKCE'
+  gateway -[mcp]-> upstreams 'aggregates; negotiates era per server; forwards identity (X-MCP-User, headers)'
   upstreams -> gateway 'introspects forwarded bearers (/oauth/introspect)' 'HTTPS'
   gateway -> idp 'federates logins (authorization code flow)' 'OIDC'
   admin -> idp 'authenticates at'

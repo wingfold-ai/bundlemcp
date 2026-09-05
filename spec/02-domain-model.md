@@ -22,7 +22,9 @@ per-(server, user) instead of per-server.
 | `static_headers` (json) | headers always sent upstream (e.g. static bearer) |
 | `forward_headers` (json) | client→upstream header forwarding map ([24-identity-forwarding.md](24-identity-forwarding.md)) |
 | `auth_mode` | `none` \| `static_headers` \| `upstream_oauth` ([23-upstream-oauth.md](23-upstream-oauth.md)) |
-| `capabilities` (json) | advertised-capability snapshot from the upstream `initialize`, captured at discovery ([DISC-6](11-tool-discovery.md)); source for [PROT-11](32-protocol-passthrough.md) aggregation |
+| `capabilities` (json) | advertised-capability snapshot from the upstream `initialize` or `server/discover`, captured at discovery ([DISC-6](11-tool-discovery.md)); source for [PROT-11](32-protocol-passthrough.md) aggregation |
+| `protocol_mode` | `auto` \| `legacy` \| pinned revision — how the gateway negotiates with this upstream ([SRV-10](10-server-registry.md)) |
+| `protocol_version` | revision negotiated at the last discovery, `NULL` until probed ([SRV-10](10-server-registry.md)) |
 | `health_status`, `last_error` | `ok` \| `error` + message ([10-server-registry.md](10-server-registry.md)) |
 | `created_at`, `updated_at` | |
 

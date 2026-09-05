@@ -35,6 +35,8 @@ in the same PR as the change they govern
 | [0026](../adr/0026-controllers.md) | Controllers own an HTTP surface | Auth attached once per surface; the app factory lists surfaces |
 | [0027](../adr/0027-mcp-edge-method-handlers.md) | Method registry in the MCP edge; tool call as a pipeline object | One handler class per JSON-RPC method; credentials and rendering written once |
 | [0028](../adr/0028-oauth-server-as-services.md) | OAuth server as services with grant strategies | Thin OAuth controllers; typed single-use browser state; token store split by job |
+| [0029](../adr/0029-dialects-and-dual-era-edge.md) | Protocol dialects; dual-era edge | Every client era ↔ every upstream era; a new revision is one dialect class |
+| [0030](../adr/0030-fastmcp-4.md) | FastMCP 4 / SDK v2 upstream client | Modern upstreams reachable; era negotiated per server; snake_case SDK models |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).
