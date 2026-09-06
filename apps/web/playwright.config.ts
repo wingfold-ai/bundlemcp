@@ -14,6 +14,10 @@ export default defineConfig({
   timeout: recording ? 180_000 : 60_000,
   workers: 1, // the stack is stateful; keep flows deterministic
   retries: 0,
+  // The HTML report keeps every trace and video of the run under
+  // playwright-report/, so a recorded run survives the next run's cleanup of
+  // test-results/; stage-recordings.mjs builds the spec-linked gallery from it.
+  reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: process.env.WEB_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
