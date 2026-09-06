@@ -37,7 +37,13 @@ class UpstreamConnectFlow:
             code_challenge=pkce.challenge,
             scope=scope,
         )
-        return AuthorizeStart(url=url, code_verifier=pkce.verifier)
+        # UPO-8: record the issuer now, from validated metadata, never from the callback
+        return AuthorizeStart(
+            url=url,
+            code_verifier=pkce.verifier,
+            issuer=meta.issuer,
+            iss_required=meta.authorization_response_iss_parameter_supported,
+        )
 
     async def complete(
         self,

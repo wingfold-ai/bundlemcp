@@ -26,6 +26,7 @@ from bundlemcp.gateway.runtime_config import RuntimeConfig
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.gateway.upstream import default_client_factory
+from bundlemcp.oauth.client_metadata_fetcher import HttpxClientMetadataFetcher
 from bundlemcp.oauth.oidc import OidcProvider, build_provider
 from bundlemcp.oauth.token_purger import TokenPurger
 from bundlemcp.oauth.upstream_client import HttpxUpstreamProvider, UpstreamTokenStore
@@ -172,6 +173,8 @@ class CompositionRoot:
             oidc_provider=await self._build_oidc_provider(),
             invalidation=subscriber,
             mcp_edge=mcp_edge,
+            client_metadata=overrides.client_metadata_fetcher
+            or HttpxClientMetadataFetcher(settings, redis),
         )
 
     def _build_cipher(self) -> TokenCipher | None:

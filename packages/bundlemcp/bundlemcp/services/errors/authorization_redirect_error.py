@@ -9,10 +9,18 @@ class AuthorizationRedirectError(ServiceError):
     """
 
     def __init__(
-        self, redirect_uri: str, state: str | None, error: str, description: str = ""
+        self,
+        redirect_uri: str,
+        state: str | None,
+        error: str,
+        description: str = "",
+        *,
+        issuer: str | None = None,
     ) -> None:
+        # issuer is carried as `iss` on the redirect (RFC 9207) when known
         self.redirect_uri = redirect_uri
         self.state = state
         self.error = error
         self.description = description
+        self.issuer = issuer
         super().__init__(description or error)

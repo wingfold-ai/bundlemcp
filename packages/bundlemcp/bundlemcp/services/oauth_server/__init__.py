@@ -5,6 +5,10 @@ from bundlemcp.services.oauth_server.authorization_request import AuthorizationR
 from bundlemcp.services.oauth_server.authorization_service import AuthorizationService
 from bundlemcp.services.oauth_server.client_authenticator import OAuthClientAuthenticator
 from bundlemcp.services.oauth_server.client_credentials import ClientCredentials
+from bundlemcp.services.oauth_server.client_id_metadata_document import (
+    ClientIdMetadataDocument,
+)
+from bundlemcp.services.oauth_server.client_metadata_fetcher import ClientMetadataFetcher
 from bundlemcp.services.oauth_server.client_registration_service import (
     ClientRegistrationService,
 )
@@ -26,6 +30,8 @@ __all__ = [
     "AuthorizationRequest",
     "AuthorizationService",
     "ClientCredentials",
+    "ClientIdMetadataDocument",
+    "ClientMetadataFetcher",
     "ClientRegistrationService",
     "OAuthClientAuthenticator",
     "OAuthTokenService",

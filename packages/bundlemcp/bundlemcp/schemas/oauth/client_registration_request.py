@@ -27,3 +27,9 @@ class ClientRegistrationRequest(BaseModel):
         description="Response types the client intends to use",
     )
     scope: str = Field(default="mcp", description="Space-separated scopes requested")
+    application_type: str | None = Field(  # OAS-2
+        default=None,
+        pattern=r"^(web|native)$",
+        description="'web' for a browser-hosted client, 'native' for an installed one; MCP "
+        "clients registering dynamically state it so redirect URIs are validated accordingly",
+    )

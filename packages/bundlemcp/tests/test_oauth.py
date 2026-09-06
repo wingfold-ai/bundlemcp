@@ -22,6 +22,8 @@ from bundlemcp.models import (
     User,
 )
 from bundlemcp.oauth.session_cookie import SESSION_COOKIE
+from bundlemcp.services.errors import InvalidInputError
+from bundlemcp.services.oauth_server import ClientIdMetadataDocument
 from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
 from bundlemcp.store.admin_sessions import AdminSession
@@ -32,6 +34,24 @@ from sqlmodel import select
 
 SERVICE_KEY = generate_token(API_KEY_PREFIX)
 PUBLIC_URL = "http://gw"
+CIMD_CLIENT_ID = "https://client.example/oauth/client-metadata.json"
+
+
+class FakeClientMetadataFetcher:
+    """Serves one client's metadata document without touching the network (OAS-13)."""
+
+    def __init__(self) -> None:
+        self.fetches = 0
+
+    async def fetch(self, client_id_url: str) -> ClientIdMetadataDocument:
+        self.fetches += 1
+        if client_id_url != CIMD_CLIENT_ID:
+            raise InvalidInputError("client metadata document could not be fetched")
+        return ClientIdMetadataDocument(
+            client_id=CIMD_CLIENT_ID,
+            client_name="Metadata Client",
+            redirect_uris=["https://client.example/cb"],
+        )
 
 
 def make_pkce() -> tuple[str, str]:
@@ -45,7 +65,12 @@ def make_pkce() -> tuple[str, str]:
 @pytest.fixture
 async def oauth_env(engine: AsyncEngine, redis: FakeRedis):
     settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://", public_url=PUBLIC_URL)
-    app = create_app(settings, overrides=CompositionOverrides(engine=engine, redis=redis))
+    app = create_app(
+        settings,
+        overrides=CompositionOverrides(
+            engine=engine, redis=redis, client_metadata_fetcher=FakeClientMetadataFetcher()
+        ),
+    )
 
     factory = session_factory(engine)
     async with factory() as db:
@@ -429,3 +454,74 @@ async def test_missing_resource_rejected(oauth_env):
     )
     assert resp.status_code == 302
     assert "error=invalid_target" in resp.headers["location"]
+
+
+async def test_authorization_responses_carry_the_issuer(oauth_env):
+    """OAS-14: code and error redirects carry iss, and the metadata says so."""
+    http, app, user = oauth_env
+    client_id = await _register_client(http)
+    verifier, challenge = make_pkce()
+    params = {
+        "client_id": client_id,
+        "redirect_uri": "https://client.example/cb",
+        "response_type": "code",
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "state": "st4te",
+        "resource": f"{PUBLIC_URL}/ep1/mcp",
+    }
+    resp = await http.get("/oauth/authorize", params=params)
+    token = resp.text.split('name="token" value="')[1].split('"')[0]
+    approved = await http.post("/oauth/consent", data={"token": token, "action": "approve"})
+    assert parse_qs(urlparse(approved.headers["location"]).query)["iss"] == [PUBLIC_URL]
+
+    resp = await http.get("/oauth/authorize", params={**params, "resource": "https://elsewhere/x"})
+    query = parse_qs(urlparse(resp.headers["location"]).query)
+    assert query["error"] == ["invalid_target"] and query["iss"] == [PUBLIC_URL]
+
+    meta = (await http.get("/.well-known/oauth-authorization-server")).json()
+    assert meta["authorization_response_iss_parameter_supported"] is True
+    assert meta["client_id_metadata_document_supported"] is True
+
+
+async def test_client_id_metadata_document_needs_no_registration(oauth_env):
+    """OAS-13: an https client_id is resolved from its document and works end to end."""
+    http, app, user = oauth_env
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, CIMD_CLIENT_ID, challenge, f"{PUBLIC_URL}/ep1/mcp")
+    tokens = await _exchange(http, CIMD_CLIENT_ID, code, verifier)
+    assert tokens["access_token"].startswith("bmcp_")
+    assert app.state.container.client_metadata.fetches >= 1
+
+    unknown = await http.get(
+        "/oauth/authorize",
+        params={
+            "client_id": "https://client.example/other.json",
+            "redirect_uri": "https://client.example/cb",
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "resource": f"{PUBLIC_URL}/ep1/mcp",
+        },
+    )
+    assert unknown.status_code == 400  # never redirect for a client that cannot be resolved
+
+
+async def test_registration_records_application_type(oauth_env):
+    """OAS-2: application_type is accepted, stored and echoed."""
+    http, app, user = oauth_env
+    resp = await http.post(
+        "/oauth/register",
+        json={
+            "redirect_uris": ["http://localhost:3000/cb"],
+            "client_name": "Native",
+            "application_type": "native",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["application_type"] == "native"
+    bad = await http.post(
+        "/oauth/register",
+        json={"redirect_uris": ["https://client.example/cb"], "application_type": "desktop"},
+    )
+    assert bad.status_code == 422

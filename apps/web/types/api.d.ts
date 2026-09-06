@@ -687,7 +687,7 @@ export interface components {
              * @description MCP session the call belonged to
              */
             session_id: string | null;
-            /** @description Outcome: success, error or denied */
+            /** @description Outcome: success, error, denied, or input_required when the call paused for the client's input and continues on its retry */
             status: components["schemas"]["AuditStatus"];
             /**
              * Tool Name
@@ -704,7 +704,7 @@ export interface components {
          * AuditStatus
          * @enum {string}
          */
-        AuditStatus: "success" | "error" | "denied";
+        AuditStatus: "success" | "error" | "denied" | "input_required";
         /**
          * BundleMemberRead
          * @description A server's membership in a bundle.

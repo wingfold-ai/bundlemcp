@@ -18,5 +18,8 @@ class ClientRegistrationResponse(BaseModel):
         description="How the client authenticates at the token endpoint"
     )
     scope: str = Field(description="Space-separated scopes the client may request")
+    application_type: str | None = Field(
+        default=None, description="'web' or 'native' as registered, when the client said"
+    )
     authorization_endpoint: str = Field(description="Where to send the user to authorize")
     token_endpoint: str = Field(description="Where to exchange codes and refresh tokens")
