@@ -16,7 +16,10 @@
 ## Bring the stack up
 
 ```bash
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
+# core stack (gateway, web, Postgres, Valkey, Keycloak, echo-mcp)
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
+# ... plus the ultra-mcp fleet (private GHCR images)
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile fleet up -d --build --wait
 ```
 
 Services: gateway :8000, web UI :3000, Keycloak :8080 (admin/admin),

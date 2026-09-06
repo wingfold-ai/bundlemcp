@@ -6,6 +6,7 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
+    "openapi": "npm run openapi:export && npm run openapi:types",
     "openapi:export": "cd ../.. && uv run python -m bundlemcp.api.export_openapi > apps/web/openapi.json",
     "openapi:types": "openapi-typescript openapi.json -o types/api.d.ts",
     "test:ui": "playwright test",

@@ -3,10 +3,20 @@
 #
 # Egress note (SEC-2): compose service hostnames resolve to private IPs, which
 # the default egress policy allows; loopback/metadata ranges stay blocked.
+#
+# Profiles: the core stack (postgres, valkey, keycloak, echo-mcp, gateway, web)
+# starts by default; the ultra-mcp fleet is behind `--profile fleet` because
+# its images are private (deploy/TESTING.md).
+#
+# The inline defaults for secrets are for this dev stack only. A production
+# compose sets every one of them in its env file; the gateway refuses to boot
+# without token encryption keys only when upstream OAuth is used, so do not
+# rely on a boot failure to catch a missing value.
 
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: bundlemcp
       POSTGRES_PASSWORD: bundlemcp
@@ -23,6 +33,7 @@ services:
   # unchanged, so the connection URL keeps the standard redis:// scheme.
   valkey:
     image: valkey/valkey:8-alpine
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
@@ -31,6 +42,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.4
+    restart: unless-stopped
     command: ["start-dev", "--import-realm", "--http-port=8080"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -47,6 +59,7 @@ services:
 
   echo-mcp:
     build: ../examples/echo-mcp
+    restart: unless-stopped
     expose:
       - "9000"
 
@@ -56,6 +69,8 @@ services:
   # required; PSI_API_KEY raises Google quota when set.
   seo-psi:
     image: ${SEO_PSI_IMAGE:-ghcr.io/mhoegger/seo-psi-mcp:latest}
+    profiles: [fleet]
+    restart: unless-stopped
     environment:
       PSI_API_KEY: ${PSI_API_KEY:-}
     expose:
@@ -68,6 +83,8 @@ services:
   # OAuth client credentials in deploy/.env — see .env.example.
   seo-gsc:
     image: ${SEO_GSC_IMAGE:-ghcr.io/mhoegger/seo-gsc-mcp:latest}
+    profiles: [fleet]
+    restart: unless-stopped
     environment:
       GSC_GOOGLE_CLIENT_ID: ${GSC_GOOGLE_CLIENT_ID:-}
       GSC_GOOGLE_CLIENT_SECRET: ${GSC_GOOGLE_CLIENT_SECRET:-}
@@ -88,6 +105,8 @@ services:
   # DATAFORSEO_USERNAME/PASSWORD are set in deploy/.env.
   dataforseo:
     image: node:20-alpine
+    profiles: [fleet]
+    restart: unless-stopped
     command: ["npx", "-y", "dataforseo-mcp-server@2.9.8", "http"]
     environment:
       DATAFORSEO_USERNAME: ${DATAFORSEO_USERNAME:-}
@@ -98,6 +117,8 @@ services:
   # SeaweedFS (S3) backing HyperFrames render outputs.
   seaweedfs:
     image: chrislusf/seaweedfs:latest
+    profiles: [fleet]
+    restart: unless-stopped
     command: "server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data"
     ports:
       - "8333:8333" # presigned URLs (http://localhost:8333) resolve from the host
@@ -109,6 +130,8 @@ services:
   # Identifies callers by the gateway-injected X-MCP-User header (FWD-3).
   hyperframes:
     image: ${HYPERFRAMES_IMAGE:-ghcr.io/mhoegger/hyperframes-mcp:latest}
+    profiles: [fleet]
+    restart: unless-stopped
     shm_size: "1g"
     environment:
       PORT: "8080"
@@ -134,6 +157,15 @@ services:
     build:
       context: ..
       dockerfile: apps/gateway/Dockerfile
+    restart: unless-stopped
+    # DEP-3: the image's own HEALTHCHECK polls /readyz; declared here too so
+    # `depends_on: service_healthy` and `compose up --wait` see it
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 20s
+      retries: 6
     depends_on:
       postgres:
         condition: service_healthy
@@ -163,10 +195,18 @@ services:
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
     environment:
       NUXT_PUBLIC_API_BASE: ${BUNDLEMCP_PUBLIC_URL:-http://localhost:8000}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 6
     depends_on:
-      - gateway
+      gateway:
+        condition: service_healthy
     ports:
       - "3000:3000"
 
