@@ -22,9 +22,7 @@ class UserService:
         total, rows = await self._users.page(
             offset=offset, limit=limit, order_by=(User.created_at, User.id)
         )
-        return Page(
-            items=[UserRead.from_entity(u) for u in rows], total=total, offset=offset, limit=limit
-        )
+        return Page.of(rows, total, offset=offset, limit=limit, read=UserRead.from_entity)
 
     async def deactivate(self, user_id: uuid.UUID) -> UserRead:
         """Deactivation revokes tokens, consents, and (implicitly) sessions.

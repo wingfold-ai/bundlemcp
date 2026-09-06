@@ -172,3 +172,13 @@ async def test_pagination_limits(client: AsyncClient):
     """API-5: limit capped at 500, default 50."""
     resp = await client.get("/api/v1/servers", params={"limit": 9999})
     assert resp.status_code == 422
+
+
+async def test_pagination_bounds(client: AsyncClient):
+    """API-5: offset and limit are validated; the envelope echoes them."""
+    ok = await client.get("/api/v1/servers", params={"offset": 0, "limit": 500})
+    assert ok.status_code == 200 and ok.json()["limit"] == 500
+    for params in ({"limit": 0}, {"limit": 501}, {"offset": -1}, {"limit": "many"}):
+        assert (await client.get("/api/v1/servers", params=params)).status_code == 422, params
+    default = (await client.get("/api/v1/servers")).json()
+    assert default["offset"] == 0 and default["limit"] == 50

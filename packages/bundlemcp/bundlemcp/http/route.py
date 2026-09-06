@@ -1,13 +1,11 @@
 """Marking a controller method as a route, to be bound when the controller is built."""
 
-import itertools
 from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 ROUTE_ATTRIBUTE = "__bundlemcp_route__"
-_definition_order = itertools.count()
 
 
 class RouteSpec(BaseModel):
@@ -21,15 +19,11 @@ class RouteSpec(BaseModel):
         default_factory=dict,
         description="Keyword arguments passed through to FastAPI's add_api_route",
     )
-    order: int = Field(
-        description="Position among every decorated method in the process, so routes bind in "
-        "the order they were written and a literal path stays ahead of a parameterised one"
-    )
 
 
 def _mark(method: str, path: str, options: dict[str, Any]) -> Callable[[Callable], Callable]:
     def decorate(handler: Callable) -> Callable:
-        spec = RouteSpec(method=method, path=path, options=options, order=next(_definition_order))
+        spec = RouteSpec(method=method, path=path, options=options)
         setattr(handler, ROUTE_ATTRIBUTE, spec)
         return handler
 

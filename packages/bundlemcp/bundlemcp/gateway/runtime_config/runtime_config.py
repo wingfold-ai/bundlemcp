@@ -26,8 +26,7 @@ class RuntimeConfig:
             raise UnknownConfigKey(key)
         if not self._loaded:
             await self._load()
-        default, _typ = DEFAULTS[key]
-        return self._cache.get(key, default)
+        return self._cache.get(key, DEFAULTS[key].default)
 
     async def call_timeouts(self) -> CallTimeouts:
         """The current upstream call limits, from overrides or the registry defaults."""
@@ -40,7 +39,7 @@ class RuntimeConfig:
     async def all(self) -> dict[str, Any]:
         if not self._loaded:
             await self._load()
-        return {key: self._cache.get(key, default) for key, (default, _t) in DEFAULTS.items()}
+        return {key: self._cache.get(key, setting.default) for key, setting in DEFAULTS.items()}
 
     async def flush(self) -> None:
         """Drop the cache (invalidation event or subscription gap)."""

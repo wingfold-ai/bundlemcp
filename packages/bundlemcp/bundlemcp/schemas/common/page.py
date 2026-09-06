@@ -1,3 +1,5 @@
+from collections.abc import Callable, Sequence
+
 from pydantic import BaseModel, Field
 
 
@@ -8,3 +10,16 @@ class Page[T](BaseModel):
     total: int = Field(description="Total matching records, ignoring offset and limit")
     offset: int = Field(description="Records skipped before this page")
     limit: int = Field(description="Maximum records this page may contain")
+
+    @classmethod
+    def of[E](
+        cls,
+        rows: Sequence[E],
+        total: int,
+        *,
+        offset: int,
+        limit: int,
+        read: Callable[[E], T],
+    ) -> "Page[T]":
+        """The page a repository query returned, each row rendered through ``read``."""
+        return cls(items=[read(row) for row in rows], total=total, offset=offset, limit=limit)
