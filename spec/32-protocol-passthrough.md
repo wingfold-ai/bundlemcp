@@ -238,7 +238,10 @@ one used.
   absorb it, one adapter (upstream hop), registering the version, running the
   MCP conformance suite for that revision against the compose stack, and
   recording an ADR. Handlers, the relay, metering and audit MUST NOT need to
-  change for a revision that keeps the method set.
+  change for a revision that keeps the method set. The revision lists and the
+  per-revision method sets are read from the MCP SDK's registry
+  (`mcp_types.version`, `mcp_types.methods`); the gateway keeps only its own
+  decisions, such as the floor of the handshake window.
 
 ## Implementation
 
