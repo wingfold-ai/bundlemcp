@@ -17,19 +17,11 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # 0001 creates tables from the live SQLModel metadata, so a fresh database
-    # already carries these columns — only pre-0003 databases need the ALTERs.
-    bind = op.get_bind()
-    columns = {c["name"] for c in sa.inspect(bind).get_columns("mcp_servers")}
-    if "protocol_mode" not in columns:
-        op.add_column(
-            "mcp_servers",
-            sa.Column(
-                "protocol_mode", sa.String(), nullable=False, server_default=sa.text("'auto'")
-            ),
-        )
-    if "protocol_version" not in columns:
-        op.add_column("mcp_servers", sa.Column("protocol_version", sa.String(), nullable=True))
+    op.add_column(
+        "mcp_servers",
+        sa.Column("protocol_mode", sa.String(), nullable=False, server_default=sa.text("'auto'")),
+    )
+    op.add_column("mcp_servers", sa.Column("protocol_version", sa.String(), nullable=True))
 
 
 def downgrade() -> None:

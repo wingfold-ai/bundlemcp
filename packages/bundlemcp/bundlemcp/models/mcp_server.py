@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, String
+from sqlalchemy import JSON, Column, String, text
 from sqlmodel import Field, SQLModel
 
 from bundlemcp.models.base import _ts, utcnow
@@ -47,7 +47,7 @@ class McpServer(SQLModel, table=True):
     )
     capabilities: dict = Field(  # DISC-6, source for PROT-11 aggregation
         default_factory=dict,
-        sa_column=Column(JSON),
+        sa_column=Column(JSON, nullable=False, server_default=text("'{}'")),
         description="What the server advertised at its last probe. A key is present exactly "
         "when that capability was advertised",
     )
