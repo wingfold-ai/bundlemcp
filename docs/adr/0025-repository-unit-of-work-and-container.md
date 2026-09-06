@@ -53,7 +53,7 @@ per-user upstream were defined and never called.
   the seams a test may substitute. Providers read one container field each,
   and each package's providers live in its own `providers` module.
 - **The identity provider is ready by construction.**
-  `AuthlibOidcProvider.discover(settings)` fetches the discovery document and
+  `JoseOidcProvider.discover(settings)` fetches the discovery document and
   returns a usable provider; there is no `preload()` to forget. It raises
   `OidcError`, not `HTTPException`.
 

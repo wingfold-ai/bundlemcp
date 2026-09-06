@@ -1,6 +1,6 @@
 # ADR-0014: Gateway-rendered auth pages, authlib as OIDC RP, direct-DB token validation
 
-**Status:** accepted · **Date:** 2026-07-02
+**Status:** accepted · **Date:** 2026-07-02 · **Amended by:** [ADR-0031](0031-joserfc-id-token-validation.md) (joserfc replaces authlib for token verification)
 
 ## Context
 

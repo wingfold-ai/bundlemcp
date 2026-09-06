@@ -63,12 +63,16 @@ class LoginController(Controller):
         admin_sessions: AdminSessionsProvider,
         code: str = "",
         state: str = "",
+        error: str = "",
+        error_description: str = "",
     ) -> Response:
         login_state = await states.take(state)  # single-use state (CSRF)
         if login_state is None:
             raise HTTPException(400, "invalid or expired state")
         if provider is None:
             raise HTTPException(503, "no OIDC provider configured")
+        if error:  # the IdP declined (OIDC Core 3.1.2.6); there is no code to exchange
+            raise HTTPException(400, f"login failed: {error} {error_description}".strip())
         try:
             claims = await provider.exchange(
                 code=code, redirect_uri=self._redirect_uri(settings), nonce=login_state.nonce
