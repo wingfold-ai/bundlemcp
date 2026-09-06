@@ -1,47 +1,77 @@
-# Claude project template
+# bundlemcp
 
-A starter repository with Claude Code pre-configured so a new project is ready
-to work in immediately — no manual Claude setup.
+A self-hostable **MCP bundling gateway**. Register upstream MCP servers
+(Streamable HTTP), compose them into **bundles**, and expose each bundle
+through one or more **endpoints** shaped for the client that will use it:
+an OAuth profile for claude.ai, a re-annotation profile for ChatGPT, API-key
+access for scripts. One gateway, any number of replicas: sessions, rate
+limits and cross-replica signalling live in Valkey, configuration, tokens and
+the audit log in Postgres, so a restart or a second replica is a non-event.
 
-## What's pre-configured
+It is a focused rewrite of the bundling core of
+[metamcp](https://github.com/metatool-ai/metamcp), built to be consumed by an
+application layer such as [ultra-mcp](https://github.com/mhoegger/ultra-mcp)
+(identity provider, billing, discovery) but fully usable on its own with any
+OIDC provider.
 
-- **`claude-skills` marketplace registered** — `.claude/settings.json` declares
-  the [`mhoegger/claude-skills`](https://github.com/mhoegger/claude-skills)
-  marketplace under `extraKnownMarketplaces`, so its plugins are installable
-  without running `/plugin marketplace add` first.
-- **`git-attribution` plugin enabled** — via `enabledPlugins`. It keeps commits
-  and PRs in your name instead of Claude's.
-- **Attribution disabled at project scope** — `attribution: { commit: "", pr: "" }`
-  removes the `Co-Authored-By: Claude` commit trailer and the "Generated with
-  Claude Code" PR line for every local session, collaborator, and cloud (web)
-  run.
-- **Git identity set on session start** — a `SessionStart` hook configures
-  `user.name` / `user.email` so authorship is correct even on cloud VMs that
-  don't inherit your local git config.
-- **`CLAUDE.md`** — high-level project instructions with empty sections to fill
-  in and a completed **Git & Commit Attribution** section that points Claude at
-  [`.claude/docs/git-attribution.md`](.claude/docs/git-attribution.md) for the
-  standing rules.
+## Quickstart
 
-## Using this template
+Prerequisites: Docker with the compose plugin, and `127.0.0.1 keycloak` in
+`/etc/hosts` (the gateway hands the browser Keycloak URLs under the compose
+hostname):
 
-1. Click **Use this template** on GitHub (or copy this directory).
-2. Fill in `CLAUDE.md` — replace `<Project Name>` and complete the empty
-   sections. Leave the **Git & Commit Attribution** section intact.
-3. If you're not `mhoegger`, update the identity in the `SessionStart` hook in
-   `.claude/settings.json` (or run `/git-attribution:git-attribution-setup`).
-4. Open the project in Claude Code and trust the folder when prompted — the
-   marketplace and plugin load automatically.
-
-## Layout
-
+```bash
+echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
+cp deploy/.env.example deploy/.env
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
 ```
-.
-├── .claude/
-│   ├── settings.json          ← attribution off, marketplace + plugin, identity hook
-│   └── docs/
-│       └── git-attribution.md ← standing git/commit rules (referenced by CLAUDE.md)
-├── CLAUDE.md                  ← high-level instructions (sections to fill in)
-├── .gitignore
-└── README.md
+
+Then:
+
+1. Open the admin UI at <http://localhost:3000> and sign in through the
+   bundled dev identity provider with `admin` / `admin`.
+2. The seed (`deploy/seed.yaml`) has already registered the `echo` example
+   server, bundled it as `demo`, and exposed it at the `demo` endpoint with
+   API-key access. Call it with the dev service key:
+
+   ```bash
+   curl -s http://localhost:8000/demo/mcp \
+     -H "Authorization: Bearer bmcp_sk_devservicekey000000000000000000000000" \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+   ```
+
+3. Create an endpoint with the `claude` profile and connect it in claude.ai;
+   the gateway runs the OAuth authorization server and the consent screen
+   itself.
+
+The management API is documented at <http://localhost:8000/api/v1/docs>. The
+ultra-mcp fleet of upstreams (private images) starts with
+`--profile fleet`; see [deploy/TESTING.md](deploy/TESTING.md).
+
+## Where things are
+
+| | |
+|---|---|
+| [spec/](spec/README.md) | The source of truth: one atomic spec per capability, with testable requirement IDs; the decision log of what was deliberately left out |
+| [docs/arc42/](docs/arc42/) | Architecture rationale, arc42 sections |
+| [docs/adr/](docs/adr/README.md) | Architecture decision records, append-only |
+| [docs/likec4/](docs/likec4/) | Diagrams as a LikeC4 model |
+| [packages/bundlemcp/](packages/bundlemcp/) | The library: services, the OAuth server, the MCP edge, the management API |
+| [apps/gateway/](apps/gateway/) | The gateway entrypoint |
+| [apps/web/](apps/web/) | The Nuxt admin UI |
+| [deploy/](deploy/) | The compose stack, the dev Keycloak realm, the demo seed |
+
+## Development
+
+```bash
+uv sync --all-packages
+uv run pytest -q          # hermetic unit tests: in-memory SQLite + fakeredis
+uv run ruff check .
+uv run lint-imports       # the layer contract
+cd apps/web && npm ci && npm run typecheck
 ```
+
+Integration and browser tests run against the compose stack; see
+[deploy/TESTING.md](deploy/TESTING.md). Contributor conventions are in
+[CLAUDE.md](CLAUDE.md).
