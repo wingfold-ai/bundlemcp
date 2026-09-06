@@ -11,10 +11,10 @@ from bundlemcp.gateway.signals.reply_signal import ReplySignal
 from bundlemcp.gateway.signals.resume_signal import ResumeSignal
 from bundlemcp.gateway.signals.signal_envelope import SignalEnvelope
 from bundlemcp.gateway.streams import StreamRegistry
-from bundlemcp.store.redis import SIGNAL_CHANNEL
 
 log = structlog.get_logger("bundlemcp.gateway.signals")
 
+SIGNAL_CHANNEL = "bmcp:signal:{routing_key}"  # SES-13 cross-replica delivery
 SIGNAL_PATTERN = "bmcp:signal:*"
 
 

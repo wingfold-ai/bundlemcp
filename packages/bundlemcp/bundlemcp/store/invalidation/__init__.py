@@ -7,8 +7,10 @@ this channel — caching without subscribing is forbidden.
 
 from bundlemcp.store.invalidation.invalidation_event import EntityType, InvalidationEvent
 from bundlemcp.store.invalidation.invalidation_subscriber import InvalidationSubscriber
-from bundlemcp.store.invalidation.publish_invalidation import publish_invalidation
-from bundlemcp.store.redis import INVALIDATION_CHANNEL
+from bundlemcp.store.invalidation.publish_invalidation import (
+    INVALIDATION_CHANNEL,
+    publish_invalidation,
+)
 
 __all__ = [
     "INVALIDATION_CHANNEL",

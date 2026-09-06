@@ -5,8 +5,11 @@ import json
 import uuid
 
 from bundlemcp.models import CallerIdentity
-from bundlemcp.store import INVALIDATION_CHANNEL
-from bundlemcp.store.invalidation import InvalidationEvent, publish_invalidation
+from bundlemcp.store.invalidation import (
+    INVALIDATION_CHANNEL,
+    InvalidationEvent,
+    publish_invalidation,
+)
 from bundlemcp.store.sessions import SessionRecord, SessionStore, UpstreamBinding
 
 
