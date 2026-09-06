@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { components } from "~~/types/api";
 
+type UpstreamOAuthStatusRead = components["schemas"]["UpstreamOAuthStatusRead"];
 type ServerRead = components["schemas"]["ServerRead"];
 type ToolRead = components["schemas"]["ToolRead"];
 
@@ -10,15 +11,6 @@ const serverName = computed(() => String(route.params.name));
 
 const errorMsg = ref("");
 const notFound = ref(false);
-
-function errText(e: unknown): string {
-  const d = (e as { detail?: unknown } | null)?.detail;
-  if (typeof d === "string") return d;
-  if (Array.isArray(d)) {
-    return d.map((v) => (v as { msg?: string }).msg ?? JSON.stringify(v)).join("; ");
-  }
-  return "Request failed";
-}
 
 // ---- config card state ----
 const server = ref<ServerRead | null>(null);
@@ -40,7 +32,7 @@ async function loadServer() {
     if (response?.status === 404) {
       notFound.value = true;
     } else {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
     }
     return;
   }
@@ -51,7 +43,7 @@ async function loadServer() {
   identityMode.value = data.identity_mode as typeof identityMode.value;
   sendIdentityHeader.value = data.send_identity_header;
   fwdRows.value = Object.entries(data.forward_headers).map(([key, val]) => ({ key, val }));
-  staticHeaderNames.value = data.static_header_names;
+  staticHeaderNames.value = data.static_header_names ?? [];
   hdrRows.value = [];
 }
 
@@ -90,7 +82,7 @@ async function saveServer() {
       },
     });
     if (error) {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
       return;
     }
     await loadServer();
@@ -109,7 +101,7 @@ async function loadTools() {
     params: { path: { name: serverName.value }, query: { offset: 0, limit: 200 } },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   tools.value = data.items;
@@ -124,7 +116,7 @@ async function refreshTools() {
       params: { path: { name: serverName.value } },
     });
     if (error) {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
       return;
     }
     const r = data as { discovered?: unknown; changed?: unknown; error?: unknown };
@@ -136,7 +128,7 @@ async function refreshTools() {
 }
 
 // ---- upstream oauth card state ----
-const upstreamStatus = ref<Record<string, unknown> | null>(null);
+const upstreamStatus = ref<UpstreamOAuthStatusRead | null>(null);
 const upClientId = ref("");
 const upClientSecret = ref("");
 const upAuthUrl = ref("");
@@ -149,9 +141,9 @@ async function loadUpstreamStatus() {
   });
   if (error) return; // status is optional; missing config is not a page error
   upstreamStatus.value = data;
-  if (typeof data.client_id === "string") upClientId.value = data.client_id;
-  if (typeof data.authorization_url === "string") upAuthUrl.value = data.authorization_url;
-  if (typeof data.token_url === "string") upTokenUrl.value = data.token_url;
+  upClientId.value = data.client_id ?? "";
+  upAuthUrl.value = data.authorization_url ?? "";
+  upTokenUrl.value = data.token_url ?? "";
 }
 
 async function saveUpstream() {
@@ -168,7 +160,7 @@ async function saveUpstream() {
       },
     });
     if (error) {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
       return;
     }
     upClientSecret.value = "";
@@ -184,7 +176,7 @@ async function disconnectUpstream() {
     params: { path: { name: serverName.value } },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await loadUpstreamStatus();
@@ -217,7 +209,7 @@ async function renameServer() {
     },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await navigateTo(`/servers/${newName}`);
@@ -230,7 +222,7 @@ async function deleteServer() {
     params: { path: { name: serverName.value } },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await navigateTo("/servers");

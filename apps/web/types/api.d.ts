@@ -511,7 +511,7 @@ export interface components {
              * @description 'endpoint' keys call MCP endpoints; 'service' keys call the management API
              * @default endpoint
              */
-            kind: components["schemas"]["ApiKeyKind"];
+            kind?: components["schemas"]["ApiKeyKind"];
             /**
              * Name
              * @description Human-readable label for the key, shown in listings
@@ -799,7 +799,7 @@ export interface components {
              * @description Whether the server's tools are served through this bundle
              * @default true
              */
-            enabled: boolean;
+            enabled?: boolean;
         };
         /**
          * BundleToolRead
@@ -873,7 +873,7 @@ export interface components {
              * @description Whether this tool is served through the bundle
              * @default true
              */
-            enabled: boolean;
+            enabled?: boolean;
             /**
              * Override Annotations
              * @description Replacement MCP annotations for this bundle
@@ -909,7 +909,7 @@ export interface components {
             description?: string | null;
             /**
              * Name
-             * @description Unique bundle name; lowercase letters, digits and hyphens
+             * @description Unique bundle name: letters, digits, underscores and hyphens
              */
             name: string;
         };
@@ -979,13 +979,13 @@ export interface components {
              * @description Tools written to the cache because their definition hash moved
              * @default 0
              */
-            changed: number;
+            changed?: number;
             /**
              * Discovered
              * @description Tools the upstream reported in this probe
              * @default 0
              */
-            discovered: number;
+            discovered?: number;
             /**
              * Error
              * @description Why the probe failed; None when it succeeded
@@ -1084,7 +1084,7 @@ export interface components {
              * @description Confirms an intentionally open endpoint. Required whenever auth_modes is ['none'], so an endpoint is never left unauthenticated by accident
              * @default false
              */
-            allow_unauthenticated: boolean;
+            allow_unauthenticated?: boolean;
             /**
              * Auth Modes
              * @description Accepted credentials. 'none' is only valid on its own and additionally requires allow_unauthenticated
@@ -1100,13 +1100,13 @@ export interface components {
              * @description Whether the endpoint serves requests once saved
              * @default true
              */
-            enabled: boolean;
+            enabled?: boolean;
             /**
              * Force
              * @description Confirm a rename that would otherwise be rejected, accepting that clients using the old name will break
              * @default false
              */
-            force: boolean;
+            force?: boolean;
             /**
              * Name
              * @description Unique endpoint name; it becomes the URL path segment clients call
@@ -1116,7 +1116,7 @@ export interface components {
              * @description Client profile shaping the responses for a particular consumer
              * @default default
              */
-            profile: components["schemas"]["EndpointProfile"];
+            profile?: components["schemas"]["EndpointProfile"];
             /** @description Rate limits for this endpoint; omit for unlimited */
             rate_limit?: components["schemas"]["RateLimitConfig"] | null;
         };
@@ -1160,7 +1160,7 @@ export interface components {
              * @description Whether the caller may use the management API
              * @default false
              */
-            is_admin: boolean;
+            is_admin?: boolean;
             /**
              * Kind
              * @description What authenticated this call: an admin session, a signed-in user without admin rights, or a service API key
@@ -1346,13 +1346,13 @@ export interface components {
              * @description Whether requests are denied when the rate-limit store is unreachable. False keeps serving traffic unlimited during an outage
              * @default false
              */
-            fail_closed: boolean;
+            fail_closed?: boolean;
             /**
              * Include Initialize List
              * @description Whether initialize and tools/list count against these limits; by default only tool calls do
              * @default false
              */
-            include_initialize_list: boolean;
+            include_initialize_list?: boolean;
             /** @description Limit applied per caller, keyed by OAuth user, else API key, else client IP */
             per_client?: components["schemas"]["RateRule"] | null;
         };
@@ -1389,7 +1389,7 @@ export interface components {
              * @description What the server advertised at its last probe: which of tools, prompts, resources, completions and logging it supports, with its listChanged and subscribe flags
              * @default {}
              */
-            capabilities: {
+            capabilities?: {
                 [key: string]: unknown;
             };
             /**
@@ -1450,7 +1450,7 @@ export interface components {
              * @description Names of the headers sent upstream. Values are write-only and never leave the API, so only the names appear here
              * @default []
              */
-            static_header_names: string[];
+            static_header_names?: string[];
             /**
              * Updated At
              * Format: date-time
@@ -1472,7 +1472,7 @@ export interface components {
              * @description How the gateway authenticates to this server
              * @default none
              */
-            auth_mode: components["schemas"]["ServerAuthMode"];
+            auth_mode?: components["schemas"]["ServerAuthMode"];
             /**
              * Description
              * @description Free-text note about what this server provides
@@ -1483,7 +1483,7 @@ export interface components {
              * @description Confirm a rename that would otherwise be rejected, accepting that bundles and tool names derived from the old name change with it
              * @default false
              */
-            force: boolean;
+            force?: boolean;
             /**
              * Forward Headers
              * @description Client headers to pass through, mapped from incoming name to upstream name
@@ -1495,10 +1495,10 @@ export interface components {
              * @description Whether all callers share one upstream identity or each gets their own
              * @default shared
              */
-            identity_mode: components["schemas"]["IdentityMode"];
+            identity_mode?: components["schemas"]["IdentityMode"];
             /**
              * Name
-             * @description Unique server name; lowercase letters, digits and hyphens, and it may not contain a double underscore because that separates server from tool
+             * @description Unique server name: letters, digits, underscores and hyphens, without a double underscore because that separates server from tool in presented tool names
              */
             name: string;
             /**
@@ -1506,13 +1506,13 @@ export interface components {
              * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision
              * @default auto
              */
-            protocol_mode: string;
+            protocol_mode?: string;
             /**
              * Send Identity Header
              * @description Whether the calling user's identity is forwarded to the upstream server
              * @default true
              */
-            send_identity_header: boolean;
+            send_identity_header?: boolean;
             /**
              * Static Headers
              * @description Headers sent on every upstream request, for credentials the server needs. Values are write-only and never returned
@@ -1648,7 +1648,7 @@ export interface components {
              * @description Whether a valid, unexpired token set is stored
              * @default false
              */
-            connected: boolean;
+            connected?: boolean;
             /**
              * Expires At
              * @description When the current access token expires, if known
@@ -1659,7 +1659,7 @@ export interface components {
              * @description Whether the upstream last accepted the stored tokens; false after a failed refresh until the account is reconnected
              * @default false
              */
-            valid: boolean;
+            valid?: boolean;
         };
         /**
          * UpstreamOAuthClientRead
@@ -1714,6 +1714,16 @@ export interface components {
          */
         UpstreamOAuthStatusRead: {
             /**
+             * Authorization Url
+             * @description Operator-configured authorization endpoint; null when it is discovered
+             */
+            authorization_url?: string | null;
+            /**
+             * Client Id
+             * @description Client id registered at the upstream authorization server; null until set
+             */
+            client_id?: string | null;
+            /**
              * Configured
              * @description Whether this gateway can store upstream tokens at all; false until token encryption keys are configured
              */
@@ -1722,6 +1732,11 @@ export interface components {
             identity_mode: components["schemas"]["IdentityMode"];
             /** @description State of the shared connection; null when upstream OAuth is not configured */
             shared?: components["schemas"]["UpstreamConnectionStatus"] | null;
+            /**
+             * Token Url
+             * @description Operator-configured token endpoint; null when it is discovered
+             */
+            token_url?: string | null;
         };
         /**
          * UserRead

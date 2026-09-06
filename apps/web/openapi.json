@@ -653,6 +653,7 @@
           "override_name": {
             "anyOf": [
               {
+                "pattern": "^[a-zA-Z0-9_-]+$",
                 "type": "string"
               },
               {
@@ -694,7 +695,8 @@
             "title": "Description"
           },
           "name": {
-            "description": "Unique bundle name; lowercase letters, digits and hyphens",
+            "description": "Unique bundle name: letters, digits, underscores and hyphens",
+            "pattern": "^[a-zA-Z0-9_-]+$",
             "title": "Name",
             "type": "string"
           }
@@ -969,6 +971,7 @@
           },
           "name": {
             "description": "Unique endpoint name; it becomes the URL path segment clients call",
+            "pattern": "^[a-zA-Z0-9_-]+$",
             "title": "Name",
             "type": "string"
           },
@@ -1593,7 +1596,8 @@
             "description": "Whether all callers share one upstream identity or each gets their own"
           },
           "name": {
-            "description": "Unique server name; lowercase letters, digits and hyphens, and it may not contain a double underscore because that separates server from tool",
+            "description": "Unique server name: letters, digits, underscores and hyphens, without a double underscore because that separates server from tool in presented tool names",
+            "pattern": "^[a-zA-Z0-9_-]+$",
             "title": "Name",
             "type": "string"
           },
@@ -1939,6 +1943,30 @@
       "UpstreamOAuthStatusRead": {
         "description": "Connection state of a server's upstream OAuth, never its token values.",
         "properties": {
+          "authorization_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Operator-configured authorization endpoint; null when it is discovered",
+            "title": "Authorization Url"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Client id registered at the upstream authorization server; null until set",
+            "title": "Client Id"
+          },
           "configured": {
             "description": "Whether this gateway can store upstream tokens at all; false until token encryption keys are configured",
             "title": "Configured",
@@ -1958,6 +1986,18 @@
               }
             ],
             "description": "State of the shared connection; null when upstream OAuth is not configured"
+          },
+          "token_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Operator-configured token endpoint; null when it is discovered",
+            "title": "Token Url"
           }
         },
         "required": [

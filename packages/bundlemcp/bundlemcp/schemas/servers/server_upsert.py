@@ -10,8 +10,8 @@ class ServerUpsert(BaseModel):
     """Body for POST /servers and PUT /servers/{name}."""
 
     name: ServerName = Field(
-        description="Unique server name; lowercase letters, digits and hyphens, and it may "
-        "not contain a double underscore because that separates server from tool"
+        description="Unique server name: letters, digits, underscores and hyphens, without a "
+        "double underscore because that separates server from tool in presented tool names"
     )
     description: str | None = Field(
         default=None, description="Free-text note about what this server provides"

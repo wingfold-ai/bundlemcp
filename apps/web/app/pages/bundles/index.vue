@@ -6,15 +6,6 @@ type BundleRead = components["schemas"]["BundleRead"];
 const api = useApi();
 const errorMsg = ref("");
 
-function errText(e: unknown): string {
-  const d = (e as { detail?: unknown } | null)?.detail;
-  if (typeof d === "string") return d;
-  if (Array.isArray(d)) {
-    return d.map((v) => (v as { msg?: string }).msg ?? JSON.stringify(v)).join("; ");
-  }
-  return "Request failed";
-}
-
 const { data: bundles, refresh } = await useAsyncData<BundleRead[]>(
   "bundles-list",
   async () => {
@@ -22,7 +13,7 @@ const { data: bundles, refresh } = await useAsyncData<BundleRead[]>(
       params: { query: { offset: 0, limit: 100 } },
     });
     if (error) {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
       return [];
     }
     return data.items;
@@ -49,7 +40,7 @@ async function createBundle() {
       body: { name, description: createDescription.value || null },
     });
     if (error) {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
       return;
     }
     createName.value = "";

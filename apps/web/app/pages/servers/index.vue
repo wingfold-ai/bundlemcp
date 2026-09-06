@@ -6,15 +6,6 @@ type ServerRead = components["schemas"]["ServerRead"];
 const api = useApi();
 const errorMsg = ref("");
 
-function errText(e: unknown): string {
-  const d = (e as { detail?: unknown } | null)?.detail;
-  if (typeof d === "string") return d;
-  if (Array.isArray(d)) {
-    return d.map((v) => (v as { msg?: string }).msg ?? JSON.stringify(v)).join("; ");
-  }
-  return "Request failed";
-}
-
 const { data: servers, refresh } = await useAsyncData<ServerRead[]>(
   "servers-list",
   async () => {
@@ -22,19 +13,13 @@ const { data: servers, refresh } = await useAsyncData<ServerRead[]>(
       params: { query: { offset: 0, limit: 100 } },
     });
     if (error) {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
       return [];
     }
     return data.items;
   },
   { default: () => [] },
 );
-
-function healthColor(status: string): "success" | "error" | "neutral" {
-  if (status === "ok") return "success";
-  if (status === "error") return "error";
-  return "neutral";
-}
 
 const createName = ref("");
 const createUrl = ref("");
@@ -66,7 +51,7 @@ async function createServer() {
       },
     });
     if (error) {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
       return;
     }
     createName.value = "";
