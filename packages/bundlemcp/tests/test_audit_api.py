@@ -1,37 +1,20 @@
 """Audit-records listing API (AUD-6: filters + API-5 pagination)."""
 
-from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 import pytest
-from bundlemcp.api.app import create_app
-from bundlemcp.api.composition_overrides import CompositionOverrides
-from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
-from bundlemcp.models import ApiKey, ApiKeyKind, AuditRecord
-from bundlemcp.settings import Settings
+from bundlemcp.crypto import API_KEY_PREFIX, generate_token
+from bundlemcp.models import AuditRecord
 from bundlemcp.store import session_factory
-from fakeredis.aioredis import FakeRedis
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 SERVICE_KEY = generate_token(API_KEY_PREFIX)
 
 
 @pytest.fixture
-async def client(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[AsyncClient]:
-    settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://")
-    app = create_app(settings, overrides=CompositionOverrides(engine=engine, redis=redis))
-
-    factory = session_factory(engine)
-    async with factory() as db:
-        db.add(
-            ApiKey(
-                name="test-service",
-                key_hash=hash_token(SERVICE_KEY),
-                key_prefix=display_prefix(SERVICE_KEY),
-                kind=ApiKeyKind.SERVICE,
-            )
-        )
+async def client(service_client: AsyncClient, engine: AsyncEngine) -> AsyncClient:
+    async with session_factory(engine)() as db:
         db.add(
             AuditRecord(
                 created_at=datetime(2026, 7, 1, 10, 0, tzinfo=UTC),
@@ -57,14 +40,7 @@ async def client(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[AsyncCl
             )
         )
         await db.commit()
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        headers={"Authorization": f"Bearer {SERVICE_KEY}"},
-    ) as c:
-        async with app.router.lifespan_context(app):
-            yield c
+    return service_client
 
 
 async def test_list_audit_records_paged(client: AsyncClient):

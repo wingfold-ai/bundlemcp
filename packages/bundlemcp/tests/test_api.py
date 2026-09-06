@@ -1,46 +1,12 @@
 """Management API tests (spec 40: API-2/4/5/6; spec 14 EP-3/EP-8; spec 22)."""
 
-from collections.abc import AsyncIterator
-
 import pytest
-from bundlemcp.api.app import create_app
-from bundlemcp.api.composition_overrides import CompositionOverrides
-from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
-from bundlemcp.models import ApiKey, ApiKeyKind
-from bundlemcp.settings import Settings
-from bundlemcp.store import session_factory
-from fakeredis.aioredis import FakeRedis
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncEngine
-
-SERVICE_KEY = generate_token(API_KEY_PREFIX)
+from httpx import AsyncClient
 
 
 @pytest.fixture
-async def client(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[AsyncClient]:
-    settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://")
-    app = create_app(settings, overrides=CompositionOverrides(engine=engine, redis=redis))
-
-    # seed a service key (KEY-2 service kind)
-    factory = session_factory(engine)
-    async with factory() as db:
-        db.add(
-            ApiKey(
-                name="test-service",
-                key_hash=hash_token(SERVICE_KEY),
-                key_prefix=display_prefix(SERVICE_KEY),
-                kind=ApiKeyKind.SERVICE,
-            )
-        )
-        await db.commit()
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        headers={"Authorization": f"Bearer {SERVICE_KEY}"},
-    ) as c:
-        async with app.router.lifespan_context(app):
-            yield c
+def client(service_client: AsyncClient) -> AsyncClient:
+    return service_client
 
 
 async def test_auth_required(client: AsyncClient):
