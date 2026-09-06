@@ -48,7 +48,11 @@ application layer can resolve a stable `sub`.
   can serve api_key-authenticated callers and tool discovery of such
   upstreams can authenticate via a static `authorization` header.
 - **OAS-6 Revocation** (RFC 7009): `POST /oauth/revoke` for access and
-  refresh tokens.
+  refresh tokens. The client authenticates as at the token endpoint (a
+  public client by `client_id` alone) and may revoke only tokens issued to
+  it; a token that is unknown or another client's is answered 200 and left
+  alone. Authentication failures count toward the [RATE-5](16-rate-limiting.md)
+  lockout.
 - **OAS-7** Resource-server validation of bearer tokens on endpoints MUST be a
   **direct database/Redis lookup**, not an HTTP self-call to the introspection
   route (metamcp anti-pattern: it introspected itself over HTTP per request).
