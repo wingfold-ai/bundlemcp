@@ -35,6 +35,12 @@ class OAuthAccessToken(SQLModel, table=True):
         description="Endpoint the token is valid for. A token presented to any other endpoint "
         "is rejected as the wrong audience",
     )
+    family_id: uuid.UUID = Field(  # OAS-4, RFC 9700 section 4.14.2
+        default_factory=uuid.uuid4,
+        index=True,
+        description="Groups every pair descended from one authorization grant through refresh "
+        "rotation. A replayed refresh token revokes the whole family",
+    )
     scope: str = Field(default="mcp", description="Scopes granted")
     expires_at: datetime = Field(sa_column=_ts(), description="When the access token expires")
     refresh_expires_at: datetime | None = Field(

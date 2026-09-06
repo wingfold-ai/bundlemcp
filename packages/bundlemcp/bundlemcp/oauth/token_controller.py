@@ -24,6 +24,14 @@ class OAuthTokenController(Controller):
     tags = ("oauth",)
     include_in_schema = False
 
+    @staticmethod
+    def _locked(retry_after: int) -> Response:
+        locked = oauth_error_response(
+            "too_many_requests", "too many authentication failures", status=429
+        )
+        locked.headers["Retry-After"] = str(retry_after)
+        return locked
+
     @route.post("/token")
     async def token(  # noqa: PLR0913 - one form field per RFC 6749 parameter
         self,
@@ -38,6 +46,10 @@ class OAuthTokenController(Controller):
         client_id: Annotated[str | None, Form()] = None,
         client_secret: Annotated[str | None, Form()] = None,
     ) -> Response:
+        # RATE-5: a locked-out client gets no credential evaluated, correct or not
+        standing = await auth_failures.locked_out(request)
+        if not standing.allowed:
+            return self._locked(standing.retry_after)
         credentials = ClientCredentials.from_basic_header(
             request.headers.get("authorization")
         ) or ClientCredentials(client_id=client_id or "", client_secret=client_secret)
@@ -55,11 +67,7 @@ class OAuthTokenController(Controller):
                 # RATE-5: a failed grant is a credential-scan signal
                 result = await auth_failures.record(request)
                 if not result.allowed:
-                    locked = oauth_error_response(
-                        "too_many_requests", "too many authentication failures", status=429
-                    )
-                    locked.headers["Retry-After"] = str(result.retry_after)
-                    return locked
+                    return self._locked(result.retry_after)
             return oauth_error_response(exc.error, exc.description, status=exc.status)
         return Response(
             tokens.model_dump_json(),

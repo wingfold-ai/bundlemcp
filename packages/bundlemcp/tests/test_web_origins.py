@@ -139,3 +139,32 @@ async def test_me_for_non_admin_session(env):
     # but the management API itself stays closed to non-admins
     denied = await http.get("/api/v1/servers")
     assert denied.status_code == 401
+
+
+async def test_origin_must_match_exactly(env):
+    """SEC-4: an origin that merely starts with an allowed one is not allowed."""
+    http, provider = env
+    await _login(http, provider)
+    body = {"name": "s1", "url": "http://s1/mcp"}
+
+    for origin in (f"{PUBLIC_URL}.evil.test", f"{WEB_ORIGIN}.evil.test", "http://gw:8080"):
+        bad = await http.put("/api/v1/servers/s1", json=body, headers={"Origin": origin})
+        assert bad.status_code == 403, origin
+    ok = await http.put("/api/v1/servers/s1", json=body, headers={"Origin": PUBLIC_URL + "/"})
+    assert ok.status_code == 200
+
+
+async def test_referer_must_sit_under_an_allowed_origin(env):
+    """SEC-4: a Referer is a URL: a path under an allowed origin passes, a lookalike host fails."""
+    http, provider = env
+    await _login(http, provider)
+    body = {"name": "s1", "url": "http://s1/mcp"}
+
+    ok = await http.put(
+        "/api/v1/servers/s1", json=body, headers={"Referer": f"{WEB_ORIGIN}/servers/s1"}
+    )
+    assert ok.status_code == 200
+    bad = await http.put(
+        "/api/v1/servers/s1", json=body, headers={"Referer": f"{WEB_ORIGIN}.evil.test/servers"}
+    )
+    assert bad.status_code == 403

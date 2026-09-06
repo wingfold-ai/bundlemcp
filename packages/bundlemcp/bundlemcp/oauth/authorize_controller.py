@@ -1,11 +1,12 @@
 """Authorization endpoint + consent screen."""
 
 from typing import Annotated
-from urllib.parse import quote, urlencode
+from urllib.parse import quote
 
 import structlog
 from fastapi import Depends, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastmcp.server.auth.redirect_validation import build_client_redirect
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from bundlemcp.http import Controller, route
@@ -38,10 +39,14 @@ class AuthorizeController(Controller):
 
     @staticmethod
     def _code_redirect(pending: PendingAuthorization, code: str, issuer: str) -> RedirectResponse:
-        params = {"code": code, "iss": issuer}  # OAS-14 (RFC 9207)
+        params = {"code": code}
         if pending.state:
             params["state"] = pending.state
-        return RedirectResponse(f"{pending.redirect_uri}?{urlencode(params)}", status_code=302)
+        # A registered redirect URI may carry its own query; the parameters are
+        # merged into it, and iss (OAS-14, RFC 9207) is set exactly once.
+        return RedirectResponse(
+            build_client_redirect(pending.redirect_uri, params, iss=issuer), status_code=302
+        )
 
     @route.get("/authorize")
     async def authorize(

@@ -19,8 +19,15 @@ class TokenIssuer:
         self._tokens = Repository(session, OAuthAccessToken)
 
     def issue(
-        self, *, client_id: str, user_id: uuid.UUID, endpoint_id: uuid.UUID, scope: str
+        self,
+        *,
+        client_id: str,
+        user_id: uuid.UUID,
+        endpoint_id: uuid.UUID,
+        scope: str,
+        family_id: uuid.UUID | None = None,
     ) -> TokenResponse:
+        """Mint a pair; a refresh passes the family it continues, a fresh grant starts one."""
         access = generate_token(ACCESS_TOKEN_PREFIX)
         refresh = generate_token(REFRESH_TOKEN_PREFIX)
         self._tokens.add(
@@ -30,6 +37,7 @@ class TokenIssuer:
                 client_id=client_id,
                 user_id=user_id,
                 endpoint_id=endpoint_id,
+                family_id=family_id or uuid.uuid4(),
                 scope=scope,
                 expires_at=utcnow() + ACCESS_TOKEN_TTL,
                 refresh_expires_at=utcnow() + REFRESH_TOKEN_TTL,

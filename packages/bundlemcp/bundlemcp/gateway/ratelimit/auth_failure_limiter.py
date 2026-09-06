@@ -26,6 +26,10 @@ class AuthFailureLimiter:
         self._limit = limit
         self._window = window
 
+    async def locked_out(self, client_ip: str) -> RateResult:
+        """Whether this IP has already exhausted its budget, without counting anything."""
+        return await self._limiter.peek(f"authfail:{client_ip}", self._limit, self._window)
+
     async def record_failure(self, client_ip: str) -> RateResult:
         """Count one auth failure for this IP and report whether it is now locked out."""
         self._counters.inc(AUTH_FAILURES)

@@ -10,7 +10,12 @@ from bundlemcp.store import Repository
 
 
 class RefreshTokenGrant:
-    """Rotate a refresh token: the old pair is revoked as the new one is issued."""
+    """Rotate a refresh token: the old pair is revoked as the new one is issued.
+
+    A refresh token presented again after it was rotated is the signature of
+    a stolen token, so the whole family descended from the original grant is
+    revoked, whichever party still holds the newest one.
+    """
 
     grant_type = "refresh_token"
 
@@ -24,13 +29,32 @@ class RefreshTokenGrant:
         current = await self._tokens.one(
             OAuthAccessToken.refresh_token_hash == hash_token(request.refresh_token)
         )
-        if current is None or not current.is_refreshable or current.client_id != client.client_id:
+        if current is None or current.client_id != client.client_id:
             raise OAuthError("invalid_grant")
-        current.revoked = True  # rotation (OAS-4)
-        self._tokens.add(current)
+        if current.revoked:
+            await self._revoke_family(current)  # RFC 9700 section 4.14.2
+            raise OAuthError("invalid_grant")
+        if not current.is_refreshable:
+            raise OAuthError("invalid_grant")
+        # OAS-4 rotation as a compare-and-set: a concurrent rotation of the same
+        # token is a replay too, and it is refused the same way.
+        rotated = await self._tokens.update_where(
+            OAuthAccessToken.id == current.id,
+            OAuthAccessToken.revoked.is_(False),  # type: ignore[union-attr]
+            revoked=True,
+        )
+        if rotated != 1:
+            await self._revoke_family(current)
+            raise OAuthError("invalid_grant")
         return self._issuer.issue(
             client_id=client.client_id,
             user_id=current.user_id,
             endpoint_id=current.endpoint_id,
             scope=current.scope,
+            family_id=current.family_id,
+        )
+
+    async def _revoke_family(self, member: OAuthAccessToken) -> None:
+        await self._tokens.update_where(
+            OAuthAccessToken.family_id == member.family_id, revoked=True
         )

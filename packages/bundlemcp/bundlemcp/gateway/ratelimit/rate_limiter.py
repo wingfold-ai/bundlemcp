@@ -25,20 +25,38 @@ class RateLimiter:
     async def check(
         self, scope: str, limit: int, window: int, *, fail_closed: bool = False
     ) -> RateResult:
+        """Count one event in the scope's current window and report whether it fit."""
         try:
             now = await self._now()
-            bucket = now // window
-            key = RATE_KEY.format(scope=scope, bucket=bucket)
+            key = RATE_KEY.format(scope=scope, bucket=now // window)
             count = await self._redis.incr(key)
             if count == 1:
                 await self._redis.expire(key, window * 2)  # survive a full window
-            if count <= limit:
-                return RateResult(allowed=True, remaining=max(0, limit - count))
-            return RateResult(allowed=False, retry_after=window - (now % window), remaining=0)
+            return self._result(count, limit, window, now)
         except Exception:
-            # RATE-6: availability over throttling — fail open (or closed on request), loudly.
-            self._counters.inc(RATE_LIMIT_FAIL_OPEN)
-            log.warning("ratelimit.redis_unavailable", scope=scope, fail_closed=fail_closed)
-            if fail_closed:
-                return RateResult(allowed=False, retry_after=window)
-            return RateResult(allowed=True)
+            return self._fail(scope, window, fail_closed)
+
+    async def peek(
+        self, scope: str, limit: int, window: int, *, fail_closed: bool = False
+    ) -> RateResult:
+        """Report the scope's standing in the current window without counting anything."""
+        try:
+            now = await self._now()
+            raw = await self._redis.get(RATE_KEY.format(scope=scope, bucket=now // window))
+            return self._result(int(raw or 0), limit, window, now)
+        except Exception:
+            return self._fail(scope, window, fail_closed)
+
+    @staticmethod
+    def _result(count: int, limit: int, window: int, now: int) -> RateResult:
+        if count <= limit:
+            return RateResult(allowed=True, remaining=max(0, limit - count))
+        return RateResult(allowed=False, retry_after=window - (now % window), remaining=0)
+
+    def _fail(self, scope: str, window: int, fail_closed: bool) -> RateResult:
+        # RATE-6: availability over throttling — fail open (or closed on request), loudly.
+        self._counters.inc(RATE_LIMIT_FAIL_OPEN)
+        log.warning("ratelimit.redis_unavailable", scope=scope, fail_closed=fail_closed)
+        if fail_closed:
+            return RateResult(allowed=False, retry_after=window)
+        return RateResult(allowed=True)

@@ -38,3 +38,4 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0029](0029-dialects-and-dual-era-edge.md) | Protocol dialects: one edge serves every MCP revision; MRTR by pass-through or park-and-resume | accepted |
 | [0030](0030-fastmcp-4.md) | FastMCP 4 / SDK v2 upstream client, protocol era negotiated per server | accepted |
 | [0031](0031-joserfc-id-token-validation.md) | joserfc verifies ID tokens; issuer and audience validated explicitly | accepted |
+| [0032](0032-egress-policy-scope.md) | The egress policy governs every outbound URL, not only MCP transport | accepted |

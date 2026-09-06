@@ -28,8 +28,15 @@ class AuthorizationCodeGrant:
             raise OAuthError("invalid_grant", "redirect_uri mismatch")
         if not pkce_verifies(request.code_verifier, code.code_challenge):
             raise OAuthError("invalid_grant", "PKCE verification failed")
-        code.used = True  # single-use (OAS-3)
-        self._codes.add(code)
+        # OAS-3: the burn is a compare-and-set, so two concurrent redemptions
+        # that both read an unused code cannot both be issued a pair.
+        burned = await self._codes.update_where(
+            OAuthAuthorizationCode.code_hash == code.code_hash,
+            OAuthAuthorizationCode.used.is_(False),  # type: ignore[union-attr]
+            used=True,
+        )
+        if burned != 1:
+            raise OAuthError("invalid_grant")
         return self._issuer.issue(
             client_id=client.client_id,
             user_id=code.user_id,
