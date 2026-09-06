@@ -1,6 +1,6 @@
 # Implementation guide — offloading the OAuth server to library code
 
-**Status:** proposed · **Author:** —  · **Supersedes in part:** [ADR-0014](adr/0014-gateway-rendered-oauth-authlib.md) · **Extends:** [ADR-0028](adr/0028-oauth-server-as-services.md)
+**Status:** phases 0–1 implemented (#23, #24, #31); phase 2 evaluated and not adopted, see below; phases 3–4 landed in #22 · **Author:** —  · **Supersedes in part:** [ADR-0014](adr/0014-gateway-rendered-oauth-authlib.md) · **Extends:** [ADR-0028](adr/0028-oauth-server-as-services.md)
 
 This guide is the implementation plan for replacing bundlemcp's hand-written
 OAuth 2.1 protocol plumbing with library code, keeping only the parts that
@@ -384,6 +384,37 @@ of one code yield exactly one token pair. Add to `tests/test_web_origins.py`:
 
 **Effort:** 2–3 days · **Risk:** medium · **Depends on:** phases 0 and 1 ·
 **This is the main event.**
+
+> ### Phase 2 — evaluation (2026-09-06): not adopted
+>
+> Section 2.8 sets the gate: the six regression tests must not change. Read
+> against `mcp 2.1.1` the design cannot pass it:
+>
+> 1. `AuthorizationHandler.handle` turns whatever `provider.authorize()`
+>    returns into a 302 (`handlers/authorize.py`). bundlemcp renders the
+>    consent page on the `GET /oauth/authorize` response itself; under the
+>    SDK it becomes a redirect to a consent route. `_authorize` in
+>    `tests/test_oauth.py` — the helper every regression test calls — asserts
+>    the 200 and the form on that response, so it has to change.
+> 2. The SDK's own error path (`AuthorizationErrorResponse`, rendered by
+>    `construct_redirect_uri`) carries no `iss`. Every error the handler
+>    raises itself (unknown client, bad `response_type`, invalid scope)
+>    regresses OAS-14, which #22 had just implemented for all responses.
+> 3. `ClientAuthenticator.authenticate_request` is one method that compares
+>    plaintext secrets; the hashed-secret subclass reimplements all of it,
+>    which is what `OAuthClientAuthenticator` + `ClientCredentials` already
+>    are (52 lines).
+> 4. The provider needs the browser session to decide between login, consent
+>    and code issuance, and `authorize(client, params)` receives no request;
+>    it works only because bundlemcp's providers are request-scoped, which
+>    couples the provider to the edge the plan wanted it free of.
+>
+> What survives from the phase: the behaviour change of 2.7 #3 (revocation
+> requires client authentication) is implemented in the existing structure
+> (#31). The atomic burn, family revocation and lockout ordering of phase 1
+> (#24) are where the security value was. Revisit if the SDK grows a
+> non-redirect seam for interactive consent and puts `iss` on its own error
+> responses.
 
 ### 2.1 New file: the provider
 

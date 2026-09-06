@@ -5,8 +5,9 @@ MCP gateway edge, auth/OAuth/crypto, ops/config/observability, frontend/API
 contract), each verifying library claims against the installed distributions in
 `.venv/` and against live package registries rather than from memory.
 
-Nothing here was fixed. This is the register; the OAuth work has its own plan in
-[oauth-server-migration.md](oauth-server-migration.md).
+This is the register; the OAuth work has its own plan in
+[oauth-server-migration.md](oauth-server-migration.md). **§9 records what was
+done about each item** (2026-09-06, PRs #23–#33).
 
 ---
 
@@ -562,3 +563,58 @@ Worth recording, because the register above is one-sided.
   `repr=False` on secret fields, MultiFernet rotation with fail-closed
   decryption, and "no keys configured ⇒ upstream OAuth is off" as an explicit
   deployment state rather than a crash.
+
+---
+
+## 9. Status (2026-09-06)
+
+Every item was either implemented in one of the PRs below or evaluated and
+left, with the reason. PR #22 (already open when this register was written)
+had implemented OAS-13, OAS-14 and UPO-8, which the register lists as gaps.
+
+| PR | Base | Contents |
+|---|---|---|
+| #23 `fix(oidc)` | #22 | Phase 0: joserfc, `iss`/`aud`/`exp`/`sub` validated (B2), IdP HTTP errors → 400 (B15), `repr=False` (B17), session id no longer logged (B9), egress on the IdP URLs; ADR-0031 |
+| #24 `fix(oauth)` | #23 | Phase 1: egress on the upstream OAuth chain (B1, ADR-0032), atomic burn and rotation + family revocation with migration 0005 (B3), lockout before evaluation (B7), exact-origin CSRF (B4), DCR limit per forwarded IP (B6), `build_client_redirect` (B5) |
+| #31 `fix(oauth)` | #24 | Revocation requires client authentication (B14) |
+| #25 `refactor(core)` | main | I1–I7, I12–I14, I16, I17, B11, B12, B13, R5, R8 |
+| #26 `test` | main | R2: one `serving()` harness |
+| #27 `refactor(gateway)` | main | R6: version and method tables from `mcp_types` |
+| #28 `chore(deploy)` | main | §6 frontend CI job + OpenAPI diff check, §7 hygiene, I9 |
+| #29 `refactor(web)` | main | R3, R7, B10, I8, I10, plus contract fixes `nuxt typecheck` surfaced |
+| #30 `fix(migrations)` | main | B8: frozen 0001; one real model/migration drift fixed |
+| #32 `feat(bootstrap)` | main | BOOT-1 inline JSON, document `version`, README (I15 / DOC-1) |
+| #33 `refactor(e2e)` | main | I11 and the reporter half of R4 |
+
+**Evaluated and not done, with reasons**
+
+- **Phase 2 of the OAuth plan (`mcp.server.auth` handlers).** The plan's own
+  gate is that the six regression tests must not change. Reading the SDK:
+  `AuthorizationHandler` can only redirect from `provider.authorize()`, so
+  the consent page becomes an extra hop and the `_authorize` helper behind
+  those tests has to change; SDK-generated error redirects carry no `iss`
+  (OAS-14 regression for the errors the SDK raises itself); the
+  `ClientAuthenticator` compares plaintext secrets, so the subclass would
+  reimplement `OAuthClientAuthenticator`. Net protocol code removed would be
+  close to zero. The one behaviour change the plan recommended (revocation
+  requires client auth) is in #31. Details in
+  [oauth-server-migration.md §"Phase 2 — evaluation"](oauth-server-migration.md).
+- **R6, the `AESGCMRequestStateCodec` swap.** The codec seals bytes and
+  nothing else; the binding logic the register wanted to drop lives in the
+  SDK's `RequestStateBoundary`, which is tied to `ServerRequestContext`. No
+  peer ever unseals our state. See #27.
+- **R1, Nuxt UI adoption across the eleven tables.** A UI rewrite that needs
+  the Playwright suite against the compose stack to verify; not attempted
+  without it. #29 removes the copy-pasted plumbing it would have shared.
+- **R4, replacing `stage-recordings.mjs` with a custom Reporter.** The
+  spec-linked gallery is product value from #1; the HTML reporter is
+  configured so recordings are durable, the gallery stays. See #33.
+- **B16, `resolve_api_key` commits.** Authentication runs before any handler
+  work, so nothing unrelated is pending at that commit; a separate connection
+  for the touch would break the SQLite test pool. Left as is.
+- **§4 gaps not started:** DOC-2, OBS-1 request ids, OBS-2 metrics
+  (`prometheus-client`), OBS-3/DEP-4 schema-current readiness, AUD-3, AUD-5,
+  AUD-6, LOG-1/2, INS-1..4, EXP-1..6 (only the `version` field landed),
+  BOOT-3 `api_keys`, DEP-11 image publishing, TM-5, UI-3 caching. §6's
+  `testcontainers[postgres]` marker was not added; #30 verified the migration
+  chain against Postgres by hand and notes the CI step to add once #28 lands.
