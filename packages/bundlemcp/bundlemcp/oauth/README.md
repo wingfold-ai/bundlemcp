@@ -130,8 +130,11 @@ auth-failure limiter.
     `{"active": true, "sub": "api_key:<id>", "token_use": "api_key"}` (FWD-4), so
     an introspecting upstream can serve API-key callers.
   - This is what makes the seo-gsc pattern work — see [§4](#4-gateway--protected-upstream-system-d).
-- **`POST /oauth/revoke` (RFC 7009)** flips `revoked` on a matching access or
-  refresh token; always 200. (Per the RFC it takes no client credential.)
+- **`POST /oauth/revoke` (RFC 7009)** authenticates the client like the token
+  endpoint (RFC 7009 §2.1; a public client by `client_id` alone) and flips
+  `revoked` on a matching access or refresh token issued to that client;
+  always 200 for an unknown or foreign token, 401 (counted toward the RATE-5
+  lockout) for a client that cannot authenticate.
 - **`TokenPurgeService`**, run by `TokenPurger` from the composition root, deletes
   expired codes, long-dead refresh rows, and never-used stale clients (SEC-8).
 

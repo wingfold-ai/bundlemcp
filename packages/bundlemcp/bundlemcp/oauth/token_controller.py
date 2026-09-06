@@ -101,8 +101,34 @@ class OAuthTokenController(Controller):
 
     @route.post("/revoke")
     async def revoke(
-        self, service: TokenServiceProvider, token: Annotated[str, Form()]
-    ) -> RevocationResponse:
-        """RFC 7009: revokes by access or refresh token; always 200."""
-        await service.revoke(token)
-        return RevocationResponse()
+        self,
+        request: Request,
+        service: TokenServiceProvider,
+        auth_failures: AuthFailureGuardProvider,
+        token: Annotated[str, Form()],
+        client_id: Annotated[str | None, Form()] = None,
+        client_secret: Annotated[str | None, Form()] = None,
+    ) -> Response:
+        """RFC 7009: the authenticated client revokes its own access or refresh token.
+
+        Always 200 for a token that is unknown or not the client's; 401 for a
+        client that cannot authenticate, counted like any credential failure.
+        """
+        standing = await auth_failures.locked_out(request)
+        if not standing.allowed:
+            return self._locked(standing.retry_after)
+        credentials = ClientCredentials.from_basic_header(
+            request.headers.get("authorization")
+        ) or ClientCredentials(client_id=client_id or "", client_secret=client_secret)
+        try:
+            await service.revoke(credentials, token)
+        except OAuthError as exc:
+            result = await auth_failures.record(request)  # RATE-5
+            if not result.allowed:
+                return self._locked(result.retry_after)
+            return oauth_error_response(exc.error, exc.description, status=exc.status)
+        return Response(
+            RevocationResponse().model_dump_json(),
+            media_type="application/json",
+            headers={"Cache-Control": "no-store"},
+        )
