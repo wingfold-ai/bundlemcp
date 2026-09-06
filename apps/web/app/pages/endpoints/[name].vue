@@ -25,30 +25,6 @@ const bundles = ref<BundleRead[]>([]);
 const profiles = ref<ProfileInfo[]>([]);
 const errorMsg = ref("");
 
-// UI-4: client-side name validation
-const NAME_RE = /^[a-zA-Z0-9_-]+$/;
-const RESERVED_NAMES = [
-  "api",
-  "oauth",
-  ".well-known",
-  "healthz",
-  "readyz",
-  "metrics",
-  "docs",
-  "login",
-  "consent",
-  "static",
-];
-
-function detailMsg(err: unknown): string {
-  const d = (err as { detail?: unknown } | null)?.detail;
-  if (typeof d === "string") return d;
-  if (Array.isArray(d)) {
-    return d.map((e) => (e as { msg?: string }).msg ?? JSON.stringify(e)).join("; ");
-  }
-  return "Request failed";
-}
-
 // --- config form state ---
 const profile = ref<EndpointProfile>("default");
 const authModes = ref<EndpointAuthMode[]>([]);
@@ -67,7 +43,7 @@ async function load() {
     api.GET("/api/v1/endpoints/profiles"),
   ]);
   if (ep.error) {
-    errorMsg.value = detailMsg(ep.error);
+    errorMsg.value = apiErrorMessage(ep.error);
     return;
   }
   endpoint.value = ep.data ?? null;
@@ -168,7 +144,7 @@ async function saveEndpoint() {
     },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await load();
@@ -184,7 +160,7 @@ async function renameEndpoint() {
     errorMsg.value = "New name must match ^[a-zA-Z0-9_-]+$";
     return;
   }
-  if (RESERVED_NAMES.includes(renameInput.value)) {
+  if (RESERVED_ENDPOINT_NAMES.includes(renameInput.value)) {
     errorMsg.value = `Name "${renameInput.value}" is reserved`;
     return;
   }
@@ -192,7 +168,7 @@ async function renameEndpoint() {
     params: { path: { name }, query: { new_name: renameInput.value, force: renameForce.value } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await navigateTo(`/endpoints/${renameInput.value}`);
@@ -204,7 +180,7 @@ async function deleteEndpoint() {
     params: { path: { name } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await navigateTo("/endpoints");

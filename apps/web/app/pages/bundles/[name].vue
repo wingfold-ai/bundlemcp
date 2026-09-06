@@ -14,15 +14,6 @@ const bundleName = computed(() => String(route.params.name));
 const errorMsg = ref("");
 const notFound = ref(false);
 
-function errText(e: unknown): string {
-  const d = (e as { detail?: unknown } | null)?.detail;
-  if (typeof d === "string") return d;
-  if (Array.isArray(d)) {
-    return d.map((v) => (v as { msg?: string }).msg ?? JSON.stringify(v)).join("; ");
-  }
-  return "Request failed";
-}
-
 // ---- meta card ----
 const bundle = ref<BundleRead | null>(null);
 const description = ref("");
@@ -36,7 +27,7 @@ async function loadBundle() {
     if (response?.status === 404) {
       notFound.value = true;
     } else {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
     }
     return;
   }
@@ -53,7 +44,7 @@ async function saveBundle() {
       body: { name: bundleName.value, description: description.value || null },
     });
     if (error) {
-      errorMsg.value = errText(error);
+      errorMsg.value = apiErrorMessage(error);
       return;
     }
     await loadBundle();
@@ -69,7 +60,7 @@ async function deleteBundle() {
     params: { path: { name: bundleName.value } },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await navigateTo("/bundles");
@@ -85,7 +76,7 @@ async function loadMembers() {
     params: { path: { name: bundleName.value } },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   members.value = data;
@@ -96,7 +87,7 @@ async function loadAllServers() {
     params: { query: { offset: 0, limit: 100 } },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   allServers.value = data.items;
@@ -107,12 +98,6 @@ const addableServers = computed(() => {
   return allServers.value.filter((s) => !memberNames.has(s.name));
 });
 
-function healthColor(status: string): "success" | "error" | "neutral" {
-  if (status === "ok") return "success";
-  if (status === "error") return "error";
-  return "neutral";
-}
-
 async function toggleMember(member: BundleMemberRead, event: Event) {
   errorMsg.value = "";
   const enabled = (event.target as HTMLInputElement).checked;
@@ -121,7 +106,7 @@ async function toggleMember(member: BundleMemberRead, event: Event) {
     body: { enabled },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
   }
   await Promise.all([loadMembers(), loadTools()]);
 }
@@ -132,7 +117,7 @@ async function removeMember(serverName: string) {
     params: { path: { name: bundleName.value, server_name: serverName } },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await Promise.all([loadMembers(), loadTools()]);
@@ -146,7 +131,7 @@ async function addMember() {
     body: { enabled: true },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   selectedServer.value = "";
@@ -164,7 +149,7 @@ async function loadTools() {
     params: { path: { name: bundleName.value } },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   tools.value = data;
@@ -194,7 +179,7 @@ async function saveCuration(toolId: string) {
   });
   if (error) {
     // 409 (duplicate presented name) surfaces here too
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await loadTools();
@@ -208,7 +193,7 @@ async function loadEndpoints() {
     params: { query: { offset: 0, limit: 200 } },
   });
   if (error) {
-    errorMsg.value = errText(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   endpoints.value = data.items;

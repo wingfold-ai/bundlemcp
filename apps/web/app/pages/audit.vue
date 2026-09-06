@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { components } from "~~/types/api";
 
+type AuditStatus = components["schemas"]["AuditStatus"];
 type AuditRecordRead = components["schemas"]["AuditRecordRead"];
 
 const api = useApi();
@@ -9,26 +10,17 @@ const records = ref<AuditRecordRead[]>([]);
 const errorMsg = ref("");
 
 const filterEndpoint = ref("");
-const filterStatus = ref("any");
+const filterStatus = ref<AuditStatus | "any">("any");
 const filterTool = ref("");
 const filterFrom = ref("");
 const filterTo = ref("");
-
-function detailMsg(err: unknown): string {
-  const d = (err as { detail?: unknown } | null)?.detail;
-  if (typeof d === "string") return d;
-  if (Array.isArray(d)) {
-    return d.map((e) => (e as { msg?: string }).msg ?? JSON.stringify(e)).join("; ");
-  }
-  return "Request failed";
-}
 
 function buildQuery() {
   const query: {
     offset: number;
     limit: number;
     endpoint_name?: string;
-    status?: string;
+    status?: AuditStatus;
     tool_name?: string;
     created_from?: string;
     created_to?: string;
@@ -47,7 +39,7 @@ async function load() {
     params: { query: buildQuery() },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   records.value = data?.items ?? [];

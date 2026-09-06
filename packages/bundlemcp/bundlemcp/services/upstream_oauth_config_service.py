@@ -54,12 +54,22 @@ class UpstreamOAuthConfigService:
 
     async def status(self, name: str) -> UpstreamOAuthStatusRead:
         server = await self._server(name)
+        client = await self._clients.one(UpstreamOAuthClient.server_id == server.id)
+        metadata = (client.metadata_ if client else None) or {}
+        registration = {
+            "client_id": client.client_id if client else None,
+            "authorization_url": metadata.get("authorization_endpoint"),
+            "token_url": metadata.get("token_endpoint"),
+        }
         if not self._connections.configured:
-            return UpstreamOAuthStatusRead(identity_mode=server.identity_mode, configured=False)
+            return UpstreamOAuthStatusRead(
+                identity_mode=server.identity_mode, configured=False, **registration
+            )
         return UpstreamOAuthStatusRead(
             identity_mode=server.identity_mode,
             configured=True,
             shared=await self._connections.status(server.id, None),
+            **registration,
         )
 
     async def disconnect(self, name: str) -> None:
