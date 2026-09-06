@@ -13,7 +13,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadRequirements, loadScenarios, primarySpec, videoName } from "./spec-map.mjs";
+import { SCENARIOS, primarySpec, requirement, videoName } from "./spec-map.ts";
 
 const WEB = dirname(dirname(fileURLToPath(import.meta.url)));
 const SRC = join(WEB, "test-results");
@@ -23,9 +23,7 @@ if (!existsSync(SRC)) {
   throw new Error(`no ${SRC} — run with recording first: PW_VIDEO=1 npx playwright test`);
 }
 
-const requirements = loadRequirements();
-const scenarios = loadScenarios();
-const byId = new Map(scenarios.map((s) => [s.id, s]));
+const scenarios = SCENARIOS;
 
 // Map each E2E-NN scenario to its recorded video via the output directory name.
 const videos = new Map();
@@ -46,16 +44,16 @@ for (const s of scenarios) {
     console.warn(`  no recording for ${s.id} (${s.title})`);
     continue;
   }
-  const name = videoName(s.id, requirements, byId);
+  const name = videoName(s.id);
   copyFileSync(src, join(OUT, name));
   staged.push({
     id: s.id,
     file: name,
     title: s.title,
     testFile: s.testFile,
-    spec: primarySpec(s.id, requirements, byId),
+    spec: primarySpec(s.id),
     new: s.new === true,
-    reqs: s.requirements.map((id) => ({ id, ...requirements.get(id) })),
+    reqs: s.requirements.map(requirement),
   });
 }
 

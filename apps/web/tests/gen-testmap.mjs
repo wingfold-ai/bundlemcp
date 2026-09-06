@@ -8,14 +8,14 @@
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadRequirements, loadScenarios, primarySpec, videoName } from "./spec-map.mjs";
+// Node 22.18+ runs the TypeScript module directly (type stripping), so the
+// scenario data and the /spec parser are single-sourced in spec-map.ts.
+import { SCENARIOS, primarySpec, requirement, videoName } from "./spec-map.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, "TESTMAP.md");
 
-const requirements = loadRequirements();
-const scenarios = loadScenarios();
-const byId = new Map(scenarios.map((s) => [s.id, s]));
+const scenarios = SCENARIOS;
 
 const lines = [];
 lines.push("# E2E test ↔ spec map");
@@ -33,8 +33,8 @@ for (const s of scenarios) {
   const tag = s.new === true ? " **(new)**" : "";
   lines.push(
     `| ${s.id} | ${s.title}${tag} | \`tests/${s.testFile}\` | ` +
-      `[\`${primarySpec(s.id, requirements, byId)}\`](../../../spec/${primarySpec(s.id, requirements, byId)}) | ` +
-      `${reqs} | \`${videoName(s.id, requirements, byId)}\` |`,
+      `[\`${primarySpec(s.id)}\`](../../../spec/${primarySpec(s.id)}) | ` +
+      `${reqs} | \`${videoName(s.id)}\` |`,
   );
 }
 lines.push("");
@@ -47,7 +47,7 @@ for (const s of scenarios) {
   for (const id of s.requirements) {
     if (seen.has(id)) continue;
     seen.add(id);
-    const r = requirements.get(id);
+    const r = requirement(id);
     const text = r.text.length > 160 ? `${r.text.slice(0, 157)}…` : r.text;
     lines.push(`| ${id} | \`${r.spec}\` | ${text.replace(/\|/g, "\\|")} |`);
   }
