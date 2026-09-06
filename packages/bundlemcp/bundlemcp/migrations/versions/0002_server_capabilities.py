@@ -16,12 +16,6 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # 0001 creates tables from the live SQLModel metadata, so a fresh database
-    # already carries this column — only pre-0002 databases need the ALTER.
-    bind = op.get_bind()
-    columns = {c["name"] for c in sa.inspect(bind).get_columns("mcp_servers")}
-    if "capabilities" in columns:
-        return
     op.add_column(
         "mcp_servers",
         sa.Column(
