@@ -128,6 +128,12 @@ class Settings(BaseSettings):
         pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
         description="Minimum severity written to the structured log",
     )
+    log_format: str = Field(
+        default="json",
+        pattern=r"^(json|text)$",
+        description="Log line format for every logger in the process, the web server's "
+        "included: 'json' for a log pipeline, 'text' for a terminal",
+    )
 
     @property
     def public_base(self) -> str:

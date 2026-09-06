@@ -32,6 +32,7 @@ from bundlemcp.oauth.token_controller import OAuthTokenController
 from bundlemcp.oauth.upstream_connect_controller import UpstreamConnectController
 from bundlemcp.services.errors import AuthorizationRedirectError, OAuthError, ServiceError
 from bundlemcp.settings import Settings, get_settings
+from bundlemcp.structured_logging import configure_logging
 
 API_PREFIX = "/api/v1"
 
@@ -41,6 +42,7 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     overrides = overrides or CompositionOverrides()
+    configure_logging(settings.log_level, settings.log_format)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

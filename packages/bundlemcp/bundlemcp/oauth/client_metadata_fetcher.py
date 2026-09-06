@@ -11,8 +11,8 @@ from bundlemcp.gateway.egress import EgressDenied, check_url_allowed
 from bundlemcp.services.errors import InvalidInputError
 from bundlemcp.services.oauth_server import ClientIdMetadataDocument
 from bundlemcp.settings import Settings
-from bundlemcp.store.redis import CLIENT_METADATA_KEY
 
+CLIENT_METADATA_KEY = "bmcp:cimd:{digest}"  # OAS-13 cached client metadata documents
 HTTP_TIMEOUT = 10
 DEFAULT_TTL = 3600  # OAS-13: bounded lifetime when the document names none
 MAX_TTL = 3600

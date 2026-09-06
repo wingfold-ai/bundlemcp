@@ -35,13 +35,27 @@ class Controller:
 
     @classmethod
     def _routes(cls) -> list[tuple[str, RouteSpec]]:
-        """Every decorated method of the class, in the order the decorators ran."""
-        found = [
-            (name, spec)
-            for name in dir(cls)
-            if not name.startswith("_") and (spec := route_spec(getattr(cls, name))) is not None
-        ]
-        return sorted(found, key=lambda item: item[1].order)
+        """Every decorated method of the class, in the order it was written.
+
+        Base classes contribute first, then each subclass in turn, so an
+        overriding method keeps its route's position. A subclass that overrides
+        a routed method without decorating it again would silently drop the
+        route, so that is refused here rather than discovered at request time.
+        """
+        found: dict[str, RouteSpec] = {}
+        for klass in reversed(cls.__mro__):
+            for name, attribute in vars(klass).items():
+                if name.startswith("_"):
+                    continue
+                spec = route_spec(attribute)
+                if spec is not None:
+                    found[name] = spec
+                elif name in found:
+                    raise TypeError(
+                        f"{klass.__name__}.{name} overrides a route without @route; "
+                        "decorate it again or rename it"
+                    )
+        return list(found.items())
 
     def mount(self, app: FastAPI, *, prefix: str = "") -> None:
         app.include_router(self.router, prefix=prefix)

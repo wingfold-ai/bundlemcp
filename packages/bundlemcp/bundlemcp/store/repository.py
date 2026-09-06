@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import update
+from sqlalchemy import ColumnElement, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, func, select
 
@@ -26,22 +26,22 @@ class Repository[T: SQLModel]:
         """Look up by the entity's natural key; the model must carry a ``name`` column."""
         return await self.one(self._model.name == name)
 
-    async def one(self, *criteria: Any) -> T | None:
+    async def one(self, *criteria: ColumnElement[bool]) -> T | None:
         statement = select(self._model).where(*criteria)
         return (await self._session.execute(statement)).scalar_one_or_none()
 
-    async def all(self, *criteria: Any, order_by: Sequence[Any] = ()) -> list[T]:
+    async def all(self, *criteria: ColumnElement[bool], order_by: Sequence[Any] = ()) -> list[T]:
         statement = select(self._model).where(*criteria).order_by(*order_by)
         return list((await self._session.execute(statement)).scalars())
 
-    async def count(self, *criteria: Any) -> int:
+    async def count(self, *criteria: ColumnElement[bool]) -> int:
         statement = select(func.count()).select_from(
             select(self._model).where(*criteria).subquery()
         )
         return (await self._session.execute(statement)).scalar_one()
 
     async def page(
-        self, *criteria: Any, offset: int, limit: int, order_by: Sequence[Any]
+        self, *criteria: ColumnElement[bool], offset: int, limit: int, order_by: Sequence[Any]
     ) -> tuple[int, list[T]]:
         """One page of results plus the total the page was cut from."""
         total = await self.count(*criteria)

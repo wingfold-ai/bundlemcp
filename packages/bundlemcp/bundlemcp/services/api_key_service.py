@@ -34,12 +34,7 @@ class ApiKeyService:
         total, rows = await self._keys.page(
             offset=offset, limit=limit, order_by=(ApiKey.created_at, ApiKey.id)
         )
-        return Page(
-            items=[ApiKeyRead.from_entity(k) for k in rows],
-            total=total,
-            offset=offset,
-            limit=limit,
-        )
+        return Page.of(rows, total, offset=offset, limit=limit, read=ApiKeyRead.from_entity)
 
     async def create(self, body: ApiKeyCreate) -> ApiKeyCreated:
         """The key value is returned exactly once; only the hash is stored."""

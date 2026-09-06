@@ -49,8 +49,8 @@ class ApiKey(SQLModel, table=True):
 
     def reaches(self, endpoint_id: uuid.UUID) -> bool:
         """Whether the key may call this endpoint; an unscoped key reaches every one."""
-        # KEY-2
-        if self.kind == ApiKeyKind.ENDPOINT and self.endpoint_ids:
+        # KEY-2: scope and kind are orthogonal, so a scoped service key is scoped too
+        if self.endpoint_ids:
             return str(endpoint_id) in self.endpoint_ids
         return True
 

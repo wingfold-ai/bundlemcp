@@ -1,12 +1,12 @@
 import asyncio
-import json
 from collections.abc import Awaitable, Callable
 
 import structlog
+from pydantic import ValidationError
 from redis.asyncio import Redis
 
 from bundlemcp.store.invalidation.invalidation_event import InvalidationEvent
-from bundlemcp.store.redis import INVALIDATION_CHANNEL
+from bundlemcp.store.invalidation.publish_invalidation import INVALIDATION_CHANNEL
 
 log = structlog.get_logger(__name__)
 
@@ -50,8 +50,8 @@ class InvalidationSubscriber:
                     if message.get("type") != "message":
                         continue
                     try:
-                        event = InvalidationEvent(**json.loads(message["data"]))
-                    except (ValueError, TypeError):
+                        event = InvalidationEvent.model_validate_json(message["data"])
+                    except ValidationError:
                         log.warning("invalidation.bad_event")
                         continue
                     for cb in self._callbacks:

@@ -6,8 +6,8 @@ service that owns config semantics, so the gateway's per-replica cache
 (``RuntimeConfig``) reads them downward rather than the other way round.
 """
 
-from bundlemcp.services.config_service.config_registry import DEFAULTS, coerce
+from bundlemcp.services.config_service.config_registry import DEFAULTS, ConfigSetting, coerce
 from bundlemcp.services.config_service.config_service import ConfigService
 from bundlemcp.services.config_service.unknown_config_key import UnknownConfigKey
 
-__all__ = ["DEFAULTS", "ConfigService", "UnknownConfigKey", "coerce"]
+__all__ = ["DEFAULTS", "ConfigService", "ConfigSetting", "UnknownConfigKey", "coerce"]

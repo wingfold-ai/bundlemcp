@@ -2,4 +2,6 @@ from bundlemcp.services.errors.service_error import ServiceError
 
 
 class UnavailableError(ServiceError):
-    """A required collaborator is not available right now (HTTP 503)."""
+    """A required collaborator is not available right now."""
+
+    status = 503
