@@ -26,7 +26,7 @@ Playwright test title, the recording filename, and this table.
 |-------------|------|-----------|
 | UI-2 | `60-admin-ui.md` | Auth: OIDC login redirect (21-admin-auth.md); all routes behind it; non-admin users get a "no access" page. |
 | UI-1 | `60-admin-ui.md` | - Servers — list w/ health badges; detail: config, secret header editing (write-only), forward-headers, upstream OAuth connect status (UPO-5), discovered too… |
-| SRV-2 | `10-server-registry.md` | Create/update/delete/list/get MUST be available in the management API (40-management-api.md) and the UI. Create and update MUST validate the config by attemp… |
+| SRV-2 | `10-server-registry.md` | Create/update/delete/list/get MUST be available in the management API (40-management-api.md) and the UI. Create and update MUST validate the config by connec… |
 | DISC-1 | `11-tool-discovery.md` | Discovery MUST run on server create/update (SRV-2), on explicit "refresh tools" from UI/API, and opportunistically whenever the gateway performs a live tools… |
 | UI-4 | `60-admin-ui.md` | Form validation mirrors backend rules (generated from the OpenAPI constraints where possible) so users see slug/uniqueness errors before submitting. |
 | BND-6 | `12-bundles.md` | Bundle CRUD + membership management MUST be available in the management API and UI. |
@@ -35,7 +35,7 @@ Playwright test title, the recording filename, and this table.
 | TM-3 | `13-tool-management.md` | Name overrides replace the prefixed name (server__tool → override_name); the router MUST map override names back to the origin server/tool on call. Override … |
 | EP-7 | `14-endpoints.md` | Endpoint CRUD via management API and UI, including a copy-paste connection card in the UI (URL + auth instructions per client type). |
 | PROF-3 | `15-endpoint-profiles.md` | chatgpt (ChatGPT connector, which restricts/behaves differently toward write tools): - re-annotates write tools as read-safe: every served tool's annotations… |
-| EP-1 | `14-endpoints.md` | URL scheme: POST/GET/DELETE https://<host>/{endpoint_name}/mcp (Streamable HTTP per current MCP spec). endpoint_name is globally unique, slug-safe, and MUST … |
+| EP-1 | `14-endpoints.md` | URL scheme: POST https://<host>/{endpoint_name}/mcp (Streamable HTTP). endpoint_name is globally unique, slug-safe, and MUST NOT be a reserved first path seg… |
 | EP-3 | `14-endpoints.md` | Per-endpoint auth modes (auth_modes, non-empty set): - oauth — bearer token issued by bundlemcp's OAuth server (20-oauth-server.md); - api_key — Authorizatio… |
 | AUD-1 | `50-audit-log.md` | One record per tools/call, written by the audit middleware (MID-2) after completion: endpoint, bundle, server, original + presented tool name, caller (user_i… |
 | KEY-1 | `22-api-keys.md` | Format bmcp_sk_<random≥32 bytes urlsafe>. Shown once at creation; only key_hash (+ display prefix) is stored (DOM-3). |
