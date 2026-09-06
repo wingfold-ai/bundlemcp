@@ -1,14 +1,23 @@
 """The MCP revisions the edge speaks, by era, and handshake-era negotiation (PROT-12).
 
-MCP protocol versions are ``YYYY-MM-DD`` strings, so lexicographic order is
-chronological. Modern revisions are named on every request and either match a
-registered dialect or are rejected; handshake revisions are negotiated once at
-``initialize``.
+The revision lists come from the MCP SDK's own registry, so a new revision the
+SDK learns is served here without a table edit (PROT-22). The one decision that
+is the gateway's is the floor of the handshake window: revisions older than it
+are never negotiated, however long the SDK keeps them.
 """
 
+import mcp_types.version as sdk_versions
+from mcp_types.version import is_version_at_least
+
+OLDEST_HANDSHAKE_SERVED = "2025-03-26"  # spec 32: the handshake era starts here
+
 # Newest first. The head of each list is the era's default.
-MODERN_PROTOCOL_VERSIONS = ["2026-07-28"]
-HANDSHAKE_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"]
+MODERN_PROTOCOL_VERSIONS = list(reversed(sdk_versions.MODERN_PROTOCOL_VERSIONS))
+HANDSHAKE_PROTOCOL_VERSIONS = [
+    v
+    for v in reversed(sdk_versions.HANDSHAKE_PROTOCOL_VERSIONS)
+    if is_version_at_least(v, OLDEST_HANDSHAKE_SERVED)
+]
 
 
 def negotiate_handshake_version(requested: str | None, supported: list[str]) -> str | None:

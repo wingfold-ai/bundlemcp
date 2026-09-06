@@ -5,14 +5,12 @@ from typing import Any
 from mcp.types import METHOD_NOT_FOUND
 
 from bundlemcp.gateway.dialect.cache_hint import CacheHint
+from bundlemcp.gateway.dialect.client_methods import client_methods
 from bundlemcp.gateway.dialect.era import Era
 from bundlemcp.gateway.dialect.neutral_error import NeutralError
 
 # PROT-16: resource-not-found kept its pre-2026 number for handshake clients.
 RESOURCE_NOT_FOUND_HANDSHAKE = -32002
-
-# Methods that exist only in the modern era (PROT-13, PROT-14, PROT-17).
-MODERN_ONLY_METHODS = frozenset({"server/discover", "subscriptions/listen"})
 
 
 class HandshakeDialect:
@@ -20,6 +18,7 @@ class HandshakeDialect:
 
     def __init__(self, version: str) -> None:
         self._version = version
+        self._methods = client_methods(version)
 
     @property
     def version(self) -> str:
@@ -30,7 +29,7 @@ class HandshakeDialect:
         return Era.HANDSHAKE
 
     def allows(self, method: str) -> bool:
-        return method not in MODERN_ONLY_METHODS
+        return method in self._methods
 
     def shape_result(
         self, result: dict[str, Any], *, server_info: dict[str, Any], cache_hint: CacheHint | None
