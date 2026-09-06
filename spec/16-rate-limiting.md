@@ -27,7 +27,9 @@ own traffic" limitation.
   with a per-endpoint flag to include them.
 - **RATE-5** Authentication failures are rate-limited separately (fixed
   gateway-wide policy, Redis-backed) to slow credential scanning — carry-over
-  of metamcp's auth rate limiter.
+  of metamcp's auth rate limiter. A locked-out client's standing is checked
+  **before** its credential is evaluated, so a lockout refuses correct
+  credentials too rather than only shaping the error it gets.
 - **RATE-6 Redis-outage stance:** traffic limits (RATE-1) **fail open** with a
   loud metric + WARN log (an endpoint may opt into fail-closed via its
   `rate_limit` config); the auth-failure limiter (RATE-5) also fails open but

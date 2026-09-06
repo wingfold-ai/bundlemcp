@@ -2,8 +2,10 @@
 
 from fastapi import HTTPException, Request
 
+from bundlemcp.gateway.proxy import client_ip
 from bundlemcp.http import Controller, route
 from bundlemcp.oauth.providers import ClientRegistrationServiceProvider, RateLimiterProvider
+from bundlemcp.providers import SettingsProvider
 from bundlemcp.schemas import ClientRegistrationRequest, ClientRegistrationResponse
 
 REGISTRATION_RATE_LIMIT = 10  # per window
@@ -23,8 +25,10 @@ class ClientRegistrationController(Controller):
         request: Request,
         service: ClientRegistrationServiceProvider,
         rate_limiter: RateLimiterProvider,
+        settings: SettingsProvider,
     ) -> ClientRegistrationResponse:
-        ip = request.client.host if request.client else "unknown"
+        # OAS-12: per client IP, which behind a trusted proxy is the forwarded one
+        ip = client_ip(request, settings)
         result = await rate_limiter.check(
             f"dcr:{ip}", REGISTRATION_RATE_LIMIT, REGISTRATION_RATE_WINDOW
         )

@@ -1,9 +1,11 @@
 """The real upstream authorization server, reached over HTTP."""
 
+from collections.abc import Callable
 from urllib.parse import urlencode, urlparse
 
 import httpx
 
+from bundlemcp.gateway.egress import EgressDenied, check_url_allowed
 from bundlemcp.oauth.upstream_client.needs_connect import NeedsConnect
 from bundlemcp.oauth.upstream_client.upstream_metadata import UpstreamMetadata
 from bundlemcp.oauth.upstream_client.upstream_tokens import UpstreamTokens
@@ -13,17 +15,33 @@ HTTP_TIMEOUT = 10
 PROTECTED_RESOURCE_PATH = "/.well-known/oauth-protected-resource"
 AUTHORIZATION_SERVER_PATH = "/.well-known/oauth-authorization-server"
 
+ClientFactory = Callable[[], httpx.AsyncClient]
+
+
+def _default_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(timeout=HTTP_TIMEOUT)
+
 
 class HttpxUpstreamProvider:
     """Discovery follows the RFC 9728 → RFC 8414 chain from the server's origin;
-    the auth-code flow uses PKCE. Injected fakes replace this in tests."""
+    the auth-code flow uses PKCE. Injected fakes replace this in tests.
 
-    def __init__(self, settings: Settings) -> None:
+    Every URL this provider reaches passes the egress policy before a request
+    is made: the server's origin, the authorization server the protected
+    resource document names, and the token endpoint the metadata names. The
+    last two are chosen by the remote side, and the token request carries the
+    gateway's client secret, so a document that points at a blocked address is
+    refused rather than followed.
+    """
+
+    def __init__(self, settings: Settings, *, client_factory: ClientFactory = _default_client):
         self._settings = settings
+        self._client_factory = client_factory
 
     async def discover(self, server_url: str) -> UpstreamMetadata:
         origin = "{0.scheme}://{0.netloc}".format(urlparse(server_url))
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        self._check_egress(origin, "egress_denied")
+        async with self._client_factory() as client:
             # try protected-resource metadata first, else AS metadata at the origin
             for path in (PROTECTED_RESOURCE_PATH, AUTHORIZATION_SERVER_PATH):
                 response = await client.get(origin + path)
@@ -32,6 +50,7 @@ class HttpxUpstreamProvider:
                 data = response.json()
                 if "authorization_servers" in data:  # protected-resource doc
                     as_url = data["authorization_servers"][0].rstrip("/")
+                    self._check_egress(as_url, "authorization_server_denied")
                     response = await client.get(as_url + AUTHORIZATION_SERVER_PATH)
                     response.raise_for_status()
                     data = response.json()
@@ -108,9 +127,11 @@ class HttpxUpstreamProvider:
     async def _token_request(
         self, meta: UpstreamMetadata, data: dict[str, str], client_secret: str | None
     ) -> UpstreamTokens:
+        # SEC-1: the secret goes only where the egress policy allows
+        self._check_egress(meta.token_endpoint, "token_endpoint_denied")
         if client_secret:
             data["client_secret"] = client_secret
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        async with self._client_factory() as client:
             response = await client.post(meta.token_endpoint, data=data)
             response.raise_for_status()
             payload = response.json()
@@ -120,3 +141,9 @@ class HttpxUpstreamProvider:
             expires_in=payload.get("expires_in"),
             scope=payload.get("scope"),
         )
+
+    def _check_egress(self, url: str, reason: str) -> None:
+        try:
+            check_url_allowed(url, self._settings)
+        except EgressDenied as exc:
+            raise NeedsConnect("upstream", reason) from exc

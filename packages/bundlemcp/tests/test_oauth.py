@@ -525,3 +525,217 @@ async def test_registration_records_application_type(oauth_env):
         json={"redirect_uris": ["https://client.example/cb"], "application_type": "desktop"},
     )
     assert bad.status_code == 422
+
+
+async def test_code_burn_is_a_compare_and_set(oauth_env):
+    """OAS-3: a code another transaction burned between the read and the burn is refused.
+
+    The race is reproduced without concurrency: the code is read into the
+    session (as a racing request would), then the row changes underneath that
+    stale read, then the grant proceeds from the stale object.
+    """
+    from bundlemcp.models import OAuthAuthorizationCode, OAuthClient
+    from bundlemcp.services.errors import OAuthError
+    from bundlemcp.services.oauth_server import TokenRequest
+    from bundlemcp.services.oauth_server.authorization_code_grant import AuthorizationCodeGrant
+    from bundlemcp.services.oauth_server.token_issuer import TokenIssuer
+    from bundlemcp.store import Repository
+    from sqlalchemy import update
+
+    http, app, user = oauth_env
+    client_id = await _register_client(http)
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
+
+    async with app.state.container.session_factory() as db:
+        stale = await Repository(db, OAuthAuthorizationCode).get(hash_token(code))
+        assert stale is not None and not stale.used
+        await db.execute(  # the other redemption wins the race
+            update(OAuthAuthorizationCode)
+            .where(OAuthAuthorizationCode.code_hash == stale.code_hash)
+            .values(used=True)
+            .execution_options(synchronize_session=False)
+        )
+        client = await Repository(db, OAuthClient).get(client_id)
+        request = TokenRequest(
+            grant_type="authorization_code",
+            code=code,
+            redirect_uri="https://client.example/cb",
+            code_verifier=verifier,
+        )
+        with pytest.raises(OAuthError) as excinfo:
+            await AuthorizationCodeGrant(db, TokenIssuer(db)).exchange(client, request)
+        assert excinfo.value.error == "invalid_grant"
+        rows = (await db.execute(select(OAuthAccessToken))).scalars().all()
+    assert rows == []
+
+
+async def test_refresh_rotation_is_a_compare_and_set(oauth_env):
+    """OAS-4: a refresh token rotated between the read and the rotation is a replay."""
+    from bundlemcp.models import OAuthClient
+    from bundlemcp.services.errors import OAuthError
+    from bundlemcp.services.oauth_server import TokenRequest
+    from bundlemcp.services.oauth_server.refresh_token_grant import RefreshTokenGrant
+    from bundlemcp.services.oauth_server.token_issuer import TokenIssuer
+    from bundlemcp.store import Repository
+    from sqlalchemy import update
+
+    http, app, user = oauth_env
+    client_id = await _register_client(http)
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
+    tokens = await _exchange(http, client_id, code, verifier)
+
+    async with app.state.container.session_factory() as db:
+        stale = await Repository(db, OAuthAccessToken).one(
+            OAuthAccessToken.refresh_token_hash == hash_token(tokens["refresh_token"])
+        )
+        assert stale is not None and not stale.revoked
+        await db.execute(
+            update(OAuthAccessToken)
+            .where(OAuthAccessToken.id == stale.id)
+            .values(revoked=True)
+            .execution_options(synchronize_session=False)
+        )
+        client = await Repository(db, OAuthClient).get(client_id)
+        request = TokenRequest(grant_type="refresh_token", refresh_token=tokens["refresh_token"])
+        with pytest.raises(OAuthError) as excinfo:
+            await RefreshTokenGrant(db, TokenIssuer(db)).exchange(client, request)
+        assert excinfo.value.error == "invalid_grant"
+        rows = (await db.execute(select(OAuthAccessToken))).scalars().all()
+    assert len(rows) == 1 and rows[0].revoked
+
+
+async def test_refresh_replay_revokes_the_family(oauth_env):
+    """OAS-4 / RFC 9700 4.14.2: replaying a rotated refresh token revokes every descendant."""
+    http, app, user = oauth_env
+    client_id = await _register_client(http)
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
+    first = await _exchange(http, client_id, code, verifier)
+
+    def refresh(token: str):
+        return http.post(
+            "/oauth/token",
+            data={"grant_type": "refresh_token", "refresh_token": token, "client_id": client_id},
+        )
+
+    second = (await refresh(first["refresh_token"])).json()
+    third = (await refresh(second["refresh_token"])).json()
+
+    # the newest access token works until the replay
+    ok = await http.post(
+        "/ep1/mcp",
+        headers={"Authorization": f"Bearer {third['access_token']}"},
+        json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+    )
+    assert ok.status_code == 200
+
+    replay = await refresh(first["refresh_token"])
+    assert replay.status_code == 400 and replay.json()["error"] == "invalid_grant"
+
+    # ... and afterwards the whole family is dead, the newest pair included
+    async with app.state.container.session_factory() as db:
+        rows = (await db.execute(select(OAuthAccessToken))).scalars().all()
+    assert len(rows) == 3 and all(r.revoked for r in rows)
+    assert len({r.family_id for r in rows}) == 1
+    dead = await http.post(
+        "/ep1/mcp",
+        headers={"Authorization": f"Bearer {third['access_token']}"},
+        json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+    )
+    assert dead.status_code == 401
+    assert (await refresh(third["refresh_token"])).status_code == 400
+
+
+async def test_redirect_uri_with_query_receives_the_code(oauth_env):
+    """RFC 6749 3.1.2: a registered redirect URI may carry a query; the code is merged into it."""
+    http, app, user = oauth_env
+    redirect_uri = "https://client.example/cb?tenant=x"
+    resp = await http.post(
+        "/oauth/register", json={"redirect_uris": [redirect_uri], "client_name": "Tenant"}
+    )
+    client_id = resp.json()["client_id"]
+    _, challenge = make_pkce()
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "state": "st4te",
+        "resource": f"{PUBLIC_URL}/ep1/mcp",
+    }
+    consent = await http.get("/oauth/authorize", params=params)
+    token = consent.text.split('name="token" value="')[1].split('"')[0]
+    approved = await http.post("/oauth/consent", data={"token": token, "action": "approve"})
+    location = urlparse(approved.headers["location"])
+    query = parse_qs(location.query)
+    assert location.path == "/cb"
+    assert query["tenant"] == ["x"] and query["state"] == ["st4te"] and query["iss"] == [PUBLIC_URL]
+    assert query["code"]
+
+    denied = await http.get(
+        "/oauth/authorize", params={**params, "resource": "https://elsewhere/x"}
+    )
+    query = parse_qs(urlparse(denied.headers["location"]).query)
+    assert query["tenant"] == ["x"] and query["error"] == ["invalid_target"]
+
+
+async def test_locked_out_client_gets_no_exchange(oauth_env):
+    """RATE-5: once locked out, even a correct redemption is refused before it is evaluated."""
+    http, app, user = oauth_env
+    client_id = await _register_client(http)
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
+    limit = app.state.container.settings.auth_failure_limit
+    for attempt in range(limit + 1):
+        bad = await http.post(
+            "/oauth/token",
+            data={"grant_type": "authorization_code", "code": "x", "client_id": "nobody"},
+        )
+        assert bad.status_code == (401 if attempt < limit else 429)
+    locked = await http.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": "https://client.example/cb",
+            "code_verifier": verifier,
+            "client_id": client_id,
+        },
+    )
+    assert locked.status_code == 429 and "Retry-After" in locked.headers
+    # the code was never looked at, so it is still redeemable once the lock lifts
+    app.state.container.redis.advance(app.state.container.settings.auth_failure_window)
+    tokens = await _exchange(http, client_id, code, verifier)
+    assert tokens["access_token"].startswith("bmcp_at_")
+
+
+async def test_registration_rate_limit_keys_on_the_forwarded_client_ip(engine, redis):
+    """OAS-12: behind a trusted proxy the limit is per original client, not per proxy."""
+    from bundlemcp.oauth.registration_controller import REGISTRATION_RATE_LIMIT
+
+    settings = Settings(
+        _env_file=None,
+        database_url="sqlite+aiosqlite://",
+        public_url=PUBLIC_URL,
+        trusted_proxies=["127.0.0.0/8"],
+    )
+    app = create_app(settings, overrides=CompositionOverrides(engine=engine, redis=redis))
+    body = {"redirect_uris": ["https://client.example/cb"], "client_name": "C"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=PUBLIC_URL) as http:
+        async with app.router.lifespan_context(app):
+            for _ in range(REGISTRATION_RATE_LIMIT):
+                ok = await http.post(
+                    "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.7"}
+                )
+                assert ok.status_code == 201
+            exhausted = await http.post(
+                "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.7"}
+            )
+            assert exhausted.status_code == 429
+            other = await http.post(
+                "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.8"}
+            )
+            assert other.status_code == 201

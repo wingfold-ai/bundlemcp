@@ -15,9 +15,9 @@ class AuthorizationRedirectError(ServiceError):
         error: str,
         description: str = "",
         *,
-        issuer: str | None = None,
+        issuer: str,
     ) -> None:
-        # issuer is carried as `iss` on the redirect (RFC 9207) when known
+        # issuer is carried as `iss` on the redirect (RFC 9207)
         self.redirect_uri = redirect_uri
         self.state = state
         self.error = error
