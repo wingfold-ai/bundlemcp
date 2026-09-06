@@ -4,12 +4,10 @@ Uses an injected client factory that inspects the Authorization header the
 gateway attaches, so the whole path is hermetic (no loopback upstream needed).
 """
 
-from bundlemcp.api.app import create_app
-from bundlemcp.api.composition_overrides import CompositionOverrides
+from contextlib import asynccontextmanager
+
 from bundlemcp.crypto import (
-    API_KEY_PREFIX,
     display_prefix,
-    generate_token,
     hash_token,
     token_cipher,
 )
@@ -30,11 +28,11 @@ from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
 from cryptography.fernet import Fernet
 from fastmcp import Client, FastMCP
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from tests.conftest import ENDPOINT_KEY, hermetic_settings, serving
+
 KEY = Fernet.generate_key().decode()
-ENDPOINT_KEY = generate_token(API_KEY_PREFIX)
 
 up_server = FastMCP("up")
 
@@ -121,16 +119,18 @@ async def _seed(engine, *, identity_mode=IdentityMode.SHARED):
         return srv
 
 
-def _make_app(engine, redis, factory, provider):
-    settings = Settings(
-        _env_file=None, database_url="sqlite+aiosqlite://", token_encryption_keys=[KEY]
-    )
-    return create_app(
-        settings,
-        overrides=CompositionOverrides(
-            engine=engine, redis=redis, client_factory=factory, upstream_oidc_provider=provider
-        ),
-    )
+@asynccontextmanager
+async def _running(engine, redis, factory, provider, *, keys=(KEY,)):
+    """The gateway with an injected upstream factory and provider, and an endpoint client."""
+    async with serving(
+        engine,
+        redis,
+        settings=hermetic_settings(token_encryption_keys=list(keys)),
+        bearer=ENDPOINT_KEY,
+        client_factory=factory,
+        upstream_oidc_provider=provider,
+    ) as (http, _app):
+        yield http
 
 
 async def _call(http, session, args=None):
@@ -173,17 +173,10 @@ async def test_shared_bearer_attached(engine: AsyncEngine, redis):
         None,
         UpstreamTokens(access_token="tok-shared", expires_in=3600),
     )
-    app = _make_app(engine, redis, factory, provider)
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://gw",
-        headers={"Authorization": f"Bearer {ENDPOINT_KEY}"},
-    ) as http:
-        async with app.router.lifespan_context(app):
-            session = await _init(http)
-            resp = await _call(http, session)
-            assert resp.json()["result"]["content"][0]["text"] == "up:x"
+    async with _running(engine, redis, factory, provider) as http:
+        session = await _init(http)
+        resp = await _call(http, session)
+        assert resp.json()["result"]["content"][0]["text"] == "up:x"
     assert factory.seen == ["Bearer tok-shared"]
 
 
@@ -191,15 +184,9 @@ async def test_missing_token_returns_connect_error(engine, redis):
     """UPO-3: no token -> structured connect-URL error, upstream never called."""
     await _seed(engine)
     factory = BearerCapturingFactory()
-    app = _make_app(engine, redis, factory, FakeUpstreamProvider())
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://gw",
-        headers={"Authorization": f"Bearer {ENDPOINT_KEY}"},
-    ) as http:
-        async with app.router.lifespan_context(app):
-            session = await _init(http)
-            resp = await _call(http, session)
+    async with _running(engine, redis, factory, FakeUpstreamProvider()) as http:
+        session = await _init(http)
+        resp = await _call(http, session)
     body = resp.json()
     assert "connect at" in body["error"]["message"]
     assert "/oauth/upstream/up/connect" in body["error"]["message"]
@@ -219,16 +206,10 @@ async def test_near_expiry_refreshes_then_attaches(engine, redis):
         None,
         UpstreamTokens(access_token="stale", refresh_token="rt", expires_in=5),
     )
-    app = _make_app(engine, redis, factory, provider)
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://gw",
-        headers={"Authorization": f"Bearer {ENDPOINT_KEY}"},
-    ) as http:
-        async with app.router.lifespan_context(app):
-            session = await _init(http)
-            resp = await _call(http, session)
-            assert resp.status_code == 200
+    async with _running(engine, redis, factory, provider) as http:
+        session = await _init(http)
+        resp = await _call(http, session)
+        assert resp.status_code == 200
     assert provider.refresh_calls == 1
     assert factory.seen == ["Bearer at-refreshed"]
 
@@ -246,16 +227,10 @@ async def test_reactive_retry_on_upstream_error(engine, redis):
         None,
         UpstreamTokens(access_token="stale", refresh_token="rt", expires_in=3600),
     )
-    app = _make_app(engine, redis, factory, provider)
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://gw",
-        headers={"Authorization": f"Bearer {ENDPOINT_KEY}"},
-    ) as http:
-        async with app.router.lifespan_context(app):
-            session = await _init(http)
-            resp = await _call(http, session)
-            assert resp.json()["result"]["content"][0]["text"] == "up:x"
+    async with _running(engine, redis, factory, provider) as http:
+        session = await _init(http)
+        resp = await _call(http, session)
+        assert resp.json()["result"]["content"][0]["text"] == "up:x"
     # first attempt with the stale (rejected) bearer, retry with the refreshed one
     assert factory.seen == ["Bearer stale", "Bearer at-refreshed"]
     assert provider.refresh_calls == 1
@@ -264,21 +239,9 @@ async def test_reactive_retry_on_upstream_error(engine, redis):
 async def test_no_encryption_keys_errors(engine, redis):
     """Without encryption keys, an upstream_oauth call errors instead of storing plaintext."""
     await _seed(engine)
-    settings = Settings(
-        _env_file=None, database_url="sqlite+aiosqlite://", token_encryption_keys=[]
-    )
-    app = create_app(
-        settings,
-        overrides=CompositionOverrides(
-            engine=engine, redis=redis, client_factory=BearerCapturingFactory()
-        ),
-    )
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://gw",
-        headers={"Authorization": f"Bearer {ENDPOINT_KEY}"},
+    async with _running(
+        engine, redis, BearerCapturingFactory(), FakeUpstreamProvider(), keys=()
     ) as http:
-        async with app.router.lifespan_context(app):
-            session = await _init(http)
-            resp = await _call(http, session)
+        session = await _init(http)
+        resp = await _call(http, session)
     assert "not configured" in resp.json()["error"]["message"]

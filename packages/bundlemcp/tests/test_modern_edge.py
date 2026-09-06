@@ -10,9 +10,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
-from bundlemcp.api.app import create_app
-from bundlemcp.api.composition_overrides import CompositionOverrides
-from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
+from bundlemcp.crypto import display_prefix, hash_token
 from bundlemcp.models import (
     ApiKey,
     ApiKeyKind,
@@ -22,11 +20,9 @@ from bundlemcp.models import (
     McpServer,
     Tool,
 )
-from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
 from fakeredis.aioredis import FakeRedis
 from fastmcp import Client, FastMCP
-from httpx import ASGITransport, AsyncClient
 from mcp.shared.inbound import NAME_BEARING_METHODS
 from mcp.types import (
     CLIENT_CAPABILITIES_META_KEY,
@@ -40,7 +36,8 @@ from mcp.types import (
 )
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-ENDPOINT_KEY = generate_token(API_KEY_PREFIX)
+from tests.conftest import ENDPOINT_KEY, hermetic_settings, serving
+
 MODERN = "2026-07-28"
 
 REGION_SCHEMA = {
@@ -110,18 +107,14 @@ async def _seed(engine: AsyncEngine) -> None:
 @asynccontextmanager
 async def _running(engine, redis, **settings_extra):
     await _seed(engine)
-    settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://", **settings_extra)
-    app = create_app(
-        settings,
-        overrides=CompositionOverrides(engine=engine, redis=redis, client_factory=upstream_factory),
-    )
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://gw",
-        headers={"Authorization": f"Bearer {ENDPOINT_KEY}"},
-    ) as http:
-        async with app.router.lifespan_context(app):
-            yield http
+    async with serving(
+        engine,
+        redis,
+        settings=hermetic_settings(**settings_extra),
+        bearer=ENDPOINT_KEY,
+        client_factory=upstream_factory,
+    ) as (http, _app):
+        yield http
 
 
 @pytest.fixture
