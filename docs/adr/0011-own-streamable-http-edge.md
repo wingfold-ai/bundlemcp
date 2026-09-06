@@ -39,5 +39,5 @@ as in-process test servers.
 - (−) We own protocol-compliance for the messages we serve; the GET event
   stream (EP-1a) and progress/cancellation relay (PROT-1..3) are still to be
   built on this edge.
-- (−) New MCP protocol revisions must be tracked manually on the server edge
+- (−) New MCP protocol revisions must be tracked manually on the server edge (since 2026-09 the version and method tables are read from the SDK's `mcp_types` registry, so only revision-specific *shape* is hand-written; see [ADR-0029](0029-dialects-and-dual-era-edge.md))
   (the client edge rides FastMCP releases).

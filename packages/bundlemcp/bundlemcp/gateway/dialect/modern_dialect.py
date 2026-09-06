@@ -6,13 +6,9 @@ from mcp.shared.inbound import ERROR_CODE_HTTP_STATUS
 from mcp.types import INVALID_PARAMS, METHOD_NOT_FOUND, SERVER_INFO_META_KEY
 
 from bundlemcp.gateway.dialect.cache_hint import CacheHint
+from bundlemcp.gateway.dialect.client_methods import client_methods
 from bundlemcp.gateway.dialect.era import Era
 from bundlemcp.gateway.dialect.neutral_error import NeutralError
-
-# Methods the modern era removed (PROT-8, PROT-17, PROT-20) or replaced (PROT-13).
-HANDSHAKE_ONLY_METHODS = frozenset(
-    {"initialize", "ping", "logging/setLevel", "resources/subscribe", "resources/unsubscribe"}
-)
 
 
 class ModernDialect:
@@ -20,6 +16,7 @@ class ModernDialect:
 
     def __init__(self, version: str) -> None:
         self._version = version
+        self._methods = client_methods(version)
 
     @property
     def version(self) -> str:
@@ -30,7 +27,7 @@ class ModernDialect:
         return Era.MODERN
 
     def allows(self, method: str) -> bool:
-        return method not in HANDSHAKE_ONLY_METHODS
+        return method in self._methods
 
     def shape_result(
         self, result: dict[str, Any], *, server_info: dict[str, Any], cache_hint: CacheHint | None
