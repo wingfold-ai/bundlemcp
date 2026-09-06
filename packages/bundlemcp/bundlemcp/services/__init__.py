@@ -11,6 +11,7 @@ from bundlemcp.services.audit_service import AuditFilter, AuditService
 from bundlemcp.services.auth_service import (
     AdminSessionService,
     AuthService,
+    CallerResolver,
     Principal,
     PrincipalKind,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "AuditService",
     "AuthService",
     "BundleService",
+    "CallerResolver",
     "ConfigService",
     "EndpointService",
     "NamedResourceService",

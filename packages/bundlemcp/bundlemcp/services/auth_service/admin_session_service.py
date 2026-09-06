@@ -5,8 +5,6 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bundlemcp.models import User
-from bundlemcp.services.auth_service.principal import Principal
-from bundlemcp.services.auth_service.principal_kind import PrincipalKind
 from bundlemcp.store import Repository
 from bundlemcp.store.admin_sessions import AdminSessionStore
 
@@ -31,13 +29,3 @@ class AdminSessionService:
         if user is None or not user.is_active:
             return None
         return user
-
-    async def admin_principal(self, session_id: str | None) -> Principal | None:
-        """Resolve a browser session to an admin Principal.
-
-        The caller still owns the CSRF origin check on mutating requests.
-        """
-        user = await self.session_user(session_id)
-        if user is None or not user.is_admin:
-            return None
-        return Principal(kind=PrincipalKind.ADMIN, user_id=str(user.id))

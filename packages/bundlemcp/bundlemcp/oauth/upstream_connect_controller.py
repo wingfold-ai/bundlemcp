@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from bundlemcp.http import Controller, route
 from bundlemcp.models import McpServer
 from bundlemcp.oauth.page_headers import PAGE_HEADERS
+from bundlemcp.oauth.page_templates import PAGE_TEMPLATES
 from bundlemcp.oauth.providers import (
     ConnectStatesProvider,
     CurrentSessionUserProvider,
@@ -28,12 +29,6 @@ from bundlemcp.settings import Settings
 from bundlemcp.store import Repository
 
 log = structlog.get_logger(__name__)
-
-_DONE_PAGE = (
-    "<!doctype html><meta charset=utf-8><title>Connected</title>"
-    "<body style='font-family:system-ui;padding:2rem'>"
-    "<h1>Connected</h1><p>{server} is now connected. You can close this window.</p>"
-)
 
 
 class UpstreamConnectController(Controller):
@@ -143,4 +138,5 @@ class UpstreamConnectController(Controller):
         log.info(
             "upstream_oauth.connected", server=server.name, per_user=pending.user_id is not None
         )
-        return HTMLResponse(_DONE_PAGE.format(server=server.name), headers=PAGE_HEADERS)
+        html = PAGE_TEMPLATES.get_template("connected.html").render(server_name=server.name)
+        return HTMLResponse(html, headers=PAGE_HEADERS)

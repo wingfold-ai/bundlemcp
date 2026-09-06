@@ -15,6 +15,7 @@ from bundlemcp.services import (
     AuditService,
     AuthService,
     BundleService,
+    CallerResolver,
     ConfigService,
     EndpointService,
     ServerService,
@@ -68,6 +69,10 @@ def get_admin_session_service(request: Request, uow: UnitOfWorkProvider) -> Admi
     return AdminSessionService(uow.session, request.app.state.container.admin_sessions)
 
 
+def get_caller_resolver(request: Request, uow: UnitOfWorkProvider) -> CallerResolver:
+    return CallerResolver(uow.session, request.app.state.container.admin_sessions)
+
+
 ServerServiceProvider = Annotated[ServerService, Depends(get_server_service)]
 UpstreamOAuthConfigServiceProvider = Annotated[
     UpstreamOAuthConfigService, Depends(get_upstream_oauth_config_service)
@@ -80,3 +85,4 @@ ConfigServiceProvider = Annotated[ConfigService, Depends(get_config_service)]
 AuditServiceProvider = Annotated[AuditService, Depends(get_audit_service)]
 AuthServiceProvider = Annotated[AuthService, Depends(get_auth_service)]
 AdminSessionServiceProvider = Annotated[AdminSessionService, Depends(get_admin_session_service)]
+CallerResolverProvider = Annotated[CallerResolver, Depends(get_caller_resolver)]
