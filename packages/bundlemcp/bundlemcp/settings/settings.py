@@ -102,8 +102,13 @@ class Settings(BaseSettings):
     # Bootstrap (spec 41)
     bootstrap_file: str | None = Field(
         default=None,
-        description="Path to a declarative document of servers, bundles and endpoints applied "
-        "at startup; applying it twice changes nothing",
+        description="Path to a declarative document (YAML or JSON) of servers, bundles and "
+        "endpoints applied at startup; applying it twice changes nothing",
+    )
+    bootstrap: str | None = Field(  # BOOT-1
+        default=None,
+        description="The same document inline as JSON, for a compose file or a secret store "
+        "that cannot mount a file. Applied after the file when both are set",
     )
     bootstrap_strict: bool = Field(
         default=False,
