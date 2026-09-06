@@ -318,7 +318,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/AuditStatus",
-            "description": "Outcome: success, error or denied"
+            "description": "Outcome: success, error, denied, or input_required when the call paused for the client's input and continues on its retry"
           },
           "tool_name": {
             "anyOf": [
@@ -371,7 +371,8 @@
         "enum": [
           "success",
           "error",
-          "denied"
+          "denied",
+          "input_required"
         ],
         "title": "AuditStatus",
         "type": "string"

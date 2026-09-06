@@ -13,3 +13,13 @@ class UpstreamMetadata(BaseModel):
     scopes_supported: list[str] = Field(
         default=[], description="Scopes the authorization server advertises"
     )
+    issuer: str | None = Field(  # UPO-8
+        default=None,
+        description="The authorization server's issuer identifier from its metadata, which an "
+        "'iss' on the authorization response must equal",
+    )
+    authorization_response_iss_parameter_supported: bool = Field(  # UPO-8
+        default=False,
+        description="Whether the server promises an 'iss' on every authorization response, in "
+        "which case a response without one is refused",
+    )

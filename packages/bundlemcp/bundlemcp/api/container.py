@@ -14,6 +14,7 @@ from bundlemcp.gateway.runtime_config import RuntimeConfig
 from bundlemcp.oauth.oidc import OidcProvider
 from bundlemcp.oauth.upstream_client import UpstreamTokenStore
 from bundlemcp.services import UpstreamConnectionRegistry
+from bundlemcp.services.oauth_server import ClientMetadataFetcher
 from bundlemcp.settings import Settings
 from bundlemcp.store import UnitOfWorkFactory
 from bundlemcp.store.admin_sessions import AdminSessionStore
@@ -63,6 +64,9 @@ class AppContainer(BaseModel):
     admin_sessions: AdminSessionStore = Field(description="Browser sessions for the admin UI")
     oidc_provider: OidcProvider | None = Field(
         description="The identity provider admins log in with; None when none is configured"
+    )
+    client_metadata: ClientMetadataFetcher = Field(
+        description="Resolves URL-shaped OAuth client ids to their metadata documents"
     )
     invalidation: InvalidationSubscriber = Field(
         description="This replica's subscription to configuration changes"

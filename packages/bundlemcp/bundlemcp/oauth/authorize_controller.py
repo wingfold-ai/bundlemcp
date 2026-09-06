@@ -37,8 +37,8 @@ class AuthorizeController(Controller):
         super().__init__()
 
     @staticmethod
-    def _code_redirect(pending: PendingAuthorization, code: str) -> RedirectResponse:
-        params = {"code": code}
+    def _code_redirect(pending: PendingAuthorization, code: str, issuer: str) -> RedirectResponse:
+        params = {"code": code, "iss": issuer}  # OAS-14 (RFC 9207)
         if pending.state:
             params["state"] = pending.state
         return RedirectResponse(f"{pending.redirect_uri}?{urlencode(params)}", status_code=302)
@@ -71,7 +71,9 @@ class AuthorizeController(Controller):
         except AuthorizationRedirectError:
             raise
         if await service.has_consent(pending):
-            return self._code_redirect(pending, await service.issue_code(pending))
+            return self._code_redirect(
+                pending, await service.issue_code(pending), settings.public_base
+            )
 
         token = await pending_authorizations.put(pending)  # single-use => CSRF-safe form
         html = self._templates.get_template("consent.html").render(
@@ -90,6 +92,7 @@ class AuthorizeController(Controller):
         self,
         service: AuthorizationServiceProvider,
         pending_authorizations: PendingAuthorizationsProvider,
+        settings: SettingsProvider,
         user: CurrentSessionUserProvider,
         token: Annotated[str, Form()],
         action: Annotated[str, Form()],
@@ -100,7 +103,9 @@ class AuthorizeController(Controller):
         if user is None or user.id != pending.user_id:
             raise HTTPException(403, "session mismatch")
         if action != "approve":
-            raise AuthorizationRedirectError(pending.redirect_uri, pending.state, "access_denied")
+            raise AuthorizationRedirectError(
+                pending.redirect_uri, pending.state, "access_denied", issuer=settings.public_base
+            )
         await service.grant_consent(pending)
         log.info("oauth.consent_granted", client_id=pending.client_id)
-        return self._code_redirect(pending, await service.issue_code(pending))
+        return self._code_redirect(pending, await service.issue_code(pending), settings.public_base)

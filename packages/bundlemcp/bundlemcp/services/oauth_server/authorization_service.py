@@ -16,16 +16,21 @@ from bundlemcp.models import (
 )
 from bundlemcp.services.errors import AuthorizationRedirectError, InvalidInputError
 from bundlemcp.services.oauth_server.authorization_request import AuthorizationRequest
+from bundlemcp.services.oauth_server.client_metadata_fetcher import ClientMetadataFetcher
 from bundlemcp.services.oauth_server.pending_authorization import PendingAuthorization
+from bundlemcp.services.oauth_server.redirect_uri_rule import check_redirect_uri
 from bundlemcp.store import Repository, UnitOfWork
 
 CODE_TTL = timedelta(minutes=10)  # OAS-3
 
 
 class AuthorizationService:
-    def __init__(self, uow: UnitOfWork, *, public_base: str) -> None:
+    def __init__(
+        self, uow: UnitOfWork, *, public_base: str, client_metadata: ClientMetadataFetcher
+    ) -> None:
         self._uow = uow
         self._public_base = public_base
+        self._client_metadata = client_metadata
         self._clients = Repository(uow.session, OAuthClient)
         self._endpoints = Repository(uow.session, Endpoint)
         self._bundles = Repository(uow.session, Bundle)
@@ -47,7 +52,7 @@ class AuthorizationService:
         be redirected to an unverified URI; everything after that is reported to
         the client through AuthorizationRedirectError.
         """
-        client = await self._clients.get(request.client_id)
+        client = await self._resolve_client(request.client_id)
         if client is None:
             raise InvalidInputError("unknown client")
         if request.redirect_uri not in client.redirect_uris:
@@ -55,7 +60,11 @@ class AuthorizationService:
 
         def redirect(error: str, description: str = "") -> AuthorizationRedirectError:
             return AuthorizationRedirectError(
-                request.redirect_uri, request.state, error, description
+                request.redirect_uri,
+                request.state,
+                error,
+                description,
+                issuer=self._public_base,  # OAS-14
             )
 
         if request.response_type != "code":
@@ -85,8 +94,40 @@ class AuthorizationService:
 
     async def client_is_registered(self, request: AuthorizationRequest) -> bool:
         """Whether the request names a known client with a registered redirect URI."""
-        client = await self._clients.get(request.client_id)
+        try:
+            client = await self._resolve_client(request.client_id)
+        except InvalidInputError:
+            return False
         return client is not None and request.redirect_uri in client.redirect_uris
+
+    async def _resolve_client(self, client_id: str) -> OAuthClient | None:
+        """The registered client, or the one a metadata document describes.
+
+        A client whose id is an https URL needs no registration: its document
+        is fetched, checked, and mirrored into the client table so codes, tokens
+        and consent bind to it like any other client. The mirror is refreshed on
+        every authorization, so a changed document takes effect at once.
+        """
+        if not client_id.startswith("https://"):
+            return await self._clients.get(client_id)
+        # OAS-13
+        document = await self._client_metadata.fetch(client_id)
+        if document.client_id != client_id:
+            raise InvalidInputError("client metadata document does not name its own URL")
+        if document.token_endpoint_auth_method != "none":
+            raise InvalidInputError("client metadata documents may only describe public clients")
+        for uri in document.redirect_uris:
+            check_redirect_uri(uri)
+        client = await self._clients.get(client_id)
+        if client is None:
+            client = OAuthClient(client_id=client_id, token_endpoint_auth_method="none")
+        client.client_name = document.client_name
+        client.redirect_uris = list(document.redirect_uris)
+        client.grant_types = list(document.grant_types)
+        client.scope = document.scope or "mcp"
+        self._clients.add(client)
+        await self._uow.commit()
+        return client
 
     async def has_consent(self, pending: PendingAuthorization) -> bool:
         # OAS-11: persistent consent skips the screen

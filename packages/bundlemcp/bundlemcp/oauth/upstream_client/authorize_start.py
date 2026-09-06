@@ -8,3 +8,11 @@ class AuthorizeStart(BaseModel):
 
     url: str = Field(description="The upstream authorization URL to redirect the browser to")
     code_verifier: str = Field(repr=False, description="PKCE verifier for the token exchange")
+    issuer: str | None = Field(
+        description="Issuer recorded from the server's metadata before redirecting, so the "
+        "callback's 'iss' can be checked against it"
+    )
+    iss_required: bool = Field(
+        description="Whether the server advertised that it sends 'iss', so a callback without "
+        "one is refused"
+    )

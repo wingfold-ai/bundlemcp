@@ -24,6 +24,7 @@ from bundlemcp.providers import (
 )
 from bundlemcp.services.oauth_server import (
     AuthorizationService,
+    ClientMetadataFetcher,
     ClientRegistrationService,
     OAuthTokenService,
     PendingAuthorization,
@@ -104,10 +105,19 @@ def get_introspection_service(
     return TokenIntrospectionService(uow, public_base=settings.public_base)
 
 
+def get_client_metadata_fetcher(request: Request) -> ClientMetadataFetcher:
+    return request.app.state.container.client_metadata
+
+
+ClientMetadataFetcherProvider = Annotated[
+    ClientMetadataFetcher, Depends(get_client_metadata_fetcher)
+]
+
+
 def get_authorization_service(
-    uow: UnitOfWorkProvider, settings: SettingsProvider
+    uow: UnitOfWorkProvider, settings: SettingsProvider, fetcher: ClientMetadataFetcherProvider
 ) -> AuthorizationService:
-    return AuthorizationService(uow, public_base=settings.public_base)
+    return AuthorizationService(uow, public_base=settings.public_base, client_metadata=fetcher)
 
 
 def get_client_registration_service(

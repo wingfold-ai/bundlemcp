@@ -30,4 +30,6 @@ async def authorization_redirect_handler(
         params["error_description"] = exc.description
     if exc.state:
         params["state"] = exc.state
+    if exc.issuer:
+        params["iss"] = exc.issuer  # OAS-14: error responses carry the issuer too
     return RedirectResponse(f"{exc.redirect_uri}?{urlencode(params)}", status_code=302)

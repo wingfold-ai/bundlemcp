@@ -10,6 +10,7 @@ from bundlemcp.gateway.ratelimit import AuthFailureLimiter, RateLimiter
 from bundlemcp.gateway.upstream import ClientFactory
 from bundlemcp.oauth.oidc import OidcProvider
 from bundlemcp.oauth.upstream_client import UpstreamOAuthProvider
+from bundlemcp.services.oauth_server import ClientMetadataFetcher
 
 
 class CompositionOverrides(BaseModel):
@@ -32,6 +33,9 @@ class CompositionOverrides(BaseModel):
     )
     upstream_oidc_provider: UpstreamOAuthProvider | None = Field(
         default=None, description="Authorization-server client for upstream OAuth"
+    )
+    client_metadata_fetcher: ClientMetadataFetcher | None = Field(
+        default=None, description="Resolver for URL-shaped OAuth client ids"
     )
     metering_hook: MeteringHook | None = Field(
         default=None, description="Billing hook consulted around every tool call"
