@@ -59,14 +59,22 @@ class OAuthTokenService:
         await self._uow.commit()
         return tokens
 
-    async def revoke(self, token: str) -> None:
-        """Revoke by access or refresh token; unknown tokens are ignored (RFC 7009)."""
+    async def revoke(self, credentials: ClientCredentials, token: str) -> None:
+        """Revoke by access or refresh token on behalf of the client it was issued to.
+
+        The client authenticates as it does at the token endpoint (RFC 7009
+        section 2.1); a token that is unknown, or that belongs to another
+        client, is ignored so the endpoint reveals nothing about it.
+        """
+        client = await self._clients.authenticate(credentials)
+        if client is None:
+            raise OAuthError("invalid_client", status=401)
         digest = hash_token(token)
         row = await self._tokens.one(
             (OAuthAccessToken.access_token_hash == digest)
             | (OAuthAccessToken.refresh_token_hash == digest)
         )
-        if row is None:
+        if row is None or row.client_id != client.client_id:
             return
         row.revoked = True
         self._tokens.add(row)

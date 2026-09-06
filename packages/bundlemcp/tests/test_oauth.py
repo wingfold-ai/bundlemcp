@@ -358,13 +358,32 @@ async def test_revocation(oauth_env):
     code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
     tokens = await _exchange(http, client_id, code, verifier)
 
-    await http.post("/oauth/revoke", data={"token": tokens["access_token"]})
-    resp = await http.post(
-        "/ep1/mcp",
-        headers={"Authorization": f"Bearer {tokens['access_token']}"},
-        json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+    mcp_call = {
+        "headers": {"Authorization": f"Bearer {tokens['access_token']}"},
+        "json": {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+    }
+    # RFC 7009 2.1: the client authenticates; without it nothing is revoked
+    anonymous = await http.post("/oauth/revoke", data={"token": tokens["access_token"]})
+    assert anonymous.status_code == 401 and anonymous.json()["error"] == "invalid_client"
+    assert (await http.post("/ep1/mcp", **mcp_call)).status_code == 200
+
+    # another client cannot revoke it either, and learns nothing
+    other = await _register_client(http)
+    foreign = await http.post(
+        "/oauth/revoke", data={"token": tokens["access_token"], "client_id": other}
     )
-    assert resp.status_code == 401
+    assert foreign.status_code == 200
+    assert (await http.post("/ep1/mcp", **mcp_call)).status_code == 200
+
+    revoked = await http.post(
+        "/oauth/revoke", data={"token": tokens["access_token"], "client_id": client_id}
+    )
+    assert revoked.status_code == 200
+    assert (await http.post("/ep1/mcp", **mcp_call)).status_code == 401
+    # a refresh token revokes the pair too, and an unknown token is a quiet 200
+    assert (
+        await http.post("/oauth/revoke", data={"token": "bmcp_rt_nothing", "client_id": client_id})
+    ).status_code == 200
 
 
 async def test_authorize_requires_login_redirect(oauth_env):
