@@ -204,6 +204,8 @@ async def test_set_client_config_and_status(engine, redis):
         status = await http.get("/api/v1/servers/up/upstream-oauth")
         body = status.json()
         assert body["shared"]["connected"] is False
+        assert body["client_id"] == "cli"  # the UI prefills the registration form from this
+        assert body["authorization_url"] is None and body["token_url"] is None
         assert "shh" not in json.dumps(body)  # no secret leak
 
 

@@ -11,21 +11,12 @@ const errorMsg = ref("");
 const expanded = ref<Set<string>>(new Set());
 const consentsByUser = ref<Record<string, ConsentRead[]>>({});
 
-function detailMsg(err: unknown): string {
-  const d = (err as { detail?: unknown } | null)?.detail;
-  if (typeof d === "string") return d;
-  if (Array.isArray(d)) {
-    return d.map((e) => (e as { msg?: string }).msg ?? JSON.stringify(e)).join("; ");
-  }
-  return "Request failed";
-}
-
 async function load() {
   const { data, error } = await api.GET("/api/v1/users", {
     params: { query: { offset: 0, limit: 100 } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   users.value = data?.items ?? [];
@@ -37,7 +28,7 @@ async function loadConsents(userId: string) {
     params: { path: { user_id: userId } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   consentsByUser.value = { ...consentsByUser.value, [userId]: data ?? [] };
@@ -61,7 +52,7 @@ async function deactivateUser(userId: string) {
     params: { path: { user_id: userId } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await load();
@@ -73,7 +64,7 @@ async function revokeConsent(userId: string, consentId: string) {
     params: { path: { user_id: userId, consent_id: consentId } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await loadConsents(userId);

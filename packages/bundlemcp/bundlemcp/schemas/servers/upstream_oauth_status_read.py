@@ -18,3 +18,15 @@ class UpstreamOAuthStatusRead(BaseModel):
         default=None,
         description="State of the shared connection; null when upstream OAuth is not configured",
     )
+    client_id: str | None = Field(
+        default=None,
+        description="Client id registered at the upstream authorization server; null until set",
+    )
+    authorization_url: str | None = Field(
+        default=None,
+        description="Operator-configured authorization endpoint; null when it is discovered",
+    )
+    token_url: str | None = Field(
+        default=None,
+        description="Operator-configured token endpoint; null when it is discovered",
+    )

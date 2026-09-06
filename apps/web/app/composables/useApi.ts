@@ -11,6 +11,16 @@ export function useApi() {
       baseUrl: config.public.apiBase,
       credentials: "include",
     });
+    client.use({
+      // UI-2: a session that expired mid-visit answers 401 on the next call;
+      // send the browser back through login instead of showing a failed request.
+      onResponse({ response }) {
+        if (response.status === 401 && !window.location.pathname.startsWith("/no-access")) {
+          gotoLogin();
+        }
+        return response;
+      },
+    });
   }
   return client;
 }

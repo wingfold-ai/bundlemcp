@@ -6,9 +6,10 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck",
     "openapi": "npm run openapi:export && npm run openapi:types",
     "openapi:export": "cd ../.. && uv run python -m bundlemcp.api.export_openapi > apps/web/openapi.json",
-    "openapi:types": "openapi-typescript openapi.json -o types/api.d.ts",
+    "openapi:types": "openapi-typescript openapi.json -o types/api.d.ts --default-non-nullable=false",
     "test:ui": "playwright test",
     "test:ui:record": "PW_VIDEO=1 playwright test && node tests/stage-recordings.mjs",
     "test:map": "node tests/gen-testmap.mjs"
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@playwright/test": "^1.55.0",
     "openapi-typescript": "^7.9.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "vue-tsc": "^3.3.11"
   }
 }

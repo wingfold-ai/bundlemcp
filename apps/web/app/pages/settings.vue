@@ -5,15 +5,6 @@ const errorMsg = ref("");
 const keys = ref<string[]>([]);
 const values = ref<Record<string, string>>({});
 
-function detailMsg(err: unknown): string {
-  const d = (err as { detail?: unknown } | null)?.detail;
-  if (typeof d === "string") return d;
-  if (Array.isArray(d)) {
-    return d.map((e) => (e as { msg?: string }).msg ?? JSON.stringify(e)).join("; ");
-  }
-  return "Request failed";
-}
-
 function asString(v: unknown): string {
   if (typeof v === "string") return v;
   return JSON.stringify(v);
@@ -29,7 +20,7 @@ function coerce(s: string): unknown {
 async function load() {
   const { data, error } = await api.GET("/api/v1/config");
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   const config = (data ?? {}) as Record<string, unknown>;
@@ -45,7 +36,7 @@ async function saveKey(key: string) {
     body: { value: coerce(values.value[key] ?? "") },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await load();
@@ -57,7 +48,7 @@ async function resetKey(key: string) {
     params: { path: { key } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await load();

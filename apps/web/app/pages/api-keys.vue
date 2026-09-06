@@ -10,21 +10,12 @@ const keys = ref<ApiKeyRead[]>([]);
 const errorMsg = ref("");
 const createdKey = ref<ApiKeyCreated | null>(null);
 
-function detailMsg(err: unknown): string {
-  const d = (err as { detail?: unknown } | null)?.detail;
-  if (typeof d === "string") return d;
-  if (Array.isArray(d)) {
-    return d.map((e) => (e as { msg?: string }).msg ?? JSON.stringify(e)).join("; ");
-  }
-  return "Request failed";
-}
-
 async function load() {
   const { data, error } = await api.GET("/api/v1/api-keys", {
     params: { query: { offset: 0, limit: 100 } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   keys.value = data?.items ?? [];
@@ -45,7 +36,7 @@ async function createKey() {
     body: { name: keyName.value, kind: keyKind.value },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   createdKey.value = data ?? null;
@@ -63,7 +54,7 @@ async function deactivateKey(keyId: string) {
     params: { path: { key_id: keyId } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await load();
@@ -76,7 +67,7 @@ async function deleteKey(row: ApiKeyRead) {
     params: { path: { key_id: row.id } },
   });
   if (error) {
-    errorMsg.value = detailMsg(error);
+    errorMsg.value = apiErrorMessage(error);
     return;
   }
   await load();
