@@ -70,7 +70,7 @@ class NamedResourceService[TEntity: SQLModel, TRead: EntityRead]:
     async def list(self, *, offset: int, limit: int) -> Page[TRead]:
         order = (self._entity.created_at, self._entity.id)
         total, rows = await self._repo.page(offset=offset, limit=limit, order_by=order)
-        return Page(items=[self._read(r) for r in rows], total=total, offset=offset, limit=limit)
+        return Page.of(rows, total, offset=offset, limit=limit, read=self._read)
 
     async def get(self, name: str) -> TRead:
         return self._read(await self._get(name))

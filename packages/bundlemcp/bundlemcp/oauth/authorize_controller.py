@@ -7,10 +7,10 @@ import structlog
 from fastapi import Depends, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastmcp.server.auth.redirect_validation import build_client_redirect
-from jinja2 import Environment, PackageLoader, select_autoescape
 
 from bundlemcp.http import Controller, route
 from bundlemcp.oauth.page_headers import PAGE_HEADERS
+from bundlemcp.oauth.page_templates import PAGE_TEMPLATES
 from bundlemcp.oauth.providers import (
     AuthorizationServiceProvider,
     CurrentSessionUserProvider,
@@ -29,13 +29,6 @@ class AuthorizeController(Controller):
     prefix = "/oauth"
     tags = ("oauth",)
     include_in_schema = False
-
-    def __init__(self) -> None:
-        self._templates = Environment(
-            loader=PackageLoader("bundlemcp.oauth", "templates"),
-            autoescape=select_autoescape(["html"]),
-        )
-        super().__init__()
 
     @staticmethod
     def _code_redirect(pending: PendingAuthorization, code: str, issuer: str) -> RedirectResponse:
@@ -81,7 +74,7 @@ class AuthorizeController(Controller):
             )
 
         token = await pending_authorizations.put(pending)  # single-use => CSRF-safe form
-        html = self._templates.get_template("consent.html").render(
+        html = PAGE_TEMPLATES.get_template("consent.html").render(
             client_name=pending.client_name,
             endpoint_name=pending.endpoint_name,
             bundle_name=pending.bundle_name,

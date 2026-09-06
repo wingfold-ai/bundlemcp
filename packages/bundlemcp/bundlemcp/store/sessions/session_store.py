@@ -1,14 +1,17 @@
-import json
 import secrets
 from collections.abc import Callable
 
+import structlog
+from pydantic import ValidationError
 from redis.asyncio import Redis
 from redis.asyncio.client import Pipeline
-from redis.exceptions import WatchError
 
-from bundlemcp.store.redis import SESSION_KEY
 from bundlemcp.store.sessions.session_record import SESSION_RECORD_VERSION, SessionRecord
 from bundlemcp.store.sessions.upstream_binding import UpstreamBinding
+
+log = structlog.get_logger(__name__)
+
+SESSION_KEY = "bmcp:session:{session_id}"  # SES-1 session record (JSON)
 
 
 class SessionStore:
@@ -30,12 +33,12 @@ class SessionStore:
         raw = await self._redis.get(self._key(session_id))
         if raw is None:
             return None
-        data = json.loads(raw)
-        if data.get("version") != SESSION_RECORD_VERSION:
-            # DEP-6: unreadable future/ancient record => treat as expired, client re-inits
+        record = self._parse(raw)
+        if record is None:
+            # DEP-6: an unreadable future/ancient record is treated as expired;
+            # the client re-initializes.
             await self._redis.delete(self._key(session_id))
-            return None
-        return SessionRecord(**data)
+        return record
 
     async def touch(self, session_id: str) -> None:
         """Refresh idle TTL on activity (pings count as activity too)."""
@@ -64,34 +67,47 @@ class SessionStore:
     async def _update(
         self, session_id: str, mutate: Callable[[SessionRecord], None]
     ) -> SessionRecord | None:
-        """Apply one change to a record under WATCH-based check-and-set (SES-1a)."""
+        """Apply one change to a record under WATCH-based check-and-set (SES-1a).
+
+        ``Redis.transaction`` owns the WATCH, MULTI, EXEC and the retry when the
+        key changed underneath the read; the callable only reads, mutates and
+        queues the write.
+        """
         key = self._key(session_id)
-        async with self._redis.pipeline(transaction=True) as pipe:
-            while True:
-                try:
-                    await pipe.watch(key)
-                    raw = await pipe.get(key)
-                    if raw is None:
-                        await pipe.unwatch()
-                        return None
-                    record = SessionRecord(**json.loads(raw))
-                    mutate(record)
-                    pipe.multi()
-                    await self._set(pipe, key, record)
-                    await pipe.execute()
-                    return record
-                except WatchError:
-                    continue
+
+        async def read_mutate_write(pipe: Pipeline) -> SessionRecord | None:
+            raw = await pipe.get(key)
+            record = self._parse(raw) if raw is not None else None
+            if record is None:
+                return None
+            mutate(record)
+            pipe.multi()
+            self._set(pipe, key, record)
+            return record
+
+        return await self._redis.transaction(read_mutate_write, key, value_from_callable=True)
 
     async def _write(self, record: SessionRecord) -> None:
         key = self._key(record.session_id)
         async with self._redis.pipeline(transaction=True) as pipe:
             pipe.multi()
-            await self._set(pipe, key, record)
+            self._set(pipe, key, record)
             await pipe.execute()
 
-    async def _set(self, pipe: Pipeline, key: str, record: SessionRecord) -> None:
+    def _set(self, pipe: Pipeline, key: str, record: SessionRecord) -> None:
         if self._lifetime is None:
             pipe.set(key, record.model_dump_json())
         else:
             pipe.set(key, record.model_dump_json(), ex=self._lifetime)
+
+    @staticmethod
+    def _parse(raw: str) -> SessionRecord | None:
+        """A stored record, or None when its shape or version is not this build's."""
+        try:
+            record = SessionRecord.model_validate_json(raw)
+        except ValidationError:
+            log.warning("session.malformed")
+            return None
+        if record.version != SESSION_RECORD_VERSION:
+            return None
+        return record

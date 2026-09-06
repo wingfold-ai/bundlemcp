@@ -26,7 +26,7 @@ class ConfigService:
         """Effective config: defaults overlaid with stored overrides."""
         rows = await self._entries.all()
         overrides = {r.key: r.value for r in rows if r.key in DEFAULTS}
-        return {key: overrides.get(key, default) for key, (default, _t) in DEFAULTS.items()}
+        return {key: overrides.get(key, setting.default) for key, setting in DEFAULTS.items()}
 
     async def set(self, key: str, value: Any) -> ConfigEntryRead:
         try:

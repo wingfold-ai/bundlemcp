@@ -3,7 +3,8 @@
 from redis.asyncio import Redis
 
 from bundlemcp.store.invalidation.invalidation_event import InvalidationEvent
-from bundlemcp.store.redis import INVALIDATION_CHANNEL
+
+INVALIDATION_CHANNEL = "bmcp:invalidate"  # STP-1 config invalidation events
 
 
 async def publish_invalidation(redis: Redis, event: InvalidationEvent) -> None:

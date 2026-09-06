@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, Field
+from sqlalchemy import ColumnElement
 
 from bundlemcp.models import AuditRecord, AuditStatus
 from bundlemcp.schemas import AuditRecordRead, Page
@@ -26,8 +27,8 @@ class AuditFilter(BaseModel):
     api_key_id: uuid.UUID | None = Field(default=None, description="Only calls with this key")
     status: AuditStatus | None = Field(default=None, description="Only calls with this outcome")
 
-    def criteria(self) -> list[object]:
-        clauses: list[object] = []
+    def criteria(self) -> list[ColumnElement[bool]]:
+        clauses: list[ColumnElement[bool]] = []
         if self.created_from is not None:
             clauses.append(AuditRecord.created_at >= self.created_from)
         if self.created_to is not None:
@@ -63,9 +64,4 @@ class AuditService:
             limit=limit,
             order_by=(AuditRecord.created_at.desc(), AuditRecord.id),  # type: ignore[attr-defined]
         )
-        return Page(
-            items=[AuditRecordRead.from_entity(r) for r in rows],
-            total=total,
-            offset=offset,
-            limit=limit,
-        )
+        return Page.of(rows, total, offset=offset, limit=limit, read=AuditRecordRead.from_entity)

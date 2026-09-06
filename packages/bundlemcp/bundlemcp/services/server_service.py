@@ -59,9 +59,7 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         total, rows = await self._tools.page(
             Tool.server_id == server.id, offset=offset, limit=limit, order_by=(Tool.name,)
         )
-        return Page(
-            items=[ToolRead.from_entity(t) for t in rows], total=total, offset=offset, limit=limit
-        )
+        return Page.of(rows, total, offset=offset, limit=limit, read=ToolRead.from_entity)
 
     async def refresh_tools(self, name: str) -> DiscoveryResult:
         """Explicit refresh: runs tool discovery now and reports the result."""

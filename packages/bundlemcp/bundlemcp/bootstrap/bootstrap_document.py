@@ -1,14 +1,13 @@
 from pydantic import BaseModel, Field
 
 from bundlemcp.bootstrap.bootstrap_bundle import BootstrapBundle
-from bundlemcp.bootstrap.bootstrap_server import BootstrapServer
-from bundlemcp.schemas import EndpointUpsert
+from bundlemcp.schemas import EndpointUpsert, ServerUpsert
 
 
 class BootstrapDocument(BaseModel):
     """A declarative snapshot applied at startup; applying it twice changes nothing."""
 
-    servers: list[BootstrapServer] = Field(
+    servers: list[ServerUpsert] = Field(
         default=[], description="Upstream servers to register or update"
     )
     bundles: list[BootstrapBundle] = Field(

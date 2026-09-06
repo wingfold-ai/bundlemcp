@@ -26,6 +26,7 @@ from bundlemcp.providers.services import (
     AuditServiceProvider,
     AuthServiceProvider,
     BundleServiceProvider,
+    CallerResolverProvider,
     ConfigServiceProvider,
     EndpointServiceProvider,
     ServerServiceProvider,
@@ -45,6 +46,7 @@ from bundlemcp.providers.services import (
 
 __all__ = [
     "AdminSessionServiceProvider",
+    "CallerResolverProvider",
     "ApiKeyServiceProvider",
     "AuditServiceProvider",
     "AuthServiceProvider",
