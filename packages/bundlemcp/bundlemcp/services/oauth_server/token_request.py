@@ -7,9 +7,15 @@ class TokenRequest(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     grant_type: str = Field(description="Which grant the client is exercising")
-    code: str | None = Field(default=None, description="Authorization code being redeemed")
+    code: str | None = Field(
+        default=None, repr=False, description="Authorization code being redeemed"
+    )
     redirect_uri: str | None = Field(
         default=None, description="Redirect URI used in the authorization request"
     )
-    code_verifier: str | None = Field(default=None, description="PKCE verifier for the code")
-    refresh_token: str | None = Field(default=None, description="Refresh token being rotated")
+    code_verifier: str | None = Field(
+        default=None, repr=False, description="PKCE verifier for the code"
+    )
+    refresh_token: str | None = Field(
+        default=None, repr=False, description="Refresh token being rotated"
+    )

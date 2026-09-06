@@ -147,7 +147,7 @@ endpoint-bound (EP-3a).
 
 ## 2. Admin OIDC login (system b)
 
-Files: `oidc/login_controller.py`, `oidc/authlib_oidc_provider.py`,
+Files: `oidc/login_controller.py`, `oidc/jose_oidc_provider.py`,
 `store/admin_sessions/`. The gateway is an OIDC *relying party* in
 front of an external IdP (Keycloak in dev); it does not manage passwords.
 
@@ -323,7 +323,7 @@ encrypted with rotating keys and never logged or returned (DOM-3, spec 51).
 | `token_purger.py` | Periodic sweep of expired codes, tokens and stale clients |
 | `oauth_error_response.py` | Renders `OAuthError` / `AuthorizationRedirectError` in RFC shape |
 | `oidc/login_controller.py` | Admin OIDC login: `/login`, `/login/callback`, `/logout` |
-| `oidc/authlib_oidc_provider.py` | The real IdP, built from its discovery document |
+| `oidc/jose_oidc_provider.py` | The real IdP, built from its discovery document |
 | `session_cookie.py` | The `bmcp_session` cookie name and attributes |
 | `upstream_connect_controller.py` | Upstream OAuth connect flow (`/oauth/upstream/…`) |
 | `upstream_client/` | `UpstreamTokenStore` and the repository, connect flow and refresher behind it |
