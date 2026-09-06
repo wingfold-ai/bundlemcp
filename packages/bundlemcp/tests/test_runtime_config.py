@@ -5,34 +5,18 @@ import asyncio
 import pytest
 from bundlemcp.api.app import create_app
 from bundlemcp.api.composition_overrides import CompositionOverrides
-from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.gateway.runtime_config import RuntimeConfig, UnknownConfigKey
-from bundlemcp.models import ApiKey, ApiKeyKind
-from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
 from fakeredis.aioredis import FakeRedis
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncEngine
 
-SERVICE_KEY = generate_token(API_KEY_PREFIX)
-
-
-async def _seed_service_key(engine: AsyncEngine) -> None:
-    async with session_factory(engine)() as db:
-        db.add(
-            ApiKey(
-                name="svc",
-                key_hash=hash_token(SERVICE_KEY),
-                key_prefix=display_prefix(SERVICE_KEY),
-                kind=ApiKeyKind.SERVICE,
-            )
-        )
-        await db.commit()
+from tests.conftest import SERVICE_KEY, hermetic_settings, seed_api_key
 
 
 def _app(engine, redis):
-    settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://")
-    return create_app(settings, overrides=CompositionOverrides(engine=engine, redis=redis))
+    return create_app(
+        hermetic_settings(), overrides=CompositionOverrides(engine=engine, redis=redis)
+    )
 
 
 async def test_defaults_served(engine, redis):
@@ -43,36 +27,29 @@ async def test_defaults_served(engine, redis):
         await rc.get("nonsense")
 
 
-async def test_put_validates_and_overrides(engine, redis):
-    await _seed_service_key(engine)
-    app = _app(engine, redis)
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://t",
-        headers={"Authorization": f"Bearer {SERVICE_KEY}"},
-    ) as http:
-        async with app.router.lifespan_context(app):
-            bad = await http.put("/api/v1/config/call_timeout", json={"value": "fast"})
-            assert bad.status_code == 422
-            unknown = await http.put("/api/v1/config/nope", json={"value": 1})
-            assert unknown.status_code == 404
+async def test_put_validates_and_overrides(service_client):
+    http = service_client
+    bad = await http.put("/api/v1/config/call_timeout", json={"value": "fast"})
+    assert bad.status_code == 422
+    unknown = await http.put("/api/v1/config/nope", json={"value": 1})
+    assert unknown.status_code == 404
 
-            ok = await http.put("/api/v1/config/call_timeout", json={"value": 120})
-            assert ok.status_code == 200
+    ok = await http.put("/api/v1/config/call_timeout", json={"value": 120})
+    assert ok.status_code == 200
 
-            effective = (await http.get("/api/v1/config")).json()
-            assert effective["call_timeout"] == 120
-            assert effective["max_total_timeout"] == 1800.0  # default intact
+    effective = (await http.get("/api/v1/config")).json()
+    assert effective["call_timeout"] == 120
+    assert effective["max_total_timeout"] == 1800.0  # default intact
 
-            # delete resets to default
-            await http.request("DELETE", "/api/v1/config/call_timeout")
-            effective = (await http.get("/api/v1/config")).json()
-            assert effective["call_timeout"] == 60.0
+    # delete resets to default
+    await http.request("DELETE", "/api/v1/config/call_timeout")
+    effective = (await http.get("/api/v1/config")).json()
+    assert effective["call_timeout"] == 60.0
 
 
 async def test_cross_instance_invalidation(engine, redis: FakeRedis):
     """STP-3/STP-4: a PUT on replica A takes effect on replica B via events, not TTL."""
-    await _seed_service_key(engine)
+    await seed_api_key(engine, SERVICE_KEY)
     app_a = _app(engine, redis)
     app_b = _app(engine, redis)
 

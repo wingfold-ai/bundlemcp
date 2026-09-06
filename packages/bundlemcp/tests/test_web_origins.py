@@ -4,14 +4,11 @@ from collections.abc import AsyncIterator
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from bundlemcp.api.app import create_app
-from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.oauth.oidc import OidcClaims
-from bundlemcp.settings import Settings
 from fakeredis.aioredis import FakeRedis
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from tests.conftest import hermetic_settings, serving
 from tests.test_oidc import FakeOidcProvider
 
 PUBLIC_URL = "http://gw"
@@ -20,22 +17,19 @@ WEB_ORIGIN = "http://web:3000"
 
 @pytest.fixture
 async def env(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[tuple]:
-    settings = Settings(
-        _env_file=None,
-        database_url="sqlite+aiosqlite://",
-        public_url=PUBLIC_URL,
-        admin_emails=["admin@example.com"],
-        web_origins=[WEB_ORIGIN],
+    settings = hermetic_settings(
+        public_url=PUBLIC_URL, admin_emails=["admin@example.com"], web_origins=[WEB_ORIGIN]
     )
     provider = FakeOidcProvider()
-    app = create_app(
-        settings, overrides=CompositionOverrides(engine=engine, redis=redis, oidc_provider=provider)
-    )
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url=PUBLIC_URL, follow_redirects=False
-    ) as http:
-        async with app.router.lifespan_context(app):
-            yield http, provider
+    async with serving(
+        engine,
+        redis,
+        settings=settings,
+        base_url=PUBLIC_URL,
+        follow_redirects=False,
+        oidc_provider=provider,
+    ) as (http, _app):
+        yield http, provider
 
 
 async def _login(http, provider) -> None:

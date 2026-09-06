@@ -8,8 +8,6 @@ FWD-2/3 identity forwarding.
 from contextlib import asynccontextmanager
 
 import pytest
-from bundlemcp.api.app import create_app
-from bundlemcp.api.composition_overrides import CompositionOverrides
 from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
 from bundlemcp.gateway.metering import MeterContext, MeterDecision
 from bundlemcp.gateway.metrics import Counters
@@ -33,7 +31,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
-ENDPOINT_KEY = generate_token(API_KEY_PREFIX)
+from tests.conftest import ENDPOINT_KEY, hermetic_settings, serving
 
 # --- in-process upstreams ---------------------------------------------------
 
@@ -100,16 +98,6 @@ class RecordingHook:
         self.post_calls.append((ctx, status, duration_ms))
 
 
-def _overrides(engine, redis, **extra) -> CompositionOverrides:
-    return CompositionOverrides(
-        engine=engine, redis=redis, client_factory=upstream_factory, **extra
-    )
-
-
-def _settings(**extra) -> Settings:
-    return Settings(_env_file=None, database_url="sqlite+aiosqlite://", **extra)
-
-
 async def _seed(engine: AsyncEngine) -> None:
     factory = session_factory(engine)
     async with factory() as db:
@@ -148,26 +136,23 @@ async def _seed(engine: AsyncEngine) -> None:
 
 
 @asynccontextmanager
-async def _running(engine, settings: Settings, overrides: CompositionOverrides):
+async def _running(engine, redis, *, settings: Settings | None = None, **overrides):
     """The composed app, seeded and serving, with an authenticated endpoint client."""
     await _seed(engine)
-    app = create_app(settings, overrides=overrides)
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://gw",
-        headers={"Authorization": f"Bearer {ENDPOINT_KEY}"},
-    ) as http:
-        async with app.router.lifespan_context(app):
-            yield http, app
+    async with serving(
+        engine,
+        redis,
+        settings=settings,
+        bearer=ENDPOINT_KEY,
+        **{"client_factory": upstream_factory, **overrides},
+    ) as (http, app):
+        yield http, app
 
 
 @pytest.fixture
 async def gateway(engine: AsyncEngine, redis: FakeRedis):
     hook = RecordingHook()
-    async with _running(engine, _settings(), _overrides(engine, redis, metering_hook=hook)) as (
-        http,
-        app,
-    ):
+    async with _running(engine, redis, metering_hook=hook) as (http, app):
         yield http, app, hook
 
 
@@ -409,8 +394,8 @@ class BoomHook:
 @pytest.mark.parametrize("fail_open", [True, False])
 async def test_metering_unavailable_follows_gateway_policy(engine, redis, fail_open):
     """MID-3: an unavailable hook is allowed or denied by settings, not by the hook object."""
-    settings = _settings(metering_hook_fail_open=fail_open)
-    async with _running(engine, settings, _overrides(engine, redis, metering_hook=BoomHook())) as (
+    settings = hermetic_settings(metering_hook_fail_open=fail_open)
+    async with _running(engine, redis, settings=settings, metering_hook=BoomHook()) as (
         http,
         _app,
     ):
@@ -650,10 +635,9 @@ class BoomRedis:
 async def test_rate_limit_fails_open_on_redis_error(engine, redis):
     """RATE-6: a Redis outage never blocks a call (default fail-open)."""
     counters = Counters()
-    overrides = _overrides(
+    async with _running(
         engine, redis, counters=counters, rate_limiter=RateLimiter(BoomRedis(), counters)
-    )
-    async with _running(engine, _settings(), overrides) as (http, app):
+    ) as (http, app):
         await _set_rate_limit(app, {"endpoint": {"limit": 1, "window_seconds": 100}})
         session = await _initialize(http)
         call = {"name": "echo__say", "arguments": {"text": "x"}}
@@ -665,10 +649,9 @@ async def test_rate_limit_fails_open_on_redis_error(engine, redis):
 async def test_rate_limit_fail_closed_blocks_on_redis_error(engine, redis):
     """RATE-6: an endpoint may opt into fail-closed — deny on Redis outage."""
     counters = Counters()
-    overrides = _overrides(
+    async with _running(
         engine, redis, counters=counters, rate_limiter=RateLimiter(BoomRedis(), counters)
-    )
-    async with _running(engine, _settings(), overrides) as (http, app):
+    ) as (http, app):
         await _set_rate_limit(
             app, {"endpoint": {"limit": 1, "window_seconds": 100}, "fail_closed": True}
         )
@@ -681,8 +664,10 @@ async def test_auth_failure_lockout_by_ip(engine, redis):
     """RATE-5: repeated bad credentials from one IP get 429 after the threshold."""
     counters = Counters()
     limiter = AuthFailureLimiter(redis, limit=2, window=100, counters=counters)
-    overrides = _overrides(engine, redis, counters=counters, auth_failure_limiter=limiter)
-    async with _running(engine, _settings(), overrides) as (http, _app):
+    async with _running(engine, redis, counters=counters, auth_failure_limiter=limiter) as (
+        http,
+        _app,
+    ):
         bad = {"Authorization": f"Bearer {generate_token(API_KEY_PREFIX)}"}  # unknown key
         body = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
         assert (await http.post("/main/mcp", headers=bad, json=body)).status_code == 401
@@ -698,14 +683,16 @@ async def test_token_endpoint_auth_failure_counted(engine, redis):
     """RATE-5: a bad OAuth client at the token endpoint is counted and locked out."""
     counters = Counters()
     limiter = AuthFailureLimiter(redis, limit=1, window=100, counters=counters)
-    overrides = _overrides(engine, redis, counters=counters, auth_failure_limiter=limiter)
     form = {
         "grant_type": "authorization_code",
         "code": "x",
         "code_verifier": "y",
         "client_id": "does-not-exist",
     }
-    async with _running(engine, _settings(), overrides) as (http, _app):
+    async with _running(engine, redis, counters=counters, auth_failure_limiter=limiter) as (
+        http,
+        _app,
+    ):
         first = await http.post("/oauth/token", data=form)
         assert first.status_code == 401  # invalid_client
         second = await http.post("/oauth/token", data=form)
@@ -721,8 +708,7 @@ async def test_identity_header_injected_and_spoof_stripped(engine, redis):
         captured.update(extra_headers)
         return upstream_factory(server, extra_headers)
 
-    overrides = CompositionOverrides(engine=engine, redis=redis, client_factory=capturing_factory)
-    async with _running(engine, _settings(), overrides) as (http, _app):
+    async with _running(engine, redis, client_factory=capturing_factory) as (http, _app):
         session = await _initialize(http)
         await http.post(
             "/main/mcp",

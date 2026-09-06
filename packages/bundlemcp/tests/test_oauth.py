@@ -10,12 +10,8 @@ import secrets
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from bundlemcp.api.app import create_app
-from bundlemcp.api.composition_overrides import CompositionOverrides
-from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
+from bundlemcp.crypto import hash_token
 from bundlemcp.models import (
-    ApiKey,
-    ApiKeyKind,
     Bundle,
     Endpoint,
     OAuthAccessToken,
@@ -24,15 +20,14 @@ from bundlemcp.models import (
 from bundlemcp.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.services.errors import InvalidInputError
 from bundlemcp.services.oauth_server import ClientIdMetadataDocument
-from bundlemcp.settings import Settings
 from bundlemcp.store import session_factory
 from bundlemcp.store.admin_sessions import AdminSession
 from fakeredis.aioredis import FakeRedis
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
-SERVICE_KEY = generate_token(API_KEY_PREFIX)
+from tests.conftest import SERVICE_KEY, hermetic_settings, seed_api_key, serving
+
 PUBLIC_URL = "http://gw"
 CIMD_CLIENT_ID = "https://client.example/oauth/client-metadata.json"
 
@@ -64,16 +59,8 @@ def make_pkce() -> tuple[str, str]:
 
 @pytest.fixture
 async def oauth_env(engine: AsyncEngine, redis: FakeRedis):
-    settings = Settings(_env_file=None, database_url="sqlite+aiosqlite://", public_url=PUBLIC_URL)
-    app = create_app(
-        settings,
-        overrides=CompositionOverrides(
-            engine=engine, redis=redis, client_metadata_fetcher=FakeClientMetadataFetcher()
-        ),
-    )
-
-    factory = session_factory(engine)
-    async with factory() as db:
+    await seed_api_key(engine, SERVICE_KEY)
+    async with session_factory(engine)() as db:
         user = User(oidc_issuer="http://idp", oidc_sub="alice", email="alice@example.com")
         bundle = Bundle(name="b")
         db.add_all([user, bundle])
@@ -82,30 +69,23 @@ async def oauth_env(engine: AsyncEngine, redis: FakeRedis):
         await db.refresh(bundle)
         ep1 = Endpoint(name="ep1", bundle_id=bundle.id, auth_modes=["oauth"], profile="claude")
         ep2 = Endpoint(name="ep2", bundle_id=bundle.id, auth_modes=["oauth"], profile="claude")
-        db.add_all(
-            [
-                ep1,
-                ep2,
-                ApiKey(
-                    name="svc",
-                    key_hash=hash_token(SERVICE_KEY),
-                    key_prefix=display_prefix(SERVICE_KEY),
-                    kind=ApiKeyKind.SERVICE,
-                ),
-            ]
-        )
+        db.add_all([ep1, ep2])
         await db.commit()
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url=PUBLIC_URL, follow_redirects=False
-    ) as http:
-        async with app.router.lifespan_context(app):
-            # seed a browser session for the user (login flow tested separately)
-            session_id = await app.state.container.admin_sessions.create(
-                AdminSession(user_id=str(user.id), email=user.email, is_admin=False)
-            )
-            http.cookies.set(SESSION_COOKIE, session_id)
-            yield http, app, user
+    async with serving(
+        engine,
+        redis,
+        settings=hermetic_settings(public_url=PUBLIC_URL),
+        base_url=PUBLIC_URL,
+        follow_redirects=False,
+        client_metadata_fetcher=FakeClientMetadataFetcher(),
+    ) as (http, app):
+        # seed a browser session for the user (login flow tested separately)
+        session_id = await app.state.container.admin_sessions.create(
+            AdminSession(user_id=str(user.id), email=user.email, is_admin=False)
+        )
+        http.cookies.set(SESSION_COOKIE, session_id)
+        yield http, app, user
 
 
 async def _register_client(http) -> str:
@@ -716,26 +696,19 @@ async def test_registration_rate_limit_keys_on_the_forwarded_client_ip(engine, r
     """OAS-12: behind a trusted proxy the limit is per original client, not per proxy."""
     from bundlemcp.oauth.registration_controller import REGISTRATION_RATE_LIMIT
 
-    settings = Settings(
-        _env_file=None,
-        database_url="sqlite+aiosqlite://",
-        public_url=PUBLIC_URL,
-        trusted_proxies=["127.0.0.0/8"],
-    )
-    app = create_app(settings, overrides=CompositionOverrides(engine=engine, redis=redis))
+    settings = hermetic_settings(public_url=PUBLIC_URL, trusted_proxies=["127.0.0.0/8"])
     body = {"redirect_uris": ["https://client.example/cb"], "client_name": "C"}
-    async with AsyncClient(transport=ASGITransport(app=app), base_url=PUBLIC_URL) as http:
-        async with app.router.lifespan_context(app):
-            for _ in range(REGISTRATION_RATE_LIMIT):
-                ok = await http.post(
-                    "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.7"}
-                )
-                assert ok.status_code == 201
-            exhausted = await http.post(
+    async with serving(engine, redis, settings=settings, base_url=PUBLIC_URL) as (http, _app):
+        for _ in range(REGISTRATION_RATE_LIMIT):
+            ok = await http.post(
                 "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.7"}
             )
-            assert exhausted.status_code == 429
-            other = await http.post(
-                "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.8"}
-            )
-            assert other.status_code == 201
+            assert ok.status_code == 201
+        exhausted = await http.post(
+            "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.7"}
+        )
+        assert exhausted.status_code == 429
+        other = await http.post(
+            "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.8"}
+        )
+        assert other.status_code == 201
