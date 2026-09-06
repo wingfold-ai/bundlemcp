@@ -1,4 +1,4 @@
-# CI (spec 71 DEP-10): lint + hermetic tests + diagram validation + image build.
+# CI (spec 71 DEP-10): lint + hermetic tests + frontend contract + diagram validation + image builds.
 name: CI
 
 on:
@@ -23,6 +23,33 @@ jobs:
       - name: Tests
         run: uv run pytest -q
 
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync --all-packages
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+        working-directory: apps/web
+      - name: Generated API contract is current (UI-3)
+        # The OpenAPI document and the TypeScript types are generated, never
+        # hand-written; a change to a DTO that was not regenerated fails here.
+        run: |
+          npm run openapi
+          git diff --exit-code -- apps/web/openapi.json apps/web/types/api.d.ts
+        working-directory: apps/web
+      - name: Build
+        run: npm run build
+        working-directory: apps/web
+
   diagrams:
     runs-on: ubuntu-latest
     steps:
@@ -39,6 +66,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build gateway image
         run: docker build -f apps/gateway/Dockerfile -t bundlemcp-gateway:ci .
+      - name: Build web image
+        run: docker build -f apps/web/Dockerfile -t bundlemcp-web:ci .
 
   integration:
     runs-on: ubuntu-latest
@@ -55,17 +84,13 @@ jobs:
         # same prerequisite as deploy/TESTING.md.
         run: echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
       - name: Bring up the core stack
-        # Only the public/buildable services. The application-layer fleet (seo-psi,
-        # seo-gsc, hyperframes) lives in private GHCR images CI cannot pull, so
-        # its tests are marked `fleet` and skipped below — run them locally with
-        # the full `docker compose ... up` per deploy/TESTING.md. No deploy/.env
-        # in CI, so BUNDLEMCP_PUBLIC_URL falls back to http://localhost:8000.
-        run: docker compose -f deploy/docker-compose.yml up -d --build postgres valkey keycloak echo-mcp gateway
-      - name: Wait for readiness
-        run: |
-          for i in $(seq 1 60); do
-            curl -sf http://localhost:8000/readyz && break || sleep 5
-          done
+        # The application-layer fleet (seo-psi, seo-gsc, hyperframes) is behind the
+        # `fleet` compose profile because its images are private, so the
+        # default stack is exactly what CI can build; its tests are marked
+        # `fleet` and skipped below — run them locally per deploy/TESTING.md.
+        # No deploy/.env in CI, so BUNDLEMCP_PUBLIC_URL falls back to
+        # http://localhost:8000. --wait blocks on the health checks (DEP-3).
+        run: docker compose -f deploy/docker-compose.yml up -d --build --wait --wait-timeout 300
       - name: Discover the seeded demo upstream
         # Bootstrap schedules tool discovery best-effort (async), so a fresh boot
         # can race echo-mcp's startup. Force + confirm discovery so the demo

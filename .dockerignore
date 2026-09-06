@@ -1,0 +1,17 @@
+# Build context is the repo root (both Dockerfiles copy from it); keep the
+# virtualenv, node_modules, VCS data and tool caches out of it.
+.git
+.venv
+.idea
+.import_linter_cache
+.pytest_cache
+.ruff_cache
+**/__pycache__
+**/node_modules
+**/.nuxt
+**/.output
+**/test-results
+**/playwright-report
+apps/web/e2e-recordings
+apps/web/tests/.auth
+deploy/.env
