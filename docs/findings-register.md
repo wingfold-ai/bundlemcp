@@ -568,8 +568,9 @@ Worth recording, because the register above is one-sided.
 
 ## 9. Status (2026-09-06)
 
-Every item was either implemented in one of the PRs below or evaluated and
-left, with the reason. PR #22 (already open when this register was written)
+Every item was either implemented in one of the PRs below (all merged the
+same day, in the order #23, #24, #25 … #33) or evaluated and left, with the
+reason. PR #22 (already open when this register was written)
 had implemented OAS-13, OAS-14 and UPO-8, which the register lists as gaps.
 
 | PR | Base | Contents |
