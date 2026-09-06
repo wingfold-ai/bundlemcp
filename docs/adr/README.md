@@ -20,7 +20,7 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0011](0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge; FastMCP upstream-only | accepted (amended by 0029) |
 | [0012](0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | accepted |
 | [0013](0013-service-key-auth-first.md) | Service-key auth first; admin OIDC with the UI | accepted (updated: OIDC sessions now shipped) |
-| [0014](0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB token validation | accepted |
+| [0014](0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB token validation | accepted (amended by 0031) |
 | [0015](0015-keycloak-dev-idp.md) | Keycloak as the bundled dev IdP | accepted |
 | [0016](0016-relay-design.md) | Protocol-relay: per-replica registries + Redis signaling | accepted (amended by 0029) |
 | [0017](0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption at rest | accepted |
@@ -37,3 +37,4 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0028](0028-oauth-server-as-services.md) | The OAuth server is services with grant strategies; browser state is typed and single-use | accepted |
 | [0029](0029-dialects-and-dual-era-edge.md) | Protocol dialects: one edge serves every MCP revision; MRTR by pass-through or park-and-resume | accepted |
 | [0030](0030-fastmcp-4.md) | FastMCP 4 / SDK v2 upstream client, protocol era negotiated per server | accepted |
+| [0031](0031-joserfc-id-token-validation.md) | joserfc verifies ID tokens; issuer and audience validated explicitly | accepted |

@@ -22,7 +22,7 @@ class PkcePair(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    verifier: str = Field(description="Secret kept until the token exchange")
+    verifier: str = Field(repr=False, description="Secret kept until the token exchange")
     challenge: str = Field(description="S256 digest sent with the authorization request")
 
     @classmethod

@@ -33,11 +33,12 @@ class AdminSessionStore:
             return None
         # A stored record that no longer matches the schema is treated as no
         # session, so a rollout that changes the shape logs people out rather
-        # than raising mid-request.
+        # than raising mid-request. The id is the bearer credential itself, so
+        # it is never written to the log (DOM-3).
         try:
             return AdminSession.model_validate_json(raw)
         except ValidationError:
-            log.warning("adminsession.malformed", session_id=session_id)
+            log.warning("adminsession.malformed")
             return None
 
     async def delete(self, session_id: str) -> None:

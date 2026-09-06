@@ -37,7 +37,9 @@ class Settings(BaseSettings):
     # Admin auth (spec 21)
     oidc_discovery_url: str | None = Field(
         default=None,
-        description="OIDC issuer's discovery document URL; admin login is disabled when unset",
+        description="OIDC issuer's discovery document URL; admin login is disabled when unset. "
+        "It and the endpoints it names are subject to the egress policy, so an issuer on "
+        "loopback needs an egress allow entry",
     )
     oidc_client_id: str | None = Field(
         default=None, description="Client id registered with the OIDC provider"
