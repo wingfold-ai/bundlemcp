@@ -8,11 +8,12 @@ honor BOOTSTRAP_STRICT.
 from bundlemcp.bootstrap.bootstrap_bundle import BootstrapBundle
 from bundlemcp.bootstrap.bootstrap_document import BootstrapDocument
 from bundlemcp.bootstrap.bootstrap_runner import BootstrapRunner
-from bundlemcp.bootstrap.document_loader import load_document
+from bundlemcp.bootstrap.document_loader import load_document, parse_document
 
 __all__ = [
     "BootstrapBundle",
     "BootstrapDocument",
     "BootstrapRunner",
     "load_document",
+    "parse_document",
 ]

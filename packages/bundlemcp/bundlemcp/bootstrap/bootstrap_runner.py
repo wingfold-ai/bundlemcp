@@ -3,7 +3,7 @@
 import structlog
 
 from bundlemcp.bootstrap.bootstrap_document import BootstrapDocument
-from bundlemcp.bootstrap.document_loader import load_document
+from bundlemcp.bootstrap.document_loader import load_document, parse_document
 from bundlemcp.schemas import BundleServerUpdate
 from bundlemcp.services import BundleService, EndpointService, ServerService, ToolDiscovery
 from bundlemcp.settings import Settings
@@ -39,18 +39,26 @@ class BootstrapRunner:
                 await endpoints.upsert(endpoint)
 
     async def run(self, settings: Settings) -> None:
-        """Apply the configured file if there is one; strict mode refuses to start on error."""
-        if not settings.bootstrap_file:
-            return
+        """Apply the configured file, then the inline document.
+
+        Strict mode refuses to start on any error; otherwise it is logged and
+        startup continues with whatever applied before it.
+        """
+        documents: dict[str, BootstrapDocument] = {}
         try:
-            doc = load_document(settings.bootstrap_file)
-            await self.apply(doc)
-            log.info(
-                "bootstrap.applied",
-                servers=len(doc.servers),
-                bundles=len(doc.bundles),
-                endpoints=len(doc.endpoints),
-            )
+            if settings.bootstrap_file:  # BOOT-1
+                documents["file"] = load_document(settings.bootstrap_file)
+            if settings.bootstrap:
+                documents["inline"] = parse_document(settings.bootstrap)
+            for source, doc in documents.items():
+                await self.apply(doc)
+                log.info(
+                    "bootstrap.applied",
+                    source=source,
+                    servers=len(doc.servers),
+                    bundles=len(doc.bundles),
+                    endpoints=len(doc.endpoints),
+                )
         except Exception:
             log.error("bootstrap.failed", strict=settings.bootstrap_strict, exc_info=True)
             if settings.bootstrap_strict:
