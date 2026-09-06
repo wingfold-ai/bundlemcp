@@ -48,7 +48,14 @@ class OAuthTokenService:
         if grant is None:
             await self._uow.commit()
             raise OAuthError("unsupported_grant_type")
-        tokens = await grant.exchange(client, request)
+        try:
+            tokens = await grant.exchange(client, request)
+        except OAuthError:
+            # A refused grant may still have recorded something that must
+            # outlive it: the client's last use, or a token family revoked
+            # because its refresh token was replayed.
+            await self._uow.commit()
+            raise
         await self._uow.commit()
         return tokens
 

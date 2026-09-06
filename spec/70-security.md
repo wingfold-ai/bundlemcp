@@ -26,7 +26,13 @@ specs reference these controls instead of re-deriving them.
 - **SEC-1** All gateway-initiated HTTP to admin-supplied URLs (server probes
   [SRV-2](10-server-registry.md), live tool calls, upstream OAuth discovery
   [UPO-1](23-upstream-oauth.md), inspector ad-hoc targets
-  [INS-1](53-inspector.md)) goes through one egress policy layer.
+  [INS-1](53-inspector.md)) goes through one egress policy layer. The policy
+  also covers every URL a remote party names along the way — the
+  authorization server a protected-resource document points at, the token
+  endpoint its metadata names, a client's metadata document
+  ([OAS-13](20-oauth-server.md)) — and the operator-configured identity
+  provider ([ADM-1](21-admin-auth.md)); see
+  [ADR-0032](../docs/adr/0032-egress-policy-scope.md).
 - **SEC-2** Default egress policy: **block link-local/metadata ranges**
   (`169.254.0.0/16`, IPv6 equivalents — cloud metadata endpoints) and the
   gateway's own loopback; **allow private RFC 1918 ranges** (compose-network
@@ -43,7 +49,8 @@ specs reference these controls instead of re-deriving them.
   app's origin(s) (`BUNDLEMCP_WEB_ORIGINS`); credentials allowed only for
   those. State-changing requests authenticated by the admin session cookie
   MUST be CSRF-protected: `SameSite=Lax` cookies **plus** Origin/Referer
-  check (double-submit token as fallback for non-browser callers is not
+  check — an `Origin` must equal an allowed origin exactly, a `Referer` must
+  sit under one; a prefix match would admit `https://gw.example.com.evil.test` (double-submit token as fallback for non-browser callers is not
   needed — those use API keys).
 - **SEC-5** MCP endpoints (`/{endpoint}/mcp`): permissive CORS
   (`Access-Control-Allow-Origin` reflecting the request origin, no

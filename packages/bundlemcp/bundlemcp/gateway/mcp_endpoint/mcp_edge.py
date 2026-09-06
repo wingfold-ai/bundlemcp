@@ -51,6 +51,10 @@ from bundlemcp.gateway.streams import STREAM_CLOSING, StreamKey, StreamRegistry
 from bundlemcp.store.sessions import SessionRecord, SessionStore
 
 
+def _carries_credential(request: Request) -> bool:
+    return "authorization" in request.headers or "x-api-key" in request.headers
+
+
 def _method_not_allowed() -> Response:
     # EP-1: the modern era is POST-only; GET/DELETE exist for handshake sessions.
     return Response(status_code=405, headers={"Allow": "POST"})
@@ -169,6 +173,10 @@ class McpEdge:
             view = await load_bundle_view(db, endpoint_name)
             if view is None:
                 raise RequestRejected(JSONResponse({"error": "not found"}, status_code=404))
+            if _carries_credential(request):
+                locked = await self._auth_failures.rejection_if_locked(request)  # RATE-5
+                if locked is not None:
+                    raise RequestRejected(locked)
             identity = await self._authentication.authenticate(request, db, view)
         if identity is None:
             locked = await self._auth_failures.note_failure(request)  # RATE-5

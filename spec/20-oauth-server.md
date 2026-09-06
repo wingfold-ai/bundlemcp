@@ -27,10 +27,15 @@ application layer can resolve a stable `sub`.
   authenticated browser session — if absent, redirect into the OIDC login and
   return to complete the flow. S256 PKCE REQUIRED for public clients. Codes
   are single-use, 10-minute expiry, bound to client + redirect URI + challenge.
+  The burn is atomic (a compare-and-set on the stored code), so two
+  redemptions racing on one code yield one token pair.
 - **OAS-4 Token endpoint**: `POST /oauth/token` supports `authorization_code`
   and `refresh_token` grants. Access tokens are opaque (`bmcp_…` prefix),
   default 1h lifetime; refresh tokens default 7d and are **rotated on every
-  use** (old one revoked). Lifetimes runtime-configurable (`Config`).
+  use** (old one revoked). A refresh token presented again after rotation is
+  treated as stolen: every pair descended from the same authorization grant
+  (the token *family*) is revoked (RFC 9700 §4.14.2). Lifetimes
+  runtime-configurable (`Config`).
 - **OAS-5 Introspection** (RFC 7662): `POST /oauth/introspect` returns
   `active`, `sub` (bundlemcp user id — the stable billing key, see
   [02-domain-model.md](02-domain-model.md) `User`), `client_id`, `exp`,

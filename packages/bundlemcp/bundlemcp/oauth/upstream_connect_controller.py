@@ -83,10 +83,12 @@ class UpstreamConnectController(Controller):
         state = secrets.token_urlsafe(24)  # the upstream echoes it back; it retrieves our record
         try:
             start = await store.build_authorize(server, redirect_uri, state)
-        except NeedsConnect:
-            raise HTTPException(
-                400, "server has no upstream OAuth client config (set client_id first)"
-            ) from None
+        except NeedsConnect as exc:
+            if exc.reason == "no_client_config":
+                detail = "server has no upstream OAuth client config (set client_id first)"
+            else:
+                detail = f"upstream authorization server unavailable: {exc.reason}"
+            raise HTTPException(400, detail) from None
         await states.put(
             UpstreamConnectState(
                 server_id=server.id,

@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from typing import Any
 
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, func, select
 
@@ -49,6 +50,18 @@ class Repository[T: SQLModel]:
         )
         rows = list((await self._session.execute(statement)).scalars())
         return total, rows
+
+    async def update_where(self, *criteria: Any, **values: Any) -> int:
+        """Set columns on every row the criteria match, in one statement.
+
+        Returns how many rows changed. A zero when exactly one row was expected
+        means another transaction got there first: the statement is the
+        compare-and-set that makes a single-use record single-use under
+        concurrency, which a read followed by a write cannot be.
+        """
+        statement = update(self._model).where(*criteria).values(**values)
+        result = await self._session.execute(statement)
+        return result.rowcount
 
     def add(self, entity: T) -> T:
         self._session.add(entity)

@@ -1,9 +1,8 @@
 """Rendering the protocol's error shapes (RFC 6749 section 5.2)."""
 
-from urllib.parse import urlencode
-
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastmcp.server.auth.redirect_validation import build_client_redirect
 
 from bundlemcp.services.errors import AuthorizationRedirectError, OAuthError
 
@@ -30,6 +29,8 @@ async def authorization_redirect_handler(
         params["error_description"] = exc.description
     if exc.state:
         params["state"] = exc.state
-    if exc.issuer:
-        params["iss"] = exc.issuer  # OAS-14: error responses carry the issuer too
-    return RedirectResponse(f"{exc.redirect_uri}?{urlencode(params)}", status_code=302)
+    # Merged into a redirect URI that may carry its own query; iss is set
+    # exactly once on error responses too (OAS-14).
+    return RedirectResponse(
+        build_client_redirect(exc.redirect_uri, params, iss=exc.issuer), status_code=302
+    )
