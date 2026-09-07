@@ -1,12 +1,10 @@
 import uuid
 from datetime import timedelta
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from bundlemcp.crypto import ACCESS_TOKEN_PREFIX, REFRESH_TOKEN_PREFIX, generate_token, hash_token
 from bundlemcp.models import OAuthAccessToken, utcnow
 from bundlemcp.schemas import TokenResponse
-from bundlemcp.store import Repository
+from bundlemcp.store import Repository, UnitOfWork
 
 ACCESS_TOKEN_TTL = timedelta(hours=1)  # OAS-4
 REFRESH_TOKEN_TTL = timedelta(days=7)
@@ -15,8 +13,8 @@ REFRESH_TOKEN_TTL = timedelta(days=7)
 class TokenIssuer:
     """Mints an access/refresh pair and stores only their hashes."""
 
-    def __init__(self, session: AsyncSession) -> None:
-        self._tokens = Repository(session, OAuthAccessToken)
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._tokens = Repository(uow.session, OAuthAccessToken)
 
     def issue(
         self,

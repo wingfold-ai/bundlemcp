@@ -123,7 +123,7 @@ class CompositionRoot:
         rate_limiter = overrides.rate_limiter or RateLimiter(redis, counters)
         mcp_edge = McpEdgeAssembly(
             settings=settings,
-            session_factory=sessions,
+            unit_of_work_factory=units,
             sessions=session_store,
             registry=registry,
             signals=signals,
