@@ -33,7 +33,7 @@ class BundleService(NamedResourceService[Bundle, BundleRead]):
         self._memberships = Repository(uow.session, BundleServer)
         self._curations = Repository(uow.session, BundleTool)
         self._tools = Repository(uow.session, Tool)
-        self._policy = PerUserUpstreamPolicy(uow.session)
+        self._policy = PerUserUpstreamPolicy(uow)
 
     async def upsert(self, body: BundleUpsert) -> BundleRead:
         bundle = await self._by_name(body.name)

@@ -15,7 +15,7 @@ class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
             uow, entity=Endpoint, read_model=EndpointRead, entity_type="endpoint", label="endpoint"
         )
         self._bundles = Repository(uow.session, Bundle)
-        self._policy = PerUserUpstreamPolicy(uow.session)
+        self._policy = PerUserUpstreamPolicy(uow)
 
     async def upsert(self, body: EndpointUpsert) -> EndpointRead:
         bundle = await self._bundles.by_name(body.bundle_name)

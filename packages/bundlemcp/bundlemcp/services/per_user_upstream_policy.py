@@ -9,18 +9,16 @@ and each mutation asks the policy before it commits.
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from bundlemcp.models import BundleServer, Endpoint, EndpointAuthMode, McpServer
 from bundlemcp.services.errors import ConflictError
-from bundlemcp.store import Repository
+from bundlemcp.store import Repository, UnitOfWork
 
 
 class PerUserUpstreamPolicy:
-    def __init__(self, session: AsyncSession) -> None:
-        self._servers = Repository(session, McpServer)
-        self._memberships = Repository(session, BundleServer)
-        self._endpoints = Repository(session, Endpoint)
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._servers = Repository(uow.session, McpServer)
+        self._memberships = Repository(uow.session, BundleServer)
+        self._endpoints = Repository(uow.session, Endpoint)
 
     async def ensure_endpoint_allowed(
         self, bundle_id: uuid.UUID, auth_modes: Sequence[EndpointAuthMode]

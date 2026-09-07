@@ -3,7 +3,6 @@
 from collections.abc import Sequence
 
 from fastapi import Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from bundlemcp.gateway.composition import BundleView
 from bundlemcp.gateway.mcp_endpoint.authentication.anonymous_authenticator import (
@@ -20,6 +19,7 @@ from bundlemcp.gateway.mcp_endpoint.authentication.oauth_bearer_authenticator im
 )
 from bundlemcp.models import CallerIdentity
 from bundlemcp.services import AuthService
+from bundlemcp.store import UnitOfWork
 
 # Strongest credential first: a valid token wins over a key, and only an
 # endpoint that accepts nobody falls through to anonymous.
@@ -37,10 +37,10 @@ class EndpointAuthentication:
         self._authenticators = tuple(authenticators)
 
     async def authenticate(
-        self, request: Request, db: AsyncSession, view: BundleView
+        self, request: Request, uow: UnitOfWork, view: BundleView
     ) -> CallerIdentity | None:
         """The first identity an accepted authenticator can vouch for, else None."""
-        auth = AuthService(db)
+        auth = AuthService(uow)
         for authenticator in self._authenticators:
             if not view.endpoint.accepts(authenticator.mode):
                 continue

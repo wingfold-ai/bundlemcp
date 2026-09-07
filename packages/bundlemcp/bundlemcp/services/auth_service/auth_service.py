@@ -2,11 +2,9 @@
 
 import uuid
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from bundlemcp.crypto import ACCESS_TOKEN_PREFIX, API_KEY_PREFIX, hash_token
 from bundlemcp.models import ApiKey, CallerIdentity, OAuthAccessToken, User, utcnow
-from bundlemcp.store import Repository
+from bundlemcp.store import Repository, UnitOfWork
 
 # Coarsen last_used_at writes: skip the UPDATE unless the key has been idle
 # this long, so a busy key isn't written on every request (KEY-4).
@@ -14,11 +12,11 @@ _LAST_USED_REFRESH_SECONDS = 60
 
 
 class AuthService:
-    def __init__(self, db: AsyncSession) -> None:
-        self._db = db
-        self._keys = Repository(db, ApiKey)
-        self._tokens = Repository(db, OAuthAccessToken)
-        self._users = Repository(db, User)
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+        self._keys = Repository(uow.session, ApiKey)
+        self._tokens = Repository(uow.session, OAuthAccessToken)
+        self._users = Repository(uow.session, User)
 
     @staticmethod
     def extract_key(authorization: str | None, x_api_key: str | None) -> str | None:
@@ -41,7 +39,7 @@ class AuthService:
         now = utcnow()
         if not key.used_within(_LAST_USED_REFRESH_SECONDS, now):
             key.last_used_at = now
-            await self._db.commit()
+            await self._uow.commit()
         return key
 
     async def authenticate_api_key(

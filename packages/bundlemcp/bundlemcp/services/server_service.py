@@ -18,7 +18,7 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         self._discovery = discovery
         self._memberships = Repository(uow.session, BundleServer)
         self._tools = Repository(uow.session, Tool)
-        self._policy = PerUserUpstreamPolicy(uow.session)
+        self._policy = PerUserUpstreamPolicy(uow)
 
     async def upsert(self, body: ServerUpsert) -> ServerRead:
         """Config-only upsert by natural key; idempotent; never blocks on probing."""
