@@ -1,12 +1,10 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from bundlemcp.crypto import hash_token, pkce_verifies
 from bundlemcp.models import OAuthAuthorizationCode, OAuthClient
 from bundlemcp.schemas import TokenResponse
 from bundlemcp.services.errors import OAuthError
 from bundlemcp.services.oauth_server.token_issuer import TokenIssuer
 from bundlemcp.services.oauth_server.token_request import TokenRequest
-from bundlemcp.store import Repository
+from bundlemcp.store import Repository, UnitOfWork
 
 
 class AuthorizationCodeGrant:
@@ -14,8 +12,8 @@ class AuthorizationCodeGrant:
 
     grant_type = "authorization_code"
 
-    def __init__(self, session: AsyncSession, issuer: TokenIssuer) -> None:
-        self._codes = Repository(session, OAuthAuthorizationCode)
+    def __init__(self, uow: UnitOfWork, issuer: TokenIssuer) -> None:
+        self._codes = Repository(uow.session, OAuthAuthorizationCode)
         self._issuer = issuer
 
     async def exchange(self, client: OAuthClient, request: TokenRequest) -> TokenResponse:

@@ -20,14 +20,14 @@ class OAuthTokenService:
     def __init__(self, uow: UnitOfWork, grants: Sequence[TokenGrant] | None = None) -> None:
         # grants defaults to the two this server supports; a caller may narrow the list
         self._uow = uow
-        self._clients = OAuthClientAuthenticator(uow.session)
+        self._clients = OAuthClientAuthenticator(uow)
         self._client_rows = Repository(uow.session, OAuthClient)
         self._tokens = Repository(uow.session, OAuthAccessToken)
         if grants is None:
-            issuer = TokenIssuer(uow.session)
+            issuer = TokenIssuer(uow)
             grants = (
-                AuthorizationCodeGrant(uow.session, issuer),
-                RefreshTokenGrant(uow.session, issuer),
+                AuthorizationCodeGrant(uow, issuer),
+                RefreshTokenGrant(uow, issuer),
             )
         self._grants = {grant.grant_type: grant for grant in grants}
 

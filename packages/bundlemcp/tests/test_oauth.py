@@ -546,7 +546,8 @@ async def test_code_burn_is_a_compare_and_set(oauth_env):
     verifier, challenge = make_pkce()
     code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
 
-    async with app.state.container.session_factory() as db:
+    async with app.state.container.unit_of_work_factory.open() as uow:
+        db = uow.session
         stale = await Repository(db, OAuthAuthorizationCode).get(hash_token(code))
         assert stale is not None and not stale.used
         await db.execute(  # the other redemption wins the race
@@ -563,7 +564,7 @@ async def test_code_burn_is_a_compare_and_set(oauth_env):
             code_verifier=verifier,
         )
         with pytest.raises(OAuthError) as excinfo:
-            await AuthorizationCodeGrant(db, TokenIssuer(db)).exchange(client, request)
+            await AuthorizationCodeGrant(uow, TokenIssuer(uow)).exchange(client, request)
         assert excinfo.value.error == "invalid_grant"
         rows = (await db.execute(select(OAuthAccessToken))).scalars().all()
     assert rows == []
@@ -585,7 +586,8 @@ async def test_refresh_rotation_is_a_compare_and_set(oauth_env):
     code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
     tokens = await _exchange(http, client_id, code, verifier)
 
-    async with app.state.container.session_factory() as db:
+    async with app.state.container.unit_of_work_factory.open() as uow:
+        db = uow.session
         stale = await Repository(db, OAuthAccessToken).one(
             OAuthAccessToken.refresh_token_hash == hash_token(tokens["refresh_token"])
         )
@@ -599,7 +601,7 @@ async def test_refresh_rotation_is_a_compare_and_set(oauth_env):
         client = await Repository(db, OAuthClient).get(client_id)
         request = TokenRequest(grant_type="refresh_token", refresh_token=tokens["refresh_token"])
         with pytest.raises(OAuthError) as excinfo:
-            await RefreshTokenGrant(db, TokenIssuer(db)).exchange(client, request)
+            await RefreshTokenGrant(uow, TokenIssuer(uow)).exchange(client, request)
         assert excinfo.value.error == "invalid_grant"
         rows = (await db.execute(select(OAuthAccessToken))).scalars().all()
     assert len(rows) == 1 and rows[0].revoked

@@ -22,7 +22,6 @@ from mcp.shared.inbound import (
 )
 from mcp.types import INVALID_PARAMS, INVALID_REQUEST, LOG_LEVEL_META_KEY, PARSE_ERROR
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bundlemcp.gateway.composition import load_bundle_view
 from bundlemcp.gateway.dialect import DialectRegistry
@@ -48,6 +47,7 @@ from bundlemcp.gateway.mcp_endpoint.sse import (
 from bundlemcp.gateway.ratelimit import AuthFailureGuard
 from bundlemcp.gateway.signals import SignalBus
 from bundlemcp.gateway.streams import STREAM_CLOSING, StreamKey, StreamRegistry
+from bundlemcp.store import UnitOfWorkFactory
 from bundlemcp.store.sessions import SessionRecord, SessionStore
 
 
@@ -66,7 +66,7 @@ class McpEdge:
     def __init__(
         self,
         *,
-        session_factory: async_sessionmaker[AsyncSession],
+        unit_of_work_factory: UnitOfWorkFactory,
         sessions: SessionStore,
         registry: StreamRegistry,
         signals: SignalBus,
@@ -77,7 +77,7 @@ class McpEdge:
         methods: MethodRegistry,
         public_base: str,
     ) -> None:
-        self._session_factory = session_factory
+        self._unit_of_work_factory = unit_of_work_factory
         self._sessions = sessions
         self._registry = registry
         self._signals = signals
@@ -169,15 +169,15 @@ class McpEdge:
 
     async def _admit(self, request: Request, endpoint_name: str) -> EndpointContext:
         """Resolve the endpoint and authenticate the caller, or reject the request."""
-        async with self._session_factory() as db:
-            view = await load_bundle_view(db, endpoint_name)
+        async with self._unit_of_work_factory.open() as uow:
+            view = await load_bundle_view(uow.session, endpoint_name)
             if view is None:
                 raise RequestRejected(JSONResponse({"error": "not found"}, status_code=404))
             if _carries_credential(request):
                 locked = await self._auth_failures.rejection_if_locked(request)  # RATE-5
                 if locked is not None:
                     raise RequestRejected(locked)
-            identity = await self._authentication.authenticate(request, db, view)
+            identity = await self._authentication.authenticate(request, uow, view)
         if identity is None:
             locked = await self._auth_failures.note_failure(request)  # RATE-5
             raise RequestRejected(

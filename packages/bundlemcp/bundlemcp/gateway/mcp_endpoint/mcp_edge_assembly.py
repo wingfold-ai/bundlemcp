@@ -1,7 +1,6 @@
 """Building the edge from the collaborators the composition root has acquired."""
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bundlemcp.crypto import TokenCipher
 from bundlemcp.gateway.audit import AuditWriter
@@ -40,6 +39,7 @@ from bundlemcp.gateway.streams import StreamRegistry
 from bundlemcp.gateway.upstream import ClientFactory
 from bundlemcp.oauth.upstream_client import UpstreamTokenStore
 from bundlemcp.settings import Settings
+from bundlemcp.store import UnitOfWorkFactory
 from bundlemcp.store.sessions import SessionStore
 
 
@@ -53,8 +53,8 @@ class McpEdgeAssembly(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     settings: Settings = Field(repr=False, description="Deploy-time configuration")
-    session_factory: async_sessionmaker[AsyncSession] = Field(
-        description="Opens the short database session that admits each request"
+    unit_of_work_factory: UnitOfWorkFactory = Field(
+        description="Opens the short transaction that admits each request"
     )
     sessions: SessionStore = Field(description="Session records in Valkey")
     registry: StreamRegistry = Field(description="This replica's open streams and in-flight calls")
@@ -118,7 +118,7 @@ class McpEdgeAssembly(BaseModel):
             }
         )
         return McpEdge(
-            session_factory=self.session_factory,
+            unit_of_work_factory=self.unit_of_work_factory,
             sessions=self.sessions,
             registry=self.registry,
             signals=self.signals,

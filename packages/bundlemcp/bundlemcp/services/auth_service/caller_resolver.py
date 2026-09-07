@@ -1,10 +1,9 @@
 """Resolving whoever a management request presents: a browser session or an API key."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from bundlemcp.models import ApiKey, User
 from bundlemcp.services.auth_service.admin_session_service import AdminSessionService
 from bundlemcp.services.auth_service.auth_service import AuthService
+from bundlemcp.store import UnitOfWork
 from bundlemcp.store.admin_sessions import AdminSessionStore
 
 
@@ -16,9 +15,9 @@ class CallerResolver:
     place the cookie-then-key precedence is written.
     """
 
-    def __init__(self, db: AsyncSession, admin_sessions: AdminSessionStore) -> None:
-        self._sessions = AdminSessionService(db, admin_sessions)
-        self._auth = AuthService(db)
+    def __init__(self, uow: UnitOfWork, admin_sessions: AdminSessionStore) -> None:
+        self._sessions = AdminSessionService(uow, admin_sessions)
+        self._auth = AuthService(uow)
 
     async def resolve(
         self, *, session_id: str | None, authorization: str | None, x_api_key: str | None

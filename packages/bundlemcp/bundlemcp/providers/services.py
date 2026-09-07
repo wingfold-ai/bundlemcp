@@ -62,15 +62,15 @@ def get_audit_service(uow: UnitOfWorkProvider) -> AuditService:
 
 
 def get_auth_service(uow: UnitOfWorkProvider) -> AuthService:
-    return AuthService(uow.session)
+    return AuthService(uow)
 
 
 def get_admin_session_service(request: Request, uow: UnitOfWorkProvider) -> AdminSessionService:
-    return AdminSessionService(uow.session, request.app.state.container.admin_sessions)
+    return AdminSessionService(uow, request.app.state.container.admin_sessions)
 
 
 def get_caller_resolver(request: Request, uow: UnitOfWorkProvider) -> CallerResolver:
-    return CallerResolver(uow.session, request.app.state.container.admin_sessions)
+    return CallerResolver(uow, request.app.state.container.admin_sessions)
 
 
 ServerServiceProvider = Annotated[ServerService, Depends(get_server_service)]

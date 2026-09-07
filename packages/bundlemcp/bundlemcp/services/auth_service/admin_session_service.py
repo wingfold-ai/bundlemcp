@@ -2,16 +2,14 @@
 
 import uuid
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from bundlemcp.models import User
-from bundlemcp.store import Repository
+from bundlemcp.store import Repository, UnitOfWork
 from bundlemcp.store.admin_sessions import AdminSessionStore
 
 
 class AdminSessionService:
-    def __init__(self, db: AsyncSession, admin_sessions: AdminSessionStore) -> None:
-        self._users = Repository(db, User)
+    def __init__(self, uow: UnitOfWork, admin_sessions: AdminSessionStore) -> None:
+        self._users = Repository(uow.session, User)
         self._admin_sessions = admin_sessions
 
     async def session_user(self, session_id: str | None) -> User | None:

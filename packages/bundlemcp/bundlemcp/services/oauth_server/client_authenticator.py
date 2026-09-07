@@ -1,16 +1,14 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from bundlemcp.crypto import hash_token, tokens_equal
 from bundlemcp.models import OAuthClient
 from bundlemcp.services.oauth_server.client_credentials import ClientCredentials
-from bundlemcp.store import Repository
+from bundlemcp.store import Repository, UnitOfWork
 
 
 class OAuthClientAuthenticator:
     """Public clients prove nothing here (PKCE does); confidential ones present a secret."""
 
-    def __init__(self, session: AsyncSession) -> None:
-        self._clients = Repository(session, OAuthClient)
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._clients = Repository(uow.session, OAuthClient)
 
     async def authenticate(self, credentials: ClientCredentials) -> OAuthClient | None:
         client = await self._clients.get(credentials.client_id)
