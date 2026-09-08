@@ -24,6 +24,8 @@ bundlemcp = { workspace = true }
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+# Skill scripts under .claude/ are tooling that ships with the skills, not project code.
+extend-exclude = [".claude"]
 
 [tool.ruff.lint]
 select = [
