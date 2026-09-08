@@ -10,12 +10,20 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
-from bundlemcp.api.app import create_app
-from bundlemcp.api.composition_overrides import CompositionOverrides
-from bundlemcp.crypto import API_KEY_PREFIX, display_prefix, generate_token, hash_token
-from bundlemcp.models import ApiKey, ApiKeyKind
-from bundlemcp.settings import Settings
-from bundlemcp.store import create_all, create_engine, session_factory
+from bundlemcp.application.settings.settings import Settings
+from bundlemcp.domain.access.api_key import ApiKey
+from bundlemcp.domain.access.api_key_kind import ApiKeyKind
+from bundlemcp.domain.shared.secrets import (
+    API_KEY_PREFIX,
+    display_prefix,
+    generate_token,
+    hash_token,
+)
+from bundlemcp.infrastructure.config.settings import EnvSettings
+from bundlemcp.infrastructure.postgres.engine import create_all, create_engine, session_factory
+from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
+from bundlemcp.main.app import create_app
+from bundlemcp.main.composition_overrides import CompositionOverrides
 from fakeredis.aioredis import FakeRedis
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -28,7 +36,7 @@ ENDPOINT_KEY = generate_token(API_KEY_PREFIX)
 
 def hermetic_settings(**extra: Any) -> Settings:
     """Settings for an in-process app: no env file, the shared in-memory database."""
-    return Settings(_env_file=None, database_url="sqlite+aiosqlite://", **extra)
+    return EnvSettings(_env_file=None, database_url="sqlite+aiosqlite://", **extra)
 
 
 async def seed_api_key(
@@ -36,11 +44,13 @@ async def seed_api_key(
 ) -> ApiKey:
     """Store one API key so requests carrying it authenticate."""
     async with session_factory(engine)() as db:
-        row = ApiKey(name=name, key_hash=hash_token(key), key_prefix=display_prefix(key), kind=kind)
+        row = ApiKeyRow(
+            name=name, key_hash=hash_token(key), key_prefix=display_prefix(key), kind=kind
+        )
         db.add(row)
         await db.commit()
         await db.refresh(row)
-        return row
+        return ApiKey.model_validate(row, from_attributes=True)
 
 
 @asynccontextmanager

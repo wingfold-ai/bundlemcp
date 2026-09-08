@@ -1,6 +1,6 @@
 # ADR-0020: Service + DTO layer at the library level; `apps/` for deployables
 
-**Status:** accepted · **Date:** 2026-07-04 · **Amends:** [ADR-0019](0019-api-service-layer.md)
+**Status:** accepted (amended by [ADR-0033](0033-clean-architecture-layers.md)) · **Date:** 2026-07-04 · **Amends:** [ADR-0019](0019-api-service-layer.md)
 
 ## Context
 
@@ -20,6 +20,15 @@ own peers.
 A second, smaller problem: the workspace root used `services/` for **deployable
 composition roots** (`services/gateway/`), colliding with the natural name for
 the business-logic layer.
+
+## Decision drivers
+
+- Ownership follows consumption: a layer used by four subsystems belongs to
+  none of them in particular — it belongs to the library.
+- A framework-free `AuthService` is unit-testable without an HTTP client and
+  removes the `gateway → api` and `oauth → api` edges.
+- The `apps/`/`packages/` split is the conventional monorepo layout and ends
+  the `services/` name overload cleanly.
 
 ## Decision
 
@@ -47,28 +56,29 @@ the business-logic layer.
   library layer. Gateway is not a uv workspace member, so `uv.lock` is
   unaffected.
 
-## Reasons
+## Alternatives considered
 
-- Ownership follows consumption: a layer used by four subsystems belongs to
-  none of them in particular — it belongs to the library.
-- A framework-free `AuthService` is unit-testable without an HTTP client and
-  removes the `gateway → api` and `oauth → api` edges.
-- The `apps/`/`packages/` split is the conventional monorepo layout and ends
-  the `services/` name overload cleanly.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) No subsystem imports `bundlemcp.api` except `api/` itself; `services/`
-  and `schemas/` import neither FastAPI nor `bundlemcp.api` (grep-verified).
-- (+) `bootstrap` and the management API now share one code path, so seeds and
-  API calls enforce identical invariants.
-- (+) Import moves are mechanical and behavior-preserving; the hermetic suite
-  passes unchanged at every step.
-- (−) HTTP 401/403 for management auth stays outside the service-layer domain
-  errors (no 401/403 in the `ServiceError` → status map); this is correct —
-  the accept-either status decision is an HTTP-contract concern the edge owns.
 - New resources follow ADR-0019's pattern, but the files land under
   `bundlemcp/services/` and `bundlemcp/schemas/`, not `api/`.
+
+### Positive
+
+- No subsystem imports `bundlemcp.api` except `api/` itself; `services/`
+  and `schemas/` import neither FastAPI nor `bundlemcp.api` (grep-verified).
+- `bootstrap` and the management API now share one code path, so seeds and
+  API calls enforce identical invariants.
+- Import moves are mechanical and behavior-preserving; the hermetic suite
+  passes unchanged at every step.
+
+### Trade-offs
+
+- HTTP 401/403 for management auth stays outside the service-layer domain
+  errors (no 401/403 in the `ServiceError` → status map); this is correct —
+  the accept-either status decision is an HTTP-contract concern the edge owns.
 
 ## Addendum (2026-07-05)
 

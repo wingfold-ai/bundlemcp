@@ -34,17 +34,23 @@ See [spec/00-overview.md](spec/00-overview.md) and
 - **State model:** Postgres = durable config/tokens/audit; Valkey (RESP) = live
   sessions/rate-limits/logs. **No in-memory-only state a request depends on**
   — any replica serves any session; restarts are non-events (spec 30).
-- **Pydantic-first:** entities defined once as SQLModel classes; API DTOs are
-  Pydantic; frontend TS types are generated from OpenAPI, never hand-written.
+- **Pydantic-first:** entities are plain Pydantic models in `domain/`; their
+  tables are SQLModel row classes in `infrastructure/postgres/rows/`, mapped by
+  the repositories (ADR-0034); API DTOs are Pydantic; frontend TS types are
+  generated from OpenAPI, never hand-written.
 - **Layout:** uv workspace — library code in `packages/bundlemcp/` (flat, no
   `src/`), deployable applications in `apps/` (gateway entrypoint, Nuxt
-  `apps/web`), compose stack in `deploy/`. Within the library, business logic
-  lives in `bundlemcp/services/` and DTOs in `bundlemcp/schemas/` — both
-  framework-free (no FastAPI, no `bundlemcp.api` import) so `api/`, `gateway/`,
-  `oauth/`, and `bootstrap` consume them as peers (ADR-0019/0020). Every HTTP
-  surface is a `Controller` subclass (ADR-0026); `api/` is controllers plus the
-  composition root, and `services/` sit on a `Repository` + `UnitOfWork`
-  (ADR-0025).
+  `apps/web`), compose stack in `deploy/`. The library is four clean-architecture
+  layers plus a composition root (ADR-0033): `domain/` (entities, value
+  objects, rules; plain Pydantic, no I/O), `application/` (use cases, `contracts/` — the
+  interfaces infrastructure fulfils, grouped by subject — `metering/`,
+  `schemas/` DTOs, `settings/`; imports domain only), `infrastructure/` (one adapter per
+  contract, grouped by technology: `postgres/`, `valkey/`, `fastmcp/`, `httpx/`,
+  `memory/` fakes, …), `api/` (FastAPI controllers for `/api/v1`, OAuth and the
+  MCP edge; names contracts, never adapters) and `main/` (the only place adapters
+  meet use cases). Every HTTP surface is a `Controller` subclass (ADR-0026);
+  services take a `UnitOfWork` contract whose repositories are contracts too
+  (ADR-0025/0033).
 
 ## Development
 
@@ -57,11 +63,17 @@ See [spec/00-overview.md](spec/00-overview.md) and
 
 ## Testing
 
-- `uv run pytest -q` — hermetic unit tests (no Docker/network); must pass
-  before any change is done. `uv run ruff check .` must be clean.
-- `uv run lint-imports` — import contracts (ADR-0023): the layer direction and
-  the framework-free rule for `services/`/`schemas/`/`models/`. Must pass with
-  zero exceptions; never silence a violation with `ignore_imports`.
+- `uv run pytest -q` — hermetic tests (no Docker/network) grouped by layer:
+  `tests/domain` and `tests/application` run on pure objects and the
+  `infrastructure/memory` fakes, `tests/infrastructure` on sqlite and
+  fakeredis, `tests/api` through the ASGI app. Must pass before any change is
+  done. `uv run ruff check .` must be clean.
+- `uv run lint-imports` — import contracts (ADR-0023/0033): the inward layer
+  direction, `domain/` and `application/` free of every driver, `api/` never
+  naming an adapter, `application/` never touching the ORM. Must pass with
+  zero exceptions; never silence a violation with `ignore_imports`. Delete
+  `.import_linter_cache` after moving modules; a stale cache reports kept
+  contracts that are broken.
 - Integration tests run against the compose stack; spec 30 mandates
   restart-under-load and two-replica session tests.
 - Tests reference spec requirement IDs in their names/docstrings where they
@@ -77,7 +89,7 @@ See [spec/00-overview.md](spec/00-overview.md) and
   error messages only.
 - Never log or return secrets/tokens/header values (spec 51, DOM-3).
 - **Pydantic everywhere, no `dataclasses`.** Every structured value is a
-  `BaseModel` (SQLModel for entities); `X | None` only where `None` is really
+  `BaseModel` (SQLModel for the row classes); `X | None` only where `None` is really
   reachable. The config recipes, the `@runtime_checkable` rule for `Protocol`
   fields, and the boundary round-trip pattern are in:
 

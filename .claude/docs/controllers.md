@@ -5,7 +5,7 @@ JSON-RPC method. The decision records are ADR-0026 and ADR-0027.
 
 ## One surface, one class
 
-Every group of routes is a subclass of `Controller` (`bundlemcp/http/`). The
+Every group of routes is a subclass of `Controller` (`bundlemcp/api/http/`). The
 subclass names its `prefix` and `tags`, and marks handler methods with
 `@route.get`, `@route.post`, `@route.put` or `@route.delete`:
 
@@ -59,22 +59,32 @@ directly, so the absence of the policy is visible in the class line.
 
 | Surface | Package | Base |
 |---|---|---|
-| Management API | `api/controllers/` | `ManagementController` |
-| OAuth server, admin login, upstream connect | `oauth/` | `Controller` |
-| MCP endpoints | `gateway/mcp_endpoint/` | `Controller` |
+| Management API | `api/management/controllers/` | `ManagementController` |
+| Health probes | `api/health/controllers/` | `Controller` |
+| OAuth server, admin login, upstream connect | `api/oauth/controllers/` | `Controller` |
+| MCP endpoints | `api/mcp/controllers/` | `Controller` |
 
-`bundlemcp/http/` holds only the base class. It sits beside `providers/` in
-the layer contract: glue every delivery package may import, which imports
-nothing above `services/`.
+Every surface is a package under `api/` with a `controllers/` subpackage; a
+route class lives there and nowhere else, so anything outside a `controllers/`
+folder (`oauth/pages/`, `oauth/browser_state/`, the whole MCP edge machinery)
+is by construction not a route.
+
+`bundlemcp/api/http/` holds the base class and the FastAPI providers: glue
+every delivery package may import. It names only contracts from `application/`,
+never an adapter from `infrastructure/`.
 
 ## Adding a resource
 
-1. DTOs in `schemas/<resource>/`, one class per file, every field described.
-2. A service in `services/`, taking a `UnitOfWork` and the collaborators it
-   needs; queries go through `Repository[T]`; for a resource addressed by
-   name, derive from `NamedResourceService`.
-3. A `get_<resource>_service` provider in `providers/services.py`.
-4. A controller in `api/controllers/`, registered in `api/app.py`.
+1. DTOs in `application/schemas/<resource>/`, one class per file, every field
+   described.
+2. A repository contract in `application/contracts/persistence/` if the entity is new, with its
+   SQLAlchemy adapter in `infrastructure/postgres/` and its fake in
+   `infrastructure/memory/`, both reachable from the `UnitOfWork`.
+3. A service in `application/management/`, taking a `UnitOfWork` and the contracts
+   it needs; for a resource addressed by name, derive from
+   `NamedResourceService`.
+4. A `get_<resource>_service` provider in `api/http/service_providers.py`.
+5. A controller in `api/management/controllers/`, registered in `main/app.py`.
 
 ## The MCP edge: one class per method
 
@@ -83,7 +93,7 @@ client's dialect: per-request `_meta` for a modern-era client, the session
 record for a handshake-era one) and hands a `RequestContext` plus a parsed
 `JsonRpcMessage` to `MethodRegistry.dispatch`. A handler returns results
 through `ctx.shape(...)`, so the revision-specific fields are added in one
-place (`gateway/dialect/`). The registry maps method names to handler
+place (`api/mcp/dialect/`). The registry maps method names to handler
 instances:
 
 ```python

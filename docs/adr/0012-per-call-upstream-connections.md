@@ -9,14 +9,7 @@ complexity source (generation counters, health timers, invalidation races)
 that still didn't survive restarts. Spec SES-8 already says "no pre-warming
 complexity in v1; measure cold-start first".
 
-## Decision
-
-v1 opens a **fresh upstream client per tools/call** (connect → call → close).
-The session record still tracks bindings (SES-6 bookkeeping), and server
-config changes invalidate via STP events, but no live connection is reused
-across calls yet.
-
-## Reasons
+## Decision drivers
 
 - Correctness first: per-call connections make identity isolation trivially
   right (FWD-5 — forwarded credentials can never leak across callers).
@@ -26,9 +19,26 @@ across calls yet.
 - Pooling identity-free upstream sessions can be added behind the same
   client-factory seam without touching the endpoint edge.
 
+## Decision
+
+v1 opens a **fresh upstream client per tools/call** (connect → call → close).
+The session record still tracks bindings (SES-6 bookkeeping), and server
+config changes invalidate via STP events, but no live connection is reused
+across calls yet.
+
+## Alternatives considered
+
+_Not recorded at the time of the decision._
+
 ## Consequences
 
-- (+) No pool invalidation races; drastically simpler failure handling.
-- (−) Per-call initialize round-trip to upstreams; stateful upstreams see
+### Positive
+
+- No pool invalidation races; drastically simpler failure handling.
+
+### Trade-offs
+
+- Per-call initialize round-trip to upstreams; stateful upstreams see
   short-lived sessions. Revisit against the OBS-6 measurement — this ADR is
   expected to be superseded by a pooling ADR when the data says so.
+

@@ -9,6 +9,12 @@ password hashing, signup toggles, session plumbing that caused real pain.
 bundlemcp's consumer (application-layer) runs Keycloak anyway; standalone users can
 run any OIDC IdP.
 
+## Decision drivers
+
+- Deletes the entire password/signup attack-and-maintenance surface.
+- Matches the boundary: bundlemcp orchestrates auth but does not *be* an IdP.
+- One identity per human across admin UI and connector flows (ADM-2).
+
 ## Decision
 
 Humans authenticate **exclusively via an external OIDC provider**
@@ -17,16 +23,20 @@ The dev compose stack ships a lightweight IdP so bundlemcp still "lives by
 itself". End users in the endpoint OAuth flow authenticate through the same
 federation ([spec/20](../../spec/20-oauth-server.md) OAS-3).
 
-## Reasons
+## Alternatives considered
 
-- Deletes the entire password/signup attack-and-maintenance surface.
-- Matches the boundary: bundlemcp orchestrates auth but does not *be* an IdP.
-- One identity per human across admin UI and connector flows (ADM-2).
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) No credential storage; IdP policies (MFA, lockout) apply for free.
-- (−) A running IdP is a hard dependency even for toy deployments (mitigated
+### Positive
+
+- No credential storage; IdP policies (MFA, lockout) apply for free.
+
+### Trade-offs
+
+- A running IdP is a hard dependency even for toy deployments (mitigated
   by the bundled dev IdP).
-- (−) Role sync depends on login-time re-evaluation (ADM-3) and deactivation
+- Role sync depends on login-time re-evaluation (ADM-3) and deactivation
   paths (ADM-6) rather than instant IdP push.
+

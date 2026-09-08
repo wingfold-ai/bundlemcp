@@ -16,6 +16,13 @@ browser session (OIDC, spec 21) **or** a service API key. Implementation is
 staged backend-first (UI deferred by the user's direction), so there is no
 browser to log in from yet.
 
+## Decision drivers
+
+- Unblocks the registrar/automation use case (API-4) immediately — the
+  integration application-layer actually needs first.
+- Avoids building the OIDC browser flow twice (it needs consent pages and the
+  web origin anyway).
+
 ## Decision
 
 Phase 1 ships the management API with **service-kind API keys only**
@@ -28,18 +35,21 @@ Endpoint OAuth (spec 20, claude profile) is likewise still to be built:
 endpoints configured `oauth`-only currently return the 401 challenge, which
 is the spec-correct behavior for an unauthenticated request.
 
-## Reasons
+## Alternatives considered
 
-- Unblocks the registrar/automation use case (API-4) immediately — the
-  integration application-layer actually needs first.
-- Avoids building the OIDC browser flow twice (it needs consent pages and the
-  web origin anyway).
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) Full management surface usable headlessly from day one.
-- (−) claude-profile endpoints are not connectable until spec 20 ships — the
+### Positive
+
+- Full management surface usable headlessly from day one.
+
+### Trade-offs
+
+- claude-profile endpoints are not connectable until spec 20 ships — the
   next major backend milestone.
-- (−) `_authenticate` in the endpoint edge has an explicit oauth-pending seam
+- `_authenticate` in the endpoint edge has an explicit oauth-pending seam
   that must be filled, not forgotten (tracked by OAS-9's required
   integration test).
+

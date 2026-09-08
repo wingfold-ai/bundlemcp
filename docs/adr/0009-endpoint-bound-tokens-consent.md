@@ -10,14 +10,7 @@ flagged it: any registered client that walks a logged-in user through a
 redirect obtains a token usable across all endpoints — an authorization hole
 and a billing-attribution risk for the application layer.
 
-## Decision
-
-Two controls in [spec/20](../../spec/20-oauth-server.md):
-**consent** (OAS-11 — per (user, client, endpoint), persistent, revocable)
-and **endpoint-bound tokens** (OAS-10 — RFC 8707 resource indicators; the
-token's audience is the endpoint; endpoints reject mismatches, EP-3a).
-
-## Reasons
+## Decision drivers
 
 - Tokens ignoring endpoint identity contradicts the product's core concept
   (per-client endpoints).
@@ -25,10 +18,27 @@ token's audience is the endpoint; endpoints reject mismatches, EP-3a).
   MCP auth guidance expects resource indicators.
 - Stable per-endpoint audience improves metering attribution for application-layer.
 
+## Decision
+
+Two controls in [spec/20](../../spec/20-oauth-server.md):
+**consent** (OAS-11 — per (user, client, endpoint), persistent, revocable)
+and **endpoint-bound tokens** (OAS-10 — RFC 8707 resource indicators; the
+token's audience is the endpoint; endpoints reject mismatches, EP-3a).
+
+## Alternatives considered
+
+_Not recorded at the time of the decision._
+
 ## Consequences
 
-- (+) A leaked/replayed token is confined to one endpoint; users see and can
+### Positive
+
+- A leaked/replayed token is confined to one endpoint; users see and can
   revoke what they granted.
-- (−) One extra browser step on first connect per client+endpoint.
-- (−) Clients must re-authorize per endpoint (that's the point); v1 keeps a
+
+### Trade-offs
+
+- One extra browser step on first connect per client+endpoint.
+- Clients must re-authorize per endpoint (that's the point); v1 keeps a
   single scope and uses audience — not scopes — for binding.
+

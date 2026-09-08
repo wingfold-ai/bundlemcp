@@ -18,6 +18,14 @@ changed since:
   local user identity. On a shared IdP realm a token minted for a different
   client of the same realm passed.
 
+## Decision drivers
+
+- The deprecation would have become an `ImportError` at the next Authlib
+  major; the replacement is the library Authlib delegates to.
+- joserfc validates nothing implicitly, which makes the claim checks visible
+  in the code that owns them instead of hidden behind an option dictionary.
+- Zero installed-package delta.
+
 ## Decision
 
 - `JoseOidcProvider` (renamed from `AuthlibOidcProvider`) decodes the ID token
@@ -35,19 +43,21 @@ changed since:
   Protocol is unchanged.
 - `authlib` is no longer a direct dependency; `joserfc>=1.7` is.
 
-## Reasons
+## Alternatives considered
 
-- The deprecation would have become an `ImportError` at the next Authlib
-  major; the replacement is the library Authlib delegates to.
-- joserfc validates nothing implicitly, which makes the claim checks visible
-  in the code that owns them instead of hidden behind an option dictionary.
-- Zero installed-package delta.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) OIDC Core 3.1.3.7 steps 2 and 3 are enforced and covered by tests that
+### Positive
+
+- OIDC Core 3.1.3.7 steps 2 and 3 are enforced and covered by tests that
   fail against the previous code.
-- (+) The relying-party path is exercised hermetically for the first time.
-- (−) An IdP whose `aud` is a list containing the client id relies on
+- The relying-party path is exercised hermetically for the first time.
+
+### Trade-offs
+
+- An IdP whose `aud` is a list containing the client id relies on
   joserfc's list handling of `value`; confirm against a new realm before
   shipping it.
+

@@ -69,8 +69,8 @@ to the owning upstream by parsing the prefix.
 
 BND-8/BND-9 **implemented** ([ADR-0021](../docs/adr/0021-mcp-surface-completion.md)):
 prompts/resources/completions are live passthrough with no cache or curation
-tables; the prefix/URI routing above is enforced in `gateway/composition.py`
-(`resolve_prompt`) and `gateway/mcp_endpoint/handlers/` (fan-out handlers). Capability
+tables; the prefix/URI routing above is enforced in `application/serving/bundle_view_loader.py`
+(`resolve_prompt`) and `api/mcp/handlers/` (fan-out handlers). Capability
 aggregation reads a per-server `capabilities` snapshot captured at discovery
 ([DISC](11-tool-discovery.md)).
 

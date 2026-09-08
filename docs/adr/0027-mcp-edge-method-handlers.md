@@ -19,6 +19,16 @@ returning a tuple.
 Adding a method meant editing the dispatcher; testing a handler meant building
 the whole app.
 
+## Decision drivers
+
+- A registry turns "add a method" into "register a handler". The dispatcher
+  never changes again.
+- Handlers with explicit dependencies are unit-testable with fakes.
+- The credential logic and the JSON-RPC rendering were each written twice;
+  both now exist once.
+- A strategy per credential kind is the shape the endpoint's `auth_modes`
+  already has.
+
 ## Decision
 
 - **`McpEdge` is the edge as an object.** It admits a request (endpoint
@@ -47,23 +57,23 @@ the whole app.
 - **The read-only passthrough shares `MemberFanout`**, which reaches members
   with the same headers and credentials the tool path uses.
 
-## Reasons
+## Alternatives considered
 
-- A registry turns "add a method" into "register a handler". The dispatcher
-  never changes again.
-- Handlers with explicit dependencies are unit-testable with fakes.
-- The credential logic and the JSON-RPC rendering were each written twice;
-  both now exist once.
-- A strategy per credential kind is the shape the endpoint's `auth_modes`
-  already has.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) Zero `if method ==` branches remain in the edge.
-- (+) The composition root builds the edge from one typed assembly; the
+### Positive
+
+- Zero `if method ==` branches remain in the edge.
+- The composition root builds the edge from one typed assembly; the
   `GatewayRuntime` bag and its `app.state.gateway` reads are gone.
-- (−) A handler class per method is more files than one dispatcher. The
+
+### Trade-offs
+
+- A handler class per method is more files than one dispatcher. The
   files are small and named for the method they serve.
-- (−) The upstream client library recognises handlers with
+- The upstream client library recognises handlers with
   `inspect.isfunction`, so the relay offers its bound methods through thin
   function wrappers.
+
