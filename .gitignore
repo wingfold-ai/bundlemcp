@@ -15,3 +15,7 @@ test-results/
 apps/web/e2e-recordings/
 .import_linter_cache/
 .grimp_cache/
+
+# VitePress (docs/)
+docs/.vitepress/cache/
+docs/.vitepress/dist/
