@@ -1,6 +1,6 @@
 # ADR-0023: Enforce layer direction with import contracts; every library-level module is a package
 
-**Status:** accepted · **Date:** 2026-09-03 · **Amends:** [ADR-0020](0020-library-level-service-layer.md)
+**Status:** accepted (amended by [ADR-0033](0033-clean-architecture-layers.md)) · **Date:** 2026-09-03 · **Amends:** [ADR-0020](0020-library-level-service-layer.md)
 
 ## Context
 
@@ -28,6 +28,15 @@ Neither was real coupling. Both were misfiled modules: the sibling
 `oauth/deps.py` already described `api/providers.py` in its own docstring as
 "the shared provider module", and the runtime-config registry is framework-free
 domain knowledge that happened to sit beside the gateway's per-replica cache.
+
+## Decision drivers
+
+- An architectural rule that only review enforces decays silently between
+  reviews. Both regressions here landed under an ADR that forbade them.
+- The fixes are relocations, not redesigns: every edge removed was a module in
+  the wrong package, which is why the change is behavior-preserving.
+- Encoding the layer order makes it legible. The contract is now the shortest
+  accurate statement of how this library is arranged.
 
 ## Decision
 
@@ -85,27 +94,29 @@ domain knowledge that happened to sit beside the gateway's per-replica cache.
 - **No `ignore_imports` entries.** A whitelist of known violations is a to-do
   list, not a contract; both contracts pass with zero exceptions.
 
-## Reasons
+## Alternatives considered
 
-- An architectural rule that only review enforces decays silently between
-  reviews. Both regressions here landed under an ADR that forbade them.
-- The fixes are relocations, not redesigns: every edge removed was a module in
-  the wrong package, which is why the change is behavior-preserving.
-- Encoding the layer order makes it legible. The contract is now the shortest
-  accurate statement of how this library is arranged.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) `services`/`schemas`/`models` are mechanically framework-free, and the
-  `oauth → api` edge cannot silently return.
-- (+) One statable rule for where a provider lives, replacing case-by-case
-  judgement.
-- (+) The package root is now uniform — every entry is a package, and the
-  contract names all of them, so the layer list doubles as the map of the
-  library.
-- (+) Pure code motion: the hermetic suite passes unchanged (154 tests).
-- (−) A genuine new cross-layer import now fails CI rather than review. That is
-  the point, but it means an intentional layering change must update the
-  contract in the same commit — which is the ADR trigger anyway.
 - The `gateway : oauth` sibling pair is recorded as accepted, not as debt. If
   the mutual dependency is ever broken they become ordered layers.
+
+### Positive
+
+- `services`/`schemas`/`models` are mechanically framework-free, and the
+  `oauth → api` edge cannot silently return.
+- One statable rule for where a provider lives, replacing case-by-case
+  judgement.
+- The package root is now uniform — every entry is a package, and the
+  contract names all of them, so the layer list doubles as the map of the
+  library.
+- Pure code motion: the hermetic suite passes unchanged (154 tests).
+
+### Trade-offs
+
+- A genuine new cross-layer import now fails CI rather than review. That is
+  the point, but it means an intentional layering change must update the
+  contract in the same commit — which is the ADR trigger anyway.
+

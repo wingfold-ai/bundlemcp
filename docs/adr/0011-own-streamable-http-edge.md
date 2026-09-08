@@ -11,16 +11,7 @@ established that FastMCP's server-side Streamable-HTTP session manager binds a
 session to in-process objects — exactly the metamcp failure mode
 ([ADR-0004](0004-postgres-redis-state-split.md) exists to eliminate it.)
 
-## Decision
-
-The public `/{endpoint}/mcp` edge is implemented **directly on FastAPI**
-(`gateway/mcp_endpoint.py`): JSON-RPC dispatch for
-initialize/tools/list/tools/call/ping/notifications, with the session as a
-versioned Redis record (`store/sessions.py`) loaded per request. **FastMCP v3
-is used only on the upstream side** (`gateway/upstream.py` client factory) and
-as in-process test servers.
-
-## Reasons
+## Decision drivers
 
 - Any-replica serving (SES-2) is non-negotiable; adapting FastMCP's session
   manager would mean fighting, not using, the framework.
@@ -30,14 +21,33 @@ as in-process test servers.
 - FastMCP's client side is excellent for upstreams: transports, handlers for
   progress/sampling/elicitation (needed by PROT-1/4), in-process testing.
 
+## Decision
+
+The public `/{endpoint}/mcp` edge is implemented **directly on FastAPI**
+(`gateway/mcp_endpoint.py`): JSON-RPC dispatch for
+initialize/tools/list/tools/call/ping/notifications, with the session as a
+versioned Redis record (`store/sessions.py`) loaded per request. **FastMCP v3
+is used only on the upstream side** (`gateway/upstream.py` client factory) and
+as in-process test servers.
+
+## Alternatives considered
+
+_Not recorded at the time of the decision._
+
 ## Consequences
 
-- (+) Sessions survive restarts and hop replicas — proven by tests using two
+### Positive
+
+- Sessions survive restarts and hop replicas — proven by tests using two
   HTTP clients against one session.
-- (+) Hermetic end-to-end tests: FastAPI ASGI transport + in-process FastMCP
+- Hermetic end-to-end tests: FastAPI ASGI transport + in-process FastMCP
   upstreams + fakeredis.
-- (−) We own protocol-compliance for the messages we serve; the GET event
+
+### Trade-offs
+
+- We own protocol-compliance for the messages we serve; the GET event
   stream (EP-1a) and progress/cancellation relay (PROT-1..3) are still to be
   built on this edge.
-- (−) New MCP protocol revisions must be tracked manually on the server edge (since 2026-09 the version and method tables are read from the SDK's `mcp_types` registry, so only revision-specific *shape* is hand-written; see [ADR-0029](0029-dialects-and-dual-era-edge.md))
+- New MCP protocol revisions must be tracked manually on the server edge (since 2026-09 the version and method tables are read from the SDK's `mcp_types` registry, so only revision-specific *shape* is hand-written; see [ADR-0029](0029-dialects-and-dual-era-edge.md))
   (the client edge rides FastMCP releases).
+

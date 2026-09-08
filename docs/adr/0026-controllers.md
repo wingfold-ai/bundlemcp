@@ -10,6 +10,12 @@ parameter to be protected. The rule that every management route is
 authenticated was a convention each function had to remember, and the
 health probes were closures inside the app factory.
 
+## Decision drivers
+
+- A controller makes the policy of a surface a property of the surface, not a
+  convention every route re-states.
+- A class per surface is where a reviewer expects to find its routes.
+
 ## Decision
 
 - **A `Controller` base class (`bundlemcp/http/controller.py`) declares one
@@ -32,16 +38,20 @@ health probes were closures inside the app factory.
   controllers under `api/controllers/`. The OAuth routes and the MCP endpoint
   keep their routers for now and follow in their own changes.
 
-## Reasons
+## Alternatives considered
 
-- A controller makes the policy of a surface a property of the surface, not a
-  convention every route re-states.
-- A class per surface is where a reviewer expects to find its routes.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) No route can be mounted under the management prefix without
+### Positive
+
+- No route can be mounted under the management prefix without
   authentication.
-- (+) The app factory lists surfaces, not routes.
-- (−) A new delivery package must place itself relative to `bundlemcp.http`
+- The app factory lists surfaces, not routes.
+
+### Trade-offs
+
+- A new delivery package must place itself relative to `bundlemcp.http`
   in the layer contract.
+

@@ -45,31 +45,48 @@ markers = [
 # Import-graph contracts. Run with `uv run lint-imports`.
 [tool.importlinter]
 root_package = "bundlemcp"
-# Needed so the framework-free contract below can name third-party modules.
+# Needed so the driver-free contracts below can name third-party modules.
 include_external_packages = true
 # `if TYPE_CHECKING:` imports carry no runtime coupling, so they do not count
-# as layer violations — a service may name a collaborator's type for annotation
+# as layer violations — a use case may name a collaborator's type for annotation
 # purposes without depending on it.
 exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
-name = "Business logic and DTOs stay framework-free"
-type = "forbidden"
-source_modules = ["bundlemcp.services", "bundlemcp.schemas", "bundlemcp.models"]
-forbidden_modules = ["fastapi", "starlette"]
-
-[[tool.importlinter.contracts]]
-name = "Layer direction"
+name = "Clean architecture layers"
 type = "layers"
 # Highest first; a layer may import anything below it and nothing above it.
-# `a : b` marks siblings that share a level and may import each other.
+# `a | b` marks independent siblings: api and infrastructure never import each other.
 layers = [
-    "bundlemcp.api",
-    "bundlemcp.bootstrap",
-    "bundlemcp.gateway : bundlemcp.oauth",
-    "bundlemcp.http : bundlemcp.providers",
-    "bundlemcp.services",
-    "bundlemcp.schemas",
-    "bundlemcp.models : bundlemcp.store : bundlemcp.crypto",
-    "bundlemcp.settings",
+    "bundlemcp.main",
+    "bundlemcp.api | bundlemcp.infrastructure",
+    "bundlemcp.application",
+    "bundlemcp.domain",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Domain and application are driver-free"
+type = "forbidden"
+source_modules = ["bundlemcp.domain", "bundlemcp.application"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "redis",
+    "httpx",
+    "fastmcp",
+    "mcp",
+    "cryptography",
+    "joserfc",
+    "pydantic_settings",
+    "alembic",
+    "sqlalchemy",
+    "sqlmodel",
+]
+
+[[tool.importlinter.contracts]]
+# The delivery layer talks to adapters only through the contracts the composition
+# root wired; naming an adapter in a controller would bypass that.
+name = "Api never names an adapter"
+type = "forbidden"
+source_modules = ["bundlemcp.api"]
+forbidden_modules = ["bundlemcp.infrastructure"]

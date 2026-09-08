@@ -5,8 +5,8 @@ or:  uv run python apps/gateway/main.py
 """
 
 import uvicorn
-from bundlemcp.api.app import create_app
-from bundlemcp.settings import get_settings
+from bundlemcp.infrastructure.config.settings import get_settings
+from bundlemcp.main.app import create_app
 
 
 def app_factory():

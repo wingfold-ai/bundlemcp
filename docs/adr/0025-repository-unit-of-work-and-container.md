@@ -1,6 +1,6 @@
 # ADR-0025: A repository per entity, a unit of work per request, one typed container
 
-**Status:** accepted · **Date:** 2026-09-03 · **Amends:** [ADR-0020](0020-library-level-service-layer.md), [ADR-0023](0023-import-contracts-and-shared-providers.md)
+**Status:** accepted (amended by [ADR-0033](0033-clean-architecture-layers.md)) · **Date:** 2026-09-03 · **Amends:** [ADR-0020](0020-library-level-service-layer.md), [ADR-0023](0023-import-contracts-and-shared-providers.md)
 
 ## Context
 
@@ -20,6 +20,16 @@ use. Tests substituted collaborators by mutating the runtime after startup.
 
 Two of the three checks for the rule that an anonymous endpoint never fronts a
 per-user upstream were defined and never called.
+
+## Decision drivers
+
+- Copy-pasted queries diverge; one repository per entity cannot.
+- Publishing after commit is a correctness property, not a style.
+- Bootstrap is either applied or it is not.
+- A service locator with `getattr(..., None)` fallbacks made impossible states
+  look possible; a container with required fields makes them unconstructable.
+- Substituting through the composition root keeps a test's wiring the same
+  shape as production's.
 
 ## Decision
 
@@ -57,23 +67,23 @@ per-user upstream were defined and never called.
   returns a usable provider; there is no `preload()` to forget. It raises
   `OidcError`, not `HTTPException`.
 
-## Reasons
+## Alternatives considered
 
-- Copy-pasted queries diverge; one repository per entity cannot.
-- Publishing after commit is a correctness property, not a style.
-- Bootstrap is either applied or it is not.
-- A service locator with `getattr(..., None)` fallbacks made impossible states
-  look possible; a container with required fields makes them unconstructable.
-- Substituting through the composition root keeps a test's wiring the same
-  shape as production's.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) Three services lost their private query helpers.
-- (+) Closing the two unenforced edges is a correctness fix covered by tests.
-- (+) A test that constructs a service passes a unit of work and fakes; no
+### Positive
+
+- Three services lost their private query helpers.
+- Closing the two unenforced edges is a correctness fix covered by tests.
+- A test that constructs a service passes a unit of work and fakes; no
   session handling leaks into it.
-- (−) Services still own their commit. Moving the boundary to the request would
+
+### Trade-offs
+
+- Services still own their commit. Moving the boundary to the request would
   need FastAPI to run teardown before the response, which it does not.
-- (−) `create_app` takes `overrides=CompositionOverrides(...)` instead of
+- `create_app` takes `overrides=CompositionOverrides(...)` instead of
   loose keyword seams.
+

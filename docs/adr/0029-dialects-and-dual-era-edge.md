@@ -27,6 +27,23 @@ The requirement (spec 32, PROT-13 to PROT-22) is every pairing of client era
 and upstream era, the newest version each side supports, and room for the
 next revision without another redesign.
 
+## Decision drivers
+
+- The spec itself defines the dual-era server ("selects its behaviour from
+  how the client opens") and permits both eras on one endpoint; one URL per
+  endpoint is a product requirement (EP-1).
+- A dialect object localises the revision-specific surface to one class per
+  revision. The alternative — `if era ==` branches in handlers — is the
+  method-chain shape ADR-0027 removed.
+- Pass-through for modern↔modern is stateless by construction and was proven
+  in the ADR-0030 spike; parking is needed only where the upstream cannot
+  suspend, and it reuses the relay machinery ADR-0016 already built rather
+  than adding a second distributed mechanism.
+- Park-and-resume over re-run because re-running repeats an upstream tool's
+  side effects before the elicitation; re-run remains as the fallback because
+  a lost replica should degrade to "the client still gets a result", the same
+  promise SES-13 makes for streams.
+
 ## Decision
 
 - **A `WireDialect` per revision, chosen once per request.** The edge holds
@@ -76,35 +93,28 @@ next revision without another redesign.
   callback a handshake upstream's server-initiated request produces
   (ADR-0030), so the existing GET-stream relay serves it without knowing.
 
-## Reasons
+## Alternatives considered
 
-- The spec itself defines the dual-era server ("selects its behaviour from
-  how the client opens") and permits both eras on one endpoint; one URL per
-  endpoint is a product requirement (EP-1).
-- A dialect object localises the revision-specific surface to one class per
-  revision. The alternative — `if era ==` branches in handlers — is the
-  method-chain shape ADR-0027 removed.
-- Pass-through for modern↔modern is stateless by construction and was proven
-  in the ADR-0030 spike; parking is needed only where the upstream cannot
-  suspend, and it reuses the relay machinery ADR-0016 already built rather
-  than adding a second distributed mechanism.
-- Park-and-resume over re-run because re-running repeats an upstream tool's
-  side effects before the elicitation; re-run remains as the fallback because
-  a lost replica should degrade to "the client still gets a result", the same
-  promise SES-13 makes for streams.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) Every client era talks to every upstream era; modern clients get a
+### Positive
+
+- Every client era talks to every upstream era; modern clients get a
   stateless edge with cache hints and header routing; handshake clients see no
   change.
-- (+) The next revision is one dialect class plus a conformance run (PROT-22).
-- (+) `SessionContext` and the session-keyed registries disappear from the
+- The next revision is one dialect class plus a conformance run (PROT-22).
+- `SessionContext` and the session-keyed registries disappear from the
   handlers; only dialects and the edge know what a session is.
-- (−) Two MRTR strategies to test and to explain; the re-run fallback can
+
+### Trade-offs
+
+- Two MRTR strategies to test and to explain; the re-run fallback can
   repeat side effects and is logged when it happens.
-- (−) `subscriptions/listen` honours only `toolsListChanged` until upstream
+- `subscriptions/listen` honours only `toolsListChanged` until upstream
   pooling exists (ADR-0012); prompt/resource list-changed and resource
   subscriptions are omitted from the acknowledgement.
-- (−) Streaming every modern `tools/call` costs an SSE frame for the
+- Streaming every modern `tools/call` costs an SSE frame for the
   buffered case; accepted for an unambiguous cancellation signal.
+

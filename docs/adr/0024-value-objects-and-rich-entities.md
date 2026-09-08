@@ -14,6 +14,13 @@ than once: the presented-name rule three times, "server needs a per-user token"
 four times, token expiry five times, with a naive-datetime fix-up duplicated
 beside it. Enum-valued columns were typed `str`, so comparisons used literals.
 
+## Decision drivers
+
+- A tuple hides its meaning at every use site; a model states it once.
+- A rule on the entity that owns it cannot drift between its copies.
+- Typed columns turn a misspelled literal into an error at the boundary.
+- Response models are what the web app's generated client is promised.
+
 ## Decision
 
 - **Value objects.** `CallerIdentity` (auth method, user, email, key) replaces
@@ -39,18 +46,21 @@ beside it. Enum-valued columns were typed `str`, so comparisons used literals.
   the validation once, for DTO fields and for renames alike, instead of
   constructing a throwaway upsert DTO to validate a rename.
 
-## Reasons
+## Alternatives considered
 
-- A tuple hides its meaning at every use site; a model states it once.
-- A rule on the entity that owns it cannot drift between its copies.
-- Typed columns turn a misspelled literal into an error at the boundary.
-- Response models are what the web app's generated client is promised.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) The OpenAPI document describes every response; the TypeScript client no
+### Positive
+
+- The OpenAPI document describes every response; the TypeScript client no
   longer receives `object` for six endpoints.
-- (+) Five duplicated rules exist once each.
-- (−) `SessionRecord` changed shape; its version is bumped, so sessions opened
+- Five duplicated rules exist once each.
+
+### Trade-offs
+
+- `SessionRecord` changed shape; its version is bumped, so sessions opened
   by the previous release read as expired and clients re-initialize once.
-- (−) Naive datetimes in the store are now interpreted as UTC on every backend.
+- Naive datetimes in the store are now interpreted as UTC on every backend.
+

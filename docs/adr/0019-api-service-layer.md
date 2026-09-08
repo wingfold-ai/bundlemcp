@@ -14,6 +14,17 @@ several DTOs (`UpstreamOAuthConfig`, `UserRead`, `ConsentRead`, `ConfigValue`)
 were defined inside router modules. This made the business rules hard to find,
 hard to test in isolation, and each router file a mixed-altitude read.
 
+## Decision drivers
+
+- Routers become a readable API surface (route → service call), while
+  invariants like SRV-5/TM-3/UPO-6 live in one grep-able place per resource.
+- Framework-free services can be unit-tested without an HTTP client and reused
+  by non-HTTP callers (bootstrap, future CLI/jobs).
+- Central error mapping keeps status-code policy in one file instead of
+  scattered `HTTPException`s.
+- One-class-per-file DTO modules keep diffs small and names discoverable;
+  grouping by resource mirrors the router/service layout.
+
 ## Decision
 
 - **Controller/service split.** Business logic moves to a service layer:
@@ -41,16 +52,9 @@ hard to test in isolation, and each router file a mixed-altitude read.
   `from bundlemcp.api.schemas import X` stays the import path. Router-local
   DTOs moved into the package.
 
-## Reasons
+## Alternatives considered
 
-- Routers become a readable API surface (route → service call), while
-  invariants like SRV-5/TM-3/UPO-6 live in one grep-able place per resource.
-- Framework-free services can be unit-tested without an HTTP client and reused
-  by non-HTTP callers (bootstrap, future CLI/jobs).
-- Central error mapping keeps status-code policy in one file instead of
-  scattered `HTTPException`s.
-- One-class-per-file DTO modules keep diffs small and names discoverable;
-  grouping by resource mirrors the router/service layout.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
