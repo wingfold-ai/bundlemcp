@@ -12,6 +12,16 @@ negotiating, and relayed only sampling/elicitation (not roots or logging). Spec
 so the specs overstated what was built. This ADR records the design that closes
 the gap, and resolves five points the specs left under-specified.
 
+## Decision drivers
+
+- Following BND-8/DISC (live passthrough, no cache/curation) makes the feature
+  far smaller than mirroring the Tool/BundleTool machinery, and matches the
+  spec's intent.
+- A cached capability snapshot keeps `initialize` fast and correct even when a
+  member is down (DISC-4), unlike a live per-initialize probe.
+- Stateless fan-out for resource reads avoids non-standard URIs and cross-replica
+  cache coherency for a rare (same-URI-across-members) case.
+
 ## Decision
 
 - **Prompts/resources/completions are live, uncurated passthrough.** No
@@ -59,25 +69,25 @@ are advertised and delivered within an active-call window; full between-call pus
 lands with connection pooling (SES-8, ADR-0012). This is recorded in spec 32's
 Implementation note and arc42 §11, not hidden behind a green capability flag.
 
-## Reasons
+## Alternatives considered
 
-- Following BND-8/DISC (live passthrough, no cache/curation) makes the feature
-  far smaller than mirroring the Tool/BundleTool machinery, and matches the
-  spec's intent.
-- A cached capability snapshot keeps `initialize` fast and correct even when a
-  member is down (DISC-4), unlike a live per-initialize probe.
-- Stateless fan-out for resource reads avoids non-standard URIs and cross-replica
-  cache coherency for a rare (same-URI-across-members) case.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) The endpoint is a full MCP server for the request/response plane:
+### Positive
+
+- The endpoint is a full MCP server for the request/response plane:
   prompts, resources, completions, aggregated capabilities, version negotiation,
   and roots/logging relay — each test-covered.
-- (+) No new content/curation tables; the only schema change is one JSON column.
-- (−) A `resources/read` for an unknown URI fans out to all enabled members
+- No new content/curation tables; the only schema change is one JSON column.
+
+### Trade-offs
+
+- A `resources/read` for an unknown URI fans out to all enabled members
   before failing; same-URI collisions are first-wins.
-- (−) Subscribe/log/list-changed **push between calls** remains pooling-dependent
+- Subscribe/log/list-changed **push between calls** remains pooling-dependent
   (ADR-0012). Advertised capabilities are honest only within an active call.
-- (−) Version translation covers only the declared window; upstreams outside it
+- Version translation covers only the declared window; upstreams outside it
   fail fast rather than silently degrading (by design, PROT-12).
+

@@ -12,6 +12,16 @@ documented flaw: per-process counters, so "each machine counts only its own
 traffic." bundlemcp is multi-replica by design (ARC-9), so any limit has to be
 shared state. This ADR records how the limits were implemented.
 
+## Decision drivers
+
+- Fixed-window `INCR`+`EXPIRE` is the simplest correct shared-state limiter and
+  the only one that is both hermetically testable (fakeredis) and replica-safe.
+- Separating the auth-failure limiter from traffic limits lets it be
+  gateway-wide and IP-keyed with a fixed policy, matching metamcp's behavior,
+  without entangling it with per-endpoint config.
+- Fail-open keeps a Redis blip from taking the whole gateway down; the opt-in
+  fail-closed covers endpoints that would rather shed load than over-serve.
+
 ## Decision
 
 - **Algorithm — fixed-window counter** via atomic `INCR` + `EXPIRE`, bucketed by
@@ -52,24 +62,24 @@ shared state. This ADR records how the limits were implemented.
   51's job — this milestone increments the counters and structures them for that
   exporter; it does not build `/metrics`.
 
-## Reasons
+## Alternatives considered
 
-- Fixed-window `INCR`+`EXPIRE` is the simplest correct shared-state limiter and
-  the only one that is both hermetically testable (fakeredis) and replica-safe.
-- Separating the auth-failure limiter from traffic limits lets it be
-  gateway-wide and IP-keyed with a fixed policy, matching metamcp's behavior,
-  without entangling it with per-endpoint config.
-- Fail-open keeps a Redis blip from taking the whole gateway down; the opt-in
-  fail-closed covers endpoints that would rather shed load than over-serve.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) Public endpoints have real abuse/DoS protection that holds across
+### Positive
+
+- Public endpoints have real abuse/DoS protection that holds across
   replicas — metamcp's per-process-counter flaw is fixed.
-- (+) Credential scanning is slowed per-IP at both auth surfaces.
-- (+) The counter seam is ready for the spec-51 `/metrics` exporter.
-- (−) Boundary bursts up to 2× at window edges (fixed-window trade-off);
+- Credential scanning is slowed per-IP at both auth surfaces.
+- The counter seam is ready for the spec-51 `/metrics` exporter.
+
+### Trade-offs
+
+- Boundary bursts up to 2× at window edges (fixed-window trade-off);
   revisit with a sliding-window log if it matters.
-- (−) IP-keyed auth-failure lockout can over-block callers behind a shared NAT;
+- IP-keyed auth-failure lockout can over-block callers behind a shared NAT;
   acceptable because it only ever adds a delay (fail-open, windowed) and the
   threshold defaults high (20 / 5 min).
+

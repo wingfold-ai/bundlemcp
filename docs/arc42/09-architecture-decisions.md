@@ -1,7 +1,8 @@
 # 9. Architecture Decisions
 
 Decisions are recorded as ADRs in [`../adr/`](../adr/README.md) — MADR-style
-(Status / Context / Decision / Reasons / Consequences), append-only, written
+(Status / Context / Decision drivers / Decision / Alternatives considered /
+Consequences), append-only, written
 in the same PR as the change they govern
 ([ADOC-2/ADOC-5](../../spec/62-architecture-documentation.md)).
 
@@ -39,6 +40,8 @@ in the same PR as the change they govern
 | [0030](../adr/0030-fastmcp-4.md) | FastMCP 4 / SDK v2 upstream client | Modern upstreams reachable; era negotiated per server; snake_case SDK models |
 | [0031](../adr/0031-joserfc-id-token-validation.md) | joserfc verifies ID tokens; `iss`/`aud` validated | Authlib's JOSE module is deprecated; the claim checks were silently skipped |
 | [0032](../adr/0032-egress-policy-scope.md) | Egress policy on every outbound URL | Remote-named OAuth endpoints were unchecked; one SSRF gate |
+| [0033](../adr/0033-clean-architecture-layers.md) | Four clean-architecture layers; contracts owned by the application | Any adapter is swappable and fakeable |
+| [0034](../adr/0034-pydantic-entities-and-row-classes.md) | Entities are plain Pydantic models; row classes live in the persistence adapter | The domain imports no ORM; rows map generically |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

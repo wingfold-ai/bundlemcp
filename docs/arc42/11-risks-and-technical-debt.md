@@ -6,7 +6,7 @@
 | 2 | ~~Bidirectional cross-replica relay complexity~~ **Design landed** ([ADR-0016](../adr/0016-relay-design.md)): publish-only Redis bus + per-replica registries; progress/cancel/elicitation proven cross-replica in hermetic two-instance tests. Residual = claude.ai/ChatGPT *behavioral* verification against real clients | Lower now | Loopback-server relay suite; compose integration; capability gating limits blast radius |
 | 3 | **Client behavior drift** — claude.ai/ChatGPT OAuth and annotation enforcement change over time | Endpoints stop connecting | Profiles isolate client quirks ([15](../../spec/15-endpoint-profiles.md)); OAS-9 integration test; open questions flag re-verification at implementation |
 | 4 | **Redis as availability keystone** | Live traffic 503s during Redis outage | Accepted trade-off, explicitly specified (SES-14, RATE-6); ops guidance in [71](../../spec/71-deployment.md) |
-| 5 | **SQLModel maturity** (0.0.x) | Missing ORM features | Escape hatch: SQLModel classes are SQLAlchemy models (spec/01 open question) |
+| 5 | **SQLModel maturity** (0.0.x) | Missing ORM features | Escape hatch: the row classes in `infrastructure/postgres/rows/` are SQLAlchemy models; entities never touch the ORM ([ADR-0034](../adr/0034-pydantic-entities-and-row-classes.md)) |
 | 6 | **chatgpt profile re-annotation** deliberately misdeclares write tools as read-safe | User surprise / trust issues if unnoticed | Mandatory UI warning + full audit (PROF-3); documented in [ADR-0007](../adr/0007-endpoint-profiles.md) |
 | 7 | **Latest-stable policy churn** | Breaking upgrades arrive continuously | Min-version pins + CI gate; specs are framework-agnostic |
 | 8 | **Protocol-era drift** — MCP 2026-07-28 removed sessions, the handshake and server-initiated requests; major clients adopt at different speeds (Copilot modern, Claude/ChatGPT/Gemini/Cursor handshake as of 2026-09) | An edge on one era loses the other's clients | Dual-era edge with one dialect per revision ([ADR-0029](../adr/0029-dialects-and-dual-era-edge.md)); conformance suite per revision in CI; `legacy_protocol_enabled` to retire the handshake era |
@@ -38,3 +38,7 @@
   a 2× burst at window edges; a sliding-window log is the noted upgrade. Its
   rejection/lockout counters are in-process; the Prometheus `/metrics` export
   is still pending (spec 51).
+- The `application/contracts/` package holds protocols for in-process objects
+  (`StreamRegistry`, `Counters`) as well as for stores; they exist so the MCP
+  edge names no adapter and can be faked, not because a second implementation
+  is planned ([ADR-0033](../adr/0033-clean-architecture-layers.md)).

@@ -1,0 +1,170 @@
+"""Discovery tests (spec 11 DISC-1/2/3, spec 10 SRV-4) against in-process FastMCP servers."""
+
+from bundlemcp.application.discovery.discovery_service import DiscoveryService
+from bundlemcp.domain.servers.health_status import HealthStatus
+from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
+from bundlemcp.infrastructure.postgres.engine import session_factory
+from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
+from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
+from bundlemcp.infrastructure.postgres.sqlalchemy_unit_of_work import SqlAlchemyUnitOfWorkFactory
+from fastmcp import Client, FastMCP
+from sqlmodel import select
+
+
+def make_upstream(tools: list[str]) -> FastMCP:
+    mcp = FastMCP("upstream")
+    for name in tools:
+
+        def _tool(text: str, _n=name) -> str:
+            return f"{_n}:{text}"
+
+        _tool.__name__ = name
+        _tool.__doc__ = f"ToolRow {name}."
+        mcp.tool(_tool)
+    return mcp
+
+
+def _units(engine, redis) -> SqlAlchemyUnitOfWorkFactory:
+    return SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis)
+
+
+def factory_for(upstream: FastMCP):
+    def factory(server, extra_headers):
+        return Client(upstream, mode=server.protocol_mode)  # SRV-10
+
+    return factory
+
+
+def failing_factory(server, extra_headers):
+    raise ConnectionError("upstream down")
+
+
+async def seed_server(engine, name="srv", protocol_mode="auto") -> McpServerRow:
+    factory = session_factory(engine)
+    async with factory() as db:
+        server = McpServerRow(name=name, url="http://upstream:1/mcp", protocol_mode=protocol_mode)
+        db.add(server)
+        await db.commit()
+        await db.refresh(server)
+        return server
+
+
+async def test_discover_syncs_tools(engine, redis):
+    server = await seed_server(engine)
+    upstream = make_upstream(["alpha", "beta"])
+    svc = DiscoveryService(_units(engine, redis), FastMcpUpstreamProbe(factory_for(upstream)))
+
+    result = await svc.discover(server.id)
+    assert result.error is None
+    assert result.discovered == 2
+    assert result.changed == 2
+
+    async with session_factory(engine)() as db:
+        names = {t.name for t in (await db.execute(select(ToolRow))).scalars()}
+        assert names == {"alpha", "beta"}
+        srv = (await db.execute(select(McpServerRow))).scalar_one()
+        assert srv.health_status == HealthStatus.OK
+
+
+async def test_discover_captures_capabilities(engine, redis):
+    """DISC-6: the upstream's advertised capabilities are snapshotted for PROT-11."""
+    server = await seed_server(engine)
+    upstream = FastMCP("caps")
+
+    @upstream.tool
+    def t(x: str) -> str:
+        return x
+
+    @upstream.prompt
+    def p() -> str:
+        return "hi"
+
+    @upstream.resource("res://a")
+    def r() -> str:
+        return "a"
+
+    svc = DiscoveryService(_units(engine, redis), FastMcpUpstreamProbe(factory_for(upstream)))
+    await svc.discover(server.id)
+
+    async with session_factory(engine)() as db:
+        srv = (await db.execute(select(McpServerRow))).scalar_one()
+    assert "tools" in srv.capabilities
+    assert "prompts" in srv.capabilities
+    assert "resources" in srv.capabilities
+
+
+async def test_discover_records_negotiated_protocol_version(engine, redis):
+    """SRV-10/PROT-21: auto mode adopts the modern era; legacy mode keeps the handshake."""
+    modern = await seed_server(engine, name="modern")
+    legacy = await seed_server(engine, name="legacy", protocol_mode="legacy")
+    svc = DiscoveryService(
+        _units(engine, redis), FastMcpUpstreamProbe(factory_for(make_upstream(["alpha"])))
+    )
+
+    await svc.discover(modern.id)
+    await svc.discover(legacy.id)
+
+    async with session_factory(engine)() as db:
+        versions = {
+            s.name: s.protocol_version for s in (await db.execute(select(McpServerRow))).scalars()
+        }
+    assert versions == {"modern": "2026-07-28", "legacy": "2025-11-25"}
+
+
+async def test_rediscovery_is_hash_stable(engine, redis):
+    """DISC-2: unchanged definitions produce zero writes on re-sync."""
+    server = await seed_server(engine)
+    upstream = make_upstream(["alpha"])
+    svc = DiscoveryService(_units(engine, redis), FastMcpUpstreamProbe(factory_for(upstream)))
+
+    first = await svc.discover(server.id)
+    second = await svc.discover(server.id)
+    assert first.changed == 1
+    assert second.changed == 0
+
+
+async def test_vanished_tool_kept_stale(engine, redis):
+    """DISC-3: tools that disappear upstream stay cached with old last_seen_at."""
+    server = await seed_server(engine)
+    svc = DiscoveryService(
+        _units(engine, redis), FastMcpUpstreamProbe(factory_for(make_upstream(["alpha", "beta"])))
+    )
+    await svc.discover(server.id)
+
+    svc2 = DiscoveryService(
+        _units(engine, redis), FastMcpUpstreamProbe(factory_for(make_upstream(["alpha"])))
+    )
+    await svc2.discover(server.id)
+
+    async with session_factory(engine)() as db:
+        tools = {t.name: t for t in (await db.execute(select(ToolRow))).scalars()}
+        assert set(tools) == {"alpha", "beta"}  # beta kept
+        assert tools["alpha"].last_seen_at > tools["beta"].last_seen_at
+
+
+async def test_health_error_after_consecutive_failures_and_self_heal(engine, redis):
+    """SRV-4: N consecutive failures -> error; success resets to ok."""
+    server = await seed_server(engine)
+    svc = DiscoveryService(
+        _units(engine, redis), FastMcpUpstreamProbe(failing_factory), max_attempts=2
+    )
+
+    await svc.discover(server.id)
+    async with session_factory(engine)() as db:
+        assert (await db.execute(select(McpServerRow))).scalar_one().health_status != (
+            HealthStatus.ERROR
+        )
+
+    await svc.discover(server.id)  # second consecutive failure trips it
+    async with session_factory(engine)() as db:
+        srv = (await db.execute(select(McpServerRow))).scalar_one()
+        assert srv.health_status == HealthStatus.ERROR
+        assert srv.last_error is not None
+
+    svc._probe = FastMcpUpstreamProbe(factory_for(make_upstream(["alpha"])))  # upstream recovers
+    result = await svc.discover(server.id)
+    assert result.error is None
+    async with session_factory(engine)() as db:
+        srv = (await db.execute(select(McpServerRow))).scalar_one()
+        assert srv.health_status == HealthStatus.OK
+        assert srv.last_error is None

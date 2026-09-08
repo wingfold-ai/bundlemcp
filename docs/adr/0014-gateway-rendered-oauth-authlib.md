@@ -9,6 +9,13 @@ backend-first, before the Nuxt UI exists. Three implementation decisions
 followed: where the consent/login pages render, how the gateway talks to the
 external IdP, and how issued bearers are validated on the hot path.
 
+## Decision drivers
+
+- Unblocks claude.ai connection now, independent of the frontend timeline.
+- Server-rendered consent is the standard, dependency-light approach (metamcp
+  did the same) and keeps the security-sensitive page in one trust domain.
+- Direct DB validation removes per-request latency and a self-dependency.
+
 ## Decision
 
 - **Gateway-rendered pages:** the consent screen (and login redirect handling)
@@ -25,19 +32,22 @@ external IdP, and how issued bearers are validated on the hot path.
   HTTP self-call to `/oauth/introspect` — explicitly avoiding metamcp's
   introspect-yourself-over-HTTP anti-pattern.
 
-## Reasons
+## Alternatives considered
 
-- Unblocks claude.ai connection now, independent of the frontend timeline.
-- Server-rendered consent is the standard, dependency-light approach (metamcp
-  did the same) and keeps the security-sensitive page in one trust domain.
-- Direct DB validation removes per-request latency and a self-dependency.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) The whole OAuth + OIDC flow is testable and deployable without the UI.
-- (+) `OidcProvider` seam gives clean hermetic tests and room for non-Keycloak
+### Positive
+
+- The whole OAuth + OIDC flow is testable and deployable without the UI.
+- `OidcProvider` seam gives clean hermetic tests and room for non-Keycloak
   IdPs.
-- (−) The gateway owns a little HTML/templating — a non-Nuxt surface to keep
+
+### Trade-offs
+
+- The gateway owns a little HTML/templating — a non-Nuxt surface to keep
   styled consistently later.
-- (−) `AuthlibOidcProvider.authorize_url` needs discovery metadata preloaded at
+- `AuthlibOidcProvider.authorize_url` needs discovery metadata preloaded at
   startup (async), a small lifecycle wrinkle documented in the provider.
+

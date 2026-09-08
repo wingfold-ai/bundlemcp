@@ -70,7 +70,7 @@ in this repo, the test above wins.
 
 ## Worked example
 
-`bundlemcp/api/composition.py` (`CompositionRoot`) is the reference case, and it contains
+`bundlemcp/main/composition_root.py` (`CompositionRoot`) is the reference case, and it contains
 the one comparison worth internalising — two aliases that look identical and
 land on opposite sides of the line:
 

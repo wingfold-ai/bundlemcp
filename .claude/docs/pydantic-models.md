@@ -12,8 +12,9 @@ fields themselves — descriptions, constraints, defaults — see
 
 | Kind of thing | Base | Lives in |
 |---|---|---|
-| Persisted entity | `SQLModel` (`table=True`) | `bundlemcp/models/` |
-| API request/response DTO | `BaseModel` | `bundlemcp/schemas/` |
+| Entity | `BaseModel` | `bundlemcp/domain/<context>/` |
+| Table row of an entity | `SQLModel` (`table=True`) | `bundlemcp/infrastructure/postgres/rows/` |
+| API request/response DTO | `BaseModel` | `bundlemcp/application/schemas/` |
 | Everything else (results, contexts, wiring, view objects) | `BaseModel` | beside its consumer |
 
 ## The three config recipes

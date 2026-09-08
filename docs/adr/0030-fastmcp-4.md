@@ -30,6 +30,15 @@ A spike against 4.0.3 (in-process servers, both eras) established:
 - SDK v2 renames every model field to snake_case (`inputSchema` →
   `input_schema`, `isError` → `is_error`); JSON aliases are unchanged.
 
+## Decision drivers
+
+- Latest-stable policy (ARC-1), and the only way to consume modern-only
+  upstreams.
+- One handler shape for both upstream eras is what makes the relay (ADR-0016)
+  and the park-and-resume bridge (ADR-0029) era-agnostic on the upstream side.
+- The per-call connection model (ADR-0012) is untouched: negotiation happens
+  on each connect, which is exactly where `mode` applies.
+
 ## Decision
 
 - Depend on `fastmcp>=4.0.3` (SDK 2.1). The client factory
@@ -47,22 +56,23 @@ A spike against 4.0.3 (in-process servers, both eras) established:
   `ctx.elicit`), `mode="auto"` for a modern one (tools return
   `InputRequiredResult` and read `ctx.input_responses`).
 
-## Reasons
+## Alternatives considered
 
-- Latest-stable policy (ARC-1), and the only way to consume modern-only
-  upstreams.
-- One handler shape for both upstream eras is what makes the relay (ADR-0016)
-  and the park-and-resume bridge (ADR-0029) era-agnostic on the upstream side.
-- The per-call connection model (ADR-0012) is untouched: negotiation happens
-  on each connect, which is exactly where `mode` applies.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) Modern upstreams work; handshake upstreams keep working; the newest
+### Positive
+
+- Modern upstreams work; handshake upstreams keep working; the newest
   common revision is used per server automatically.
-- (+) Cache hints and `resultType` from modern upstreams arrive typed.
-- (−) snake_case renames touch discovery, the relay and every test that reads
+- Cache hints and `resultType` from modern upstreams arrive typed.
+
+### Trade-offs
+
+- snake_case renames touch discovery, the relay and every test that reads
   SDK models; `httpx2` replaces `httpx` inside the SDK.
-- (−) Operators must pin `legacy` for FastMCP 4 upstreams that still use
+- Operators must pin `legacy` for FastMCP 4 upstreams that still use
   imperative elicitation; the recorded `protocol_version` makes those
   visible.
+

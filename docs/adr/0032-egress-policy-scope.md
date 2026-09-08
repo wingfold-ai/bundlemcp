@@ -18,6 +18,12 @@ The OIDC relying party made the same requests, against operator-configured
 URLs, and the client-metadata fetcher for OAS-13 was written with the check
 from the start.
 
+## Decision drivers
+
+- One gate is auditable; two gates that disagree are not.
+- The URLs a remote party names are the dangerous ones, and they were the
+  unchecked ones.
+
 ## Decision
 
 - Every outbound HTTP request the gateway initiates passes the egress policy
@@ -36,20 +42,24 @@ from the start.
   allowlist (FastMCP's client-metadata fetcher does) is not used for
   fetching; bundlemcp's fetcher goes through `check_url_allowed`.
 
-## Reasons
+## Alternatives considered
 
-- One gate is auditable; two gates that disagree are not.
-- The URLs a remote party names are the dangerous ones, and they were the
-  unchecked ones.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) The upstream client secret cannot be redirected to a blocked address,
+### Positive
+
+- The upstream client secret cannot be redirected to a blocked address,
   and discovery cannot reach link-local or loopback ranges.
-- (+) Together with the issuer binding of UPO-8, an upstream that swaps its
+- Together with the issuer binding of UPO-8, an upstream that swaps its
   authorization server after the connect began is refused at the callback.
-- (−) An identity provider or upstream on the gateway's own loopback now
+
+### Trade-offs
+
+- An identity provider or upstream on the gateway's own loopback now
   needs an explicit `BUNDLEMCP_EGRESS_ALLOW_CIDRS` entry, which the settings
   description says.
-- (−) The check resolves DNS synchronously, as the MCP transport check
+- The check resolves DNS synchronously, as the MCP transport check
   already did; it runs once per flow step, not per tool call.
+

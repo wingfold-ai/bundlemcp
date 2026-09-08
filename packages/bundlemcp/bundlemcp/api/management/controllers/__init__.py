@@ -1,0 +1,23 @@
+"""The management API, one controller per resource; mounted under the API prefix."""
+
+from bundlemcp.api.management.controllers.api_key_controller import ApiKeyController
+from bundlemcp.api.management.controllers.audit_controller import AuditController
+from bundlemcp.api.management.controllers.bundle_controller import BundleController
+from bundlemcp.api.management.controllers.config_controller import ConfigController
+from bundlemcp.api.management.controllers.endpoint_controller import EndpointController
+from bundlemcp.api.management.controllers.management_controller import ManagementController
+from bundlemcp.api.management.controllers.me_controller import MeController
+from bundlemcp.api.management.controllers.server_controller import ServerController
+from bundlemcp.api.management.controllers.user_controller import UserController
+
+__all__ = [
+    "ApiKeyController",
+    "AuditController",
+    "BundleController",
+    "ConfigController",
+    "EndpointController",
+    "ManagementController",
+    "MeController",
+    "ServerController",
+    "UserController",
+]

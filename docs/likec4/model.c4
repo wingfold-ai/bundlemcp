@@ -9,6 +9,7 @@ specification {
   }
   element system
   element container
+  element component
   element database {
     style {
       shape storage
@@ -56,6 +57,35 @@ model {
     gateway = container 'Gateway' {
       description 'Serves bundle endpoints (full bidirectional MCP proxy, one dialect per protocol revision), OAuth 2.1 server, management REST API, middleware/metering'
       technology 'Python, FastAPI, FastMCP v4'
+
+      // Clean-architecture layers (ADR-0033); dependencies point inward only
+      api = component 'api' {
+        description 'Delivery: /api/v1 controllers, OAuth 2.1 server + login, the Streamable-HTTP MCP edge (handlers, dialects, relay), jobs. Names contracts, never adapters'
+        technology 'FastAPI; api/mcp also the MCP protocol library'
+      }
+      application = component 'application' {
+        description 'Use cases (management, auth, oauth_server, upstream_oauth, discovery, serving, bootstrap), contracts (interfaces infrastructure fulfils), DTO schemas, settings model'
+        technology 'Python, Pydantic; imports domain only'
+      }
+      domain = component 'domain' {
+        description 'Entities by context, value objects, enums, policies and presentation rules; no I/O'
+        technology 'Pydantic models (ADR-0034)'
+      }
+      infrastructure = component 'infrastructure' {
+        description 'One adapter per port, grouped by technology: postgres, valkey, fastmcp, httpx, oidc, crypto, egress, metering, readiness, in-process, memory fakes'
+        technology 'SQLAlchemy async, redis-py, FastMCP client, httpx, joserfc, cryptography'
+      }
+      main = component 'main' {
+        description 'Composition root: create_app, CompositionRoot, AppContainer, CompositionOverrides. The only place adapters meet use cases'
+        technology 'Python'
+      }
+
+      api -> application 'calls use cases; sees only contracts'
+      infrastructure -> application 'implements contracts'
+      application -> domain 'orchestrates entities and rules'
+      main -> api 'mounts controllers'
+      main -> infrastructure 'builds adapters'
+      main -> application 'wires use cases'
     }
 
     web = container 'Admin Web App' {
@@ -89,8 +119,8 @@ model {
 
   // container relationships
   web -> gateway 'management REST API (generated TS client)' 'HTTPS /api/v1'
-  gateway -> pg 'reads/writes durable state' 'SQLAlchemy async'
-  gateway -> redis 'sessions, limits, pub/sub' 'redis-py async'
+  gateway.infrastructure -> pg 'reads/writes durable state' 'SQLAlchemy async'
+  gateway.infrastructure -> redis 'sessions, limits, pub/sub' 'redis-py async'
 }
 
 views {
@@ -104,6 +134,13 @@ views {
   view containers of bundlemcp {
     title 'bundlemcp — Containers'
     include *, bundlemcp.*
+    autoLayout TopBottom
+  }
+
+  view layers of bundlemcp.gateway {
+    title 'Gateway — Clean-architecture layers'
+    description 'Dependencies point inward: api and infrastructure know application, application knows domain (ADR-0033)'
+    include *, bundlemcp.gateway.*
     autoLayout TopBottom
   }
 }

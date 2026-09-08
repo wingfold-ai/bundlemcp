@@ -17,8 +17,10 @@ that way. Both are maintained continuously.
   reference specs by requirement ID instead of duplicating normative content;
   arc42 carries rationale, views, and cross-cutting concepts.
 - **ADOC-2 ADRs:** `docs/adr/` holds Architecture Decision Records in MADR
-  style — `NNNN-title.md` with **Status / Context / Decision / Reasons /
-  Consequences** (positive *and* negative) — indexed from arc42 §9
+  style — `NNNN-title.md` with **Status / Context / Decision drivers /
+  Decision / Alternatives considered / Consequences** (Consequences split into
+  Positive and Trade-offs; a section whose content was not recorded at the
+  time says so in one line) — indexed from arc42 §9
   (Architecture Decisions). ADRs are append-only: superseding a decision adds
   a new ADR and flips the old one's status to `superseded by NNNN`.
 - **ADOC-3 LikeC4:** `docs/likec4/` holds the LikeC4 model (`*.c4`): one

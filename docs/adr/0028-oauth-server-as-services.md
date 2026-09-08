@@ -12,6 +12,15 @@ round trip needs (pending consent, OIDC login, upstream connect) was three
 hand-built blobs in Valkey with three copies of get, delete and check-None.
 `UpstreamTokenStore` did three jobs in 258 lines and returned dicts.
 
+## Decision drivers
+
+- A grant per class is the shape the protocol has; a new grant is a new class,
+  not a new branch.
+- Round-trip state that is typed and single-use cannot be replayed or
+  misparsed, and the three flows share one implementation.
+- A class per job in the token store makes the single-flight refresh testable
+  without the connect flow.
+
 ## Decision
 
 - **Services in `services/oauth_server/`.** `OAuthTokenService` authenticates
@@ -36,21 +45,22 @@ hand-built blobs in Valkey with three copies of get, delete and check-None.
   (PKCE, authorize URL, exchange) and `UpstreamTokenRefresher` (single-flight
   refresh) compose into `UpstreamTokenStore`, whose public methods are unchanged.
 
-## Reasons
+## Alternatives considered
 
-- A grant per class is the shape the protocol has; a new grant is a new class,
-  not a new branch.
-- Round-trip state that is typed and single-use cannot be replayed or
-  misparsed, and the three flows share one implementation.
-- A class per job in the token store makes the single-flight refresh testable
-  without the connect flow.
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) `oauth/` follows the same controller-and-service shape as `api/`; the
+### Positive
+
+- `oauth/` follows the same controller-and-service shape as `api/`; the
   exemption is gone.
-- (+) The public OAuth surface is unchanged; the package README was rewritten
+- The public OAuth surface is unchanged; the package README was rewritten
   to match the new layout.
-- (−) A public client's registration response and an inactive introspection
+
+### Trade-offs
+
+- A public client's registration response and an inactive introspection
   omit null fields through `response_model_exclude_none`, which the RFC
   shapes require and the models do not express on their own.
+

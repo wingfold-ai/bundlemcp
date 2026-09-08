@@ -24,9 +24,9 @@ Prefer a concretely named module over a shared bin, even for a single
 definition:
 
 ```
-gateway/discovery/tool_schema_hash.py     one function
-gateway/metering/idempotency_key.py       one function
-store/invalidation/publish_invalidation.py one function
+domain/servers/tool_schema_hash.py            one function
+application/serving/idempotency_key.py        one function
+infrastructure/valkey/publish_invalidation.py one function
 ```
 
 Keep the leading underscore when the module is package-internal — that is a

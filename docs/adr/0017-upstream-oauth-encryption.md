@@ -12,6 +12,14 @@ code**, so protected upstreams didn't work and the "encrypted" columns would
 have stored plaintext (DOM-3/DEP-9 unmet). This ADR records the design that
 filled the gap.
 
+## Decision drivers
+
+- Proactive-expiry refresh is reliable and hermetically testable; parsing 401s
+  out of FastMCP is not, so it's only the secondary (reactive) path.
+- MultiFernet gives zero-downtime key rotation for free.
+- Reusing the injectable-provider pattern kept the whole flow testable without a
+  real IdP (ARC-14).
+
 ## Decision
 
 - **Encryption (DOM-3/DEP-9):** `crypto.py` `TokenCipher` wraps Fernet via
@@ -44,23 +52,25 @@ filled the gap.
   (`api/validators.py`), with helpers ready for membership and identity-mode
   changes.
 
-## Reasons
+## Alternatives considered
 
-- Proactive-expiry refresh is reliable and hermetically testable; parsing 401s
-  out of FastMCP is not, so it's only the secondary (reactive) path.
-- MultiFernet gives zero-downtime key rotation for free.
-- Reusing the injectable-provider pattern kept the whole flow testable without a
-  real IdP (ARC-14).
+_Not recorded at the time of the decision._
 
 ## Consequences
 
-- (+) OAuth-protected upstreams work, per-(server,user) or shared; tokens are
+### Positive
+
+- OAuth-protected upstreams work, per-(server,user) or shared; tokens are
   genuinely encrypted at rest with a rotation story (DEP-9 met).
-- (+) The single-flight lock prevents refresh stampedes (proven: three
+- The single-flight lock prevents refresh stampedes (proven: three
   concurrent callers → one refresh).
-- (−) The reactive 401-retry is implemented for the JSON path only; the
+
+### Trade-offs
+
+- The reactive 401-retry is implemented for the JSON path only; the
   progress/SSE path relies on proactive-expiry refresh (a mid-stream 401 is
   rare and the token was refreshed before the call). Documented, not hidden.
-- (−) Dynamic client registration against upstreams is not the primary path;
+- Dynamic client registration against upstreams is not the primary path;
   providers without discovery/DCR require an admin to enter pre-registered
   credentials.
+

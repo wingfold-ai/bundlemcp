@@ -13,13 +13,7 @@ horizontal scaling impossible. The maintainer of this repo already had to run
 an unreleased branch with hand-picked fixes. The maintainer's home stack is
 Python + Vue, not TypeScript + Next.js.
 
-## Decision
-
-Build **bundlemcp**: a from-scratch rewrite of only the bundling core
-(registry → bundles → endpoints), specified in `/spec`, in Python + Nuxt.
-metamcp remains a read-only reference (prior-art citations in specs).
-
-## Reasons
+## Decision drivers
 
 - The session-state flaw is architectural; fixing it upstream means rewriting
   metamcp's core in a codebase we don't want to own long-term.
@@ -30,10 +24,26 @@ metamcp remains a read-only reference (prior-art citations in specs).
 - A rewrite allows deliberate scope reduction (see the decision log in
   [spec/README](../../spec/README.md)).
 
+## Decision
+
+Build **bundlemcp**: a from-scratch rewrite of only the bundling core
+(registry → bundles → endpoints), specified in `/spec`, in Python + Nuxt.
+metamcp remains a read-only reference (prior-art citations in specs).
+
+## Alternatives considered
+
+_Not recorded at the time of the decision._
+
 ## Consequences
 
-- (+) Restart-safe, horizontally scalable design from day one (ADR-0004).
-- (+) Clean, service-authenticated integration surface for ultra-mcp.
-- (−) Re-implementation effort for features metamcp already had; feature gap
+### Positive
+
+- Restart-safe, horizontally scalable design from day one (ADR-0004).
+- Clean, service-authenticated integration surface for ultra-mcp.
+
+### Trade-offs
+
+- Re-implementation effort for features metamcp already had; feature gap
   until parity on the kept subset.
-- (−) Migration from a running metamcp is manual for now (roadmap item).
+- Migration from a running metamcp is manual for now (roadmap item).
+
