@@ -190,7 +190,7 @@ def main() -> None:
     for suffix, tc, sc in (("dark", TITLE_DARK, SUB_DARK), ("light", TITLE_LIGHT, SUB_LIGHT)):
         body, w, h, baseline = wordmark(tc, sc, False)
         # the mark stands well above and below the text, centred on the ascender box
-        mark_h = 2.0 * T
+        mark_h = 2.4 * T
         mark_w = mark_h * MARK_W / MARK_H
         gap = 0.14 * T
         text_mid = baseline - 0.36 * T  # midpoint between baseline and ascender top
