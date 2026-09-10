@@ -50,3 +50,38 @@ features:
     link: /integrate/metering-hook
     linkText: Metering hook
 ---
+
+## See it run
+
+Ten minutes from clone to a working bundle. The compose stack ships a demo
+server, bundle and endpoint, so the first call needs nothing but a key.
+
+::: code-group
+
+```bash [1. start]
+git clone https://github.com/mhoegger/bundlemcp.git && cd bundlemcp
+cp deploy/.env.example deploy/.env
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
+```
+
+```bash [2. call]
+curl -s http://localhost:8000/demo/mcp \
+  -H "Authorization: Bearer bmcp_sk_devservicekey000000000000000000000000" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+       "params":{"name":"echo__reverse","arguments":{"text":"bundlemcp"}}}'
+```
+
+```json [3. result]
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": { "content": [{ "type": "text", "text": "pcmeldnub" }] }
+}
+```
+
+:::
+
+Then open the admin UI at `localhost:3000`, register your own servers, and
+[connect claude.ai](/connect/claude) with an OAuth endpoint. The whole path is
+in the [Quickstart](/guide/quickstart).
