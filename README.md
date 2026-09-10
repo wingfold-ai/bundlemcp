@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/public/banner.svg" alt="bundlemcp: unified mcp server bundler" width="640">
+  <img src="docs/public/banner.svg" alt="bundlemcp: unified mcp server bundler" width="720">
 </p>
 
 A self-hostable **MCP bundling gateway**. Register upstream MCP servers

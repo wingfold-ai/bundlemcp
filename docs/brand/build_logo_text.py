@@ -207,19 +207,19 @@ def main() -> None:
 
     # 3. The banner: dark rounded background, mark + wordmark + subtitle.
     body, w, h, baseline = wordmark(TITLE_DARK, SUB_DARK, True)
-    mark_h = h * 0.98
+    mark_h = h * 1.7  # the mark dominates; the wordmark sits centred beside it
     mark_w = mark_h * MARK_W / MARK_H
-    gap, pad_x, pad_y = 0.35 * T, 0.5 * T, 0.32 * T
+    gap, pad_x, pad_y = 0.3 * T, 0.45 * T, 0.25 * T
     total_w = pad_x + mark_w + gap + w + pad_x
-    total_h = h + 2 * pad_y
+    total_h = mark_h + 2 * pad_y
     rx = total_h * 96 / 1020  # the corner radius ratio of logo.svg
     write(
         "banner.svg",
         svg(
             total_w, total_h,
             f'<rect width="{total_w:.1f}" height="{total_h:.1f}" rx="{rx:.1f}" fill="{BG}"/>\n'
-            f'<g transform="translate({pad_x:.2f},{pad_y + (h - mark_h) / 2:.2f}) scale({mark_h / MARK_H:.5f})">{mark_fragment()}</g>\n'
-            f'<g transform="translate({pad_x + mark_w + gap:.2f},{pad_y:.2f})">{body}</g>',
+            f'<g transform="translate({pad_x:.2f},{pad_y:.2f}) scale({mark_h / MARK_H:.5f})">{mark_fragment()}</g>\n'
+            f'<g transform="translate({pad_x + mark_w + gap:.2f},{pad_y + (mark_h - h) / 2:.2f})">{body}</g>',
             "bundlemcp: unified mcp server bundler",
         ),
     )
