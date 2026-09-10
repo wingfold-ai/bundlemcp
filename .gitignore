@@ -19,3 +19,4 @@ apps/web/e2e-recordings/
 # VitePress (docs/)
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+docs/brand/.fonts/

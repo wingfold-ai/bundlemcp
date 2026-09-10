@@ -14,7 +14,8 @@ export default defineConfig({
   lastUpdated: true,
   head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }]],
   themeConfig: {
-    logo: "/logo-mark.svg",
+    logo: { light: "/lockup-light.svg", dark: "/lockup-dark.svg", alt: "bundlemcp" },
+    siteTitle: false,
     nav: [
       { text: "Guide", link: "/guide/what-is-bundlemcp", activeMatch: "/guide/" },
       { text: "Self-hosting", link: "/self-hosting/deploy", activeMatch: "/self-hosting/" },

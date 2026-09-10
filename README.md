@@ -1,4 +1,6 @@
-# bundlemcp
+<p align="center">
+  <img src="docs/public/banner.svg" alt="bundlemcp: unified mcp server bundler" width="640">
+</p>
 
 A self-hostable **MCP bundling gateway**. Register upstream MCP servers
 (Streamable HTTP), compose them into **bundles**, and expose each bundle

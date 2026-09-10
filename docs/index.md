@@ -2,12 +2,11 @@
 layout: home
 
 hero:
-  name: bundlemcp
   text: One gateway for all your MCP servers
   tagline: Register Streamable HTTP MCP servers, compose them into bundles, and expose each bundle through endpoints shaped for claude.ai, ChatGPT or your own scripts. Self-hosted, restart-safe, horizontally scalable.
   image:
-    src: /logo-mark.svg
-    alt: bundlemcp
+    src: /banner.svg
+    alt: "bundlemcp: unified mcp server bundler"
   actions:
     - theme: brand
       text: Quickstart

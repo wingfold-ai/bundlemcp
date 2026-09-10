@@ -1,0 +1,28 @@
+/* The hero image is the banner (mark + wordmark + subtitle): a wide lockup,
+   not the square icon the default theme sizes and offsets for. */
+.VPHero .image {
+  margin: 0 0 24px;
+}
+.VPHero .image-bg {
+  display: none;
+}
+.VPHero .image-container {
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+}
+.VPHero .image-src {
+  position: static;
+  transform: none;
+  width: 100%;
+  max-width: none;
+}
+@media (min-width: 960px) {
+  .VPHero .image {
+    margin: 0;
+  }
+  .VPHero .image-container {
+    max-width: 520px;
+    transform: none;
+  }
+}
