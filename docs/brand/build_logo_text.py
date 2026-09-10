@@ -189,18 +189,21 @@ def main() -> None:
     # 2. The lockup for a navigation bar: mark + title, no subtitle.
     for suffix, tc, sc in (("dark", TITLE_DARK, SUB_DARK), ("light", TITLE_LIGHT, SUB_LIGHT)):
         body, w, h, baseline = wordmark(tc, sc, False)
-        # cap the mark to the title's cap-to-baseline box, a touch taller
-        mark_h = 1.05 * T
+        # the mark stands well above and below the text, centred on the ascender box
+        mark_h = 1.55 * T
         mark_w = mark_h * MARK_W / MARK_H
-        gap = 0.18 * T
-        top = baseline - 0.72 * T - (mark_h - 0.72 * T) / 2  # centre on the x-height-ish middle
+        gap = 0.14 * T
+        text_mid = baseline - 0.36 * T  # midpoint between baseline and ascender top
+        top = text_mid - mark_h / 2
+        shift = max(0.0, -top)  # keep the mark inside the canvas
         total_w = mark_w + gap + w
+        total_h = max(h, top + mark_h) + shift
         write(
             f"lockup-{suffix}.svg",
             svg(
-                total_w, h,
-                f'<g transform="translate(0,{top:.2f}) scale({mark_h / MARK_H:.5f})">{mark_fragment()}</g>\n'
-                f'<g transform="translate({mark_w + gap:.2f},0)">{body}</g>',
+                total_w, total_h,
+                f'<g transform="translate(0,{top + shift:.2f}) scale({mark_h / MARK_H:.5f})">{mark_fragment()}</g>\n'
+                f'<g transform="translate({mark_w + gap:.2f},{shift:.2f})">{body}</g>',
                 "bundlemcp",
             ),
         )

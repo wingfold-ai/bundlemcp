@@ -1,3 +1,9 @@
+/* The nav logo is the mark-plus-wordmark lockup; give it more height than
+   the 24px the theme reserves for a square icon. */
+.VPNavBarTitle .logo {
+  height: 36px;
+}
+
 /* The hero image is the banner (mark + wordmark + subtitle): a wide lockup,
    not the square icon the default theme sizes and offsets for. */
 .VPHero .image {
