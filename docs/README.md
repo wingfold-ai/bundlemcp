@@ -9,10 +9,13 @@ The Markdown pages in `guide/`, `self-hosting/`, `manage/`, `connect/` and
 (spec 61). Run it locally:
 
 ```bash
-cd docs
-npm ci
-npm run dev        # http://localhost:5173
-npm run build      # static output in .vitepress/dist
+# from the repository root
+pnpm docs:install
+pnpm docs:dev        # http://localhost:5173
+pnpm docs:build      # static output in docs/.vitepress/dist
+
+# or inside docs/ with npm, which is what CI uses
+cd docs && npm ci && npm run dev
 ```
 
 Navigation lives in `.vitepress/config.ts`; add a page there when you add a

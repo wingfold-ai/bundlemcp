@@ -48,7 +48,7 @@ Then:
    itself.
 
 The user guides (deployment, connecting clients, the management API) live in
-[docs/](docs/README.md); run `cd docs && npm ci && npm run dev` to browse
+[docs/](docs/README.md); run `pnpm docs:install && pnpm docs:dev` to browse
 them. The management API is documented at <http://localhost:8000/api/v1/docs>. The
 ultra-mcp fleet of upstreams (private images) starts with
 `--profile fleet`; see [deploy/TESTING.md](deploy/TESTING.md).
@@ -57,7 +57,7 @@ ultra-mcp fleet of upstreams (private images) starts with
 
 | | |
 |---|---|
-| [docs/](docs/README.md) | The user documentation site (VitePress): self-hosting, managing servers/bundles/endpoints, connecting claude.ai, ChatGPT and scripts, integrating an application layer — `cd docs && npm ci && npm run dev` |
+| [docs/](docs/README.md) | The user documentation site (VitePress): self-hosting, managing servers/bundles/endpoints, connecting claude.ai, ChatGPT and scripts, integrating an application layer — `pnpm docs:install && pnpm docs:dev` |
 | [spec/](spec/README.md) | The source of truth: one atomic spec per capability, with testable requirement IDs; the decision log of what was deliberately left out |
 | [docs/arc42/](docs/arc42/) | Architecture rationale, arc42 sections |
 | [docs/adr/](docs/adr/README.md) | Architecture decision records, append-only |
