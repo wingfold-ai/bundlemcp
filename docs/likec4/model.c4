@@ -109,25 +109,37 @@ model {
 
   // context relationships
   admin -> web 'manages via browser' 'HTTPS'
-  mcpClient -[mcp]-> gateway 'calls bundle endpoints /{endpoint}/mcp (any supported revision), OAuth 2.1 w/ CIMD or DCR + PKCE'
-  gateway -[mcp]-> upstreams 'aggregates; negotiates era per server; forwards identity (X-MCP-User, headers)'
-  upstreams -> gateway 'introspects forwarded bearers (/oauth/introspect)' 'HTTPS'
-  gateway -> idp 'federates logins (authorization code flow)' 'OIDC'
+  mcpClient -[mcp]-> gateway 'calls /{endpoint}/mcp, OAuth 2.1'
+  gateway -[mcp]-> upstreams 'aggregates, forwards identity'
+  upstreams -> gateway 'introspects bearers' 'HTTPS'
+  gateway -> idp 'federates login' 'OIDC'
   admin -> idp 'authenticates at'
-  appLayer -> gateway 'registers servers (PUT /api/v1/servers/{name})' 'REST'
-  gateway -> appLayer 'metering hook: check-and-debit / refund per tool call' 'Python hook -> REST'
+  appLayer -> gateway 'registers servers' 'REST'
+  gateway -> appLayer 'metering hook' 'Python hook -> REST'
 
   // container relationships
-  web -> gateway 'management REST API (generated TS client)' 'HTTPS /api/v1'
-  gateway.infrastructure -> pg 'reads/writes durable state' 'SQLAlchemy async'
-  gateway.infrastructure -> redis 'sessions, limits, pub/sub' 'redis-py async'
+  web -> gateway 'management API' 'HTTPS /api/v1'
+  gateway.infrastructure -> pg 'durable state' 'SQLAlchemy async'
+  gateway.infrastructure -> redis 'live state' 'redis-py async'
 }
 
 views {
   view index of bundlemcp {
     title 'bundlemcp — System Context'
-    include *, admin, mcpClient, idp, upstreams, appLayer
-    exclude bundlemcp.*
+    // the system as one box: relationships to its containers roll up to it.
+    // Labels are shortened here so the view stays legible at documentation
+    // column width; the model keeps the full descriptions
+    include
+      bundlemcp with { description 'MCP bundling gateway' },
+      admin with { description 'Registers servers, curates bundles, shapes endpoints' },
+      mcpClient with { title 'MCP clients' description 'claude.ai, ChatGPT, scripts, agents' },
+      upstreams with { title 'Upstream MCP servers' description 'Streamable HTTP, any protocol era' },
+      idp with { title 'OIDC provider' description 'Keycloak or any OIDC issuer' },
+      appLayer with { title 'Application layer' description 'Optional: billing, registrar' }
+    style * {
+      size sm
+      textSize xl
+    }
     autoLayout TopBottom
   }
 

@@ -36,6 +36,20 @@ uv run --with fonttools python docs/brand/build_logo_text.py
 
 Edit the HTML, re-run the script, commit both.
 
+## Diagrams
+
+The context and deployment diagrams in the guides are the LikeC4 views in
+`likec4/`, exported as PNG pairs (light theme in `public/diagrams/`, dark in
+`public/diagrams/dark/`). Re-export after changing the model:
+
+```bash
+npx likec4 export png --flat --light -o docs/public/diagrams docs/likec4
+npx likec4 export png --flat --dark  -o docs/public/diagrams/dark docs/likec4
+```
+
+The export renders in a headless Chromium that LikeC4's bundled Playwright
+downloads on first use.
+
 ## Architecture material (contributors)
 
 | | |

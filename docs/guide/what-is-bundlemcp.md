@@ -1,3 +1,7 @@
+---
+aside: false
+---
+
 # What is bundlemcp?
 
 bundlemcp is a self-hostable **MCP bundling gateway**. It sits between the MCP
@@ -5,14 +9,7 @@ clients your users run (claude.ai, ChatGPT, Claude Code, your own agents) and
 the MCP servers you operate, and does one thing well: it **bundles MCP servers
 and exposes the bundles the way each consuming client needs them**.
 
-```
-upstream MCP servers ──▶ [ server registry ] ──▶ [ bundle ] ──▶ [ endpoint(s) ]
- (Streamable HTTP)          connection +           tool            per-client
-                            tool discovery         curation        surface:
-                                                                   auth mode,
-                                                                   profile,
-                                                                   rate limits
-```
+<div class="wide"><HomePipeline compact /></div>
 
 - A **server** is an upstream MCP server reachable over Streamable HTTP. The
   gateway probes it, discovers its tools, and keeps that tool list cached.
@@ -22,6 +19,18 @@ upstream MCP servers ──▶ [ server registry ] ──▶ [ bundle ] ──�
 - An **endpoint** is a public URL that serves one bundle. A bundle can have
   many endpoints, each with its own authentication modes, client profile and
   rate limits.
+
+## Where it sits
+
+The gateway is one system with five neighbours: the people who operate it,
+the MCP clients that call it, the servers it aggregates, the identity
+provider that authenticates humans, and, optionally, an application layer
+that bills for calls and registers servers through the API.
+
+<div class="wide">
+<img src="/diagrams/index.png" class="diagram light-only" alt="System context: administrator, MCP clients, upstream MCP servers, OIDC identity provider and an optional application layer around the bundlemcp gateway">
+<img src="/diagrams/dark/index.png" class="diagram dark-only" alt="System context: administrator, MCP clients, upstream MCP servers, OIDC identity provider and an optional application layer around the bundlemcp gateway">
+</div>
 
 ## Who it is for
 

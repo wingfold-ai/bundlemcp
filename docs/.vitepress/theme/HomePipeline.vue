@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { withBase } from "vitepress";
 
+// compact: inside a doc page, without the home page's gutters and caption
+defineProps<{ compact?: boolean }>();
+
 const servers = [
   { name: "weather", tools: ["forecast", "current"] },
   { name: "notes", tools: ["search", "create"] },
@@ -24,7 +27,7 @@ const endpoints = [
 </script>
 
 <template>
-  <section class="pipeline">
+  <section class="pipeline" :class="{ compact }">
     <div class="card">
       <div class="col">
         <h3>Upstream MCP servers</h3>
@@ -69,7 +72,7 @@ const endpoints = [
         </div>
       </div>
     </div>
-    <p class="caption">
+    <p v-if="!compact" class="caption">
       Every tool call passes the endpoint's auth, the bundle's curation, the client profile,
       the optional metering hook, and lands in the audit log. Sessions live in Valkey, so any
       replica serves any client.
@@ -94,6 +97,7 @@ const endpoints = [
 @media (min-width: 960px) {
   .pipeline { padding: 0 64px 64px; }
 }
+.pipeline.compact { padding: 0; margin: 16px 0 24px; max-width: none; }
 .card {
   display: grid;
   grid-template-columns: 1fr;

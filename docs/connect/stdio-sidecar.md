@@ -8,11 +8,8 @@ URL.
 
 ## The pattern
 
-```
-gateway ──HTTP──▶ sidecar container ──stdio──▶ the MCP server process
-```
-
-The sidecar lives next to the gateway on the same network, owns the process,
+The gateway talks HTTP to a sidecar container, and the sidecar talks stdio to
+the MCP server process it started. The sidecar lives next to the gateway on the same network, owns the process,
 restarts it if it dies, and exposes `/mcp`. From the gateway's point of view
 it is an ordinary Streamable HTTP server.
 

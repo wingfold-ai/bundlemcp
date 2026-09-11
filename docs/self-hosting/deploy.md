@@ -1,3 +1,7 @@
+---
+aside: false
+---
+
 # Production deployment
 
 The reference stack in `deploy/docker-compose.yml` is built for local
@@ -9,23 +13,10 @@ setting.
 
 ## Topology
 
-```
-                     ┌──────────────────────────────┐
-  clients ──TLS──▶   │ reverse proxy (Caddy, Traefik,│
-  (claude.ai,        │ nginx, ingress)               │
-   ChatGPT, scripts) └──────┬──────────────┬─────────┘
-                            │              │
-                 gw.example.com    admin.example.com
-                            │              │
-                     ┌──────▼──────┐ ┌─────▼─────┐
-                     │ gateway ×N  │ │ web       │
-                     │ :8000       │ │ :3000     │
-                     └──┬───────┬──┘ └───────────┘
-                        │       │
-                 ┌──────▼──┐ ┌──▼─────┐      ┌─────────────┐
-                 │Postgres │ │ Valkey │      │ OIDC IdP    │
-                 └─────────┘ └────────┘      └─────────────┘
-```
+<div class="wide">
+<img src="/diagrams/production.png" class="diagram light-only" alt="Reference topology: a reverse proxy in front of N gateway replicas and the admin web app, sharing Postgres and Valkey, with the identity provider and the upstream MCP servers outside the deployment">
+<img src="/diagrams/dark/production.png" class="diagram dark-only" alt="Reference topology: a reverse proxy in front of N gateway replicas and the admin web app, sharing Postgres and Valkey, with the identity provider and the upstream MCP servers outside the deployment">
+</div>
 
 - The **gateway** serves the MCP endpoints, the OAuth server, the login flow
   and the management API on one port. You can run several replicas behind
