@@ -12,9 +12,8 @@ the audit log in Postgres, so a restart or a second replica is a non-event.
 
 It is a focused rewrite of the bundling core of
 [metamcp](https://github.com/metatool-ai/metamcp), built to be consumed by an
-application layer such as [ultra-mcp](https://github.com/mhoegger/ultra-mcp)
-(identity provider, billing, discovery) but fully usable on its own with any
-OIDC provider.
+application layer that adds its own identity provider, billing and discovery,
+but fully usable on its own with any OIDC provider.
 
 ## Quickstart
 
@@ -50,7 +49,7 @@ Then:
 The user guides (deployment, connecting clients, the management API) live in
 [docs/](docs/README.md); run `pnpm docs:install && pnpm docs:dev` to browse
 them. The management API is documented at <http://localhost:8000/api/v1/docs>. The
-ultra-mcp fleet of upstreams (private images) starts with
+maintainers' fleet of upstreams (private images) starts with
 `--profile fleet`; see [deploy/TESTING.md](deploy/TESTING.md).
 
 ## Where things are

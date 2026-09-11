@@ -45,5 +45,5 @@ Playwright test title, the recording filename, and this table.
 | KEY-4 | `22-api-keys.md` | Deactivation (is_active=false) and deletion take effect within the cross-replica propagation budget (STP-3/STP-4 — an invalidation event, not a cache TTL); l… |
 | API-1 | `40-management-api.md` | Base path /api/v1; resources: servers, servers/{id}/tools, bundles, bundles/{id}/servers, bundles/{id}/tools, endpoints, api-keys, users, audit-records, conf… |
 | DOM-5 | `02-domain-model.md` | Config-class entities participate in cross-replica cache invalidation per 33-state-propagation.md. |
-| FWD-4 | `24-identity-forwarding.md` | Upstreams that need to verify the forwarded bearer can call POST /oauth/introspect (OAS-5) — the sequence ultra-mcp's servers use today against metamcp. |
+| FWD-4 | `24-identity-forwarding.md` | Upstreams that need to verify the forwarded bearer can call POST /oauth/introspect (OAS-5) — the sequence the first consumer's servers use today against metamcp. |
 | UPO-1 | `23-upstream-oauth.md` | A server with auth_mode=upstream_oauth (SRV-1) gets upstream OAuth client config: either dynamic registration against the upstream (RFC 7591, discovered via … |

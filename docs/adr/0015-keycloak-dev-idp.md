@@ -14,7 +14,7 @@ governs the *integration* IdP.
 
 ## Decision drivers
 
-- **Parity with ultra-mcp**, which runs Keycloak in production — the
+- **Parity with the application layer**, which runs Keycloak in production — the
   integration suite exercises exactly the federation bundlemcp will deploy
   against (claim shapes, login form, logout semantics), catching drift a mock
   would hide.

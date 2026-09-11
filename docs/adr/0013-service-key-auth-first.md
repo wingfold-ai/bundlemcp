@@ -19,7 +19,7 @@ browser to log in from yet.
 ## Decision drivers
 
 - Unblocks the registrar/automation use case (API-4) immediately — the
-  integration ultra-mcp actually needs first.
+  integration the application layer actually needs first.
 - Avoids building the OIDC browser flow twice (it needs consent pages and the
   web origin anyway).
 

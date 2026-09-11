@@ -1,14 +1,14 @@
 # 40 — Management REST API
 
-**Status:** Accepted · **Origin:** new (fixes ultra-mcp's biggest integration wart)
-**Prior art (the wart):** `../ultra-mcp/packages/registrar/registrar/clients.py` — cookie-replay login + hand-crafted tRPC batch calls, because metamcp had no service API
+**Status:** Accepted · **Origin:** new (fixes the first consumer's biggest integration wart)
+**Prior art (the wart):** the first consumer's registrar client — cookie-replay login + hand-crafted tRPC batch calls, because metamcp had no service API
 
 ## Summary
 
 Everything the admin UI can do is available as a versioned, OpenAPI-documented
 REST API under `/api/v1`, authenticated by admin session **or** service API
 key. The Nuxt UI is a client of this API — there is no privileged side
-channel — which guarantees automation parity (ultra-mcp's registrar, CI,
+channel — which guarantees automation parity (the application layer's registrar, CI,
 scripts).
 
 ## Requirements

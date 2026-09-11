@@ -1,4 +1,4 @@
-"""Ultra-mcp MCP fleet through the gateway: seo + media bundles (BND-*, FWD-*).
+"""The MCP fleet through the gateway: seo + media bundles (BND-*, FWD-*).
 
 Requires the full compose stack. The seo-gsc assertions exercise FWD-1/FWD-4:
 the gateway forwards the caller's bearer, seo-gsc introspects it back against
@@ -14,7 +14,7 @@ from conftest import GATEWAY_URL, SERVICE_KEY  # noqa: TID252
 from helpers import initialize, mcp_call, wait_ready
 from test_oauth_flow import _drive_login_and_consent, _pkce  # noqa: TID251
 
-# Every test here drives the ultra-mcp fleet (seo-psi, seo-gsc, dataforseo,
+# Every test here drives the fleet (seo-psi, seo-gsc, dataforseo,
 # hyperframes), which ships as private GHCR images. CI cannot pull those, so it
 # runs `-m "not fleet"`; locally the full compose stack makes them available.
 pytestmark = pytest.mark.fleet
@@ -59,7 +59,7 @@ def _oauth_token_for(endpoint: str) -> str:
             f"{GATEWAY_URL}/oauth/register",
             json={
                 "redirect_uris": ["http://localhost:8000/callback"],
-                "client_name": "IT-ultra",
+                "client_name": "IT-fleet",
             },
         )
         reg.raise_for_status()
@@ -73,7 +73,7 @@ def _oauth_token_for(endpoint: str) -> str:
                 "response_type": "code",
                 "code_challenge": challenge,
                 "code_challenge_method": "S256",
-                "state": "ultra",
+                "state": "fleet",
                 "resource": f"{GATEWAY_URL}/{endpoint}/mcp",
             },
         )

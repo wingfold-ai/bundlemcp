@@ -99,7 +99,7 @@ jobs:
         # same prerequisite as deploy/TESTING.md.
         run: echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
       - name: Bring up the core stack
-        # The ultra-mcp fleet (seo-psi, seo-gsc, hyperframes) is behind the
+        # The fleet (seo-psi, seo-gsc, hyperframes) is behind the
         # `fleet` compose profile because its images are private, so the
         # default stack is exactly what CI can build; its tests are marked
         # `fleet` and skipped below — run them locally per deploy/TESTING.md.

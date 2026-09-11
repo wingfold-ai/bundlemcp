@@ -123,7 +123,7 @@ auth-failure limiter.
 
 - **`POST /oauth/introspect` (RFC 7662)** requires a **service** API key —
   accepted as a bearer/`X-API-Key`, or as the HTTP Basic *password* (the "client
-  credentials" form ultra-mcp's upstreams use). It returns the standard
+  credentials" form introspecting upstreams use). It returns the standard
   `{active, sub, client_id, scope, exp, aud, email}` for a valid OAuth token.
   Two special cases matter for upstream auth (system d):
   - A forwarded **gateway API key** presented as the token introspects as

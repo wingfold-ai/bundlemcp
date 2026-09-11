@@ -49,12 +49,16 @@ def font(weight: int) -> TTFont:
     FONTS.mkdir(exist_ok=True)
     path = FONTS / f"roboto-{weight}.woff"
     if not path.exists():
-        css = urllib.request.urlopen(
-            urllib.request.Request(
-                f"https://fonts.googleapis.com/css2?family=Roboto:wght@{weight}&display=swap",
-                headers={"User-Agent": UA},
+        css = (
+            urllib.request.urlopen(
+                urllib.request.Request(
+                    f"https://fonts.googleapis.com/css2?family=Roboto:wght@{weight}&display=swap",
+                    headers={"User-Agent": UA},
+                )
             )
-        ).read().decode()
+            .read()
+            .decode()
+        )
         url = re.search(r"url\((https://[^)]+)\)", css).group(1)
         path.write_bytes(urllib.request.urlopen(url).read())
     return TTFont(path)
@@ -91,7 +95,9 @@ class Face:
         return pen.getCommands()
 
 
-def wordmark(title_color: str, sub_color: str, with_subtitle: bool) -> tuple[str, float, float, float]:
+def wordmark(
+    title_color: str, sub_color: str, with_subtitle: bool
+) -> tuple[str, float, float, float]:
     """Return (svg fragment, width, height, baseline-of-title) with the origin at
     the title's line-box top-left, as the HTML lays it out."""
     bold, light, regular = Face(700), Face(300), Face(400)
@@ -122,11 +128,13 @@ def wordmark(title_color: str, sub_color: str, with_subtitle: bool) -> tuple[str
 
     sx, sy = slit_w / 100.0, SLIT_H / 53.0
     mask = (
-        f'<mask id="b-slits" maskUnits="userSpaceOnUse" x="0" y="0" width="{width:.1f}" height="{T:.1f}">'
+        f'<mask id="b-slits" maskUnits="userSpaceOnUse" x="0" y="0" '
+        f'width="{width:.1f}" height="{T:.1f}">'
         f'<rect width="{width:.1f}" height="{T:.1f}" fill="#fff"/>'
         f'<g transform="translate({slit_x:.2f},{baseline - SLIT_H:.2f}) scale({sx:.4f},{sy:.4f})" '
         f'fill="none" stroke="#000" stroke-width="4.5">'
-        '<path d="M-2 12 Q50 19 102 12"/><path d="M-2 25 Q50 32 102 25"/><path d="M-2 38 Q50 45 102 38"/>'
+        '<path d="M-2 12 Q50 19 102 12"/><path d="M-2 25 Q50 32 102 25"/>'
+        '<path d="M-2 38 Q50 45 102 38"/>'
         "</g></mask>"
     )
     out = [
@@ -172,7 +180,7 @@ def svg(width: float, height: float, body: str, label: str) -> str:
 
 def write(name: str, content: str) -> None:
     (PUBLIC / name).write_text(content)
-    print(f"wrote public/{name}")
+    sys.stdout.write(f"wrote public/{name}\n")
 
 
 def main() -> None:
@@ -182,8 +190,12 @@ def main() -> None:
         pad = 8.0
         write(
             f"wordmark-{suffix}.svg",
-            svg(w + 2 * pad, h + pad, f'<g transform="translate({pad},0)">{body}</g>',
-                "bundlemcp: unified mcp server bundler"),
+            svg(
+                w + 2 * pad,
+                h + pad,
+                f'<g transform="translate({pad},0)">{body}</g>',
+                "bundlemcp: unified mcp server bundler",
+            ),
         )
 
     # 2. The lockup for a navigation bar: mark + title, no subtitle.
@@ -201,8 +213,10 @@ def main() -> None:
         write(
             f"lockup-{suffix}.svg",
             svg(
-                total_w, total_h,
-                f'<g transform="translate(0,{top + shift:.2f}) scale({mark_h / MARK_H:.5f})">{mark_fragment()}</g>\n'
+                total_w,
+                total_h,
+                f'<g transform="translate(0,{top + shift:.2f}) '
+                f'scale({mark_h / MARK_H:.5f})">{mark_fragment()}</g>\n'
                 f'<g transform="translate({mark_w + gap:.2f},{shift:.2f})">{body}</g>',
                 "bundlemcp",
             ),
@@ -219,10 +233,13 @@ def main() -> None:
     write(
         "banner.svg",
         svg(
-            total_w, total_h,
+            total_w,
+            total_h,
             f'<rect width="{total_w:.1f}" height="{total_h:.1f}" rx="{rx:.1f}" fill="{BG}"/>\n'
-            f'<g transform="translate({pad_x:.2f},{pad_y:.2f}) scale({mark_h / MARK_H:.5f})">{mark_fragment()}</g>\n'
-            f'<g transform="translate({pad_x + mark_w + gap:.2f},{pad_y + (mark_h - h) / 2:.2f})">{body}</g>',
+            f'<g transform="translate({pad_x:.2f},{pad_y:.2f}) '
+            f'scale({mark_h / MARK_H:.5f})">{mark_fragment()}</g>\n'
+            f'<g transform="translate({pad_x + mark_w + gap:.2f},'
+            f'{pad_y + (mark_h - h) / 2:.2f})">{body}</g>',
             "bundlemcp: unified mcp server bundler",
         ),
     )

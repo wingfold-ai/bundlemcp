@@ -47,7 +47,7 @@ model {
     description 'Streamable HTTP MCP servers of either protocol era (containers or hosted); stdio servers via sidecar'
   }
 
-  appLayer = external 'Application Layer (ultra-mcp)' {
+  appLayer = external 'Application Layer' {
     description 'Optional consumer: billing via the metering hook, registrar via the management API'
   }
 

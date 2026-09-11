@@ -1,14 +1,14 @@
 # 24 — Identity & header forwarding
 
-**Status:** Accepted · **Origin:** metamcp carry-over (fork feature `forward_headers` + ultra-mcp's identity contract)
-**Prior art:** `../metamcp/apps/backend/src/lib/metamcp/header-forwarding.ts`, `../ultra-mcp/deploy/docker-compose.yml` (seo-gsc/hyperframes identity contract)
+**Status:** Accepted · **Origin:** metamcp carry-over (fork feature `forward_headers` + the first consumer's identity contract)
+**Prior art:** `../metamcp/apps/backend/src/lib/metamcp/header-forwarding.ts`, the first consumer's compose stack (seo-gsc/hyperframes identity contract)
 
 ## Summary
 
 Upstream servers often need to know **who** is calling (per-user storage,
 quotas, tenant scoping). bundlemcp propagates identity two ways: selective
 forwarding of client request headers, and an injected `X-MCP-User` header
-carrying the resolved caller `sub`. This is the contract ultra-mcp's upstream
+carrying the resolved caller `sub`. This is the contract the first consumer's upstream
 servers (seo-gsc, hyperframes) already rely on.
 
 ## Requirements
@@ -27,7 +27,7 @@ servers (seo-gsc, hyperframes) already rely on.
   omitted.
 - **FWD-4** Upstreams that need to verify the forwarded bearer can call
   `POST /oauth/introspect` ([OAS-5](20-oauth-server.md)) — the sequence
-  ultra-mcp's servers use today against metamcp.
+  the first consumer's servers use today against metamcp.
 - **FWD-5** Sessions serving requests with forwarded per-request headers MUST
   bind those headers to the upstream session correctly: an upstream
   connection carrying user A's forwarded authorization MUST never serve

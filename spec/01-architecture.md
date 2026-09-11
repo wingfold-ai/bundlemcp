@@ -1,6 +1,6 @@
 # 01 — Architecture
 
-**Status:** Accepted · **Origin:** new (layout follows ultra-mcp conventions)
+**Status:** Accepted · **Origin:** new
 
 ## Summary
 
@@ -45,8 +45,8 @@ source of truth from database row to frontend type.
 ## Repository layout
 
 uv workspace monorepo, following the `packages/` (importable libraries, flat,
-no `src/`) + `apps/` (deployable applications) convention used in
-ultra-mcp:
+no `src/`) + `apps/` (deployable applications) convention used by the
+application layer:
 
 ```
 bundlemcp/

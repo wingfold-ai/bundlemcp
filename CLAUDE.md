@@ -9,7 +9,7 @@ bundlemcp registers upstream MCP servers (Streamable HTTP only), composes them
 into **bundles**, and exposes each bundle through one or more **endpoints**
 shaped for the consuming client (claude.ai OAuth profile, ChatGPT re-annotation
 profile, API-key access for scripts). It is designed to be consumed by an
-application layer (ultra-mcp adds Keycloak, billing, discovery) but is fully
+application layer that adds Keycloak, billing and discovery, but is fully
 usable standalone with any OIDC provider.
 
 The `/spec` folder is the source of truth: [spec/README.md](spec/README.md) is
@@ -57,9 +57,9 @@ See [spec/00-overview.md](spec/00-overview.md) and
 - Python ≥3.13, uv: `uv sync --all-packages`; run services with `uv run`.
 - Stack: `docker compose -f deploy/docker-compose.yml up` (gateway, web,
   Postgres, Valkey, dev OIDC IdP).
-- Sibling read-only reference repos: `../metamcp` (what we're replacing),
-  `../ultra-mcp` (first consumer — its registrar and billing contracts drive
-  specs 40 and 31).
+- Sibling read-only reference repo: `../metamcp` (what we're replacing). The
+  first consumer, a private application layer, is never named in this repo;
+  its registrar and billing contracts drive specs 40 and 31.
 
 ## Testing
 
