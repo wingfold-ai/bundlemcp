@@ -6,8 +6,8 @@ more **endpoints** tailored to the consuming client (claude.ai, ChatGPT, plain
 API clients). It is a focused Python/Nuxt rewrite of the bundling core of
 [metamcp](https://github.com/metatool-ai/metamcp), designed from day one for
 restart-safe sessions and horizontal scaling, and built to be consumed by an
-application layer (e.g. [application-layer](the application layer's repository))
-that adds its own identity provider, billing, and discovery on top.
+application layer that adds its own identity provider, billing, and discovery
+on top.
 
 ## How to read these specs
 
@@ -28,7 +28,7 @@ acceptable. Shared structure:
 ### Foundation
 | Spec | Contents |
 |---|---|
-| [00-overview.md](00-overview.md) | Vision, scope, boundary with application-layer |
+| [00-overview.md](00-overview.md) | Vision, scope, boundary with the application layer |
 | [01-architecture.md](01-architecture.md) | Stack, version policy, repo layout, state model, Pydantic-first data flow |
 | [02-domain-model.md](02-domain-model.md) | Entities and relationships |
 
@@ -91,7 +91,7 @@ recorded here so nobody re-proposes them without new evidence.
 | **SSE upstream & downstream transport** | Deprecated by the MCP spec; all targeted upstreams and clients speak Streamable HTTP. |
 | **OpenAPI REST bridge** (`/api` per endpoint) | Notable build effort, not needed for the target clients (claude.ai, ChatGPT, MCP-native tools). |
 | **Query-parameter API-key auth** | Keys leak into logs/URLs; header auth only. |
-| **Multi-user resource ownership** (public/private per user) | bundlemcp is a single shared workspace — every admin sees and manages everything. Tenanting is the application layer's job (application-layer). |
+| **Multi-user resource ownership** (public/private per user) | bundlemcp is a single shared workspace — every admin sees and manages everything. Tenanting is the application layer's job. |
 | **Admin tools over MCP** (~40 `metamcp-admin__*` tools) | The management REST API covers automation; agents can call REST. |
 | **i18n** | English-only admin UI. |
 | **Local password accounts** (better-auth style) | Admin login is OIDC-only; bundlemcp never stores passwords. |
@@ -112,6 +112,6 @@ Specs cite these read-only reference repos (sibling checkouts):
 - `../metamcp` — the fork being replaced; schema at
   `apps/backend/src/db/schema.ts`, gateway at `apps/backend/src/lib/metamcp/`,
   OAuth server at `apps/backend/src/routers/oauth/`.
-- `../application-layer` — the first consumer; registrar contract at
-  `packages/registrar/registrar/clients.py`, metering contract at
-  `packages/billing/billing/routers/meter.py`.
+- The first consumer, a private application layer, is not named in this repo;
+  its registrar client and its metering router are the contracts specs 40 and
+  31 were written against.

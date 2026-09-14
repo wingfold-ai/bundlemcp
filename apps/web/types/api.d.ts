@@ -303,6 +303,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Available Endpoints
+         * @description The catalogue for any signed-in person: enabled endpoints that accept OAuth.
+         */
+        get: operations["available_endpoints_api_v1_me_endpoints_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/servers": {
         parameters: {
             query?: never;
@@ -705,6 +725,34 @@ export interface components {
          * @enum {string}
          */
         AuditStatus: "success" | "error" | "denied" | "input_required";
+        /**
+         * AvailableEndpointRead
+         * @description An endpoint a signed-in person can connect an MCP client to with their own identity.
+         */
+        AvailableEndpointRead: {
+            /**
+             * Bundle Description
+             * @description What the bundle offers, as its administrator described it
+             */
+            bundle_description: string | null;
+            /**
+             * Bundle Name
+             * @description Bundle the endpoint serves
+             */
+            bundle_name: string;
+            /**
+             * Name
+             * @description Endpoint name, the last path segment before /mcp
+             */
+            name: string;
+            /** @description Client the endpoint is shaped for: default for any MCP client, claude for claude.ai, chatgpt for ChatGPT */
+            profile: components["schemas"]["EndpointProfile"];
+            /**
+             * Url
+             * @description Full Streamable HTTP URL to enter in the MCP client, such as claude.ai's custom connector dialog
+             */
+            url: string;
+        };
         /**
          * BundleMemberRead
          * @description A server's membership in a bundle.
@@ -2532,6 +2580,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeRead"];
+                };
+            };
+        };
+    };
+    available_endpoints_api_v1_me_endpoints_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailableEndpointRead"][];
                 };
             };
         };

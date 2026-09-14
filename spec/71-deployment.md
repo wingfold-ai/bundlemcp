@@ -1,7 +1,7 @@
 # 71 — Deployment, upgrades & operations
 
 **Status:** Accepted · **Origin:** new
-**Prior art:** metamcp `APP_URL`/`EXTRA_TRUSTED_ORIGINS` handling (`../metamcp/apps/backend/src/auth.ts`), application-layer's Traefik deploy + cookie-domain bug (`../application-layer/packages/registrar/registrar/clients.py`)
+**Prior art:** metamcp `APP_URL`/`EXTRA_TRUSTED_ORIGINS` handling (`../metamcp/apps/backend/src/auth.ts`), the first consumer's Traefik deploy + cookie-domain bug in its registrar client
 
 ## Summary
 

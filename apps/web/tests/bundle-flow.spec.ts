@@ -38,12 +38,11 @@ test(testTitle("E2E-05"), async ({ page, steps }) => {
       await expect(page.getByTestId("curation-echo__echo")).toContainText("just_echo");
     }),
     when(`exposing the bundle as endpoint "${endpoint}"`, { req: "EP-7" }, async () => {
-      await page.goto("/endpoints");
+      await page.goto(`/bundles/${bundle}`);
       await page.getByTestId("create-endpoint-name").fill(endpoint);
-      await page.getByTestId("create-endpoint-bundle").selectOption(bundle);
       await page.getByTestId("auth-mode-api_key").check();
       await page.getByTestId("create-endpoint-submit").click();
-      await page.getByTestId(`open-${endpoint}`).click();
+      await page.getByTestId(`bundle-endpoint-${endpoint}`).click();
     }),
     then("the connection card shows the copy-paste MCP URL", { req: "EP-7" }, async () => {
       await expect(page.getByTestId("connection-url")).toContainText(`/${endpoint}/mcp`);
@@ -60,7 +59,7 @@ test(testTitle("E2E-05"), async ({ page, steps }) => {
 
 test(testTitle("E2E-06"), async ({ page, steps }) => {
   await steps.play([
-    given("the create-endpoint form on the endpoints page", () => page.goto("/endpoints")),
+    given("the create-endpoint form on a bundle's page", () => page.goto("/bundles/demo")),
     when("selecting the chatgpt profile", { req: "PROF-3" }, () =>
       page.getByTestId("create-endpoint-profile").selectOption("chatgpt"),
     ),

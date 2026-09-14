@@ -3,28 +3,17 @@ import type { components } from "~~/types/api";
 
 type EndpointRead = components["schemas"]["EndpointRead"];
 type BundleRead = components["schemas"]["BundleRead"];
-type EndpointProfile = components["schemas"]["EndpointProfile"];
-type EndpointAuthMode = components["schemas"]["EndpointAuthMode"];
-
-interface ProfileInfo {
-  name?: string;
-  description?: string;
-  warning?: string;
-  [key: string]: unknown;
-}
 
 const api = useApi();
 
 const endpoints = ref<EndpointRead[]>([]);
 const bundles = ref<BundleRead[]>([]);
-const profiles = ref<ProfileInfo[]>([]);
 const errorMsg = ref("");
 
 async function load() {
-  const [eps, bds, profs] = await Promise.all([
+  const [eps, bds] = await Promise.all([
     api.GET("/api/v1/endpoints", { params: { query: { offset: 0, limit: 100 } } }),
     api.GET("/api/v1/bundles", { params: { query: { offset: 0, limit: 100 } } }),
-    api.GET("/api/v1/endpoints/profiles"),
   ]);
   if (eps.error) {
     errorMsg.value = apiErrorMessage(eps.error);
@@ -32,88 +21,16 @@ async function load() {
   }
   endpoints.value = eps.data?.items ?? [];
   bundles.value = bds.data?.items ?? [];
-  profiles.value = (profs.data ?? []) as ProfileInfo[];
 }
 await load();
 
-// --- create form ---
-const createName = ref("");
-const createBundle = ref("");
-const createProfile = ref<EndpointProfile>("default");
-const createAuthModes = ref<EndpointAuthMode[]>(["oauth"]);
-const allowUnauthenticated = ref(false);
+const bundleNameById = computed(() => new Map(bundles.value.map((b) => [b.id, b.name])));
 
-const selectedProfileInfo = computed(() =>
-  profiles.value.find((p) => p.name === createProfile.value),
-);
-const chatgptWarning = computed(() => {
-  if (createProfile.value !== "chatgpt") return "";
-  return (
-    selectedProfileInfo.value?.warning ??
-    "ChatGPT profile re-annotates all tools; verify tool behavior before exposing this endpoint."
-  );
-});
-
-function toggleAuthMode(mode: EndpointAuthMode, checked: boolean) {
-  if (checked) {
-    // Client-side rule: "none" only alone.
-    if (mode === "none") {
-      createAuthModes.value = ["none"];
-    } else {
-      createAuthModes.value = [
-        ...createAuthModes.value.filter((m) => m !== "none" && m !== mode),
-        mode,
-      ];
-    }
-  } else {
-    createAuthModes.value = createAuthModes.value.filter((m) => m !== mode);
-  }
-}
-
-function validateCreate(): string {
-  if (!NAME_RE.test(createName.value)) {
-    return "Name must match ^[a-zA-Z0-9_-]+$";
-  }
-  if (RESERVED_ENDPOINT_NAMES.includes(createName.value)) {
-    return `Name "${createName.value}" is reserved`;
-  }
-  if (!createBundle.value) return "Select a bundle";
-  if (createAuthModes.value.length === 0) return "Select at least one auth mode";
-  if (createAuthModes.value.includes("none") && createAuthModes.value.length > 1) {
-    return 'Auth mode "none" cannot be combined with other modes';
-  }
-  if (createAuthModes.value.includes("none") && !allowUnauthenticated.value) {
-    return 'Auth mode "none" requires "allow unauthenticated" to be checked';
-  }
-  return "";
-}
-
-async function createEndpoint() {
-  errorMsg.value = validateCreate();
-  if (errorMsg.value) return;
-  const { error } = await api.PUT("/api/v1/endpoints/{name}", {
-    params: { path: { name: createName.value } },
-    body: {
-      name: createName.value,
-      bundle_name: createBundle.value,
-      profile: createProfile.value,
-      auth_modes: createAuthModes.value,
-      allow_unauthenticated: allowUnauthenticated.value,
-      enabled: true,
-    },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  createName.value = "";
-  await load();
-}
 </script>
 
 <template>
   <div class="space-y-6">
-    <h1 class="text-lg font-semibold">Endpoints</h1>
+    <h1 class="text-lg font-semibold">All endpoints</h1>
 
     <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
 
@@ -121,6 +38,7 @@ async function createEndpoint() {
       <thead>
         <tr>
           <th>Name</th>
+          <th>Bundle</th>
           <th>Profile</th>
           <th>Auth modes</th>
           <th>Enabled</th>
@@ -132,15 +50,49 @@ async function createEndpoint() {
             <NuxtLink
               :to="`/endpoints/${ep.name}`"
               :data-testid="`open-${ep.name}`"
-              class="underline"
+              class="inline-flex items-center gap-1.5 underline"
             >
-              {{ ep.name }}
+              <UIcon name="i-lucide-plug-zap" class="size-4 text-muted" />{{ ep.name }}
             </NuxtLink>
           </td>
-          <td>{{ ep.profile }}</td>
-          <td>{{ ep.auth_modes.join(", ") }}</td>
+          <td :data-testid="`bundle-of-${ep.name}`">
+            <NuxtLink
+              v-if="bundleNameById.get(ep.bundle_id)"
+              :to="`/bundles/${bundleNameById.get(ep.bundle_id)}`"
+              class="inline-flex items-center gap-1.5 underline"
+            >
+              <UIcon name="i-lucide-package" class="size-4 text-muted" />{{ bundleNameById.get(ep.bundle_id) }}
+            </NuxtLink>
+            <span v-else class="text-muted">—</span>
+          </td>
+          <td class="whitespace-nowrap">
+            <UBadge
+              :icon="PROFILE_ICON[ep.profile]"
+              :color="ep.profile === 'default' ? 'neutral' : 'primary'"
+              variant="subtle"
+              :title="PROFILE_HELP[ep.profile]"
+            >
+              {{ ep.profile }}
+            </UBadge>
+          </td>
+          <td class="whitespace-nowrap space-x-1">
+            <UBadge
+              v-for="mode in ep.auth_modes"
+              :key="mode"
+              :icon="ENDPOINT_AUTH_ICON[mode]"
+              :color="mode === 'none' ? 'warning' : 'neutral'"
+              variant="subtle"
+              :title="ENDPOINT_AUTH_HELP[mode]"
+            >
+              {{ mode }}
+            </UBadge>
+          </td>
           <td>
-            <UBadge :color="ep.enabled ? 'success' : 'neutral'" variant="subtle">
+            <UBadge
+              :icon="ep.enabled ? 'i-lucide-circle-check' : 'i-lucide-circle-pause'"
+              :color="ep.enabled ? 'success' : 'neutral'"
+              variant="subtle"
+            >
               {{ ep.enabled ? "enabled" : "disabled" }}
             </UBadge>
           </td>
@@ -148,77 +100,10 @@ async function createEndpoint() {
       </tbody>
     </table>
 
-    <div class="wf-card space-y-3">
-      <h2 class="font-medium">Create endpoint</h2>
-      <div>
-        <label class="wf-label">Name</label>
-        <input v-model="createName" class="wf-input" data-testid="create-endpoint-name" />
-      </div>
-      <div>
-        <label class="wf-label">Bundle</label>
-        <select v-model="createBundle" class="wf-input" data-testid="create-endpoint-bundle">
-          <option value="" disabled>Select a bundle</option>
-          <option v-for="b in bundles" :key="b.id" :value="b.name">{{ b.name }}</option>
-        </select>
-      </div>
-      <div>
-        <label class="wf-label">Profile</label>
-        <select v-model="createProfile" class="wf-input" data-testid="create-endpoint-profile">
-          <option v-for="p in profiles" :key="String(p.name)" :value="p.name">
-            {{ p.name }}<template v-if="p.description"> — {{ p.description }}</template>
-          </option>
-        </select>
-        <p
-          v-if="createProfile === 'chatgpt'"
-          class="text-amber-600 text-sm mt-1"
-          data-testid="chatgpt-warning"
-        >
-          {{ chatgptWarning }}
-        </p>
-      </div>
-      <div>
-        <label class="wf-label">Auth modes</label>
-        <div class="flex gap-4 text-sm">
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              data-testid="auth-mode-oauth"
-              :checked="createAuthModes.includes('oauth')"
-              @change="toggleAuthMode('oauth', ($event.target as HTMLInputElement).checked)"
-            />
-            oauth
-          </label>
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              data-testid="auth-mode-api_key"
-              :checked="createAuthModes.includes('api_key')"
-              @change="toggleAuthMode('api_key', ($event.target as HTMLInputElement).checked)"
-            />
-            api_key
-          </label>
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              data-testid="auth-mode-none"
-              :checked="createAuthModes.includes('none')"
-              @change="toggleAuthMode('none', ($event.target as HTMLInputElement).checked)"
-            />
-            none
-          </label>
-        </div>
-      </div>
-      <div>
-        <label class="flex items-center gap-1 text-sm">
-          <input
-            v-model="allowUnauthenticated"
-            type="checkbox"
-            data-testid="allow-unauthenticated"
-          />
-          Allow unauthenticated access (required for auth mode "none")
-        </label>
-      </div>
-      <UButton data-testid="create-endpoint-submit" @click="createEndpoint">Create</UButton>
-    </div>
+    <p class="wf-help">
+      Every public URL of this gateway, across all bundles. An endpoint is created on the page of
+      the bundle it exposes: open a <NuxtLink to="/bundles" class="underline">bundle</NuxtLink>
+      and use its Endpoints card.
+    </p>
   </div>
 </template>

@@ -1,5 +1,5 @@
 # Demo bootstrap (spec 41 / DOC-3): a fresh compose install is never empty.
-# Registers the echo-mcp example plus the application-layer MCP fleet, bundles them,
+# Registers the echo-mcp example plus the MCP fleet, bundles them,
 # and exposes endpoints.
 servers:
   - name: echo

@@ -65,7 +65,7 @@ resolution, Node+Python runtime images).
 ## Out of scope
 
 - STDIO and SSE upstream transports (decision log).
-- Auto-discovery of servers (application-layer's registrar does that, via the
+- Auto-discovery of servers (the application layer's registrar does that, via the
   management API).
 
 ## Open questions

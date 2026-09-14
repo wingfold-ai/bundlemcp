@@ -15,7 +15,7 @@ view: index — "bundlemcp — System Context"
 | **MCP clients** (claude.ai, ChatGPT, scripts) | Call `/{endpoint}/mcp`; authenticate via OAuth 2.1 (DCR + PKCE + consent) or API key ([spec/14](../../spec/14-endpoints.md), [spec/20](../../spec/20-oauth-server.md)) |
 | **Upstream MCP servers** | Aggregated over Streamable HTTP; receive forwarded identity (`X-MCP-User`, selected headers); may verify bearers via `/oauth/introspect` ([spec/24](../../spec/24-identity-forwarding.md)) |
 | **OIDC IdP** (Keycloak, dex, …) | Authenticates all humans; bundlemcp federates, never stores passwords ([spec/21](../../spec/21-admin-auth.md)) |
-| **Application layer** (application-layer, optional) | Registers servers via `PUT /api/v1/servers/{name}`; meters tool calls via the metering hook ([spec/40](../../spec/40-management-api.md), [spec/31](../../spec/31-middleware.md)) |
+| **Application layer** (optional) | Registers servers via `PUT /api/v1/servers/{name}`; meters tool calls via the metering hook ([spec/40](../../spec/40-management-api.md), [spec/31](../../spec/31-middleware.md)) |
 
 ## Technical context
 

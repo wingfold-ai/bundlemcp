@@ -1,0 +1,82 @@
+"""The endpoint catalogue for signed-in people (API-1 `me/endpoints`, UI-2)."""
+
+from collections.abc import AsyncIterator
+from urllib.parse import parse_qs, urlparse
+
+import pytest
+from bundlemcp.domain.access.oidc_claims import OidcClaims
+from fakeredis.aioredis import FakeRedis
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+from tests.api.test_oidc import FakeOidcProvider
+from tests.conftest import hermetic_settings, serving
+
+PUBLIC_URL = "http://gw"
+WEB_ORIGIN = "http://web:3000"
+
+
+@pytest.fixture
+async def env(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[tuple]:
+    settings = hermetic_settings(
+        public_url=PUBLIC_URL, admin_emails=["admin@example.com"], web_origins=[WEB_ORIGIN]
+    )
+    provider = FakeOidcProvider()
+    async with serving(
+        engine,
+        redis,
+        settings=settings,
+        base_url=PUBLIC_URL,
+        follow_redirects=False,
+        oidc_provider=provider,
+    ) as (http, _app):
+        yield http, provider
+
+
+async def _login(http, provider, *, sub: str, email: str) -> None:
+    provider.claims_by_code["fake-code"] = OidcClaims(issuer="http://idp", sub=sub, email=email)
+    resp = await http.get("/login", params={"next": "/"})
+    q = parse_qs(urlparse(resp.headers["location"]).query)
+    await http.get("/login/callback", params={"code": q["code"][0], "state": q["state"][0]})
+
+
+async def test_catalogue_lists_enabled_oauth_endpoints_for_non_admins(env):
+    """A non-admin sees every enabled OAuth endpoint with its URL, nothing else."""
+    http, provider = env
+    web = {"Origin": WEB_ORIGIN}
+    await _login(http, provider, sub="a", email="admin@example.com")
+    created = await http.put(
+        "/api/v1/bundles/b1", json={"name": "b1", "description": "Tools"}, headers=web
+    )
+    assert created.status_code == 200, created.text
+    for name, body in {
+        "connectors": {"profile": "claude", "auth_modes": ["oauth"]},
+        "scripts": {"profile": "default", "auth_modes": ["api_key"]},
+        "paused": {"profile": "default", "auth_modes": ["oauth"], "enabled": False},
+    }.items():
+        resp = await http.put(
+            f"/api/v1/endpoints/{name}",
+            json={"name": name, "bundle_name": "b1", **body},
+            headers=web,
+        )
+        assert resp.status_code == 200, resp.text
+
+    await _login(http, provider, sub="u2", email="user@example.com")
+    denied = await http.get("/api/v1/endpoints")
+    assert denied.status_code == 401
+
+    catalogue = await http.get("/api/v1/me/endpoints")
+    assert catalogue.status_code == 200
+    assert catalogue.json() == [
+        {
+            "name": "connectors",
+            "url": f"{PUBLIC_URL}/connectors/mcp",
+            "profile": "claude",
+            "bundle_name": "b1",
+            "bundle_description": "Tools",
+        }
+    ]
+
+
+async def test_catalogue_requires_a_signed_in_caller(env):
+    http, _provider = env
+    assert (await http.get("/api/v1/me/endpoints")).status_code == 401

@@ -39,7 +39,7 @@ _Not recorded at the time of the decision._
 ### Positive
 
 - Restart-safe, horizontally scalable design from day one (ADR-0004).
-- Clean, service-authenticated integration surface for application-layer.
+- Clean, service-authenticated integration surface for the application layer.
 
 ### Trade-offs
 

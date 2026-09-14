@@ -1,14 +1,15 @@
-"""Caller identity route: lets the web app render login state and the
-no-access page without a privileged call.
+"""Caller identity routes: what the web app needs for any signed-in person, admin or
+not — who they are, and which endpoints they can connect a client to.
 """
 
 from fastapi import HTTPException, Request, status
 
 from bundlemcp.api.http.controller import Controller
+from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.route import route
-from bundlemcp.api.http.service_providers import CallerResolverProvider
+from bundlemcp.api.http.service_providers import CallerResolverProvider, EndpointServiceProvider
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
-from bundlemcp.application.schemas import MeRead
+from bundlemcp.application.schemas import AvailableEndpointRead, MeRead
 from bundlemcp.domain.access.api_key import ApiKey
 from bundlemcp.domain.access.user import User
 
@@ -17,8 +18,8 @@ class MeController(Controller):
     prefix = "/me"
     tags = ("me",)
 
-    @route.get("")
-    async def whoami(self, request: Request, callers: CallerResolverProvider) -> MeRead:
+    @staticmethod
+    async def _caller(request: Request, callers) -> User | ApiKey:
         caller = await callers.resolve(
             session_id=request.cookies.get(SESSION_COOKIE),
             authorization=request.headers.get("authorization"),
@@ -26,13 +27,32 @@ class MeController(Controller):
         )
         match caller:
             case User():
-                return MeRead(
-                    kind="admin" if caller.is_admin else "user",
-                    user_id=caller.id,
-                    email=caller.email,
-                    display_name=caller.display_name,
-                    is_admin=caller.is_admin,
-                )
+                return caller
             case ApiKey() if caller.is_service_key:
-                return MeRead(kind="service", api_key_id=caller.id)
+                return caller
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "not signed in")
+
+    @route.get("")
+    async def whoami(self, request: Request, callers: CallerResolverProvider) -> MeRead:
+        caller = await self._caller(request, callers)
+        if isinstance(caller, User):
+            return MeRead(
+                kind="admin" if caller.is_admin else "user",
+                user_id=caller.id,
+                email=caller.email,
+                display_name=caller.display_name,
+                is_admin=caller.is_admin,
+            )
+        return MeRead(kind="service", api_key_id=caller.id)
+
+    @route.get("/endpoints")
+    async def available_endpoints(
+        self,
+        request: Request,
+        callers: CallerResolverProvider,
+        endpoints: EndpointServiceProvider,
+        settings: SettingsProvider,
+    ) -> list[AvailableEndpointRead]:
+        """The catalogue for any signed-in person: enabled endpoints that accept OAuth."""
+        await self._caller(request, callers)
+        return await endpoints.available(settings.public_base)

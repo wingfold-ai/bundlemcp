@@ -5,7 +5,7 @@
 # the default egress policy allows; loopback/metadata ranges stay blocked.
 #
 # Profiles: the core stack (postgres, valkey, keycloak, echo-mcp, gateway, web)
-# starts by default; the application-layer fleet is behind `--profile fleet` because
+# starts by default; the maintainers' fleet is behind `--profile fleet` because
 # its images are private (deploy/TESTING.md).
 #
 # The inline defaults for secrets are for this dev stack only. A production
@@ -63,7 +63,7 @@ services:
     expose:
       - "9000"
 
-  # --- application-layer MCP fleet (seed.yaml registers + bundles these) ------------
+  # --- MCP fleet (seed.yaml registers + bundles these) ----------------------
 
   # PageSpeed Insights MCP (sibling seo-improve-mcp repo -> GHCR). No auth
   # required; PSI_API_KEY raises Google quota when set.

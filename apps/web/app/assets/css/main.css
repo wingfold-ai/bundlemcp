@@ -1,22 +1,64 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-/* wireframe look: quiet grays, visible structure */
+/* Brand palette: the wordmark teal (#94cdd2 on dark, #2c7f86 on light), the
+   same ramp the documentation site uses for its accent. */
+@theme static {
+  --color-brand-50: #ecf7f8;
+  --color-brand-100: #d5edf0;
+  --color-brand-200: #b4dfe3;
+  --color-brand-300: #94cdd2;
+  --color-brand-400: #63b4bb;
+  --color-brand-500: #3f9aa3;
+  --color-brand-600: #2c7f86;
+  --color-brand-700: #256f75;
+  --color-brand-800: #1f5a5f;
+  --color-brand-900: #1b4a4e;
+  --color-brand-950: #0f2d30;
+}
+
+/* Surfaces follow the documentation site: a soft gray page with white cards
+   in light mode, the docs' dark gray with slightly lighter cards in dark mode. */
+:root {
+  --ui-bg: #ffffff;
+  --ui-bg-muted: #f6f6f7;
+  --ui-bg-elevated: #ebebef;
+  --ui-border: #e2e2e3;
+  --ui-border-muted: #ebebef;
+  --ui-radius: 0.375rem;
+}
+.dark {
+  --ui-bg: #1b1b1f;
+  --ui-bg-muted: #161618;
+  --ui-bg-elevated: #202127;
+  --ui-bg-accented: #2b2b31;
+  --ui-border: #2e2e32;
+  --ui-border-muted: #262629;
+  --ui-text: #dfdfd6;
+  --ui-text-muted: #98989f;
+  --ui-text-highlighted: #ffffff;
+}
+
+/* Shared building blocks; the names stay so the pages and tests need no change */
 .wf-table {
   @apply w-full text-sm border-collapse;
 }
 .wf-table th {
-  @apply text-left font-medium text-gray-500 border-b border-gray-300 px-3 py-2;
+  @apply text-left font-medium text-muted border-b border-default px-3 py-2;
 }
 .wf-table td {
-  @apply border-b border-gray-200 px-3 py-2 align-top;
+  @apply border-b border-muted px-3 py-2 align-top;
 }
 .wf-label {
-  @apply block text-xs font-medium text-gray-500 mb-1;
+  @apply block text-xs font-medium text-muted mb-1;
 }
 .wf-input {
-  @apply w-full border border-gray-300 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900;
+  @apply w-full border border-default rounded-md px-2 py-1 text-sm bg-default text-default
+    focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary;
 }
 .wf-card {
-  @apply border border-gray-300 rounded p-4;
+  @apply border border-default rounded-lg p-4 bg-default;
+}
+.wf-help {
+  @apply text-xs text-muted mt-1;
 }

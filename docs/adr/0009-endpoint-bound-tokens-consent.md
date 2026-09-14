@@ -16,7 +16,7 @@ and a billing-attribution risk for the application layer.
   (per-client endpoints).
 - Consent is the standard OAuth answer to confused-deputy redirects; current
   MCP auth guidance expects resource indicators.
-- Stable per-endpoint audience improves metering attribution for application-layer.
+- Stable per-endpoint audience improves metering attribution for the application layer.
 
 ## Decision
 

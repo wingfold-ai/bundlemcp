@@ -8,7 +8,7 @@ metamcp supports STDIO (spawning npx/uvx processes inside the gateway), SSE,
 and Streamable HTTP — upstream and downstream. STDIO was its largest
 complexity driver: process pools, crash tracking, env plumbing, a fat
 Node+Python image. SSE is deprecated by the MCP spec. All targeted upstreams
-(application-layer containers, hosted servers) and clients (claude.ai, ChatGPT) speak
+(the application layer's containers, hosted servers) and clients (claude.ai, ChatGPT) speak
 Streamable HTTP.
 
 ## Decision drivers

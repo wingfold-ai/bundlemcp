@@ -1,0 +1,15 @@
+{
+  "name": "bundlemcp-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "likec4": "likec4 codegen webcomponent -o public/likec4-views.js likec4",
+    "dev": "npm run likec4 && vitepress dev",
+    "build": "npm run likec4 && vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "likec4": "^1.59.3",
+    "vitepress": "^1.6.4"
+  }
+}

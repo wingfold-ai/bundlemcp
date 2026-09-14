@@ -6,7 +6,7 @@
 
 metamcp ships better-auth with local email/password plus optional OIDC —
 password hashing, signup toggles, session plumbing that caused real pain.
-bundlemcp's consumer (application-layer) runs Keycloak anyway; standalone users can
+bundlemcp's first consumer runs Keycloak anyway; standalone users can
 run any OIDC IdP.
 
 ## Decision drivers

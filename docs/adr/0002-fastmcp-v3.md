@@ -12,7 +12,6 @@ official low-level `mcp` python-sdk, FastMCP (v3 current), or a hybrid.
 
 - Built-in proxying, server composition, and middleware hooks map directly
   onto bundles and the middleware chain ([spec/31](../../spec/31-middleware.md)).
-- Stack coherence: application-layer and hyperframes-mcp already use FastMCP.
 - Latest-stable policy (ARC-1) favors the actively developed major version.
 
 ## Decision

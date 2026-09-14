@@ -41,7 +41,7 @@ select = [
 asyncio_mode = "auto"
 testpaths = ["packages/bundlemcp/tests"]
 markers = [
-    "fleet: integration test requiring the private application-layer GHCR fleet images (skipped in CI)",
+    "fleet: integration test requiring the private GHCR fleet images (skipped in CI)",
 ]
 
 # Import-graph contracts. Run with `uv run lint-imports`.

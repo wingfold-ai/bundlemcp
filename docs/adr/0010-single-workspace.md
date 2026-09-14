@@ -6,7 +6,7 @@
 
 metamcp gives every resource a nullable owner (`user_id`) with public/private
 semantics enforced on each access — multi-user ownership inside the gateway.
-application-layer, the multi-tenant consumer, builds its own tenanting (Keycloak
+The multi-tenant application layer builds its own tenanting (Keycloak
 realms, entitlements) *around* the gateway and registers servers as public
 anyway.
 

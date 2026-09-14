@@ -20,6 +20,7 @@
     "openapi-fetch": "^0.14.0"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.131",
     "@playwright/test": "^1.55.0",
     "openapi-typescript": "^7.9.0",
     "typescript": "^5.9.0",

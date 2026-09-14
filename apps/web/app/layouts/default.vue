@@ -2,15 +2,18 @@
 const { me } = useMe();
 
 const nav = [
-  { to: "/servers", label: "Servers", testid: "nav-servers" },
-  { to: "/bundles", label: "Bundles", testid: "nav-bundles" },
-  { to: "/endpoints", label: "Endpoints", testid: "nav-endpoints" },
-  { to: "/api-keys", label: "API keys", testid: "nav-api-keys" },
-  { to: "/users", label: "Users", testid: "nav-users" },
-  { to: "/audit", label: "Audit", testid: "nav-audit" },
-  { to: "/logs", label: "Live logs", testid: "nav-logs" },
-  { to: "/inspector", label: "Inspector", testid: "nav-inspector" },
-  { to: "/settings", label: "Settings", testid: "nav-settings" },
+  { to: "/servers", label: "Servers", testid: "nav-servers", icon: "i-lucide-server" },
+  { to: "/bundles", label: "Bundles", testid: "nav-bundles", icon: "i-lucide-package" },
+  // endpoints belong to bundles; the overview lists all of them across bundles
+  { to: "/endpoints", label: "All endpoints", testid: "nav-endpoints", icon: "i-lucide-plug-zap", sub: true },
+  { to: "/api-keys", label: "API keys", testid: "nav-api-keys", icon: "i-lucide-key-round" },
+  { to: "/users", label: "Users", testid: "nav-users", icon: "i-lucide-users" },
+  { to: "/audit", label: "Audit", testid: "nav-audit", icon: "i-lucide-scroll-text" },
+  { to: "/logs", label: "Live logs", testid: "nav-logs", icon: "i-lucide-terminal" },
+  { to: "/inspector", label: "Inspector", testid: "nav-inspector", icon: "i-lucide-search-code" },
+  { to: "/settings", label: "Settings", testid: "nav-settings", icon: "i-lucide-settings" },
+  // what a signed-in non-admin sees; useful to check before handing out a URL
+  { to: "/catalogue", label: "Catalogue", testid: "nav-catalogue", icon: "i-lucide-layout-grid" },
 ];
 
 async function logout() {
@@ -20,22 +23,27 @@ async function logout() {
 </script>
 
 <template>
-  <div class="flex min-h-screen">
-    <aside class="w-52 shrink-0 border-r border-gray-300 p-4 flex flex-col gap-1">
-      <div class="font-semibold mb-4" data-testid="app-title">bundlemcp</div>
+  <div class="flex min-h-screen bg-muted text-default">
+    <aside class="w-56 shrink-0 border-r border-default bg-muted p-4 flex flex-col gap-1">
+      <NuxtLink to="/servers" class="mb-5 block" data-testid="app-title" aria-label="bundlemcp">
+        <img src="/lockup-light.svg" alt="bundlemcp" class="h-9 w-auto dark:hidden" />
+        <img src="/lockup-dark.svg" alt="bundlemcp" class="h-9 w-auto hidden dark:block" />
+      </NuxtLink>
       <NuxtLink
         v-for="item in nav"
         :key="item.to"
         :to="item.to"
         :data-testid="item.testid"
-        class="rounded px-2 py-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-        active-class="bg-gray-200 dark:bg-gray-700 font-medium"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-default hover:bg-elevated"
+        :class="item.sub ? 'ml-5 text-xs text-muted' : ''"
+        active-class="bg-primary/10 text-primary font-medium hover:bg-primary/15"
       >
+        <UIcon :name="item.icon" :class="item.sub ? 'size-3.5' : 'size-4'" class="shrink-0" />
         {{ item.label }}
       </NuxtLink>
-      <div class="mt-auto pt-4 border-t border-gray-200 text-xs text-gray-500">
+      <div class="mt-auto pt-4 border-t border-default text-xs text-muted">
         <div data-testid="me-email">{{ me?.email }}</div>
-        <button class="underline mt-1" data-testid="logout" @click="logout">
+        <button class="underline mt-1 hover:text-primary" data-testid="logout" @click="logout">
           Sign out
         </button>
       </div>

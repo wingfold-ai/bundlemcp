@@ -2,28 +2,48 @@
 // Rendered via `npx likec4` (CLI or VS Code extension). See spec/62.
 
 specification {
+  // Palette of the documentation site: the wordmark teal for what bundlemcp
+  // owns, a quiet slate for everything outside it
+  color brand #2c7f86
+  color brandDeep #1f5a5f
+  color outside #4b5563
+
   element actor {
     style {
       shape person
+      color brandDeep
     }
   }
-  element system
-  element container
-  element component
+  element system {
+    style {
+      color brand
+    }
+  }
+  element container {
+    style {
+      color brand
+    }
+  }
+  element component {
+    style {
+      color brand
+    }
+  }
   element database {
     style {
       shape storage
+      color brandDeep
     }
   }
   element external {
     style {
-      color muted
+      color outside
     }
   }
 
   relationship uses
   relationship mcp {
-    technology 'MCP Streamable HTTP'
+    technology 'MCP'
   }
 }
 
@@ -47,7 +67,7 @@ model {
     description 'Streamable HTTP MCP servers of either protocol era (containers or hosted); stdio servers via sidecar'
   }
 
-  appLayer = external 'Application Layer (application-layer)' {
+  appLayer = external 'Application Layer' {
     description 'Optional consumer: billing via the metering hook, registrar via the management API'
   }
 
@@ -108,26 +128,38 @@ model {
   }
 
   // context relationships
-  admin -> web 'manages via browser' 'HTTPS'
-  mcpClient -[mcp]-> gateway 'calls bundle endpoints /{endpoint}/mcp (any supported revision), OAuth 2.1 w/ CIMD or DCR + PKCE'
-  gateway -[mcp]-> upstreams 'aggregates; negotiates era per server; forwards identity (X-MCP-User, headers)'
-  upstreams -> gateway 'introspects forwarded bearers (/oauth/introspect)' 'HTTPS'
-  gateway -> idp 'federates logins (authorization code flow)' 'OIDC'
-  admin -> idp 'authenticates at'
-  appLayer -> gateway 'registers servers (PUT /api/v1/servers/{name})' 'REST'
-  gateway -> appLayer 'metering hook: check-and-debit / refund per tool call' 'Python hook -> REST'
+  admin -> web 'manages' 'HTTPS'
+  mcpClient -[mcp]-> gateway 'calls, OAuth 2.1'
+  gateway -[mcp]-> upstreams 'aggregates'
+  upstreams -> gateway 'introspects' 'HTTPS'
+  gateway -> idp 'login' 'OIDC'
+  admin -> idp 'signs in'
+  appLayer -> gateway 'registers' 'REST'
+  gateway -> appLayer 'metering hook' 'Python hook -> REST'
 
   // container relationships
-  web -> gateway 'management REST API (generated TS client)' 'HTTPS /api/v1'
-  gateway.infrastructure -> pg 'reads/writes durable state' 'SQLAlchemy async'
-  gateway.infrastructure -> redis 'sessions, limits, pub/sub' 'redis-py async'
+  web -> gateway 'management API' 'HTTPS /api/v1'
+  gateway.infrastructure -> pg 'durable' 'SQLAlchemy async'
+  gateway.infrastructure -> redis 'live' 'redis-py async'
 }
 
 views {
   view index of bundlemcp {
     title 'bundlemcp — System Context'
-    include *, admin, mcpClient, idp, upstreams, appLayer
-    exclude bundlemcp.*
+    // the system as one box: relationships to its containers roll up to it.
+    // Labels are shortened here so the view stays legible at documentation
+    // column width; the model keeps the full descriptions
+    include
+      bundlemcp with { description 'MCP bundling gateway' },
+      admin with { description 'Registers servers, curates bundles, shapes endpoints' },
+      mcpClient with { title 'MCP clients' description 'claude.ai, ChatGPT, scripts, agents' },
+      upstreams with { title 'Upstream MCP servers' description 'Streamable HTTP, any protocol era' },
+      idp with { title 'OIDC provider' description 'Keycloak or any OIDC issuer' },
+      appLayer with { title 'Application layer' description 'Optional: billing, registrar' }
+    style * {
+      size xs
+      textSize lg
+    }
     autoLayout TopBottom
   }
 

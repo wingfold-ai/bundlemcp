@@ -1,4 +1,4 @@
-"""application-layer MCP fleet through the gateway: seo + media bundles (BND-*, FWD-*).
+"""The MCP fleet through the gateway: seo + media bundles (BND-*, FWD-*).
 
 Requires the full compose stack. The seo-gsc assertions exercise FWD-1/FWD-4:
 the gateway forwards the caller's bearer, seo-gsc introspects it back against
@@ -14,7 +14,7 @@ from conftest import GATEWAY_URL, SERVICE_KEY  # noqa: TID252
 from helpers import initialize, mcp_call, wait_ready
 from test_oauth_flow import _drive_login_and_consent, _pkce  # noqa: TID251
 
-# Every test here drives the application-layer fleet (seo-psi, seo-gsc, dataforseo,
+# Every test here drives the fleet (seo-psi, seo-gsc, dataforseo,
 # hyperframes), which ships as private GHCR images. CI cannot pull those, so it
 # runs `-m "not fleet"`; locally the full compose stack makes them available.
 pytestmark = pytest.mark.fleet

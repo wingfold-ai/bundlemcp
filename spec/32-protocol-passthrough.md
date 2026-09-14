@@ -9,7 +9,7 @@ bundlemcp is a **full-fidelity bidirectional MCP proxy**, not a tools-only
 router. Beyond `tools/list`/`tools/call`, it relays progress, cancellation,
 logging, list-changed notifications, completions — and the upstream's requests
 for client input (sampling, elicitation, roots) — all working across replicas.
-Motivating case: application-layer's hyperframes upstream blocks ~130 s per render;
+Motivating case: the hyperframes upstream blocks ~130 s per render;
 without progress-aware timeouts and cancellation such calls are unusable
 through a gateway.
 
