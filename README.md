@@ -1,4 +1,6 @@
-# bundlemcp
+<p align="center">
+  <img src="docs/public/banner.svg" alt="bundlemcp: unified mcp server bundler" width="720">
+</p>
 
 A self-hostable **MCP bundling gateway**. Register upstream MCP servers
 (Streamable HTTP), compose them into **bundles**, and expose each bundle
@@ -10,9 +12,8 @@ the audit log in Postgres, so a restart or a second replica is a non-event.
 
 It is a focused rewrite of the bundling core of
 [metamcp](https://github.com/metatool-ai/metamcp), built to be consumed by an
-application layer such as [ultra-mcp](https://github.com/mhoegger/ultra-mcp)
-(identity provider, billing, discovery) but fully usable on its own with any
-OIDC provider.
+application layer that adds its own identity provider, billing and discovery,
+but fully usable on its own with any OIDC provider.
 
 ## Quickstart
 
@@ -45,14 +46,17 @@ Then:
    the gateway runs the OAuth authorization server and the consent screen
    itself.
 
-The management API is documented at <http://localhost:8000/api/v1/docs>. The
-ultra-mcp fleet of upstreams (private images) starts with
+The user guides (deployment, connecting clients, the management API) live in
+[docs/](docs/README.md); run `pnpm docs:install && pnpm docs:dev` to browse
+them. The management API is documented at <http://localhost:8000/api/v1/docs>. The
+maintainers' fleet of upstreams (private images) starts with
 `--profile fleet`; see [deploy/TESTING.md](deploy/TESTING.md).
 
 ## Where things are
 
 | | |
 |---|---|
+| [docs/](docs/README.md) | The user documentation site (VitePress): self-hosting, managing servers/bundles/endpoints, connecting claude.ai, ChatGPT and scripts, integrating an application layer — `pnpm docs:install && pnpm docs:dev` |
 | [spec/](spec/README.md) | The source of truth: one atomic spec per capability, with testable requirement IDs; the decision log of what was deliberately left out |
 | [docs/arc42/](docs/arc42/) | Architecture rationale, arc42 sections |
 | [docs/adr/](docs/adr/README.md) | Architecture decision records, append-only |

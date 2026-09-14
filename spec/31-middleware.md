@@ -1,14 +1,14 @@
 # 31 — Middleware chain & metering hook
 
 **Status:** Accepted · **Origin:** improvement (metamcp had the chain; the metering hook was only a code comment)
-**Prior art:** `../metamcp/apps/backend/src/lib/metamcp/metamcp-middleware/functional-middleware.ts`, `../ultra-mcp/packages/billing/ultra_billing/routers/meter.py` (the consumer contract)
+**Prior art:** `../metamcp/apps/backend/src/lib/metamcp/metamcp-middleware/functional-middleware.ts`, the first consumer's billing meter router (the consumer contract)
 
 ## Summary
 
 Every `tools/list` and `tools/call` passes through an ordered middleware
 chain. Built-ins implement bundle curation, profiles, and auditing; a
 documented **metering hook** is the supported extension point where an
-application layer (ultra-mcp) plugs billing in **without forking bundlemcp**.
+application layer plugs billing in **without forking bundlemcp**.
 
 ## Requirements
 
@@ -25,10 +25,10 @@ application layer (ultra-mcp) plugs billing in **without forking bundlemcp**.
   5. audit ([50-audit-log.md](50-audit-log.md))
   Built on FastMCP v3's middleware mechanism where it fits; the chain and
   ordering are bundlemcp's contract regardless of the underlying library.
-- **MID-3 Metering hook contract** (mirrors ultra-mcp's existing billing API):
+- **MID-3 Metering hook contract** (mirrors the first consumer's existing billing API):
   - **pre-call**: hook receives `{sub, email, endpoint, bundle, server, tool,
     idempotency_key}` (`email` nullable — the resolved caller's email, which
-    ultra-mcp's ledger uses to attach users). It may **allow** or **deny**
+    the consumer's ledger uses to attach users). It may **allow** or **deny**
     (deny → structured MCP error with the hook's reason, e.g.
     `insufficient_credits`; the upstream call never happens).
   - **post-call**: hook receives the same identifiers + `status`
@@ -46,8 +46,7 @@ application layer (ultra-mcp) plugs billing in **without forking bundlemcp**.
     is the reconciliation source: hook consumers can detect debits with no
     completed audit record and refund out-of-band. This contract is part of
     the hook documentation.
-  - Field mapping to ultra-mcp's `MeterRequest`
-    (`../ultra-mcp/packages/billing/ultra_billing/schemas.py`): `sub→sub`,
+  - Field mapping to the reference consumer's `MeterRequest`: `sub→sub`,
     `email→email`, `bundle→bundle_slug`, `server→server_name`,
     `tool→tool_name`, `idempotency_key→idempotency_key`; `endpoint` is
     bundlemcp-side context the reference consumer ignores.
@@ -68,5 +67,5 @@ application layer (ultra-mcp) plugs billing in **without forking bundlemcp**.
 ## Open questions
 
 - Whether the hook should also see `tools/list` (e.g. to hide tools a user
-  has no entitlement for) — deferred; ultra-mcp's current model gates at
+  has no entitlement for) — deferred; the reference consumer's current model gates at
   call time.

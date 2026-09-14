@@ -4,8 +4,9 @@ from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import ConflictError, NotFoundError
 from bundlemcp.application.management.named_resource_service import NamedResourceService
 from bundlemcp.application.management.per_user_upstream_check import PerUserUpstreamCheck
-from bundlemcp.application.schemas import EndpointRead, EndpointUpsert
+from bundlemcp.application.schemas import AvailableEndpointRead, EndpointRead, EndpointUpsert
 from bundlemcp.domain.endpoints.endpoint import Endpoint
+from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.shared.resource_names import endpoint_name as endpoint_name_type
 
 
@@ -45,3 +46,23 @@ class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
             )
         endpoint = await self._get(name)
         return await self._rename(endpoint, new_name, endpoint_name_type)
+
+    async def available(self, public_base: str) -> list[AvailableEndpointRead]:
+        """The endpoints a signed-in person can connect a client to as themselves: every
+        enabled endpoint that accepts OAuth, with the URL to paste into the client."""
+        _total, endpoints = await self._repo.page(offset=0, limit=500)
+        entries: list[AvailableEndpointRead] = []
+        for endpoint in endpoints:
+            if not endpoint.enabled or not endpoint.accepts(EndpointAuthMode.OAUTH):
+                continue
+            bundle = await self._uow.bundles.get(endpoint.bundle_id)
+            entries.append(
+                AvailableEndpointRead(
+                    name=endpoint.name,
+                    url=f"{public_base}/{endpoint.name}/mcp",
+                    profile=endpoint.profile,
+                    bundle_name=bundle.name if bundle else "",
+                    bundle_description=bundle.description if bundle else None,
+                )
+            )
+        return sorted(entries, key=lambda e: e.name)

@@ -185,6 +185,7 @@ async function disconnectUpstream() {
 const connectUrl = computed(
   () => `${apiBase()}/oauth/upstream/${serverName.value}/connect`,
 );
+const callbackUrl = computed(() => `${apiBase()}/oauth/upstream/callback`);
 
 // ---- danger card state ----
 const renameName = ref("");
@@ -242,7 +243,7 @@ onMounted(async () => {
 
     <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
 
-    <p v-if="notFound" class="text-gray-500" data-testid="not-found">not found</p>
+    <p v-if="notFound" class="text-muted" data-testid="not-found">not found</p>
 
     <template v-else-if="server">
       <!-- Config -->
@@ -323,10 +324,11 @@ onMounted(async () => {
         </div>
 
         <div>
-          <span class="wf-label">Static headers</span>
-          <p class="text-xs text-gray-500 mb-1">
-            Existing header values are write-only and never displayed. Leaving this empty keeps
-            the existing secrets; add a pair with an existing name to replace its value.
+          <span class="wf-label">Static headers (API keys, tokens)</span>
+          <p class="text-xs text-muted mb-1">
+            Sent on every request to this server. Values are write-only and never displayed
+            again. Leaving this empty keeps the existing secrets; add a pair with an existing
+            name to replace its value.
           </p>
           <ul v-if="staticHeaderNames.length" class="text-sm mb-2" data-testid="static-header-names">
             <li v-for="n in staticHeaderNames" :key="n">{{ n }} (value hidden)</li>
@@ -372,7 +374,7 @@ onMounted(async () => {
             @click="refreshTools"
             >Refresh tools</UButton
           >
-          <span v-if="refreshResult" class="text-sm text-gray-500" data-testid="refresh-result">{{
+          <span v-if="refreshResult" class="text-sm text-muted" data-testid="refresh-result">{{
             refreshResult
           }}</span>
         </div>
@@ -393,7 +395,7 @@ onMounted(async () => {
               <td>{{ t.last_seen_at }}</td>
             </tr>
             <tr v-if="tools.length === 0">
-              <td colspan="4" class="text-gray-500">No tools discovered.</td>
+              <td colspan="4" class="text-muted">No tools discovered.</td>
             </tr>
           </tbody>
         </table>
@@ -402,11 +404,45 @@ onMounted(async () => {
       <!-- Upstream OAuth -->
       <div class="wf-card space-y-3 max-w-2xl">
         <h2 class="text-sm font-semibold">Upstream OAuth</h2>
-        <pre
-          class="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 rounded p-2 overflow-x-auto"
-          data-testid="upstream-status"
-          >{{ upstreamStatus ? JSON.stringify(upstreamStatus, null, 2) : "no status" }}</pre
-        >
+        <p class="wf-help">
+          For servers that are themselves OAuth-protected. Register a client at the server's
+          authorization server with the redirect URI <code>{{ callbackUrl }}</code>, enter it
+          here, save, then <em>Connect</em> to sign in and store the tokens. Leave the URLs empty
+          when the server publishes OAuth metadata the gateway can discover.
+        </p>
+        <div class="flex flex-wrap items-center gap-2 text-sm" data-testid="upstream-status">
+          <template v-if="!upstreamStatus">
+            <UBadge color="neutral" variant="subtle">no status</UBadge>
+          </template>
+          <template v-else-if="!upstreamStatus.configured">
+            <UBadge color="warning" variant="subtle">encryption keys missing</UBadge>
+            <span class="text-muted">
+              Set BUNDLEMCP_TOKEN_ENCRYPTION_KEYS on the gateway before connecting.
+            </span>
+          </template>
+          <template v-else-if="!upstreamStatus.client_id">
+            <UBadge color="neutral" variant="subtle">client not configured</UBadge>
+          </template>
+          <template v-else-if="upstreamStatus.shared?.connected">
+            <UBadge :color="upstreamStatus.shared.valid ? 'success' : 'error'" variant="subtle">
+              {{ upstreamStatus.shared.valid ? "connected" : "connected, token rejected" }}
+            </UBadge>
+            <span v-if="upstreamStatus.shared.account_hint" class="text-muted">
+              as {{ upstreamStatus.shared.account_hint }}
+            </span>
+            <span v-if="upstreamStatus.shared.expires_at" class="text-muted">
+              · expires {{ upstreamStatus.shared.expires_at }}
+            </span>
+          </template>
+          <template v-else>
+            <UBadge color="neutral" variant="subtle">not connected</UBadge>
+            <span class="text-muted">
+              {{ upstreamStatus.identity_mode === "per_user"
+                ? "per-user server: each user connects from the link in their first tool call"
+                : "click Connect to sign in with the shared account" }}
+            </span>
+          </template>
+        </div>
         <form class="space-y-3" @submit.prevent="saveUpstream">
           <div>
             <label class="wf-label" for="upstream-client-id">Client ID</label>

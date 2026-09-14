@@ -50,6 +50,21 @@ jobs:
         run: npm run build
         working-directory: apps/web
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+        working-directory: docs
+      - name: Build the documentation site (DOC-2, dead links fail the build)
+        run: npm run build
+        working-directory: docs
+
   diagrams:
     runs-on: ubuntu-latest
     steps:
@@ -84,7 +99,7 @@ jobs:
         # same prerequisite as deploy/TESTING.md.
         run: echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
       - name: Bring up the core stack
-        # The ultra-mcp fleet (seo-psi, seo-gsc, hyperframes) is behind the
+        # The fleet (seo-psi, seo-gsc, hyperframes) is behind the
         # `fleet` compose profile because its images are private, so the
         # default stack is exactly what CI can build; its tests are marked
         # `fleet` and skipped below — run them locally per deploy/TESTING.md.

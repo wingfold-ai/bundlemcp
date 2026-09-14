@@ -13,8 +13,6 @@ one or more **endpoints** shaped for the consuming client. Full vision:
   profile, API-key access — one bundle, many surfaces.
 - Everything manageable via UI **and** an equivalent service-authenticated
   REST API.
-- Consumable by an application layer (ultra-mcp: billing via metering hook,
-  registrar via management API) yet fully usable standalone with any OIDC IdP.
 
 ## Quality goals (top 3)
 
@@ -31,6 +29,6 @@ Full quality tree: [§10](10-quality-requirements.md).
 | Stakeholder | Expectation |
 |---|---|
 | Operator/admin (the maintainer) | Stable self-hosted gateway in a familiar stack (Python/Nuxt) |
-| ultra-mcp (application layer) | Registration API, metering hook, introspectable identity |
+| Application layer | Registration API, metering hook, introspectable identity |
 | MCP clients (claude.ai, ChatGPT, scripts) | Standards-compliant OAuth/API-key access, working long calls |
 | Upstream server authors | Faithful proxying; forwarded identity (`X-MCP-User`, headers) |

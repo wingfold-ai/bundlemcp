@@ -1,0 +1,11 @@
+{
+  "name": "bundlemcp-repo",
+  "private": true,
+  "description": "Root scripts; the JavaScript projects live in docs/ and apps/web with their own package.json",
+  "scripts": {
+    "docs:install": "pnpm --dir docs install",
+    "docs:dev": "pnpm --dir docs dev",
+    "docs:build": "pnpm --dir docs build",
+    "docs:preview": "pnpm --dir docs preview"
+  }
+}

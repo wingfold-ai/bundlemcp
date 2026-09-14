@@ -1,8 +1,7 @@
-// UI-2: every route requires a signed-in admin; anonymous users go to the
-// gateway OIDC login, signed-in non-admins to the no-access page.
+// UI-2: every route requires a signed-in user. Anonymous visitors go to the
+// gateway OIDC login; signed-in non-admins only ever see the catalogue.
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return;
-  if (to.path === "/no-access") return;
 
   const { me, checked, refresh } = useMe();
   if (!checked.value) await refresh();
@@ -11,7 +10,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     gotoLogin(to.fullPath);
     return abortNavigation();
   }
-  if (!me.value.is_admin) {
-    return navigateTo("/no-access");
+  if (!me.value.is_admin && !to.path.startsWith("/catalogue")) {
+    return navigateTo("/catalogue");
   }
 });

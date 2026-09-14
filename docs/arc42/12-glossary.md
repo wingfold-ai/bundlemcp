@@ -16,6 +16,6 @@
 | **Introspection** | RFC 7662 `POST /oauth/introspect` — upstreams/app layer resolve a bearer to `sub` + audience |
 | **`X-MCP-User`** | Gateway-injected header carrying the resolved caller identity to upstreams ([spec/24](../../spec/24-identity-forwarding.md)) |
 | **STP event** | Cross-replica config-invalidation message on Redis pub/sub ([spec/33](../../spec/33-state-propagation.md)) |
-| **Application layer** | A system built on bundlemcp (ultra-mcp: Keycloak, billing, registrar, storefront) |
+| **Application layer** | A system built on bundlemcp that adds its own identity provider, billing, registrar and storefront |
 | **ADR** | Architecture Decision Record ([docs/adr](../adr/README.md)) |
 | **LikeC4** | Diagram-as-code DSL/toolchain rendering the model in [docs/likec4](../likec4/) |

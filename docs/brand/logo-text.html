@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bundlemcp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #242e30;
+    --title: #94cdd2;
+    --sub: #8b8d8e;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    font-family: Roboto, "Google Sans", "Helvetica Neue", Arial, sans-serif;
+  }
+  .wordmark { display: inline-block; }
+  .title {
+    display: block;
+    font-size: clamp(56px, 12vw, 160px);
+    color: var(--title);
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .title .bold  { font-weight: 700; letter-spacing: -0.02em; }
+  .title .light { font-weight: 300; letter-spacing: 0; }
+
+  /* the "b" is the font's own bold "d", mirrored, so both glyphs are identical */
+  .b { display: inline-block; white-space: nowrap; }
+  .b .glyph { display: inline-block; transform: scaleX(-1); }
+  /* zero-size inline-block: its bottom edge sits exactly on the baseline */
+  .b .anchor { display: inline-block; width: 0; height: 0; vertical-align: baseline; position: relative; }
+  .b .slits {
+    position: absolute; bottom: 0; right: 0;
+    width: 0.62em;             /* glyph width; corrected by script */
+    height: 0.53em;            /* bowl height (x-height) */
+    pointer-events: none; overflow: visible;
+  }
+
+  /* subtitle: SVG text stretched to the exact width of the title */
+  .subtitle-wrap { width: 0; min-width: 100%; margin-top: 0.06em; font-size: clamp(56px, 12vw, 160px); }
+  .subtitle {
+    display: block; width: 100%;
+    height: 1.25em;                        /* room for descenders */
+    font-size: 0.31em;                     /* ≈ subtitle/title ratio in the reference */
+    font-weight: 400;
+    fill: var(--sub);
+  }
+</style>
+</head>
+<body>
+  <div class="wordmark" id="wordmark">
+    <div class="title" id="title" aria-label="bundlemcp">
+      <span class="bold"><span class="b"><span class="glyph" id="glyph" aria-hidden="true">d</span><span class="anchor"><svg class="slits" id="slits" viewBox="0 0 100 53" preserveAspectRatio="none" aria-hidden="true">
+        <g fill="none" stroke="#242e30" stroke-width="4.5">
+          <path d="M-2 12 Q50 19 102 12"/>
+          <path d="M-2 25 Q50 32 102 25"/>
+          <path d="M-2 38 Q50 45 102 38"/>
+        </g>
+      </svg></span></span>undle</span><span class="light">mcp</span>
+    </div>
+    <div class="subtitle-wrap">
+      <svg class="subtitle" id="subtitle" aria-label="unified mcp server bundler">
+        <text id="subtext" x="0" y="0.95em" textLength="100%" lengthAdjust="spacing" font-size="1em">unified mcp server bundler</text>
+      </svg>
+    </div>
+  </div>
+  <script>
+    function fit() {
+      // slit overlay spans the mirrored glyph exactly
+      document.getElementById('slits').style.width =
+        document.getElementById('glyph').getBoundingClientRect().width + 'px';
+      // subtitle ink spans exactly the title width (belt and braces for the % textLength)
+      const w = document.getElementById('title').getBoundingClientRect().width;
+      const svg = document.getElementById('subtitle');
+      const text = document.getElementById('subtext');
+      svg.setAttribute('width', w);
+
+      // measure real ink edges so the subtitle's ink aligns with the title's ink
+      const ctx = document.createElement('canvas').getContext('2d');
+      const fam = getComputedStyle(svg).fontFamily;
+      const titleSize = parseFloat(getComputedStyle(document.getElementById('title')).fontSize);
+      const subSize = parseFloat(getComputedStyle(svg).fontSize);
+      function m(weight, size, ch) { ctx.font = `${weight} ${size}px ${fam}`; return ctx.measureText(ch); }
+      const mp = m(300, titleSize, 'p'), md = m(700, titleSize, 'd');
+      const mu = m(400, subSize, 'u'), mr = m(400, subSize, 'r');
+      if ('actualBoundingBoxRight' in mp) {
+        const inkStart = md.width - md.actualBoundingBoxRight;      // mirrored d: its right bearing becomes left
+        const inkEnd   = w - (mp.width - mp.actualBoundingBoxRight); // p's right-side bearing
+        const x = inkStart + mu.actualBoundingBoxLeft;              // u's left bearing (negative when ink starts right of origin)
+        const len = inkEnd - (mr.actualBoundingBoxRight - mr.width) - x;
+        text.setAttribute('x', x);
+        text.setAttribute('textLength', len);
+      } else {
+        text.setAttribute('textLength', w - 0.06 * subSize);
+      }
+    }
+    if (document.fonts) document.fonts.ready.then(fit);
+    window.addEventListener('load', fit);
+    window.addEventListener('resize', fit);
+  </script>
+</body>
+</html>

@@ -15,7 +15,7 @@ export function useApi() {
       // UI-2: a session that expired mid-visit answers 401 on the next call;
       // send the browser back through login instead of showing a failed request.
       onResponse({ response }) {
-        if (response.status === 401 && !window.location.pathname.startsWith("/no-access")) {
+        if (response.status === 401) {
           gotoLogin();
         }
         return response;

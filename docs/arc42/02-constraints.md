@@ -9,7 +9,6 @@
 | Streamable HTTP only (up- and downstream) | [ADR-0005](../adr/0005-streamable-http-only.md) |
 | External OIDC IdP required; no local passwords | [ADR-0006](../adr/0006-oidc-only-admin-auth.md) |
 | No in-memory-only state a request depends on | ARC-9 — the core architectural rule |
-| uv workspace layout: `packages/` (flat libs) + `apps/` (deployables) + `deploy/` | ultra-mcp conventions, ARC-6 |
 | Docker-Compose-first deployment; TLS at the operator's proxy | ARC-13, [spec/71](../../spec/71-deployment.md) |
 | MCP specification (current revision), OAuth 2.1, RFC 7591/7662/7009/8414/8707 | Protocol/interop conformance ([spec/20](../../spec/20-oauth-server.md), [spec/32](../../spec/32-protocol-passthrough.md)) |
 | Billing, IdP, container discovery stay OUT (application layer) | Boundary table in [spec/00](../../spec/00-overview.md) |

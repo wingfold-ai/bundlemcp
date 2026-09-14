@@ -1,0 +1,113 @@
+/* Brand accent: the teal of the wordmark instead of the default violet.
+   Light pages use the darker teal of the light lockup so text keeps contrast;
+   dark pages use the wordmark's own tint. Buttons keep a deeper fill so white
+   text stays readable on them. */
+:root {
+  --vp-c-brand-1: #2c7f86;
+  --vp-c-brand-2: #256f75;
+  --vp-c-brand-3: #2c7f86;
+  --vp-c-brand-soft: rgba(44, 127, 134, 0.14);
+}
+.dark {
+  --vp-c-brand-1: #94cdd2;
+  --vp-c-brand-2: #7fc0c6;
+  --vp-c-brand-3: #3f9aa3;
+  --vp-c-brand-soft: rgba(148, 205, 210, 0.16);
+}
+:root {
+  --vp-button-brand-bg: var(--vp-c-brand-3);
+  --vp-button-brand-hover-bg: var(--vp-c-brand-2);
+  --vp-button-brand-active-bg: var(--vp-c-brand-1);
+}
+.dark {
+  --vp-button-brand-hover-bg: #4aa7b0;
+  --vp-button-brand-active-bg: #57b3bc;
+}
+
+/* Code: block chrome in the site's surfaces, inline code in the accent. */
+:root {
+  --vp-code-color: var(--vp-c-brand-1);
+  --vp-code-bg: rgba(44, 127, 134, 0.1);
+  --vp-code-block-bg: #f3f5f5;
+  --vp-code-block-divider-color: #e2e2e3;
+  --vp-code-tab-divider: #e2e2e3;
+  --vp-code-tab-active-text-color: var(--vp-c-brand-1);
+  --vp-code-tab-active-bar-color: var(--vp-c-brand-1);
+  --vp-code-tab-hover-text-color: var(--vp-c-text-1);
+  --vp-code-line-highlight-color: rgba(44, 127, 134, 0.12);
+  --vp-code-line-diff-add-color: rgba(44, 127, 134, 0.18);
+  --vp-code-copy-code-bg: #ffffff;
+  --vp-code-copy-code-hover-bg: #ffffff;
+  --vp-code-copy-code-hover-border-color: var(--vp-c-brand-1);
+  --vp-code-copy-code-active-text: var(--vp-c-brand-1);
+  --vp-code-copy-copied-text-content: "Copied";
+}
+.dark {
+  --vp-code-bg: rgba(148, 205, 210, 0.12);
+  --vp-code-block-bg: #141416;
+  --vp-code-block-divider-color: #2e2e32;
+  --vp-code-tab-divider: #2e2e32;
+  --vp-code-line-highlight-color: rgba(148, 205, 210, 0.1);
+  --vp-code-line-diff-add-color: rgba(148, 205, 210, 0.16);
+  --vp-code-copy-code-bg: #202127;
+  --vp-code-copy-code-hover-bg: #202127;
+}
+/* a hairline around blocks so they read as one surface with the tabs */
+.vp-doc div[class*="language-"],
+.vp-doc .vp-code-group .tabs {
+  border: 1px solid var(--vp-code-block-divider-color);
+}
+.vp-doc .vp-code-group .tabs {
+  border-bottom: 0;
+}
+.vp-doc .vp-code-group div[class*="language-"] {
+  border-top: 0;
+}
+.vp-doc div[class*="language-"] > span.lang {
+  color: var(--vp-c-text-3);
+}
+
+/* The nav logo is the mark-plus-wordmark lockup; give it more height than
+   the 24px the theme reserves for a square icon. */
+.VPNavBarTitle .logo {
+  height: 44px;
+}
+
+/* The hero image is the banner (mark + wordmark + subtitle): a wide lockup,
+   not the square icon the default theme sizes and offsets for. */
+.VPHero .image {
+  margin: 0 0 24px;
+}
+.VPHero .image-bg {
+  display: none;
+}
+.VPHero .image-container {
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+}
+.VPHero .image-src {
+  position: static;
+  transform: none;
+  width: 100%;
+  max-width: none;
+}
+@media (min-width: 960px) {
+  .VPHero .image {
+    margin: 0;
+  }
+  .VPHero .image-container {
+    max-width: 520px;
+    transform: none;
+  }
+}
+
+/* Theme-specific images: mark a pair with these classes */
+.dark .light-only,
+html:not(.dark) .dark-only {
+  display: none !important;
+}
+/* Content images open in the lightbox */
+.vp-doc img {
+  cursor: zoom-in;
+}

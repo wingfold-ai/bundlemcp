@@ -5,7 +5,7 @@
 ## Summary
 
 Humans authenticate to bundlemcp **exclusively via an external OIDC provider**
-(Keycloak in ultra-mcp; any compliant IdP standalone). bundlemcp stores no
+(Keycloak in the application layer; any compliant IdP standalone). bundlemcp stores no
 passwords and implements no signup — user records are provisioned on first
 login. This deletes the entire class of auth code that caused pain in metamcp.
 
@@ -50,4 +50,4 @@ login. This deletes the entire class of auth code that caused pain in metamcp.
 ## Open questions
 
 - ~~Which dev IdP to bundle in compose?~~ **Resolved:** Keycloak, for parity
-  with ultra-mcp's production IdP — [ADR-0015](../docs/adr/0015-keycloak-dev-idp.md).
+  with the application layer's production IdP — [ADR-0015](../docs/adr/0015-keycloak-dev-idp.md).

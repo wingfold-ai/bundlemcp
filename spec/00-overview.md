@@ -44,14 +44,14 @@ The rewrite also switches to the maintainer's home stack — Python
 that don't serve the bundling mission (see the decision log in
 [README.md](README.md)).
 
-## Scope boundary: bundlemcp vs. ultra-mcp
+## Scope boundary: bundlemcp vs. the application layer
 
-bundlemcp is the **reusable building block**; ultra-mcp is an **application**
-of it (a commercial multi-tenant MCP platform). bundlemcp must be fully usable
+bundlemcp is the **reusable building block**; the application layer is an
+**application** of it (a commercial multi-tenant MCP platform). bundlemcp must be fully usable
 standalone — with any OIDC provider and no billing — while exposing the exact
-contact points ultra-mcp needs.
+contact points such an application needs.
 
-| Concern | bundlemcp (this project) | ultra-mcp (application layer) |
+| Concern | bundlemcp (this project) | Application layer |
 |---|---|---|
 | MCP aggregation, bundles, endpoints | ✔ owns | consumes |
 | OAuth 2.1 server toward MCP clients (+ token introspection) | ✔ owns | consumes `sub` for billing |
@@ -66,14 +66,14 @@ contact points ultra-mcp needs.
 
 The two integration warts this boundary explicitly fixes:
 
-1. metamcp had **no service-authenticated registration API** — ultra-mcp's
-   registrar had to replay better-auth login cookies against internal tRPC
-   (`ultra-mcp/packages/registrar/registrar/clients.py`). bundlemcp ships a
+1. metamcp had **no service-authenticated registration API** — the first
+   consumer's registrar had to replay better-auth login cookies against
+   internal tRPC. bundlemcp ships a
    first-class REST API ([40-management-api.md](40-management-api.md)).
 2. metamcp's metering middleware was a code comment ("Add more middleware here
    as needed"). bundlemcp specs the hook as a supported contract
-   ([31-middleware.md](31-middleware.md)) matching ultra-mcp's existing
-   `check-and-debit` / `refund` API.
+   ([31-middleware.md](31-middleware.md)) matching the first consumer's
+   existing `check-and-debit` / `refund` API.
 
 ## Goals
 

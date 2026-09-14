@@ -198,7 +198,7 @@ async function deleteEndpoint() {
       <h2 class="font-medium">Connection</h2>
       <div class="flex items-center gap-2">
         <code
-          class="text-sm bg-gray-100 dark:bg-gray-800 rounded px-2 py-1"
+          class="text-sm bg-elevated rounded px-2 py-1"
           data-testid="connection-url"
           >{{ connectionUrl }}</code
         >
@@ -206,7 +206,7 @@ async function deleteEndpoint() {
           Copy
         </UButton>
       </div>
-      <div class="text-sm text-gray-600 dark:text-gray-400 space-y-3" data-testid="setup-instructions">
+      <div class="text-sm text-toned space-y-3" data-testid="setup-instructions">
         <div>
           <p class="font-medium">claude.ai (custom connector)</p>
           <p>
@@ -221,7 +221,7 @@ async function deleteEndpoint() {
             Create an API key on the API keys page, then send it as a Bearer token. Example
             initialize request:
           </p>
-          <pre class="bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1 overflow-x-auto text-xs">curl -X POST {{ connectionUrl }} \
+          <pre class="bg-elevated rounded p-2 mt-1 overflow-x-auto text-xs">curl -X POST {{ connectionUrl }} \
   -H "Authorization: Bearer &lt;api key&gt;" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \

@@ -310,7 +310,7 @@ async def test_introspection_requires_service_key(oauth_env):
     assert body["email"] == "alice@example.com"
 
     # RFC 7662 client auth (OAS-5 "client credentials"): the service key may
-    # arrive as the HTTP Basic client secret — what ultra-mcp's upstreams send.
+    # arrive as the HTTP Basic client secret — what introspecting upstreams send.
     import base64
 
     basic = base64.b64encode(f"any-client:{SERVICE_KEY}".encode()).decode()

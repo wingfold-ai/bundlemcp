@@ -6,7 +6,7 @@
 ## Summary
 
 Declarative, idempotent provisioning of servers, bundles, endpoints, and API
-keys at gateway startup — so ultra-mcp, CI, or any operator can stand up a
+keys at gateway startup — so an application layer, CI, or any operator can stand up a
 fully configured gateway from config alone, no UI clicks.
 
 ## Requirements

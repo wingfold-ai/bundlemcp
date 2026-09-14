@@ -1,14 +1,14 @@
 # 40 — Management REST API
 
-**Status:** Accepted · **Origin:** new (fixes ultra-mcp's biggest integration wart)
-**Prior art (the wart):** `../ultra-mcp/packages/registrar/registrar/clients.py` — cookie-replay login + hand-crafted tRPC batch calls, because metamcp had no service API
+**Status:** Accepted · **Origin:** new (fixes the first consumer's biggest integration wart)
+**Prior art (the wart):** the first consumer's registrar client — cookie-replay login + hand-crafted tRPC batch calls, because metamcp had no service API
 
 ## Summary
 
 Everything the admin UI can do is available as a versioned, OpenAPI-documented
 REST API under `/api/v1`, authenticated by admin session **or** service API
 key. The Nuxt UI is a client of this API — there is no privileged side
-channel — which guarantees automation parity (ultra-mcp's registrar, CI,
+channel — which guarantees automation parity (the application layer's registrar, CI,
 scripts).
 
 ## Requirements
@@ -20,7 +20,11 @@ scripts).
   `servers/{id}:refresh-tools`, `servers/{id}:probe`), and `me` (caller
   identity for the UI: kind, email, `is_admin` — answers 200 for any active
   signed-in session, admin or not, so the UI can render its "no access"
-  page ([UI-2](60-admin-ui.md)); service keys get their key identity).
+  page ([UI-2](60-admin-ui.md)); service keys get their key identity), and
+  `me/endpoints` — the catalogue for that same audience: every enabled
+  endpoint accepting `oauth`, with its connection URL and the bundle's
+  description, so a signed-in non-admin finds what to connect an MCP client
+  to without any privileged call.
 - **API-2** Auth: admin browser session ([21-admin-auth.md](21-admin-auth.md))
   or `service`-kind API key ([KEY-2](22-api-keys.md)) via `Authorization`
   header. All routes require one of the two; 401/403 are structured.

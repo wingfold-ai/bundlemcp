@@ -88,7 +88,7 @@ async function deleteKey(row: ApiKeyRead) {
       <p class="text-sm font-medium">API key created — shown exactly once. Copy it now.</p>
       <div class="flex items-center gap-2">
         <code
-          class="text-sm bg-gray-100 dark:bg-gray-800 rounded px-2 py-1"
+          class="text-sm bg-elevated rounded px-2 py-1"
           data-testid="created-key-value"
           >{{ createdKey.key }}</code
         >
@@ -153,9 +153,16 @@ async function deleteKey(row: ApiKeyRead) {
       <div>
         <label class="wf-label">Kind</label>
         <select v-model="keyKind" class="wf-input" data-testid="key-kind">
-          <option value="endpoint">endpoint</option>
-          <option value="service">service</option>
+          <option value="endpoint">endpoint — calls MCP endpoints only</option>
+          <option value="service">service — also manages the gateway</option>
         </select>
+        <p class="wf-help">
+          <strong>endpoint</strong> keys are for scripts and agents that use tools: they are accepted
+          on endpoints with the <code>api_key</code> auth mode and nowhere else.
+          <strong>service</strong> keys can do that too, and additionally call the management API
+          (everything this UI does) and the token introspection route, so they are for automation,
+          CI, and upstream servers that verify forwarded bearers.
+        </p>
       </div>
       <UButton data-testid="key-create" @click="createKey">Create</UButton>
     </div>

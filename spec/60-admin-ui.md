@@ -45,8 +45,10 @@ surface. It is a pure client of the management API
 
 ## Out of scope
 
-- i18n (decision log), mobile-optimized layouts, theming beyond Nuxt UI
-  defaults.
+- i18n (decision log), mobile-optimized layouts, theming beyond the brand
+  tokens (the wordmark teal as the primary colour, the documentation site's
+  gray surfaces, the logo in the header and as favicon) applied through Nuxt
+  UI's design tokens — no per-component styling.
 
 ## Open questions
 

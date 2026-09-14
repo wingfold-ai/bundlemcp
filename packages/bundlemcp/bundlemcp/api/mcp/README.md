@@ -263,7 +263,7 @@ window (RATE-2/7): `bucket = now // window`, `INCR bmcp:rate:{scope}:{bucket}`,
   allow/deny, `post_call` → settle/refund) loaded from a `"module:attr"` path;
   default is a no-op. A fresh idempotency key is minted per client invocation and
   reused across internal retries (MID-3), so a reactive OAuth retry is not
-  double-billed. This is the seam an application layer (ultra-mcp) hooks billing
+  double-billed. This is the seam an application layer hooks billing
   into.
 - **Egress / SSRF (`egress.py`):** `check_url_allowed` runs before every upstream
   connection. It resolves *all* addresses for the host (so a hostname can't

@@ -19,6 +19,7 @@ Playwright test title, the recording filename, and this table.
 | E2E-11 | A runtime Config value can be edited, persisted and reset | `tests/keys-settings.spec.ts` | [`40-management-api.md`](../../../spec/40-management-api.md) | API-1, DOM-5 | `E2E-11__40-management-api__runtime-config-edit-reset.webm` |
 | E2E-12 | The UI surfaces header forwarding and upstream status | `tests/gsc-upstream.spec.ts` | [`24-identity-forwarding.md`](../../../spec/24-identity-forwarding.md) | FWD-4 | `E2E-12__24-identity-forwarding__gsc-forwarding-status.webm` |
 | E2E-13 | The upstream-OAuth connect link targets the gateway route | `tests/gsc-upstream.spec.ts` | [`23-upstream-oauth.md`](../../../spec/23-upstream-oauth.md) | UPO-1 | `E2E-13__23-upstream-oauth__gsc-connect-link.webm` |
+| E2E-14 | A signed-in non-admin sees only the endpoint catalogue | `tests/catalogue.spec.ts` | [`60-admin-ui.md`](../../../spec/60-admin-ui.md) | UI-2, API-1, ADM-3 | `E2E-14__60-admin-ui__catalogue-non-admin-sees-endpoints.webm` |
 
 ## Requirements referenced
 
@@ -45,5 +46,6 @@ Playwright test title, the recording filename, and this table.
 | KEY-4 | `22-api-keys.md` | Deactivation (is_active=false) and deletion take effect within the cross-replica propagation budget (STP-3/STP-4 — an invalidation event, not a cache TTL); l… |
 | API-1 | `40-management-api.md` | Base path /api/v1; resources: servers, servers/{id}/tools, bundles, bundles/{id}/servers, bundles/{id}/tools, endpoints, api-keys, users, audit-records, conf… |
 | DOM-5 | `02-domain-model.md` | Config-class entities participate in cross-replica cache invalidation per 33-state-propagation.md. |
-| FWD-4 | `24-identity-forwarding.md` | Upstreams that need to verify the forwarded bearer can call POST /oauth/introspect (OAS-5) — the sequence ultra-mcp's servers use today against metamcp. |
+| FWD-4 | `24-identity-forwarding.md` | Upstreams that need to verify the forwarded bearer can call POST /oauth/introspect (OAS-5) — the sequence the first consumer's servers use today against meta… |
 | UPO-1 | `23-upstream-oauth.md` | A server with auth_mode=upstream_oauth (SRV-1) gets upstream OAuth client config: either dynamic registration against the upstream (RFC 7591, discovered via … |
+| ADM-3 | `21-admin-auth.md` | Admin role: users listed in BUNDLEMCP_ADMIN_EMAILS (or matching a configured claim, e.g. a group/role claim) get is_admin=true. The role is re-evaluated on e… |

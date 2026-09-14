@@ -71,16 +71,16 @@ async function createBundle() {
           <td>
             <NuxtLink
               :to="`/bundles/${b.name}`"
-              class="underline"
+              class="inline-flex items-center gap-1.5 underline"
               :data-testid="`open-${b.name}`"
-              >{{ b.name }}</NuxtLink
+              ><UIcon name="i-lucide-package" class="size-4 text-muted" />{{ b.name }}</NuxtLink
             >
           </td>
           <td>{{ b.description }}</td>
           <td>{{ b.updated_at }}</td>
         </tr>
         <tr v-if="bundles.length === 0">
-          <td colspan="3" class="text-gray-500">No bundles yet.</td>
+          <td colspan="3" class="text-muted">No bundles yet.</td>
         </tr>
       </tbody>
     </table>

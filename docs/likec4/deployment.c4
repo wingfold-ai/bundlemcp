@@ -2,40 +2,74 @@
 
 specification {
   deploymentNode environment
-  deploymentNode zone
+  deploymentNode zone {
+    style {
+      color brandDeep
+    }
+  }
 }
 
 deployment {
   prod = environment 'Production' {
-    proxy = zone 'Reverse Proxy' {
-      description 'Operator-provided (Traefik/nginx/Caddy): TLS termination, forwards X-Forwarded-* (DEP-2)'
+    proxy = zone 'Reverse proxy' {
+      description 'Operator-provided (Traefik, nginx, Caddy): TLS termination, forwards X-Forwarded-* (DEP-2)'
     }
 
-    app = zone 'Gateway Replicas' {
-      description 'N stateless replicas; any replica serves any session (ARC-9)'
-      gw1 = instanceOf bundlemcp.gateway
-      gw2 = instanceOf bundlemcp.gateway
+    app = zone 'Replicas ×N' {
+      description 'Identical stateless replicas; any replica serves any session (ARC-9)'
+      gw = instanceOf bundlemcp.gateway {
+        title 'Gateway'
+        description 'MCP endpoints, OAuth 2.1, management API'
+      }
     }
 
     webNode = zone 'Web' {
-      webApp = instanceOf bundlemcp.web
+      webApp = instanceOf bundlemcp.web {
+        title 'Admin UI'
+        description 'Static single-page app'
+      }
     }
 
     data = zone 'State' {
-      pgNode = instanceOf bundlemcp.pg
-      redisNode = instanceOf bundlemcp.redis
+      pgNode = instanceOf bundlemcp.pg {
+        title 'Postgres'
+        description 'Config, tokens, audit log'
+      }
+      redisNode = instanceOf bundlemcp.redis {
+        title 'Valkey'
+        description 'Sessions, rate limits, signalling'
+      }
     }
   }
 
-  prod.proxy -> gw1 'routes /{endpoint}/mcp, /api, /oauth'
-  prod.proxy -> gw2 'routes (no sticky sessions)'
-  prod.proxy -> webApp 'routes admin UI'
+  external = environment 'Outside the deployment' {
+    idpNode = instanceOf idp {
+      title 'OIDC provider'
+      description 'Keycloak or any OIDC issuer'
+    }
+    upstreamNodes = instanceOf upstreams {
+      title 'Upstream MCP servers'
+      description 'Streamable HTTP'
+    }
+  }
+
+  prod.proxy -> gw 'MCP, OAuth, API'
+  prod.proxy -> webApp 'admin UI'
 }
 
 views {
   deployment view production {
     title 'bundlemcp — Deployment (reference topology)'
-    include *
+    // every zone expanded to its instances, so the shared stores and the
+    // per-replica edges are visible rather than collapsed into a summary
+    include prod.**, external.**
+    // the zone frames around single nodes only add width; the replica zone
+    // stays because its ×N is the point of the picture
+    exclude prod, external, prod.webNode, prod.data
+    style * {
+      size xs
+      textSize lg
+    }
     autoLayout TopBottom
   }
 }
