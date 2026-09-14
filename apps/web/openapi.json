@@ -377,6 +377,51 @@
         "title": "AuditStatus",
         "type": "string"
       },
+      "AvailableEndpointRead": {
+        "description": "An endpoint a signed-in person can connect an MCP client to with their own identity.",
+        "properties": {
+          "bundle_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the bundle offers, as its administrator described it",
+            "title": "Bundle Description"
+          },
+          "bundle_name": {
+            "description": "Bundle the endpoint serves",
+            "title": "Bundle Name",
+            "type": "string"
+          },
+          "name": {
+            "description": "Endpoint name, the last path segment before /mcp",
+            "title": "Name",
+            "type": "string"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/EndpointProfile",
+            "description": "Client the endpoint is shaped for: default for any MCP client, claude for claude.ai, chatgpt for ChatGPT"
+          },
+          "url": {
+            "description": "Full Streamable HTTP URL to enter in the MCP client, such as claude.ai's custom connector dialog",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "profile",
+          "bundle_name",
+          "bundle_description"
+        ],
+        "title": "AvailableEndpointRead",
+        "type": "object"
+      },
       "BundleMemberRead": {
         "description": "A server's membership in a bundle.",
         "properties": {
@@ -3318,6 +3363,32 @@
           }
         },
         "summary": "Whoami",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/endpoints": {
+      "get": {
+        "description": "The catalogue for any signed-in person: enabled endpoints that accept OAuth.",
+        "operationId": "available_endpoints_api_v1_me_endpoints_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AvailableEndpointRead"
+                  },
+                  "title": "Response Available Endpoints Api V1 Me Endpoints Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Available Endpoints",
         "tags": [
           "me"
         ]

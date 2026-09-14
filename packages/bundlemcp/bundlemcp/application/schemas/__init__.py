@@ -19,6 +19,7 @@ from bundlemcp.application.schemas.bundles import (
 from bundlemcp.application.schemas.common import EntityRead, Page
 from bundlemcp.application.schemas.config import ConfigEntryRead, ConfigValue
 from bundlemcp.application.schemas.endpoints import (
+    AvailableEndpointRead,
     EndpointProfileRead,
     EndpointRead,
     EndpointUpsert,
@@ -66,6 +67,7 @@ __all__ = [
     "ConsentRead",
     "DiscoveryResult",
     "EndpointProfileRead",
+    "AvailableEndpointRead",
     "EndpointRead",
     "EndpointUpsert",
     "EntityRead",

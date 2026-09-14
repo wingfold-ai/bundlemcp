@@ -20,7 +20,11 @@ scripts).
   `servers/{id}:refresh-tools`, `servers/{id}:probe`), and `me` (caller
   identity for the UI: kind, email, `is_admin` — answers 200 for any active
   signed-in session, admin or not, so the UI can render its "no access"
-  page ([UI-2](60-admin-ui.md)); service keys get their key identity).
+  page ([UI-2](60-admin-ui.md)); service keys get their key identity), and
+  `me/endpoints` — the catalogue for that same audience: every enabled
+  endpoint accepting `oauth`, with its connection URL and the bundle's
+  description, so a signed-in non-admin finds what to connect an MCP client
+  to without any privileged call.
 - **API-2** Auth: admin browser session ([21-admin-auth.md](21-admin-auth.md))
   or `service`-kind API key ([KEY-2](22-api-keys.md)) via `Authorization`
   header. All routes require one of the two; 401/403 are structured.
