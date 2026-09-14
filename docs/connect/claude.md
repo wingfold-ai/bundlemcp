@@ -19,8 +19,9 @@ curl -s -X PUT https://gw.example.com/api/v1/endpoints/assistant \
 The `claude` profile requires `auth_modes` to be exactly `["oauth"]`; the
 gateway rejects anything else. Tools pass through unchanged.
 
-In the UI: **Endpoints → New**, pick the bundle, choose the `claude`
-profile, save. The endpoint page shows the URL to paste into claude.ai.
+In the UI: open the bundle, and in its **Endpoints** card create one with the
+`claude` profile. The endpoint page shows the URL to paste into claude.ai,
+and every signed-in user finds the same URL in the catalogue.
 
 ## 2. Add the connector in claude.ai
 

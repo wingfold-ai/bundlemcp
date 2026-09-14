@@ -25,10 +25,11 @@ Two credentials are accepted on every route:
 - the **admin session cookie** a browser holds after logging in. Cookie
   calls from a browser must come from an origin in `BUNDLEMCP_WEB_ORIGINS`.
 
-`GET /api/v1/me` reports which one authenticated the call, and is the one
-route that answers a signed-in **non-admin** user too (with
-`is_admin: false`), so a UI can render a "no access" page. Everything else
-answers 401 without a credential and 403 for a non-admin user.
+`GET /api/v1/me` reports which one authenticated the call. It and
+`GET /api/v1/me/endpoints` are the two routes that answer a signed-in
+**non-admin** user too, which is all the web app needs to show them the
+catalogue. Everything else answers 401 without a credential and 403 for a
+non-admin user.
 
 Endpoint-kind API keys are refused here; only `service` keys manage the
 gateway.
@@ -118,6 +119,7 @@ values appear once, in the creation response.
 | `GET` | `/users/{id}/consents` | The user's OAuth consents. |
 | `DELETE` | `/users/{id}/consents/{consent_id}` | Revoke a consent and its tokens. |
 | `GET` | `/me` | Who is calling. |
+| `GET` | `/me/endpoints` | The catalogue: enabled endpoints accepting OAuth, with their URLs. Answers for any signed-in user, admin or not. |
 
 ### Operations
 

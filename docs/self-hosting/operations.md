@@ -81,10 +81,9 @@ Audit records are purged after `audit_retention_days` (90 by default). If an
 application layer reconciles billing against the audit log, keep retention
 longer than its reconciliation window.
 
-## Not yet available
+## Not part of this release
 
-The specification reserves a Prometheus `/metrics` route, a live log stream
-in the UI, a built-in MCP inspector, and JSON export and import of the
-configuration. None of these are served by the current release; the UI pages
-for logs and the inspector are placeholders. Use container logs, the audit
-API and a bootstrap file in the meantime.
+There is no Prometheus `/metrics` route, no live log stream in the UI, no
+built-in MCP inspector, and no JSON export or import of the configuration;
+the UI's Live logs and Inspector pages are placeholders. Use the container
+logs, the audit API, and a bootstrap file instead.

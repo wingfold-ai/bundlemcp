@@ -2,28 +2,48 @@
 // Rendered via `npx likec4` (CLI or VS Code extension). See spec/62.
 
 specification {
+  // Palette of the documentation site: the wordmark teal for what bundlemcp
+  // owns, a quiet slate for everything outside it
+  color brand #2c7f86
+  color brandDeep #1f5a5f
+  color outside #4b5563
+
   element actor {
     style {
       shape person
+      color brandDeep
     }
   }
-  element system
-  element container
-  element component
+  element system {
+    style {
+      color brand
+    }
+  }
+  element container {
+    style {
+      color brand
+    }
+  }
+  element component {
+    style {
+      color brand
+    }
+  }
   element database {
     style {
       shape storage
+      color brandDeep
     }
   }
   element external {
     style {
-      color muted
+      color outside
     }
   }
 
   relationship uses
   relationship mcp {
-    technology 'MCP Streamable HTTP'
+    technology 'MCP'
   }
 }
 
@@ -108,19 +128,19 @@ model {
   }
 
   // context relationships
-  admin -> web 'manages via browser' 'HTTPS'
-  mcpClient -[mcp]-> gateway 'calls /{endpoint}/mcp, OAuth 2.1'
-  gateway -[mcp]-> upstreams 'aggregates, forwards identity'
-  upstreams -> gateway 'introspects bearers' 'HTTPS'
-  gateway -> idp 'federates login' 'OIDC'
-  admin -> idp 'authenticates at'
-  appLayer -> gateway 'registers servers' 'REST'
+  admin -> web 'manages' 'HTTPS'
+  mcpClient -[mcp]-> gateway 'calls, OAuth 2.1'
+  gateway -[mcp]-> upstreams 'aggregates'
+  upstreams -> gateway 'introspects' 'HTTPS'
+  gateway -> idp 'login' 'OIDC'
+  admin -> idp 'signs in'
+  appLayer -> gateway 'registers' 'REST'
   gateway -> appLayer 'metering hook' 'Python hook -> REST'
 
   // container relationships
   web -> gateway 'management API' 'HTTPS /api/v1'
-  gateway.infrastructure -> pg 'durable state' 'SQLAlchemy async'
-  gateway.infrastructure -> redis 'live state' 'redis-py async'
+  gateway.infrastructure -> pg 'durable' 'SQLAlchemy async'
+  gateway.infrastructure -> redis 'live' 'redis-py async'
 }
 
 views {
@@ -137,8 +157,8 @@ views {
       idp with { title 'OIDC provider' description 'Keycloak or any OIDC issuer' },
       appLayer with { title 'Application layer' description 'Optional: billing, registrar' }
     style * {
-      size sm
-      textSize xl
+      size xs
+      textSize lg
     }
     autoLayout TopBottom
   }

@@ -30,6 +30,11 @@ instructions for each client type.
 
 ## Creating an endpoint
 
+In the UI an endpoint is created on the page of the bundle it exposes: open
+the bundle, and its **Endpoints** card lists the existing ones and holds the
+create form. The **All endpoints** overview under Bundles shows every public
+URL across bundles. Through the API:
+
 ```bash
 curl -s -X PUT $API/endpoints/assistant -H "$AUTH" -H "Content-Type: application/json" -d '{
   "name": "assistant",
@@ -66,6 +71,11 @@ A request is accepted if it satisfies **any** listed mode.
 When a request carries both a valid OAuth bearer and an API key, OAuth wins
 and that identity is used everywhere: rate limiting, audit, metering,
 identity forwarding.
+
+Endpoints that accept `oauth` appear in the users' catalogue, since a person
+can connect to them with their gateway identity; endpoints that accept only
+`api_key` are for automation and stay out of it. See
+[Roles and identity](/guide/roles-and-identity).
 
 An OAuth token is bound to the endpoint it was issued for. Presenting it at
 another endpoint fails with `invalid_token`, and the client re-authorises

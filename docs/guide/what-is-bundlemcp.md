@@ -1,7 +1,3 @@
----
-aside: false
----
-
 # What is bundlemcp?
 
 bundlemcp is a self-hostable **MCP bundling gateway**. It sits between the MCP
@@ -9,7 +5,7 @@ clients your users run (claude.ai, ChatGPT, Claude Code, your own agents) and
 the MCP servers you operate, and does one thing well: it **bundles MCP servers
 and exposes the bundles the way each consuming client needs them**.
 
-<div class="wide"><HomePipeline compact /></div>
+<HomePipeline compact />
 
 - A **server** is an upstream MCP server reachable over Streamable HTTP. The
   gateway probes it, discovers its tools, and keeps that tool list cached.
@@ -27,10 +23,7 @@ the MCP clients that call it, the servers it aggregates, the identity
 provider that authenticates humans, and, optionally, an application layer
 that bills for calls and registers servers through the API.
 
-<div class="wide">
-<img src="/diagrams/index.png" class="diagram light-only" alt="System context: administrator, MCP clients, upstream MCP servers, OIDC identity provider and an optional application layer around the bundlemcp gateway">
-<img src="/diagrams/dark/index.png" class="diagram dark-only" alt="System context: administrator, MCP clients, upstream MCP servers, OIDC identity provider and an optional application layer around the bundlemcp gateway">
-</div>
+<LikeC4Diagram view="index" />
 
 ## Who it is for
 
@@ -72,7 +65,9 @@ memory so that restarts and additional replicas never break a session.
 
 - [Quickstart](/guide/quickstart) brings up the full stack with Docker Compose
   in a few minutes.
-- [Core concepts](/guide/concepts) explains servers, bundles, endpoints,
-  profiles and identity in more depth.
+- [Core concepts](/guide/concepts) explains servers, bundles, endpoints and
+  profiles in more depth.
+- [Roles and identity](/guide/roles-and-identity) explains what administrators
+  and users can do, and which identity a call carries at each step.
 - [Production deployment](/self-hosting/deploy) covers public URLs, reverse
   proxies, upgrades and backups.

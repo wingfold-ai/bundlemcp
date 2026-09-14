@@ -97,7 +97,11 @@ const endpoints = [
 @media (min-width: 960px) {
   .pipeline { padding: 0 64px 64px; }
 }
+/* Inside a documentation page the card shares the prose width, so the three
+   stages stack vertically with downward chevrons at every viewport. */
 .pipeline.compact { padding: 0; margin: 16px 0 24px; max-width: none; }
+.pipeline.compact .card { grid-template-columns: 1fr; gap: 8px; padding: 20px; }
+.pipeline.compact .arrow span { transform: rotate(45deg); }
 .card {
   display: grid;
   grid-template-columns: 1fr;

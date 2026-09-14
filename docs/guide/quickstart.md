@@ -51,7 +51,8 @@ which forwards you to Keycloak. Sign in with `admin` / `admin`.
 
 That account's email (`admin@example.com`) is listed in
 `BUNDLEMCP_ADMIN_EMAILS` in the compose file, so it lands on the dashboard with
-admin rights. Any other account would see a "no access" page.
+admin rights. Any other account sees the catalogue instead: the bundles it
+can connect an MCP client to, and nothing to manage.
 
 Browse **Servers**, **Bundles** and **Endpoints** to see what the seed created.
 

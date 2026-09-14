@@ -89,39 +89,16 @@ A profile adapts a bundle to the quirks of one kind of client:
 Profiles are built in. The management API lists them together with any
 warning an operator should read before choosing one.
 
-## Identity
+## Roles and identity
 
-Every request through an endpoint resolves a **caller identity**:
-
-- an OAuth bearer resolves to the user's id (`sub`);
-- an API key resolves to `api_key:<key id>`;
-- on a `none` endpoint the caller is anonymous.
-
-When both an OAuth bearer and an API key are present, OAuth wins. The resolved
-identity is what rate limiting, audit records, the metering hook and identity
-forwarding all use.
-
-Two things carry identity to upstream servers:
-
-- `X-MCP-User: <sub>`, injected when `send_identity_header` is on. Any
-  client-supplied value is stripped first, so it cannot be spoofed.
-- `forward_headers`, typically `authorization → authorization`, so an upstream
-  can verify the bearer itself by calling the gateway's introspection route.
-
-## Authentication surfaces
-
-The gateway has three distinct authentication mechanisms, and it helps to keep
-them apart:
-
-| Who | Mechanism |
-|---|---|
-| **Humans** signing in to the admin UI or authorising a connector | Federated OIDC login against your identity provider. bundlemcp stores no passwords. Admins are the users whose email is in `BUNDLEMCP_ADMIN_EMAILS`. |
-| **MCP clients** such as claude.ai | The gateway's built-in OAuth 2.1 server: dynamic client registration or client ID metadata documents, PKCE, consent, opaque tokens bound to one endpoint. |
-| **Scripts and services** | API keys: `endpoint` keys call MCP endpoints, `service` keys also call the management API. |
-
-The gateway may itself be an OAuth **client** toward an upstream server that
-is OAuth-protected. That is upstream OAuth, covered in
-[Servers](/manage/servers#upstream-oauth).
+Everyone signs in at the same identity provider; administrators (emails in
+`BUNDLEMCP_ADMIN_EMAILS`) manage servers, bundles, endpoints and keys, and
+users see a catalogue of bundles to connect their MCP clients to. Every call
+resolves a **caller identity** at the gateway (a person's `sub` via OAuth, an
+API key, or anonymous) and, separately, an **upstream identity** per server
+(none, a static credential, a shared OAuth account, or the caller's own
+account). The full model, with a walk-through, is on
+[Roles and identity](/guide/roles-and-identity).
 
 ## State model
 

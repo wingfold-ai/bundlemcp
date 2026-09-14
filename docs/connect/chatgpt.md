@@ -67,8 +67,8 @@ bundle behind this endpoint. A good pattern is a second bundle for ChatGPT
 that includes the same servers but disables the tools you do not want
 reachable from there, and a separate `claude` endpoint on the full bundle.
 
-## Alternatives
+## What the profile is not
 
-ChatGPT's dedicated `search` and `fetch` connector contract for deep research
-is not a profile today. A `chatgpt` endpoint exposes the bundle's ordinary
-tools.
+ChatGPT's `search` and `fetch` connector contract for deep research is a
+different integration; a `chatgpt` endpoint exposes the bundle's ordinary
+tools to ChatGPT's MCP connector.

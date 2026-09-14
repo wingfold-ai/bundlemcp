@@ -120,9 +120,12 @@ account.
   opens it, signs in to the gateway if needed, completes the upstream
   consent, and retries.
 
-A `per_user` server can only be served by endpoints that identify callers:
-the gateway refuses to put such a server in a bundle exposed by a `none`
-endpoint, and refuses the endpoint change that would create that situation.
+One account per person per server: the stored token is used for every MCP
+client that person connects with. A `per_user` server can only be served by
+endpoints that identify callers: the gateway refuses to put such a server in
+a bundle exposed by a `none` endpoint, and refuses the endpoint change that
+would create that situation. How this fits with the caller identity is on
+[Roles and identity](/guide/roles-and-identity).
 
 Tokens are never returned by any API. The UI shows connection status
 (connected, expired, invalid) and the account hint only.

@@ -15,6 +15,11 @@ Use `service` keys for automation that configures the gateway and for
 upstream servers that call the introspection route. Hand out `endpoint` keys
 to anything that only needs to use tools.
 
+Keys are created by administrators only. A person using an endpoint does not
+get a key: they connect their MCP client through OAuth, and the call is
+attributed to them. Keys identify a script or a service, never a person; see
+[Roles and identity](/guide/roles-and-identity).
+
 ## Creating a key
 
 From **API keys** in the UI, or:

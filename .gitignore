@@ -19,4 +19,5 @@ apps/web/e2e-recordings/
 # VitePress (docs/)
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+docs/public/likec4-views.js
 docs/brand/.fonts/

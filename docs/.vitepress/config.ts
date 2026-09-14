@@ -10,6 +10,10 @@ export default defineConfig({
   lang: "en-US",
   srcExclude: ["arc42/**", "adr/**", "likec4/**", "**/README.md"],
   cleanUrls: true,
+  // syntax palette with green-teal tones that sit next to the brand accent
+  markdown: { theme: { light: "vitesse-light", dark: "vitesse-dark" } },
+  // <likec4-view> is the web component generated from docs/likec4 at build time
+  vue: { template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("likec4-") } } },
   ignoreDeadLinks: "localhostLinks",
   lastUpdated: true,
   head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }]],
@@ -30,6 +34,7 @@ export default defineConfig({
           { text: "What is bundlemcp?", link: "/guide/what-is-bundlemcp" },
           { text: "Quickstart", link: "/guide/quickstart" },
           { text: "Core concepts", link: "/guide/concepts" },
+          { text: "Roles and identity", link: "/guide/roles-and-identity" },
         ],
       },
       {

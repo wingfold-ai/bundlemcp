@@ -38,17 +38,13 @@ Edit the HTML, re-run the script, commit both.
 
 ## Diagrams
 
-The context and deployment diagrams in the guides are the LikeC4 views in
-`likec4/`, exported as PNG pairs (light theme in `public/diagrams/`, dark in
-`public/diagrams/dark/`). Re-export after changing the model:
-
-```bash
-npx likec4 export png --flat --light -o docs/public/diagrams docs/likec4
-npx likec4 export png --flat --dark  -o docs/public/diagrams/dark docs/likec4
-```
-
-The export renders in a headless Chromium that LikeC4's bundled Playwright
-downloads on first use.
+The context and deployment diagrams in the guides are live views of the
+LikeC4 model in `likec4/`. `npm run build` and `npm run dev` first run
+`likec4 codegen webcomponent`, which compiles every view into
+`public/likec4-views.js` (ignored by git); the `LikeC4Diagram` component in
+`.vitepress/theme/` loads that bundle on demand and renders `<likec4-view>`,
+with pan, zoom, click-through navigation and a fullscreen browser. Edit the
+model, and the next build picks it up.
 
 ## Architecture material (contributors)
 

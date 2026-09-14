@@ -2,7 +2,11 @@
 
 specification {
   deploymentNode environment
-  deploymentNode zone
+  deploymentNode zone {
+    style {
+      color brandDeep
+    }
+  }
 }
 
 deployment {
@@ -11,7 +15,7 @@ deployment {
       description 'Operator-provided (Traefik, nginx, Caddy): TLS termination, forwards X-Forwarded-* (DEP-2)'
     }
 
-    app = zone 'Gateway replicas (×N)' {
+    app = zone 'Replicas ×N' {
       description 'Identical stateless replicas; any replica serves any session (ARC-9)'
       gw = instanceOf bundlemcp.gateway {
         title 'Gateway'
@@ -49,7 +53,7 @@ deployment {
     }
   }
 
-  prod.proxy -> gw 'MCP, OAuth, API; no sticky sessions'
+  prod.proxy -> gw 'MCP, OAuth, API'
   prod.proxy -> webApp 'admin UI'
 }
 
@@ -63,7 +67,7 @@ views {
     // stays because its ×N is the point of the picture
     exclude prod, external, prod.webNode, prod.data
     style * {
-      size sm
+      size xs
       textSize lg
     }
     autoLayout TopBottom

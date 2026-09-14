@@ -22,9 +22,12 @@ per-user state and billing.
 
 ## Admins and everyone else
 
-Admins configure the gateway. Everyone else is an **endpoint consumer**: they
-can authorise connectors and connect their own upstream accounts, but the
-admin UI shows them a "no access" page and the management API answers 403.
+Admins configure the gateway. Everyone else is a **user**: after signing in
+they see the catalogue, the bundles with endpoints they can connect an MCP
+client to, and nothing else. They authorise connectors, connect their own
+accounts on per-user servers, and that is the extent of it; the management
+API answers 403 to them. The division of responsibilities is spelled out on
+[Roles and identity](/guide/roles-and-identity).
 
 Admin status is re-evaluated at every login from the email list. To promote
 or demote someone, edit `BUNDLEMCP_ADMIN_EMAILS` and have them log in again.
