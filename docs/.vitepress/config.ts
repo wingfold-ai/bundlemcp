@@ -16,7 +16,7 @@ export default defineConfig({
   vue: { template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("likec4-") } } },
   ignoreDeadLinks: "localhostLinks",
   lastUpdated: true,
-  head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }]],
+  head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo-mark.svg" }]],
   themeConfig: {
     logo: { light: "/lockup-light.svg", dark: "/lockup-dark.svg", alt: "bundlemcp" },
     siteTitle: false,
