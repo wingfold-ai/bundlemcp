@@ -136,6 +136,17 @@
       "requirements": [
         "UPO-1"
       ]
+    },
+    {
+      "id": "E2E-14",
+      "testFile": "catalogue.spec.ts",
+      "slug": "catalogue-non-admin-sees-endpoints",
+      "title": "A signed-in non-admin sees only the endpoint catalogue",
+      "requirements": [
+        "UI-2",
+        "API-1",
+        "ADM-3"
+      ]
     }
   ]
 }

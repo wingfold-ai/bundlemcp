@@ -11,9 +11,17 @@
       "publicClient": false,
       "secret": "dev-gateway-secret",
       "standardFlowEnabled": true,
-      "redirectUris": ["http://localhost:8000/login/callback"],
-      "webOrigins": ["http://localhost:8000"],
-      "defaultClientScopes": ["openid", "email", "profile"]
+      "redirectUris": [
+        "http://localhost:8000/login/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:8000"
+      ],
+      "defaultClientScopes": [
+        "openid",
+        "email",
+        "profile"
+      ]
     }
   ],
   "users": [
@@ -24,7 +32,28 @@
       "emailVerified": true,
       "firstName": "Demo",
       "lastName": "Admin",
-      "credentials": [{ "type": "password", "value": "admin", "temporary": false }]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "jane",
+      "enabled": true,
+      "email": "jane@example.com",
+      "emailVerified": true,
+      "firstName": "Jane",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "jane",
+          "temporary": false
+        }
+      ]
     }
   ]
 }

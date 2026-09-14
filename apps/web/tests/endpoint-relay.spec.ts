@@ -33,7 +33,6 @@ test(testTitle("E2E-07"), async ({ page, request, steps }) => {
       await createEchoBundle(page, bundle);
     }),
     and(`the bundle exposed as endpoint "${endpoint}"`, { req: "EP-7" }, async () => {
-      await page.goto("/endpoints");
       await createApiKeyEndpoint(page, endpoint, bundle);
     }),
     and("an API key whose value is shown exactly once", { req: "KEY-1" }, async () => {

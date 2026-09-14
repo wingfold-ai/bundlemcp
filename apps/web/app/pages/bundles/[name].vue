@@ -186,7 +186,87 @@ async function saveCuration(toolId: string) {
 }
 
 // ---- endpoints card ----
+type EndpointProfile = components["schemas"]["EndpointProfile"];
+type EndpointAuthMode = components["schemas"]["EndpointAuthMode"];
+interface ProfileInfo {
+  name?: string;
+  description?: string;
+  warning?: string;
+  [key: string]: unknown;
+}
+
 const endpoints = ref<EndpointRead[]>([]);
+const profiles = ref<ProfileInfo[]>([]);
+const createName = ref("");
+const createProfile = ref<EndpointProfile>("default");
+const createAuthModes = ref<EndpointAuthMode[]>(["oauth"]);
+const allowUnauthenticated = ref(false);
+
+async function loadProfiles() {
+  const { data } = await api.GET("/api/v1/endpoints/profiles");
+  profiles.value = (data ?? []) as ProfileInfo[];
+}
+
+const chatgptWarning = computed(() => {
+  if (createProfile.value !== "chatgpt") return "";
+  return (
+    profiles.value.find((p) => p.name === "chatgpt")?.warning ??
+    "ChatGPT profile re-annotates all tools; verify tool behavior before exposing this endpoint."
+  );
+});
+
+function toggleAuthMode(mode: EndpointAuthMode, checked: boolean) {
+  if (checked) {
+    // Client-side rule: "none" only alone.
+    if (mode === "none") {
+      createAuthModes.value = ["none"];
+    } else {
+      createAuthModes.value = [
+        ...createAuthModes.value.filter((m) => m !== "none" && m !== mode),
+        mode,
+      ];
+    }
+  } else {
+    createAuthModes.value = createAuthModes.value.filter((m) => m !== mode);
+  }
+}
+
+function validateCreate(): string {
+  if (!NAME_RE.test(createName.value)) return "Name must match ^[a-zA-Z0-9_-]+$";
+  if (RESERVED_ENDPOINT_NAMES.includes(createName.value)) {
+    return `Name "${createName.value}" is reserved`;
+  }
+  if (createAuthModes.value.length === 0) return "Select at least one auth mode";
+  if (createAuthModes.value.includes("none") && createAuthModes.value.length > 1) {
+    return 'Auth mode "none" cannot be combined with other modes';
+  }
+  if (createAuthModes.value.includes("none") && !allowUnauthenticated.value) {
+    return 'Auth mode "none" requires "allow unauthenticated" to be checked';
+  }
+  return "";
+}
+
+async function createEndpoint() {
+  errorMsg.value = validateCreate();
+  if (errorMsg.value) return;
+  const { error } = await api.PUT("/api/v1/endpoints/{name}", {
+    params: { path: { name: createName.value } },
+    body: {
+      name: createName.value,
+      bundle_name: bundleName.value,
+      profile: createProfile.value,
+      auth_modes: createAuthModes.value,
+      allow_unauthenticated: allowUnauthenticated.value,
+      enabled: true,
+    },
+  });
+  if (error) {
+    errorMsg.value = apiErrorMessage(error);
+    return;
+  }
+  createName.value = "";
+  await loadEndpoints();
+}
 
 async function loadEndpoints() {
   const { data, error } = await api.GET("/api/v1/endpoints", {
@@ -206,7 +286,7 @@ const bundleEndpoints = computed(() =>
 onMounted(async () => {
   await loadBundle();
   if (!notFound.value) {
-    await Promise.all([loadMembers(), loadAllServers(), loadTools(), loadEndpoints()]);
+    await Promise.all([loadMembers(), loadAllServers(), loadTools(), loadEndpoints(), loadProfiles()]);
   }
 });
 </script>
@@ -217,7 +297,7 @@ onMounted(async () => {
 
     <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
 
-    <p v-if="notFound" class="text-gray-500" data-testid="not-found">not found</p>
+    <p v-if="notFound" class="text-muted" data-testid="not-found">not found</p>
 
     <template v-else-if="bundle">
       <!-- Meta -->
@@ -262,15 +342,22 @@ onMounted(async () => {
               :data-testid="`member-${m.server_name}`"
             >
               <td>
-                <NuxtLink :to="`/servers/${m.server_name}`" class="underline">{{
-                  m.server_name
-                }}</NuxtLink>
+                <NuxtLink
+                  :to="`/servers/${m.server_name}`"
+                  class="inline-flex items-center gap-1.5 underline"
+                  ><UIcon name="i-lucide-server" class="size-4 text-muted" />{{
+                    m.server_name
+                  }}</NuxtLink
+                >
               </td>
               <td>{{ m.server_url }}</td>
               <td>
-                <UBadge :color="healthColor(m.health_status)" variant="subtle">{{
-                  m.health_status
-                }}</UBadge>
+                <UBadge
+                  :icon="HEALTH_ICON[m.health_status]"
+                  :color="healthColor(m.health_status)"
+                  variant="subtle"
+                  >{{ m.health_status }}</UBadge
+                >
               </td>
               <td>
                 <input
@@ -292,7 +379,7 @@ onMounted(async () => {
               </td>
             </tr>
             <tr v-if="members.length === 0">
-              <td colspan="5" class="text-gray-500">No member servers.</td>
+              <td colspan="5" class="text-muted">No member servers.</td>
             </tr>
           </tbody>
         </table>
@@ -333,8 +420,20 @@ onMounted(async () => {
             >
               <td>
                 {{ t.server_name }}
-                <UBadge v-if="!t.member_enabled" color="neutral" variant="subtle"
+                <UBadge
+                  v-if="!t.member_enabled"
+                  icon="i-lucide-eye-off"
+                  color="neutral"
+                  variant="subtle"
                   >member disabled</UBadge
+                >
+                <UBadge
+                  v-else-if="t.override_name || t.override_title || t.override_description"
+                  icon="i-lucide-pencil"
+                  color="primary"
+                  variant="subtle"
+                  title="Presented differently in this bundle than the upstream reports it"
+                  >overridden</UBadge
                 >
               </td>
               <td>{{ t.name }}</td>
@@ -374,26 +473,145 @@ onMounted(async () => {
               </td>
             </tr>
             <tr v-if="tools.length === 0">
-              <td colspan="7" class="text-gray-500">No tools in this bundle.</td>
+              <td colspan="7" class="text-muted">No tools in this bundle.</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <!-- Endpoints -->
-      <div class="wf-card space-y-2">
-        <h2 class="text-sm font-semibold">Endpoints serving this bundle</h2>
-        <ul class="text-sm">
-          <li v-for="e in bundleEndpoints" :key="e.name">
-            <NuxtLink
-              :to="`/endpoints/${e.name}`"
-              class="underline"
-              :data-testid="`bundle-endpoint-${e.name}`"
-              >{{ e.name }}</NuxtLink
+      <div class="wf-card space-y-4">
+        <div>
+          <h2 class="text-sm font-semibold">Endpoints</h2>
+          <p class="wf-help">
+            The public URLs this bundle is served at. Create one per kind of client: OAuth for
+            people and their MCP clients, an API key for scripts, and a profile that shapes the
+            tools for claude.ai or ChatGPT.
+          </p>
+        </div>
+        <table class="wf-table" data-testid="bundle-endpoints-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Profile</th>
+              <th>Auth modes</th>
+              <th>Enabled</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="e in bundleEndpoints" :key="e.name">
+              <td class="whitespace-nowrap">
+                <NuxtLink
+                  :to="`/endpoints/${e.name}`"
+                  class="inline-flex items-center gap-1.5 underline"
+                  :data-testid="`bundle-endpoint-${e.name}`"
+                  ><UIcon name="i-lucide-plug-zap" class="size-4 text-muted" />{{ e.name }}</NuxtLink
+                >
+              </td>
+              <td class="whitespace-nowrap">
+                <UBadge
+                  :icon="PROFILE_ICON[e.profile]"
+                  :color="e.profile === 'default' ? 'neutral' : 'primary'"
+                  variant="subtle"
+                  :title="PROFILE_HELP[e.profile]"
+                  >{{ e.profile }}</UBadge
+                >
+              </td>
+              <td class="whitespace-nowrap space-x-1">
+                <UBadge
+                  v-for="mode in e.auth_modes"
+                  :key="mode"
+                  :icon="ENDPOINT_AUTH_ICON[mode]"
+                  :color="mode === 'none' ? 'warning' : 'neutral'"
+                  variant="subtle"
+                  :title="ENDPOINT_AUTH_HELP[mode]"
+                  >{{ mode }}</UBadge
+                >
+              </td>
+              <td>
+                <UBadge
+                  :icon="e.enabled ? 'i-lucide-circle-check' : 'i-lucide-circle-pause'"
+                  :color="e.enabled ? 'success' : 'neutral'"
+                  variant="subtle"
+                  >{{ e.enabled ? "enabled" : "disabled" }}</UBadge
+                >
+              </td>
+            </tr>
+            <tr v-if="bundleEndpoints.length === 0">
+              <td colspan="4" class="text-muted">No endpoints yet; this bundle is not reachable.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <form class="space-y-3 max-w-xl border-t border-muted pt-4" @submit.prevent="createEndpoint">
+          <h3 class="text-sm font-medium">Create endpoint</h3>
+          <div>
+            <label class="wf-label" for="create-endpoint-name">Name (becomes the URL path)</label>
+            <input
+              id="create-endpoint-name"
+              v-model="createName"
+              class="wf-input"
+              data-testid="create-endpoint-name"
+            />
+          </div>
+          <div>
+            <label class="wf-label" for="create-endpoint-profile">Profile</label>
+            <select
+              id="create-endpoint-profile"
+              v-model="createProfile"
+              class="wf-input"
+              data-testid="create-endpoint-profile"
             >
-          </li>
-          <li v-if="bundleEndpoints.length === 0" class="text-gray-500">No endpoints.</li>
-        </ul>
+              <option v-for="p in profiles" :key="String(p.name)" :value="p.name">
+                {{ p.name }}<template v-if="p.description"> — {{ p.description }}</template>
+              </option>
+            </select>
+            <p
+              v-if="createProfile === 'chatgpt'"
+              class="text-amber-600 text-sm mt-1"
+              data-testid="chatgpt-warning"
+            >
+              {{ chatgptWarning }}
+            </p>
+          </div>
+          <div>
+            <span class="wf-label">Auth modes</span>
+            <div class="flex gap-4 text-sm">
+              <label class="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  data-testid="auth-mode-oauth"
+                  :checked="createAuthModes.includes('oauth')"
+                  @change="toggleAuthMode('oauth', ($event.target as HTMLInputElement).checked)"
+                />
+                oauth
+              </label>
+              <label class="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  data-testid="auth-mode-api_key"
+                  :checked="createAuthModes.includes('api_key')"
+                  @change="toggleAuthMode('api_key', ($event.target as HTMLInputElement).checked)"
+                />
+                api_key
+              </label>
+              <label class="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  data-testid="auth-mode-none"
+                  :checked="createAuthModes.includes('none')"
+                  @change="toggleAuthMode('none', ($event.target as HTMLInputElement).checked)"
+                />
+                none
+              </label>
+            </div>
+          </div>
+          <label class="flex items-center gap-1 text-sm">
+            <input v-model="allowUnauthenticated" type="checkbox" data-testid="allow-unauthenticated" />
+            Allow unauthenticated access (required for auth mode "none")
+          </label>
+          <UButton type="submit" size="sm" data-testid="create-endpoint-submit">Create endpoint</UButton>
+        </form>
       </div>
     </template>
   </div>

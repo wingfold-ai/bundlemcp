@@ -26,15 +26,14 @@ export async function createApiKeyEndpoint(
   endpoint: string,
   bundle: string,
 ): Promise<void> {
-  await page.goto("/endpoints");
+  await page.goto(`/bundles/${bundle}`);
   await page.getByTestId("create-endpoint-name").fill(endpoint);
-  await page.getByTestId("create-endpoint-bundle").selectOption(bundle);
   await page.getByTestId("auth-mode-api_key").check();
   // The create form pre-selects "oauth"; clear it so the endpoint really is
   // api_key-only (otherwise later oauth assertions would be vacuous).
   await page.getByTestId("auth-mode-oauth").uncheck();
   await page.getByTestId("create-endpoint-submit").click();
-  await expect(page.getByTestId(`open-${endpoint}`)).toBeVisible();
+  await expect(page.getByTestId(`bundle-endpoint-${endpoint}`)).toBeVisible();
 }
 
 // Create an API key through the UI and return its one-time secret value.

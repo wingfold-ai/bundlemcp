@@ -127,7 +127,7 @@ async function revokeConsent(userId: string, consentId: string) {
             <td colspan="5">
               <p
                 v-if="(consentsByUser[u.id] ?? []).length === 0"
-                class="text-sm text-gray-500"
+                class="text-sm text-muted"
               >
                 No consents.
               </p>
