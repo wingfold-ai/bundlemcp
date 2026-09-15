@@ -50,7 +50,7 @@ from bundlemcp.infrastructure.valkey.signal_bus import ValkeySignalBus
 from bundlemcp.infrastructure.valkey.valkey_single_use_state import ValkeySingleUseState
 from bundlemcp.main.composition_overrides import CompositionOverrides
 from bundlemcp.main.container import AppContainer
-from bundlemcp.main.mcp_edge_assembly import McpEdgeAssembly
+from bundlemcp.main.mcp_gateway_assembly import McpGatewayAssembly
 
 log = structlog.get_logger(__name__)
 
@@ -142,7 +142,7 @@ class CompositionRoot:
         )
         auth_failure_guard = AuthFailureGuard(auth_failure_limiter, settings)
         rate_limiter = overrides.rate_limiter or ValkeyRateLimiter(redis, counters)
-        mcp_edge = McpEdgeAssembly(
+        mcp_router = McpGatewayAssembly(
             settings=settings,
             unit_of_work_factory=units,
             sessions=session_store,
@@ -209,7 +209,7 @@ class CompositionRoot:
             ),
             oidc_provider=await self._build_oidc_provider(),
             invalidation=subscriber,
-            mcp_edge=mcp_edge,
+            mcp_router=mcp_router,
             client_metadata=overrides.client_metadata_fetcher
             or HttpxClientMetadataFetcher(settings, redis),
         )

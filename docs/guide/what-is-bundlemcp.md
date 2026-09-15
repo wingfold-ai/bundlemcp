@@ -61,6 +61,9 @@ you need a place to:
 bundlemcp centralises all of that, and keeps its own state out of process
 memory so that restarts and additional replicas never break a session.
 
+For a detailed breakdown of how bundlemcp differs from tool frameworks, see
+[bundlemcp vs. FastMCP](/guide/bundlemcp-vs-fastmcp).
+
 ## Where to go next
 
 - [Quickstart](/guide/quickstart) brings up the full stack with Docker Compose

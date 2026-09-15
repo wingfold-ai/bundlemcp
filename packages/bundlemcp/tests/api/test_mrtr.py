@@ -11,7 +11,7 @@ import asyncio
 import json
 
 import pytest
-from bundlemcp.api.mcp.mrtr import RequestState, arguments_digest
+from bundlemcp.api.mcp.relay import RequestState, arguments_digest
 from bundlemcp.application.metering.meter_decision import MeterDecision
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
 from bundlemcp.domain.access.caller_identity import CallerIdentity

@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from bundlemcp.api.mcp.request_context import RequestContext
+from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.domain.audit.audit_record import AuditRecord
 from bundlemcp.domain.audit.audit_status import AuditStatus
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
