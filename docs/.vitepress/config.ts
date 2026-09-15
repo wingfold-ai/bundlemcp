@@ -34,6 +34,7 @@ export default defineConfig({
           { text: "What is bundlemcp?", link: "/guide/what-is-bundlemcp" },
           { text: "Quickstart", link: "/guide/quickstart" },
           { text: "Core concepts", link: "/guide/concepts" },
+          { text: "Authentication", link: "/guide/authentication" },
           { text: "Roles and identity", link: "/guide/roles-and-identity" },
         ],
       },

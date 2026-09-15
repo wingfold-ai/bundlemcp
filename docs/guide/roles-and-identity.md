@@ -1,7 +1,10 @@
 # Roles and identity
 
 Two questions come up on every deployment: who may do what, and which
-identity a call carries at each step. This page answers both.
+identity a call carries at each step. This page answers both. For *how* each
+credential is obtained and validated — the identity provider, the gateway's
+OAuth server, API keys, and the pass-through to upstream servers — read
+[Authentication](/guide/authentication) first.
 
 ## Two roles
 

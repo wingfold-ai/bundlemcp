@@ -11,6 +11,10 @@ design. The same login serves two purposes:
 A user record is created on first login from the provider's `(issuer, sub)`
 pair, with email and display name taken from the claims.
 
+This page covers **configuring the provider**. For how the provider's login
+combines with the gateway's own OAuth server and API keys — the full picture —
+see [Authentication](/guide/authentication).
+
 ## Configuring a provider
 
 Register a **confidential** OpenID Connect client with your provider:

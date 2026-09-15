@@ -4,6 +4,10 @@ An MCP server behind the gateway usually wants to know **who** is calling:
 to keep per-user state, apply quotas, or scope data. The gateway offers two
 mechanisms with different trust levels, and one route for verifying.
 
+This page is the upstream half of a bigger picture; for how the caller got
+*into* the gateway in the first place, see
+[Authentication](/guide/authentication).
+
 ## `X-MCP-User`: trusted on the internal network
 
 When a server's `send_identity_header` is on (the default), every request the

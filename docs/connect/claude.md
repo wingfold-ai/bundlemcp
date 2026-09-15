@@ -71,6 +71,10 @@ Tokens are **bound to the endpoint** they were issued for (RFC 8707
 client re-authorises there. Every authorisation response carries `iss` so a
 client can detect a mix-up between authorization servers.
 
+The full model — how this flow relates to the identity provider and to API
+keys, and what the upstream server sees — is in
+[Authentication](/guide/authentication).
+
 ## Troubleshooting
 
 **"Connection failed" right after entering the URL.** claude.ai fetched the
