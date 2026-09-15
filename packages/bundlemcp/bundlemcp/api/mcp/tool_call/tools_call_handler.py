@@ -5,11 +5,11 @@ from mcp.shared.inbound import ERROR_CODE_HTTP_STATUS, validate_mcp_param_header
 from mcp.types import INVALID_PARAMS, InputResponses
 from pydantic import TypeAdapter, ValidationError
 
-from bundlemcp.api.mcp.dialect import Era
-from bundlemcp.api.mcp.jsonrpc import rpc_error
-from bundlemcp.api.mcp.jsonrpc_message import JsonRpcMessage
-from bundlemcp.api.mcp.mrtr import RequestState, ResumeInputs, StateRejected
-from bundlemcp.api.mcp.request_context import RequestContext
+from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
+from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
+from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
+from bundlemcp.api.mcp.protocol.request_context import RequestContext
+from bundlemcp.api.mcp.relay import RequestState, ResumeInputs, StateRejected
 from bundlemcp.api.mcp.tool_call.audit_context import AuditContext
 from bundlemcp.api.mcp.tool_call.call_outcome import UPSTREAM_FAILURE
 from bundlemcp.api.mcp.tool_call.resumed_call import ResumedCall
@@ -34,7 +34,7 @@ class ToolsCallHandler:
                 audit.record(AuditStatus.DENIED, denied_reason="unknown_or_disabled_tool")
             )
             return rpc_error(message.id, INVALID_PARAMS, f"Unknown tool: {presented_name}")
-        if ctx.era is Era.MODERN:
+        if ctx.era is ProtocolEra.STATELESS:
             # PROT-15: every Mcp-Param-* header must agree with the argument it mirrors.
             rejection = validate_mcp_param_headers(
                 tool.input_schema,

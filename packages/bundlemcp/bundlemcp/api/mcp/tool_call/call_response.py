@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any
 from fastapi import Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from bundlemcp.api.mcp.mrtr import CallEvents
-from bundlemcp.api.mcp.sse import SSE_HEADERS, sse_data
+from bundlemcp.api.mcp.protocol.sse import SSE_HEADERS, sse_data
+from bundlemcp.api.mcp.relay import CallEvents
 
 if TYPE_CHECKING:
     from bundlemcp.api.mcp.tool_call.tool_call import ToolCall
