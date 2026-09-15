@@ -5,7 +5,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
-from bundlemcp.api.mcp.mcp_edge import McpEdge
+from bundlemcp.api.mcp.routing.gateway_router import McpGatewayRouter
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
@@ -89,4 +89,6 @@ class AppContainer(BaseModel):
     invalidation: InvalidationSubscriber = Field(
         description="This replica's subscription to configuration changes"
     )
-    mcp_edge: McpEdge = Field(description="The Streamable-HTTP edge serving every endpoint")
+    mcp_router: McpGatewayRouter = Field(
+        description="The Streamable-HTTP front controller serving every endpoint"
+    )

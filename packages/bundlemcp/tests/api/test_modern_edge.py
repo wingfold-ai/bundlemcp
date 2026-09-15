@@ -300,3 +300,14 @@ async def test_legacy_protocol_can_be_switched_off(engine, redis):
         assert err["code"] == INVALID_PARAMS
         assert MODERN in err["message"]
         assert (await _modern(http, "tools/list")).status_code == 200
+
+
+async def test_payload_too_large_rejected_with_413(http):
+    """SEC-1: payload exceeding 4MB is rejected early with 413 without database admission."""
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Content-Length": str(5 * 1024 * 1024), "Content-Type": "application/json"},
+        content=b"{}",
+    )
+    assert resp.status_code == 413
+

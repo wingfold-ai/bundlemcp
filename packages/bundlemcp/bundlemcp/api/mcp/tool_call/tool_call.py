@@ -9,11 +9,12 @@ from typing import Any
 import structlog
 from fastapi import Response
 
-from bundlemcp.api.mcp.dialect import Era
-from bundlemcp.api.mcp.forwarded_headers import forwarded_headers
-from bundlemcp.api.mcp.jsonrpc import rpc_error
-from bundlemcp.api.mcp.jsonrpc_message import JsonRpcMessage
-from bundlemcp.api.mcp.mrtr import (
+from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
+from bundlemcp.api.mcp.protocol.forwarded_headers import forwarded_headers
+from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
+from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
+from bundlemcp.api.mcp.protocol.request_context import RequestContext
+from bundlemcp.api.mcp.relay import (
     CallEvents,
     InputChannel,
     ParkingChannel,
@@ -24,7 +25,7 @@ from bundlemcp.api.mcp.mrtr import (
     arguments_digest,
     input_required_result,
 )
-from bundlemcp.api.mcp.request_context import RequestContext
+from bundlemcp.api.mcp.relay.client_relay import ClientRelay, NotificationSink
 from bundlemcp.api.mcp.tool_call.audit_context import AuditContext
 from bundlemcp.api.mcp.tool_call.call_outcome import (
     UPSTREAM_FAILURE,
@@ -35,7 +36,6 @@ from bundlemcp.api.mcp.tool_call.call_response import (
     StreamedCallResponse,
 )
 from bundlemcp.api.mcp.tool_call.call_status import CallStatus
-from bundlemcp.api.mcp.tool_call.client_relay import ClientRelay, NotificationSink
 from bundlemcp.api.mcp.tool_call.tool_call_support import ToolCallSupport
 from bundlemcp.api.mcp.tool_call.upstream_call import ProgressCallback, UpstreamCall
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
@@ -154,7 +154,7 @@ class ToolCall:
         # result as the final event. PROT-19: a modern client is always streamed,
         # so closing the stream is its cancellation signal. Otherwise the
         # buffered JSON path.
-        if self._message.progress_token is not None or self._ctx.era is Era.MODERN:
+        if self._message.progress_token is not None or self._ctx.era is ProtocolEra.STATELESS:
             return await StreamedCallResponse(self._message.progress_token).render(self)
         return await BufferedCallResponse().render(self)
 
@@ -257,7 +257,7 @@ class ToolCall:
 
     def _channel(self) -> InputChannel | None:
         """How an upstream's request for input reaches this client (PROT-18)."""
-        if self._ctx.era is Era.HANDSHAKE:
+        if self._ctx.era is ProtocolEra.SESSION:
             return None  # PROT-4: the GET stream relay
         if self._preanswered is not None:
             return PreansweredChannel(self._preanswered)
@@ -316,7 +316,7 @@ class ToolCall:
             handle=self._handle,
             timeouts=self._timeouts,
             on_progress=on_progress,
-            raw_input_required=self._ctx.era is Era.MODERN,
+            raw_input_required=self._ctx.era is ProtocolEra.STATELESS,
             resume=self._resume,
         )
 

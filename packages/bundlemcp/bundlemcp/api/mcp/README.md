@@ -3,10 +3,26 @@
 This package is the core of bundlemcp: it terminates the client-facing
 Streamable-HTTP MCP protocol, composes a bundle's tool surface, proxies calls to
 the right upstream server, and records what happened. The client edge is
-**hand-rolled** (`mcp_edge.py`) rather than delegated to FastMCP's session
-manager, precisely so that session state lives in the RESP store and any replica
-can serve any request (ARC-9/ARC-10). FastMCP is used only for the *upstream*
-leg.
+**hand-rolled** (`routing/gateway_router.py`) rather than delegated to FastMCP's
+session manager, precisely so that session state lives in the RESP store and any
+replica can serve any request (ARC-9/ARC-10). FastMCP is used only for the
+*upstream* leg.
+
+## Package layout
+
+The package is split by concern, so the serving machinery is self-evident next
+to the one method feature that owns a package:
+
+| Package | Holds |
+|---|---|
+| `routing/` | The front door: `McpGatewayRouter` (POST/GET/DELETE), the `AdmissionGate` pipeline, the era `adapters/`, the session SSE `session_stream.py`, and `authentication/` (who may call) |
+| `protocol/` | The wire vocabulary: version-neutral JSON-RPC envelope, contexts, error helper, protocol version, log levels, server info, cache hints, forwarded headers, SSE framing, session header — and `dialect/`, the per-revision part of the same subject |
+| `dispatch/` | The method surface: `MethodRegistry`, the `MethodHandler` contract, the rate-limiting decorator/gate, and `handlers/` (one class per JSON-RPC method) |
+| `relay/` | Bidirectional server-to-client interaction: the open-stream `ClientRelay` and the stateless `input_required` retry machinery |
+| `tool_call/` | The `tools/call` execution pipeline |
+| `controllers/` | The FastAPI route class for `/{endpoint}/mcp` |
+| `providers.py` | FastAPI dependency that resolves the router off the container |
+
 
 Read [../oauth/README.md](../oauth/README.md) for how callers are
 authenticated; this doc picks up once a request is authorized.
@@ -25,7 +41,7 @@ authenticated; this doc picks up once a request is authorized.
 MCP 2026-07-28 removed the `initialize` handshake, the `Mcp-Session-Id`
 session, the HTTP GET stream and server-initiated requests. The edge serves
 that revision **and** the handshake revisions (2025-11-25 and earlier) on the
-same URL, picking a *dialect* once per request (`dialect/`, PROT-13):
+same URL, picking a *dialect* once per request (`protocol/dialect/`, PROT-13):
 
 | Client opens with | Dialect | Where its facts come from |
 |---|---|---|
@@ -42,7 +58,7 @@ POST stream that replaces the GET stream; `GET`/`DELETE` without a session id
 answer 405). Handshake-only: `ping`, `logging/setLevel`, `resources/subscribe`.
 A modern `tools/call` is always streamed, so a client disconnect is its
 cancellation (PROT-19). When an upstream asks for client input during a modern
-client's call, `mrtr/` turns it into an `input_required` result the client
+client's call, `relay/` turns it into an `input_required` result the client
 answers by retrying: pass-through of the upstream's own result for a modern
 upstream, park-and-resume over the signal bus for a handshake upstream, re-run
 as the fallback (PROT-18). The upstream leg negotiates its own era per server
@@ -51,7 +67,7 @@ client; a modern request skips the session steps.
 
 ## 1. The request lifecycle
 
-A `tools/call` to `POST /{endpoint_name}/mcp` (`mcp_edge.py::McpEdge.post`)
+A `tools/call` to `POST /{endpoint_name}/mcp` (`routing/gateway_router.py::McpGatewayRouter.post`)
 travels through these stages. Each is a named function you can grep for.
 
 ```
@@ -315,7 +331,16 @@ resolve). `/healthz` is liveness; `/readyz` checks Postgres and Redis.
 
 | File | Responsibility |
 |------|----------------|
-| `mcp_edge.py` | The Streamable-HTTP edge: POST/GET/DELETE `/{endpoint}/mcp`, admission, session lifecycle; handlers in `handlers/`, the call pipeline in `tool_call/` |
+| `routing/gateway_router.py` | The Streamable-HTTP front controller: POST/GET/DELETE `/{endpoint}/mcp`, size gate, era dispatch; handlers in `dispatch/handlers/`, the call pipeline in `tool_call/` |
+| `routing/admission_gate.py` | Envelope parsing and caller authentication/endpoint resolution |
+| `routing/authentication/` | Endpoint authenticators: deciding who a caller is |
+| `routing/adapters/` | `StatelessMcpAdapter` and `SessionMcpAdapter`: one per protocol era |
+| `routing/session_stream.py` | The session-era SSE event stream |
+| `protocol/` | JSON-RPC envelope, contexts, error helper, version/log/server-info, cache hints, forwarded headers, SSE framing |
+| `protocol/dialect/` | One dialect per MCP revision: what differs on the wire |
+| `dispatch/` | `MethodRegistry`, `MethodHandler`, rate-limit decorator and gate |
+| `dispatch/handlers/` | One handler class per JSON-RPC method |
+| `relay/` | `ClientRelay` and the stateless `input_required` retry machinery |
 | `composition.py` | `BundleView`, `load_bundle_view`, name prefixing, override/curation resolution, profile transforms |
 | `discovery.py` | `DiscoveryService` — background probe, tool cache sync, schema hashing, capabilities, health |
 | `upstream.py` | `default_client_factory` — per-call FastMCP client, header merge, egress check |
@@ -328,4 +353,4 @@ resolve). `/healthz` is liveness; `/readyz` checks Postgres and Redis.
 | `metrics.py` | `Counters` — in-process metric counters |
 | `audit.py` | `AuditWriter` — async, bounded, fire-and-forget audit queue |
 | `egress.py` | `check_url_allowed` — SSRF/egress policy |
-| `protocol_version.py` | MCP protocol-version negotiation |
+| `protocol/protocol_version.py` | MCP protocol-version negotiation |

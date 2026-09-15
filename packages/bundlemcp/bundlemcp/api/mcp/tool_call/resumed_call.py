@@ -7,10 +7,10 @@ import structlog
 from fastapi import Response
 from fastapi.responses import StreamingResponse
 
-from bundlemcp.api.mcp.jsonrpc_message import JsonRpcMessage
-from bundlemcp.api.mcp.mrtr import RequestState
-from bundlemcp.api.mcp.request_context import RequestContext
-from bundlemcp.api.mcp.sse import SSE_HEADERS
+from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
+from bundlemcp.api.mcp.protocol.request_context import RequestContext
+from bundlemcp.api.mcp.protocol.sse import SSE_HEADERS
+from bundlemcp.api.mcp.relay import RequestState
 from bundlemcp.api.mcp.tool_call.call_response import stream_events
 from bundlemcp.api.mcp.tool_call.tool_call import ToolCall
 from bundlemcp.api.mcp.tool_call.tool_call_support import ToolCallSupport

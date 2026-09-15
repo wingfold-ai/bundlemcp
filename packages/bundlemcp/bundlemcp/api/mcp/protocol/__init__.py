@@ -1,0 +1,1 @@
+"""The wire vocabulary: version-neutral JSON-RPC shape here, per-revision in ``dialect/``."""
