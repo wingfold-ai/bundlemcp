@@ -42,6 +42,7 @@ in the same PR as the change they govern
 | [0032](../adr/0032-egress-policy-scope.md) | Egress policy on every outbound URL | Remote-named OAuth endpoints were unchecked; one SSRF gate |
 | [0033](../adr/0033-clean-architecture-layers.md) | Four clean-architecture layers; contracts owned by the application | Any adapter is swappable and fakeable |
 | [0034](../adr/0034-pydantic-entities-and-row-classes.md) | Entities are plain Pydantic models; row classes live in the persistence adapter | The domain imports no ORM; rows map generically |
+| [0035](../adr/0035-front-controller-protocol-adapters-and-admission-pipeline.md) | Front Controller, Protocol Adapters (Stateless vs. Session), and Admission Pipeline | DoS defense by design; intrinsic era naming; decomposed router |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

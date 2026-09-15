@@ -108,6 +108,10 @@ See [spec/00-overview.md](spec/00-overview.md) and
 
 @.claude/docs/module-naming.md
 
+- **Design principles and intrinsic naming.** Protocols and modules are named for their inherent architectural mechanism (no temporal labels like `modern` or `legacy`), DoS defense sequences cheap in-memory checks before DB I/O, and differing transport capabilities are modeled with Front Controller + Protocol Adapters:
+
+@.claude/docs/design-principles.md
+
 - **Controllers, not route functions.** An HTTP surface is a class deriving
   from `Controller`; its shared policy is a router-level dependency; handlers
   call one service method. The MCP edge dispatches JSON-RPC through a

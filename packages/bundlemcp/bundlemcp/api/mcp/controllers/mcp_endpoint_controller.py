@@ -4,7 +4,7 @@ from fastapi import Request, Response
 
 from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.route import route
-from bundlemcp.api.mcp.providers import McpEdgeProvider
+from bundlemcp.api.mcp.providers import McpGatewayRouterProvider
 
 
 class McpEndpointController(Controller):
@@ -12,18 +12,18 @@ class McpEndpointController(Controller):
 
     @route.post("/{endpoint_name}/mcp")
     async def post_message(
-        self, endpoint_name: str, request: Request, edge: McpEdgeProvider
+        self, endpoint_name: str, request: Request, router: McpGatewayRouterProvider
     ) -> Response:
-        return await edge.post(request, endpoint_name)
+        return await router.post(request, endpoint_name)
 
     @route.get("/{endpoint_name}/mcp")
     async def open_stream(
-        self, endpoint_name: str, request: Request, edge: McpEdgeProvider
+        self, endpoint_name: str, request: Request, router: McpGatewayRouterProvider
     ) -> Response:
-        return await edge.open_stream(request, endpoint_name)
+        return await router.open_stream(request, endpoint_name)
 
     @route.delete("/{endpoint_name}/mcp")
     async def close_session(
-        self, endpoint_name: str, request: Request, edge: McpEdgeProvider
+        self, endpoint_name: str, request: Request, router: McpGatewayRouterProvider
     ) -> Response:
-        return await edge.close_session(request, endpoint_name)
+        return await router.close_session(request, endpoint_name)

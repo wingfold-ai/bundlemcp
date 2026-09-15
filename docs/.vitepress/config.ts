@@ -32,6 +32,7 @@ export default defineConfig({
         text: "Guide",
         items: [
           { text: "What is bundlemcp?", link: "/guide/what-is-bundlemcp" },
+          { text: "bundlemcp vs. FastMCP", link: "/guide/bundlemcp-vs-fastmcp" },
           { text: "Quickstart", link: "/guide/quickstart" },
           { text: "Core concepts", link: "/guide/concepts" },
           { text: "Roles and identity", link: "/guide/roles-and-identity" },

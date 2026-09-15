@@ -1,6 +1,6 @@
 """Handshake-era version negotiation (PROT-12)."""
 
-from bundlemcp.api.mcp.protocol_version import (
+from bundlemcp.api.mcp.protocol.protocol_version import (
     HANDSHAKE_PROTOCOL_VERSIONS,
     negotiate_handshake_version,
 )
@@ -42,7 +42,7 @@ def test_no_supported_versions_fails():
 
 def test_version_lists_come_from_the_sdk_newest_first():
     """PROT-22: the served revisions are the SDK's, above the gateway's handshake floor."""
-    from bundlemcp.api.mcp.protocol_version import (
+    from bundlemcp.api.mcp.protocol.protocol_version import (
         MODERN_PROTOCOL_VERSIONS,
         OLDEST_HANDSHAKE_SERVED,
     )
@@ -58,7 +58,7 @@ def test_version_lists_come_from_the_sdk_newest_first():
 
 def test_dialects_allow_exactly_the_revisions_methods():
     """PROT-8/PROT-13/PROT-17/PROT-20: the method set per revision is the SDK's, not a denylist."""
-    from bundlemcp.api.mcp.dialect import HandshakeDialect, ModernDialect
+    from bundlemcp.api.mcp.protocol.dialect import HandshakeDialect, ModernDialect
 
     handshake = HandshakeDialect("2025-11-25")
     modern = ModernDialect("2026-07-28")

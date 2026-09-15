@@ -8,14 +8,14 @@ import structlog
 from mcp.types import LOG_LEVEL_META_KEY, InputRequiredResult, InputResponses
 from pydantic import TypeAdapter
 
-from bundlemcp.api.mcp.mrtr import ResumeInputs
+from bundlemcp.api.mcp.relay import ResumeInputs
+from bundlemcp.api.mcp.relay.client_relay import ClientRelay
 from bundlemcp.api.mcp.tool_call.call_outcome import (
     CANCELLED,
     UPSTREAM_FAILURE,
     CallOutcome,
 )
 from bundlemcp.api.mcp.tool_call.call_status import CallStatus
-from bundlemcp.api.mcp.tool_call.client_relay import ClientRelay
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.serving.call_handle import CallHandle
