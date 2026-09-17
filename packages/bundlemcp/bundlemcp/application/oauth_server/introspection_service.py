@@ -4,6 +4,7 @@ from bundlemcp.application.auth.auth_service import AuthService
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.schemas import IntrospectionResponse
 from bundlemcp.domain.access.caller_identity import API_KEY_SUBJECT_PREFIX
+from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
 from bundlemcp.domain.shared.secrets import hash_token
 
 INACTIVE = IntrospectionResponse(active=False)
@@ -35,12 +36,17 @@ class TokenIntrospectionService:
         if user is None or not user.is_active:
             return INACTIVE
         endpoint = await self._endpoints.get(row.endpoint_id)
+        audience = (
+            EndpointResource(public_base=self._public_base, endpoint_name=endpoint.name).url
+            if endpoint
+            else None
+        )
         return IntrospectionResponse(
             active=True,
             sub=str(row.user_id),
             client_id=row.client_id,
             scope=row.scope,
             exp=int(row.expires_at.timestamp()),
-            aud=f"{self._public_base}/{endpoint.name}/mcp" if endpoint else None,
+            aud=audience,
             email=user.email,
         )

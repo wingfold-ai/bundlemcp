@@ -1,5 +1,8 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from bundlemcp.domain.oauth.grant_type import GrantType
+from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
+
 
 class ClientIdMetadataDocument(BaseModel):
     """A client's self-published metadata, fetched from the URL it uses as its client_id."""
@@ -12,13 +15,13 @@ class ClientIdMetadataDocument(BaseModel):
     redirect_uris: list[str] = Field(
         min_length=1, description="URIs the authorization response may be sent to"
     )
-    token_endpoint_auth_method: str = Field(
-        default="none",
+    token_endpoint_auth_method: TokenEndpointAuthMethod = Field(
+        default=TokenEndpointAuthMethod.NONE,
         description="How the client authenticates at the token endpoint; only 'none' is "
         "accepted, such clients prove themselves with PKCE",
     )
-    grant_types: list[str] = Field(
-        default_factory=lambda: ["authorization_code", "refresh_token"],
+    grant_types: list[GrantType] = Field(
+        default_factory=lambda: [GrantType.AUTHORIZATION_CODE, GrantType.REFRESH_TOKEN],
         description="Grant types the client intends to use",
     )
     scope: str | None = Field(default=None, description="Space-separated scopes requested")

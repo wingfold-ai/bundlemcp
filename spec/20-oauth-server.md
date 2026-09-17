@@ -20,7 +20,14 @@ application layer can resolve a stable `sub`.
 - **OAS-2 Dynamic Client Registration** (RFC 7591): `POST /oauth/register`,
   open registration, public clients (`token_endpoint_auth_method: none`)
   by default, redirect URIs validated (https or localhost); an
-  `application_type` sent by the client is accepted and stored. MCP 2026-07-28
+  `application_type` sent by the client is accepted and stored. A
+  registration the server cannot honour is refused with HTTP 400 and the
+  RFC 7591 error code, never the framework's validation shape: an
+  unsupported grant type, response type, auth method or application type,
+  or a body that is not valid JSON, is `invalid_client_metadata`; a redirect
+  URI that fails the rule above is `invalid_redirect_uri`. The implicit and
+  password grants stay unsupported: OAuth 2.1 removed them, and MCP clients
+  use the authorization code grant with PKCE. MCP 2026-07-28
   deprecates DCR in favour of Client ID Metadata Documents (OAS-13); it stays
   supported for clients that have not moved (ChatGPT, Claude as of 2026-09).
 - **OAS-3 Authorization code + PKCE**: `GET /oauth/authorize` requires an

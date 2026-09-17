@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from bundlemcp.domain.oauth.code_challenge_method import CodeChallengeMethod
 from bundlemcp.domain.shared.clock import utcnow
 
 
@@ -24,8 +25,9 @@ class OAuthAuthorizationCode(BaseModel):
     )
     scope: str = Field(default="mcp", description="Scopes the code will grant")
     code_challenge: str = Field(description="PKCE challenge the exchange must satisfy")
-    code_challenge_method: str = Field(
-        default="S256", description="How the challenge was derived; only S256 is accepted"
+    code_challenge_method: CodeChallengeMethod = Field(
+        default=CodeChallengeMethod.S256,
+        description="How the challenge was derived; only S256 is accepted",
     )
     expires_at: datetime = Field(description="When the code expires")
     used: bool = Field(  # OAS-3

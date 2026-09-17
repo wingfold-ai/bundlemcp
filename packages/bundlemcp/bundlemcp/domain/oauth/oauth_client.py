@@ -2,6 +2,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from bundlemcp.domain.oauth.application_type import ApplicationType
+from bundlemcp.domain.oauth.grant_type import GrantType
+from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 from bundlemcp.domain.shared.clock import utcnow
 
 
@@ -19,15 +22,16 @@ class OAuthClient(BaseModel):
         default_factory=list,
         description="URIs the authorization response may be sent to",
     )
-    grant_types: list[str] = Field(
-        default_factory=lambda: ["authorization_code", "refresh_token"],
+    grant_types: list[GrantType] = Field(
+        default_factory=lambda: [GrantType.AUTHORIZATION_CODE, GrantType.REFRESH_TOKEN],
         description="Grant types this client registered for",
     )
-    token_endpoint_auth_method: str = Field(
-        default="none", description="How the client authenticates at the token endpoint"
+    token_endpoint_auth_method: TokenEndpointAuthMethod = Field(
+        default=TokenEndpointAuthMethod.NONE,
+        description="How the client authenticates at the token endpoint",
     )
     scope: str = Field(default="mcp", description="Space-separated scopes the client may request")
-    application_type: str | None = Field(  # OAS-2
+    application_type: ApplicationType | None = Field(  # OAS-2
         default=None,
         description="'web' or 'native' as the client registered itself; absent when it did not "
         "say or was described by a metadata document",

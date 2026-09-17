@@ -3,6 +3,7 @@ from bundlemcp.application.errors import OAuthError
 from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
 from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
+from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 from bundlemcp.domain.oauth.pkce import pkce_verifies
 from bundlemcp.domain.shared.secrets import hash_token
@@ -11,7 +12,7 @@ from bundlemcp.domain.shared.secrets import hash_token
 class AuthorizationCodeGrant:
     """Redeem a single-use authorization code, proving possession with PKCE."""
 
-    grant_type = "authorization_code"
+    grant_type = GrantType.AUTHORIZATION_CODE
 
     def __init__(self, uow: UnitOfWork, issuer: TokenIssuer) -> None:
         self._codes = uow.authorization_codes

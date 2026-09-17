@@ -10,10 +10,14 @@ from bundlemcp.application.oauth_server.authorization_request import Authorizati
 from bundlemcp.application.oauth_server.pending_authorization import PendingAuthorization
 from bundlemcp.domain.access.user import User
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
+from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
+from bundlemcp.domain.oauth.code_challenge_method import CodeChallengeMethod
 from bundlemcp.domain.oauth.oauth_authorization_code import OAuthAuthorizationCode
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 from bundlemcp.domain.oauth.oauth_consent import OAuthConsent
 from bundlemcp.domain.oauth.redirect_uri_rule import InvalidRedirectUri, check_redirect_uri
+from bundlemcp.domain.oauth.response_type import ResponseType
+from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.shared.secrets import hash_token
 
@@ -32,14 +36,6 @@ class AuthorizationService:
         self._bundles = uow.bundles
         self._consents = uow.consents
         self._codes = uow.authorization_codes
-
-    def _endpoint_name_from_resource(self, resource: str) -> str | None:
-        """Reverse of the canonical resource identifier; None if it isn't one of ours."""
-        base = self._public_base + "/"
-        if not resource.startswith(base) or not resource.endswith("/mcp"):
-            return None
-        name = resource[len(base) : -len("/mcp")]
-        return name or None
 
     async def validate(self, request: AuthorizationRequest, user: User) -> PendingAuthorization:
         """Check every parameter and bind the request to the signed-in user.
@@ -63,15 +59,15 @@ class AuthorizationService:
                 issuer=self._public_base,  # OAS-14
             )
 
-        if request.response_type != "code":
+        if request.response_type != ResponseType.CODE:
             raise redirect("unsupported_response_type")
-        if not request.code_challenge or request.code_challenge_method != "S256":
+        if not request.code_challenge or request.code_challenge_method != CodeChallengeMethod.S256:
             raise redirect("invalid_request", "PKCE S256 code_challenge required")
         # OAS-10: resolve the endpoint audience from `resource`
-        endpoint_name = self._endpoint_name_from_resource(request.resource)
-        if endpoint_name is None:
+        resource = EndpointResource.parse(self._public_base, request.resource)
+        if resource is None:
             raise redirect("invalid_target", "resource must identify a bundlemcp endpoint")
-        endpoint = await self._endpoints.by_name(endpoint_name)
+        endpoint = await self._endpoints.by_name(resource.endpoint_name)
         if endpoint is None or not endpoint.enabled or not endpoint.accepts(EndpointAuthMode.OAUTH):
             raise redirect("invalid_target", "unknown endpoint")
         bundle = await self._bundles.get(endpoint.bundle_id)
@@ -110,7 +106,7 @@ class AuthorizationService:
         document = await self._client_metadata.fetch(client_id)
         if document.client_id != client_id:
             raise InvalidInputError("client metadata document does not name its own URL")
-        if document.token_endpoint_auth_method != "none":
+        if document.token_endpoint_auth_method != TokenEndpointAuthMethod.NONE:
             raise InvalidInputError("client metadata documents may only describe public clients")
         for uri in document.redirect_uris:
             try:
@@ -119,7 +115,9 @@ class AuthorizationService:
                 raise InvalidInputError(str(exc)) from None
         client = await self._clients.get(client_id)
         if client is None:
-            client = OAuthClient(client_id=client_id, token_endpoint_auth_method="none")
+            client = OAuthClient(
+                client_id=client_id, token_endpoint_auth_method=TokenEndpointAuthMethod.NONE
+            )
         client.client_name = document.client_name
         client.redirect_uris = list(document.redirect_uris)
         client.grant_types = list(document.grant_types)
@@ -157,7 +155,7 @@ class AuthorizationService:
                 redirect_uri=pending.redirect_uri,
                 scope=pending.scope,
                 code_challenge=pending.code_challenge,
-                code_challenge_method="S256",
+                code_challenge_method=CodeChallengeMethod.S256,
                 expires_at=utcnow() + CODE_TTL,
             )
         )

@@ -1,6 +1,7 @@
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.domain.oauth.client_credentials import ClientCredentials
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
+from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 from bundlemcp.domain.shared.secrets import hash_token, tokens_equal
 
 
@@ -14,7 +15,7 @@ class OAuthClientAuthenticator:
         client = await self._clients.get(credentials.client_id)
         if client is None:
             return None
-        if client.token_endpoint_auth_method == "none":
+        if client.token_endpoint_auth_method == TokenEndpointAuthMethod.NONE:
             return client
         if not credentials.client_secret or client.client_secret_hash is None:
             return None

@@ -521,7 +521,40 @@ async def test_registration_records_application_type(oauth_env):
         "/oauth/register",
         json={"redirect_uris": ["https://client.example/cb"], "application_type": "desktop"},
     )
-    assert bad.status_code == 422
+    assert bad.status_code == 400
+    assert bad.json()["error"] == "invalid_client_metadata"
+    assert "application_type" in bad.json()["error_description"]
+
+
+async def test_registration_refuses_grants_the_server_does_not_serve(oauth_env):
+    """OAS-2: OAuth 2.1 dropped the implicit grant; asking for it is invalid_client_metadata."""
+    http, app, user = oauth_env
+    resp = await http.post(
+        "/oauth/register",
+        json={"redirect_uris": ["https://client.example/cb"], "grant_types": ["implicit"]},
+    )
+    assert resp.status_code == 400
+    body = resp.json()
+    assert body["error"] == "invalid_client_metadata"
+    assert body["error_description"].startswith("grant_types")
+
+
+async def test_registration_answers_a_malformed_body_in_protocol_terms(oauth_env):
+    """OAS-2: a body FastAPI cannot parse is still an RFC 7591 error, never a bare 422."""
+    http, app, user = oauth_env
+    resp = await http.post(
+        "/oauth/register", content=b"not json", headers={"Content-Type": "application/json"}
+    )
+    assert resp.status_code == 400
+    assert resp.json()["error"] == "invalid_client_metadata"
+
+
+async def test_registration_rejects_a_bad_redirect_uri_with_its_own_error(oauth_env):
+    """OAS-2: a redirect URI that is neither https nor localhost is invalid_redirect_uri."""
+    http, app, user = oauth_env
+    resp = await http.post("/oauth/register", json={"redirect_uris": ["http://client.example/cb"]})
+    assert resp.status_code == 400
+    assert resp.json()["error"] == "invalid_redirect_uri"
 
 
 async def test_code_burn_is_a_compare_and_set(oauth_env):

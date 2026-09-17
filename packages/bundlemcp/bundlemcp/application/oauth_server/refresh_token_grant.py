@@ -3,6 +3,7 @@ from bundlemcp.application.errors import OAuthError
 from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
 from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
+from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.oauth_access_token import OAuthAccessToken
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 from bundlemcp.domain.shared.secrets import hash_token
@@ -16,7 +17,7 @@ class RefreshTokenGrant:
     revoked, whichever party still holds the newest one.
     """
 
-    grant_type = "refresh_token"
+    grant_type = GrantType.REFRESH_TOKEN
 
     def __init__(self, uow: UnitOfWork, issuer: TokenIssuer) -> None:
         self._tokens = uow.oauth_tokens

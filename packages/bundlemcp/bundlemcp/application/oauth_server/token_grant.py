@@ -2,6 +2,7 @@ from typing import Protocol, runtime_checkable
 
 from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
+from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 
 
@@ -10,7 +11,7 @@ class TokenGrant(Protocol):
     """One way a client may obtain tokens at the token endpoint."""
 
     @property
-    def grant_type(self) -> str:
+    def grant_type(self) -> GrantType:
         """The grant_type value this grant serves."""
         ...
 
