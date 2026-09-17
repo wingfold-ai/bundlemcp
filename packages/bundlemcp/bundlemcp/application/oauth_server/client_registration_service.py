@@ -6,6 +6,7 @@ from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import OAuthError
 from bundlemcp.application.schemas import ClientRegistrationRequest, ClientRegistrationResponse
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 from bundlemcp.domain.oauth.redirect_uri_rule import InvalidRedirectUri, check_redirect_uri
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 from bundlemcp.domain.shared.secrets import hash_token
@@ -24,7 +25,8 @@ class ClientRegistrationService:
             except InvalidRedirectUri:
                 # RFC 7591 section 3.2.2: the protocol's error code, not a generic 4xx
                 raise OAuthError(
-                    "invalid_redirect_uri", f"{uri} must be https, or http on localhost"
+                    OAuthErrorCode.INVALID_REDIRECT_URI,
+                    f"{uri} must be https, or http on localhost",
                 ) from None
         client_id = f"bmcp_client_{secrets.token_urlsafe(16)}"
         client_secret: str | None = None

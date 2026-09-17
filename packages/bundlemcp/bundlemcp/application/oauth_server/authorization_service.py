@@ -12,6 +12,7 @@ from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
 from bundlemcp.domain.oauth.code_challenge_method import CodeChallengeMethod
 from bundlemcp.domain.oauth.grant_type import GrantType
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 from bundlemcp.domain.oauth.response_type import ResponseType
 
 
@@ -55,28 +56,30 @@ class AuthorizationService:
         # persist it now so the code and tokens that follow can bind to it.
         await self._uow.commit()
 
-        def redirect(error: str, description: str = "") -> AuthorizationRedirectError:
+        def redirect(code: OAuthErrorCode, description: str = "") -> AuthorizationRedirectError:
             return AuthorizationRedirectError(
                 request.redirect_uri,
                 request.state,
-                error,
+                code,
                 description,
                 issuer=self._public_base,  # OAS-14
             )
 
         if request.response_type != ResponseType.CODE:
-            raise redirect("unsupported_response_type")
+            raise redirect(OAuthErrorCode.UNSUPPORTED_RESPONSE_TYPE)
         if not client.allows_grant(GrantType.AUTHORIZATION_CODE):
-            raise redirect("unauthorized_client")
+            raise redirect(OAuthErrorCode.UNAUTHORIZED_CLIENT)
         if not request.code_challenge or request.code_challenge_method != CodeChallengeMethod.S256:
-            raise redirect("invalid_request", "PKCE S256 code_challenge required")
+            raise redirect(OAuthErrorCode.INVALID_REQUEST, "PKCE S256 code_challenge required")
         # OAS-10: resolve the endpoint audience from `resource`
         resource = EndpointResource.parse(self._public_base, request.resource)
         if resource is None:
-            raise redirect("invalid_target", "resource must identify a bundlemcp endpoint")
+            raise redirect(
+                OAuthErrorCode.INVALID_TARGET, "resource must identify a bundlemcp endpoint"
+            )
         endpoint = await self._endpoints.by_name(resource.endpoint_name)
         if endpoint is None or not endpoint.enabled or not endpoint.accepts(EndpointAuthMode.OAUTH):
-            raise redirect("invalid_target", "unknown endpoint")
+            raise redirect(OAuthErrorCode.INVALID_TARGET, "unknown endpoint")
         bundle = await self._bundles.get(endpoint.bundle_id)
         return PendingAuthorization(
             client_id=client.client_id,

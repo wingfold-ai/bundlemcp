@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from bundlemcp.application.errors import OAuthError
 from bundlemcp.application.schemas import ClientRegistrationRequest
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 
 
 async def registration_body(request: Request) -> ClientRegistrationRequest:
@@ -21,13 +22,17 @@ async def registration_body(request: Request) -> ClientRegistrationRequest:
     try:
         payload = await request.json()
     except ValueError:
-        raise OAuthError("invalid_client_metadata", "request body is not JSON") from None
+        raise OAuthError(
+            OAuthErrorCode.INVALID_CLIENT_METADATA, "request body is not JSON"
+        ) from None
     try:
         return ClientRegistrationRequest.model_validate(payload)
     except ValidationError as exc:
         first = exc.errors()[0]
         field = ".".join(str(part) for part in first["loc"]) or "body"
-        raise OAuthError("invalid_client_metadata", f"{field}: {first['msg']}") from None
+        raise OAuthError(
+            OAuthErrorCode.INVALID_CLIENT_METADATA, f"{field}: {first['msg']}"
+        ) from None
 
 
 RegistrationBodyProvider = Annotated[ClientRegistrationRequest, Depends(registration_body)]

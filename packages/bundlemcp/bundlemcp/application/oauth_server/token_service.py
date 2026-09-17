@@ -9,6 +9,7 @@ from bundlemcp.application.oauth_server.token_grant import TokenGrant
 from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
 from bundlemcp.domain.oauth.client_credentials import ClientCredentials
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.shared.secrets import hash_token
 
@@ -34,17 +35,17 @@ class OAuthTokenService:
         """
         client = await self._clients.authenticate(credentials)
         if client is None:
-            raise OAuthError("invalid_client", status=401)
+            raise OAuthError(OAuthErrorCode.INVALID_CLIENT)
         client.last_used_at = utcnow()  # SEC-8 stale-client purge signal
         self._client_rows.add(client)
         grant = self._grants.get(request.grant_type)
         if grant is None:
             await self._uow.commit()
-            raise OAuthError("unsupported_grant_type")
+            raise OAuthError(OAuthErrorCode.UNSUPPORTED_GRANT_TYPE)
         if not client.allows_grant(grant.grant_type):
             # RFC 6749 section 5.2: the client exists but did not register for this grant
             await self._uow.commit()
-            raise OAuthError("unauthorized_client")
+            raise OAuthError(OAuthErrorCode.UNAUTHORIZED_CLIENT)
         try:
             tokens = await grant.exchange(client, request)
         except OAuthError:
@@ -65,7 +66,7 @@ class OAuthTokenService:
         """
         client = await self._clients.authenticate(credentials)
         if client is None:
-            raise OAuthError("invalid_client", status=401)
+            raise OAuthError(OAuthErrorCode.INVALID_CLIENT)
         digest = hash_token(token)
         row = await self._tokens.by_either_hash(digest)
         if row is None or row.client_id != client.client_id:

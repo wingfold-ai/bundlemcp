@@ -6,6 +6,7 @@ from bundlemcp.application.schemas import TokenResponse
 from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.oauth_access_token import OAuthAccessToken
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 from bundlemcp.domain.shared.secrets import hash_token
 
 
@@ -25,20 +26,20 @@ class RefreshTokenGrant:
 
     async def exchange(self, client: OAuthClient, request: TokenRequest) -> TokenResponse:
         if not request.refresh_token:
-            raise OAuthError("invalid_request", "refresh_token required")
+            raise OAuthError(OAuthErrorCode.INVALID_REQUEST, "refresh_token required")
         current = await self._tokens.by_refresh_hash(hash_token(request.refresh_token))
         if current is None or current.client_id != client.client_id:
-            raise OAuthError("invalid_grant")
+            raise OAuthError(OAuthErrorCode.INVALID_GRANT)
         if current.revoked:
             await self._revoke_family(current)  # RFC 9700 section 4.14.2
-            raise OAuthError("invalid_grant")
+            raise OAuthError(OAuthErrorCode.INVALID_GRANT)
         if not current.is_refreshable:
-            raise OAuthError("invalid_grant")
+            raise OAuthError(OAuthErrorCode.INVALID_GRANT)
         # OAS-4 rotation as a compare-and-set: a concurrent rotation of the same
         # token is a replay too, and it is refused the same way.
         if not await self._tokens.revoke_unless_revoked(current.id):
             await self._revoke_family(current)
-            raise OAuthError("invalid_grant")
+            raise OAuthError(OAuthErrorCode.INVALID_GRANT)
         return self._issuer.issue(
             client_id=client.client_id,
             user_id=current.user_id,

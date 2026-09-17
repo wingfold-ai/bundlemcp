@@ -19,11 +19,13 @@ from bundlemcp.api.management.controllers import (
 )
 from bundlemcp.api.mcp.controllers.mcp_endpoint_controller import McpEndpointController
 from bundlemcp.api.oauth.controllers.authorize_controller import AuthorizeController
+from bundlemcp.api.oauth.controllers.introspection_controller import IntrospectionController
 from bundlemcp.api.oauth.controllers.login_controller import LoginController
 from bundlemcp.api.oauth.controllers.metadata_controller import OAuthMetadataController
 from bundlemcp.api.oauth.controllers.registration_controller import ClientRegistrationController
 from bundlemcp.api.oauth.controllers.token_controller import OAuthTokenController
 from bundlemcp.api.oauth.controllers.upstream_connect_controller import UpstreamConnectController
+from bundlemcp.api.oauth.lockout import LockedOut, locked_out_handler
 from bundlemcp.api.oauth.oauth_error_response import (
     authorization_redirect_handler,
     oauth_error_handler,
@@ -60,6 +62,7 @@ def create_app(
     app.add_exception_handler(ServiceError, service_error_handler)
     app.add_exception_handler(OAuthError, oauth_error_handler)
     app.add_exception_handler(AuthorizationRedirectError, authorization_redirect_handler)
+    app.add_exception_handler(LockedOut, locked_out_handler)  # RATE-5
 
     if settings.web_origins:
         # SEC-4: credentials-enabled CORS for exactly the web app's origin(s)
@@ -88,6 +91,7 @@ def create_app(
         ClientRegistrationController(),
         AuthorizeController(),
         OAuthTokenController(),
+        IntrospectionController(),
         LoginController(),
         UpstreamConnectController(),  # spec 23 connect flow
     ):

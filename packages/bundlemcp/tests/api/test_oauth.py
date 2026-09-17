@@ -13,6 +13,7 @@ import pytest
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.application.errors import InvalidInputError
 from bundlemcp.application.oauth_server import ClientIdMetadataDocument
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 from bundlemcp.domain.oauth.token_policy import TokenPolicy
 from bundlemcp.domain.sessions.admin_session import AdminSession
 from bundlemcp.domain.shared.secrets import hash_token
@@ -692,7 +693,7 @@ async def test_code_burn_is_a_compare_and_set(oauth_env):
             await AuthorizationCodeGrant(uow, TokenIssuer(uow, TokenPolicy())).exchange(
                 client, request
             )
-        assert excinfo.value.error == "invalid_grant"
+        assert excinfo.value.code == OAuthErrorCode.INVALID_GRANT
         rows = (await db.execute(select(OAuthAccessTokenRow))).scalars().all()
     assert rows == []
 
@@ -725,7 +726,7 @@ async def test_refresh_rotation_is_a_compare_and_set(oauth_env):
         request = TokenRequest(grant_type="refresh_token", refresh_token=tokens["refresh_token"])
         with pytest.raises(OAuthError) as excinfo:
             await RefreshTokenGrant(uow, TokenIssuer(uow, TokenPolicy())).exchange(client, request)
-        assert excinfo.value.error == "invalid_grant"
+        assert excinfo.value.code == OAuthErrorCode.INVALID_GRANT
         rows = (await db.execute(select(OAuthAccessTokenRow))).scalars().all()
     assert len(rows) == 1 and rows[0].revoked
 

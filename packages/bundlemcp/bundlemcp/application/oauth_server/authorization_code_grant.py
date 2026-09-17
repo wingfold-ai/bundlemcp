@@ -5,6 +5,7 @@ from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
 from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 from bundlemcp.domain.shared.secrets import hash_token
 
 
@@ -19,18 +20,18 @@ class AuthorizationCodeGrant:
 
     async def exchange(self, client: OAuthClient, request: TokenRequest) -> TokenResponse:
         if not request.code or not request.code_verifier:
-            raise OAuthError("invalid_request", "code and code_verifier required")
+            raise OAuthError(OAuthErrorCode.INVALID_REQUEST, "code and code_verifier required")
         code = await self._codes.get(hash_token(request.code))
         if code is None or not code.is_redeemable or not code.issued_to(client.client_id):
-            raise OAuthError("invalid_grant")
+            raise OAuthError(OAuthErrorCode.INVALID_GRANT)
         if not code.sent_to(request.redirect_uri):
-            raise OAuthError("invalid_grant", "redirect_uri mismatch")
+            raise OAuthError(OAuthErrorCode.INVALID_GRANT, "redirect_uri mismatch")
         if not code.proves_possession(request.code_verifier):
-            raise OAuthError("invalid_grant", "PKCE verification failed")
+            raise OAuthError(OAuthErrorCode.INVALID_GRANT, "PKCE verification failed")
         # OAS-3: the burn is a compare-and-set, so two concurrent redemptions
         # that both read an unused code cannot both be issued a pair.
         if not await self._codes.burn(code.code_hash):
-            raise OAuthError("invalid_grant")
+            raise OAuthError(OAuthErrorCode.INVALID_GRANT)
         return self._issuer.issue(
             client_id=client.client_id,
             user_id=code.user_id,
