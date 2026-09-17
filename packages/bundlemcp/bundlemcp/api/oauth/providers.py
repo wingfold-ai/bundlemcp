@@ -83,18 +83,34 @@ def get_connect_states(request: Request) -> SingleUseState[UpstreamConnectState]
 
 async def get_token_service(request: Request, uow: UnitOfWorkProvider) -> OAuthTokenService:
     container = request.app.state.container
-    issuer = TokenIssuer(uow, await container.runtime_config.token_policy())
+    clock, hasher = container.clock, container.secret_hasher
+    issuer = TokenIssuer(
+        uow,
+        await container.runtime_config.token_policy(),
+        clock=clock,
+        generator=container.secret_generator,
+        hasher=hasher,
+    )
     return OAuthTokenService(
         uow,
-        clients=OAuthClientAuthenticator(uow),
-        grants=[build(uow, issuer) for build in container.token_grants],
+        clients=OAuthClientAuthenticator(uow, hasher),
+        grants=[build(uow, issuer, clock, hasher) for build in container.token_grants],
+        clock=clock,
+        hasher=hasher,
     )
 
 
 def get_introspection_service(
-    uow: UnitOfWorkProvider, auth: AuthServiceProvider, settings: SettingsProvider
+    request: Request, uow: UnitOfWorkProvider, auth: AuthServiceProvider, settings: SettingsProvider
 ) -> TokenIntrospectionService:
-    return TokenIntrospectionService(uow, auth=auth, public_base=settings.public_base)
+    container = request.app.state.container
+    return TokenIntrospectionService(
+        uow,
+        auth=auth,
+        clock=container.clock,
+        hasher=container.secret_hasher,
+        public_base=settings.public_base,
+    )
 
 
 async def get_authorization_service(
@@ -106,14 +122,26 @@ async def get_authorization_service(
         public_base=settings.public_base,
         clients=ClientResolver([build(uow) for build in container.client_sources]),
         consents=ConsentService(uow),
-        codes=AuthorizationCodeIssuer(uow, await container.runtime_config.token_policy()),
+        codes=AuthorizationCodeIssuer(
+            uow,
+            await container.runtime_config.token_policy(),
+            clock=container.clock,
+            generator=container.secret_generator,
+            hasher=container.secret_hasher,
+        ),
     )
 
 
 def get_client_registration_service(
-    uow: UnitOfWorkProvider, settings: SettingsProvider
+    request: Request, uow: UnitOfWorkProvider, settings: SettingsProvider
 ) -> ClientRegistrationService:
-    return ClientRegistrationService(uow, public_base=settings.public_base)
+    container = request.app.state.container
+    return ClientRegistrationService(
+        uow,
+        public_base=settings.public_base,
+        generator=container.secret_generator,
+        hasher=container.secret_hasher,
+    )
 
 
 def get_user_provisioning_service(

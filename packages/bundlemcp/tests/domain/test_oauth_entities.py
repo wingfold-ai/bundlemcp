@@ -15,29 +15,30 @@ from bundlemcp.domain.oauth.oauth_consent import OAuthConsent
 from bundlemcp.domain.oauth.pkce import PkcePair
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 from bundlemcp.domain.shared.clock import utcnow
-from bundlemcp.domain.shared.secrets import hash_token
+from bundlemcp.domain.shared.secret_hasher import Sha256SecretHasher
 
 CIMD_URL = "https://client.example/oauth/client.json"
+HASHER = Sha256SecretHasher()
 
 
 def test_public_client_has_no_secret_to_verify():
     """OAS-2: a public client passes on PKCE alone and can never match a secret."""
     client = OAuthClient(client_id="c")
     assert client.is_public
-    assert not client.verifies_secret("anything")
+    assert not client.verifies_secret("anything", HASHER)
 
 
 def test_confidential_client_verifies_only_its_own_secret():
     """OAS-4: the presented secret is compared by hash; a missing one never matches."""
     client = OAuthClient(
         client_id="c",
-        client_secret_hash=hash_token("s3cret"),
+        client_secret_hash=HASHER.digest("s3cret"),
         token_endpoint_auth_method=TokenEndpointAuthMethod.CLIENT_SECRET_POST,
     )
     assert not client.is_public
-    assert client.verifies_secret("s3cret")
-    assert not client.verifies_secret("wrong")
-    assert not client.verifies_secret(None)
+    assert client.verifies_secret("s3cret", HASHER)
+    assert not client.verifies_secret("wrong", HASHER)
+    assert not client.verifies_secret(None, HASHER)
 
 
 def test_client_allows_only_the_grants_it_registered():

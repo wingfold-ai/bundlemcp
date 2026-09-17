@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 
 from bundlemcp.domain.oauth.code_challenge_method import CodeChallengeMethod
 from bundlemcp.domain.oauth.pkce import pkce_verifies
-from bundlemcp.domain.shared.clock import utcnow
 
 
 class OAuthAuthorizationCode(BaseModel):
@@ -36,10 +35,9 @@ class OAuthAuthorizationCode(BaseModel):
         description="Whether the code has been redeemed. A code works exactly once",
     )
 
-    @property
-    def is_redeemable(self) -> bool:
+    def is_redeemable_at(self, now: datetime) -> bool:
         """Unused and not yet expired, so it may still be exchanged for tokens."""
-        return not self.used and self.expires_at >= utcnow()
+        return not self.used and self.expires_at >= now
 
     def issued_to(self, client_id: str) -> bool:
         """Whether this client is the one the code was issued to; no other may redeem it."""

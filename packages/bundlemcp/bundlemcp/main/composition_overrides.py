@@ -12,6 +12,8 @@ from bundlemcp.application.contracts.upstream.upstream_client_factory import Ups
 from bundlemcp.application.contracts.upstream.upstream_oauth_provider import UpstreamOAuthProvider
 from bundlemcp.application.metering.metering_hook import MeteringHook
 from bundlemcp.application.oauth_server import ClientMetadataFetcher
+from bundlemcp.domain.shared.clock import Clock
+from bundlemcp.domain.shared.secret_generator import SecretGenerator
 
 
 class CompositionOverrides(BaseModel):
@@ -24,6 +26,10 @@ class CompositionOverrides(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    clock: Clock | None = Field(default=None, description="Clock to read the time from")
+    secret_generator: SecretGenerator | None = Field(
+        default=None, description="Source of new secrets"
+    )
     engine: AsyncEngine | None = Field(default=None, description="Database engine to reuse")
     redis: Redis | None = Field(default=None, description="Live-store client to reuse")
     client_factory: UpstreamClientFactory | None = Field(

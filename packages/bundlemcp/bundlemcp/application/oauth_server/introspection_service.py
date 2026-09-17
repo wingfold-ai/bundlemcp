@@ -5,21 +5,32 @@ from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.schemas import IntrospectionResponse
 from bundlemcp.domain.access.caller_identity import API_KEY_SUBJECT_PREFIX
 from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
-from bundlemcp.domain.shared.secrets import hash_token
+from bundlemcp.domain.shared.clock import Clock
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
 
 INACTIVE = IntrospectionResponse(active=False)
 
 
 class TokenIntrospectionService:
-    def __init__(self, uow: UnitOfWork, *, auth: AuthService, public_base: str) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        *,
+        auth: AuthService,
+        clock: Clock,
+        hasher: SecretHasher,
+        public_base: str,
+    ) -> None:
         self._auth = auth
+        self._clock = clock
+        self._hasher = hasher
         self._tokens = uow.oauth_tokens
         self._users = uow.users
         self._endpoints = uow.endpoints
         self._public_base = public_base
 
     async def introspect(self, token: str) -> IntrospectionResponse:
-        row = await self._tokens.by_access_hash(hash_token(token))
+        row = await self._tokens.by_access_hash(self._hasher.digest(token))
         if row is None:
             # FWD-4: forwarded bearers may be gateway API keys, not OAuth tokens —
             # report them with the FWD-3 identity format so introspecting
@@ -30,7 +41,7 @@ class TokenIntrospectionService:
             return IntrospectionResponse(
                 active=True, sub=f"{API_KEY_SUBJECT_PREFIX}{key.id}", token_use="api_key"
             )
-        if not row.is_usable:
+        if not row.is_usable_at(self._clock.now()):
             return INACTIVE
         user = await self._users.get(row.user_id)
         if user is None or not user.is_active:

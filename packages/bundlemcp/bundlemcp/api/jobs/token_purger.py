@@ -6,6 +6,7 @@ import structlog
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.oauth_server import TokenPurgeService
+from bundlemcp.domain.shared.clock import Clock
 
 log = structlog.get_logger(__name__)
 
@@ -15,14 +16,20 @@ PURGE_INTERVAL_SECONDS = 600
 class TokenPurger:
     """One failed sweep never ends the loop: the next interval retries."""
 
-    def __init__(self, units: UnitOfWorkFactory, interval_seconds: float = PURGE_INTERVAL_SECONDS):
+    def __init__(
+        self,
+        units: UnitOfWorkFactory,
+        clock: Clock,
+        interval_seconds: float = PURGE_INTERVAL_SECONDS,
+    ):
         self._units = units
+        self._clock = clock
         self._interval = interval_seconds
         self._task: asyncio.Task[None] | None = None
 
     async def purge_once(self) -> int:
         async with self._units.open() as uow:
-            return await TokenPurgeService(uow).purge_expired()
+            return await TokenPurgeService(uow, self._clock).purge_expired()
 
     def start(self) -> None:
         self._task = asyncio.create_task(self._run())

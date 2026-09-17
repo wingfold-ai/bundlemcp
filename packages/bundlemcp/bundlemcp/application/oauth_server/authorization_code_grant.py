@@ -6,7 +6,8 @@ from bundlemcp.application.schemas import TokenResponse
 from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
-from bundlemcp.domain.shared.secrets import hash_token
+from bundlemcp.domain.shared.clock import Clock
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
 
 
 class AuthorizationCodeGrant:
@@ -14,15 +15,23 @@ class AuthorizationCodeGrant:
 
     grant_type = GrantType.AUTHORIZATION_CODE
 
-    def __init__(self, uow: UnitOfWork, issuer: TokenIssuer) -> None:
+    def __init__(
+        self, uow: UnitOfWork, issuer: TokenIssuer, clock: Clock, hasher: SecretHasher
+    ) -> None:
         self._codes = uow.authorization_codes
         self._issuer = issuer
+        self._clock = clock
+        self._hasher = hasher
 
     async def exchange(self, client: OAuthClient, request: TokenRequest) -> TokenResponse:
         if not request.code or not request.code_verifier:
             raise OAuthError(OAuthErrorCode.INVALID_REQUEST, "code and code_verifier required")
-        code = await self._codes.get(hash_token(request.code))
-        if code is None or not code.is_redeemable or not code.issued_to(client.client_id):
+        code = await self._codes.get(self._hasher.digest(request.code))
+        if (
+            code is None
+            or not code.is_redeemable_at(self._clock.now())
+            or not code.issued_to(client.client_id)
+        ):
             raise OAuthError(OAuthErrorCode.INVALID_GRANT)
         if not code.sent_to(request.redirect_uri):
             raise OAuthError(OAuthErrorCode.INVALID_GRANT, "redirect_uri mismatch")

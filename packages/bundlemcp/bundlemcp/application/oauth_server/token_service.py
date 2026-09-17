@@ -10,17 +10,25 @@ from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
 from bundlemcp.domain.oauth.client_credentials import ClientCredentials
 from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
-from bundlemcp.domain.shared.clock import utcnow
-from bundlemcp.domain.shared.secrets import hash_token
+from bundlemcp.domain.shared.clock import Clock
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
 
 
 class OAuthTokenService:
     def __init__(
-        self, uow: UnitOfWork, *, clients: OAuthClientAuthenticator, grants: Sequence[TokenGrant]
+        self,
+        uow: UnitOfWork,
+        *,
+        clients: OAuthClientAuthenticator,
+        grants: Sequence[TokenGrant],
+        clock: Clock,
+        hasher: SecretHasher,
     ) -> None:
         # Which grants exist is the composition root's decision, not this service's.
         self._uow = uow
         self._clients = clients
+        self._clock = clock
+        self._hasher = hasher
         self._client_rows = uow.oauth_clients
         self._tokens = uow.oauth_tokens
         self._grants = {grant.grant_type: grant for grant in grants}
@@ -36,7 +44,7 @@ class OAuthTokenService:
         client = await self._clients.authenticate(credentials)
         if client is None:
             raise OAuthError(OAuthErrorCode.INVALID_CLIENT)
-        client.last_used_at = utcnow()  # SEC-8 stale-client purge signal
+        client.last_used_at = self._clock.now()  # SEC-8 stale-client purge signal
         self._client_rows.add(client)
         grant = self._grants.get(request.grant_type)
         if grant is None:
@@ -67,7 +75,7 @@ class OAuthTokenService:
         client = await self._clients.authenticate(credentials)
         if client is None:
             raise OAuthError(OAuthErrorCode.INVALID_CLIENT)
-        digest = hash_token(token)
+        digest = self._hasher.digest(token)
         row = await self._tokens.by_either_hash(digest)
         if row is None or row.client_id != client.client_id:
             return

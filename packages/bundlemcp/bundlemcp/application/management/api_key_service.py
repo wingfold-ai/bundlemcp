@@ -10,20 +10,21 @@ from bundlemcp.application.errors import NotFoundError
 from bundlemcp.application.schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyRead, Page
 from bundlemcp.domain.access.api_key import ApiKey
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
-from bundlemcp.domain.shared.secrets import (
-    API_KEY_PREFIX,
-    display_prefix,
-    generate_token,
-    hash_token,
-)
+from bundlemcp.domain.shared.secret_generator import SecretGenerator
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
+from bundlemcp.domain.shared.secrets import API_KEY_PREFIX, display_prefix
 
 log = structlog.get_logger(__name__)
 
 
 class ApiKeyService:
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(
+        self, uow: UnitOfWork, *, hasher: SecretHasher, generator: SecretGenerator
+    ) -> None:
         self._uow = uow
         self._keys = uow.api_keys
+        self._hasher = hasher
+        self._generator = generator
 
     async def _get(self, key_id: uuid.UUID) -> ApiKey:
         key = await self._keys.get(key_id)
@@ -42,11 +43,11 @@ class ApiKeyService:
 
     async def create(self, body: ApiKeyCreate) -> ApiKeyCreated:
         """The key value is returned exactly once; only the hash is stored."""
-        value = generate_token(API_KEY_PREFIX)
+        value = API_KEY_PREFIX + self._generator.token(32)
         key = self._keys.add(
             ApiKey(
                 name=body.name,
-                key_hash=hash_token(value),
+                key_hash=self._hasher.digest(value),
                 key_prefix=display_prefix(value),
                 kind=body.kind,
                 endpoint_ids=[str(e) for e in body.endpoint_ids],
@@ -68,7 +69,7 @@ class ApiKeyService:
         self._keys.add(
             ApiKey(
                 name="initial-service-key",
-                key_hash=hash_token(value),
+                key_hash=self._hasher.digest(value),
                 key_prefix=display_prefix(value),
                 kind=ApiKeyKind.SERVICE,
             )

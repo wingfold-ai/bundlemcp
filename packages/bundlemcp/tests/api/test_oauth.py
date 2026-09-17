@@ -13,10 +13,15 @@ import pytest
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.application.errors import InvalidInputError
 from bundlemcp.application.oauth_server import ClientIdMetadataDocument
+from bundlemcp.application.oauth_server.authorization_code_grant import AuthorizationCodeGrant
+from bundlemcp.application.oauth_server.refresh_token_grant import RefreshTokenGrant
+from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
 from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 from bundlemcp.domain.oauth.token_policy import TokenPolicy
 from bundlemcp.domain.sessions.admin_session import AdminSession
+from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.shared.secrets import hash_token
+from bundlemcp.infrastructure.memory.manual_clock import ManualClock
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
 from bundlemcp.infrastructure.postgres.rows.endpoint_row import EndpointRow
@@ -79,6 +84,7 @@ async def oauth_env(engine: AsyncEngine, redis: FakeRedis):
         base_url=PUBLIC_URL,
         follow_redirects=False,
         client_metadata_fetcher=FakeClientMetadataFetcher(),
+        clock=ManualClock(utcnow()),  # moved only by the tests that need time to pass
     ) as (http, app):
         # seed a browser session for the user (login flow tested separately)
         session_id = await app.state.container.admin_sessions.create(
@@ -120,6 +126,23 @@ async def _authorize(http, client_id, challenge, resource, expect_consent=True) 
     query = parse_qs(location.query)
     assert query["state"] == ["st4te"]
     return query["code"][0]
+
+
+def _issuer(app, uow) -> TokenIssuer:
+    c = app.state.container
+    return TokenIssuer(
+        uow, TokenPolicy(), clock=c.clock, generator=c.secret_generator, hasher=c.secret_hasher
+    )
+
+
+def _code_grant(app, uow) -> AuthorizationCodeGrant:
+    c = app.state.container
+    return AuthorizationCodeGrant(uow, _issuer(app, uow), c.clock, c.secret_hasher)
+
+
+def _refresh_grant(app, uow) -> RefreshTokenGrant:
+    c = app.state.container
+    return RefreshTokenGrant(uow, _issuer(app, uow), c.clock, c.secret_hasher)
 
 
 async def _exchange(http, client_id, code, verifier) -> dict:
@@ -355,6 +378,46 @@ async def test_token_lifetimes_follow_runtime_config(oauth_env):
     code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
     tokens = await _exchange(http, client_id, code, verifier)
     assert tokens["expires_in"] == 120
+
+
+async def test_tokens_expire_by_the_clock(oauth_env):
+    """OAS-4: an access token dies at its lifetime; a refresh token at its own, longer one."""
+    from datetime import timedelta
+
+    http, app, user = oauth_env
+    clock = app.state.container.clock
+    client_id = await _register_client(http)
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
+    tokens = await _exchange(http, client_id, code, verifier)
+    service = {"Authorization": f"Bearer {SERVICE_KEY}"}
+
+    def introspect(token):
+        return http.post("/oauth/introspect", data={"token": token}, headers=service)
+
+    assert (await introspect(tokens["access_token"])).json()["active"] is True
+    clock.advance(timedelta(hours=1, seconds=1))
+    assert (await introspect(tokens["access_token"])).json() == {"active": False}
+
+    refreshed = await http.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": tokens["refresh_token"],
+            "client_id": client_id,
+        },
+    )
+    assert refreshed.status_code == 200  # the refresh token has a week
+    clock.advance(timedelta(days=7, seconds=1))
+    stale = await http.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": refreshed.json()["refresh_token"],
+            "client_id": client_id,
+        },
+    )
+    assert stale.status_code == 400 and stale.json()["error"] == "invalid_grant"
 
 
 async def test_introspection_requires_service_key(oauth_env):
@@ -660,8 +723,6 @@ async def test_code_burn_is_a_compare_and_set(oauth_env):
     """
     from bundlemcp.application.errors import OAuthError
     from bundlemcp.application.oauth_server import TokenRequest
-    from bundlemcp.application.oauth_server.authorization_code_grant import AuthorizationCodeGrant
-    from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
     from bundlemcp.infrastructure.postgres.rows.oauth_authorization_code_row import (
         OAuthAuthorizationCodeRow,
     )
@@ -690,9 +751,7 @@ async def test_code_burn_is_a_compare_and_set(oauth_env):
             code_verifier=verifier,
         )
         with pytest.raises(OAuthError) as excinfo:
-            await AuthorizationCodeGrant(uow, TokenIssuer(uow, TokenPolicy())).exchange(
-                client, request
-            )
+            await _code_grant(app, uow).exchange(client, request)
         assert excinfo.value.code == OAuthErrorCode.INVALID_GRANT
         rows = (await db.execute(select(OAuthAccessTokenRow))).scalars().all()
     assert rows == []
@@ -702,8 +761,6 @@ async def test_refresh_rotation_is_a_compare_and_set(oauth_env):
     """OAS-4: a refresh token rotated between the read and the rotation is a replay."""
     from bundlemcp.application.errors import OAuthError
     from bundlemcp.application.oauth_server import TokenRequest
-    from bundlemcp.application.oauth_server.refresh_token_grant import RefreshTokenGrant
-    from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
     from sqlalchemy import update
 
     http, app, user = oauth_env
@@ -725,7 +782,7 @@ async def test_refresh_rotation_is_a_compare_and_set(oauth_env):
         client = await uow.oauth_clients.get(client_id)
         request = TokenRequest(grant_type="refresh_token", refresh_token=tokens["refresh_token"])
         with pytest.raises(OAuthError) as excinfo:
-            await RefreshTokenGrant(uow, TokenIssuer(uow, TokenPolicy())).exchange(client, request)
+            await _refresh_grant(app, uow).exchange(client, request)
         assert excinfo.value.code == OAuthErrorCode.INVALID_GRANT
         rows = (await db.execute(select(OAuthAccessTokenRow))).scalars().all()
     assert len(rows) == 1 and rows[0].revoked

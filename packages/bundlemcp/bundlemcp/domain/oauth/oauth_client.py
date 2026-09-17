@@ -7,7 +7,7 @@ from bundlemcp.domain.oauth.client_id_metadata_document import ClientIdMetadataD
 from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 from bundlemcp.domain.shared.clock import utcnow
-from bundlemcp.domain.shared.secrets import hash_token, tokens_equal
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
 
 
 class OAuthClient(BaseModel):
@@ -53,11 +53,11 @@ class OAuthClient(BaseModel):
         """A client with no secret, which proves itself with PKCE instead."""
         return self.token_endpoint_auth_method == TokenEndpointAuthMethod.NONE
 
-    def verifies_secret(self, presented: str | None) -> bool:
+    def verifies_secret(self, presented: str | None, hasher: SecretHasher) -> bool:
         """Whether a presented secret is this confidential client's; a public client has none."""
         if presented is None or self.client_secret_hash is None:
             return False
-        return tokens_equal(hash_token(presented), self.client_secret_hash)
+        return hasher.matches(presented, self.client_secret_hash)
 
     def allows_grant(self, grant_type: GrantType) -> bool:
         """Whether the client registered for this grant; the token endpoint refuses the rest."""

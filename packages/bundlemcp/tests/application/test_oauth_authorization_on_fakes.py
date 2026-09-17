@@ -1,6 +1,7 @@
 """The authorization endpoint's collaborators, run on the in-memory fakes (spec 20)."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from bundlemcp.application.errors import InvalidInputError
@@ -15,8 +16,13 @@ from bundlemcp.application.oauth_server import (
 from bundlemcp.domain.oauth.client_id_metadata_document import ClientIdMetadataDocument
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 from bundlemcp.domain.oauth.token_policy import TokenPolicy
+from bundlemcp.domain.shared.secret_hasher import Sha256SecretHasher
 from bundlemcp.domain.shared.secrets import hash_token
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import InMemoryUnitOfWork
+from bundlemcp.infrastructure.memory.manual_clock import ManualClock
+from bundlemcp.infrastructure.memory.sequential_secret_generator import (
+    SequentialSecretGenerator,
+)
 
 CIMD_URL = "https://client.example/oauth/client.json"
 
@@ -106,8 +112,19 @@ async def test_issued_code_is_stored_as_a_hash_bound_to_the_request(uow):
         bundle_name="b",
         user_id=uuid.uuid4(),
     )
-    raw = AuthorizationCodeIssuer(uow, TokenPolicy()).issue(pending)
+    clock = ManualClock(datetime(2026, 9, 17, 12, 0, tzinfo=UTC))
+    issuer = AuthorizationCodeIssuer(
+        uow,
+        TokenPolicy(),
+        clock=clock,
+        generator=SequentialSecretGenerator(),
+        hasher=Sha256SecretHasher(),
+    )
+    raw = issuer.issue(pending)
+    assert raw == "secret-1"  # the generator, not the OS, decided the value
     stored = await uow.authorization_codes.get(hash_token(raw))
-    assert stored is not None and stored.is_redeemable
+    assert stored is not None and stored.is_redeemable_at(clock.now())
+    assert stored.expires_at == clock.now() + timedelta(minutes=10)
+    assert not stored.is_redeemable_at(clock.now() + timedelta(minutes=11))
     assert stored.client_id == "c" and stored.endpoint_id == pending.endpoint_id
     assert await uow.authorization_codes.get(raw) is None  # never the raw value
