@@ -93,8 +93,10 @@ application layer can resolve a stable `sub`.
   fetches the document (through the egress policy, [SEC-1](70-security.md)),
   requires its `client_id` to echo the URL, validates `redirect_uris` against
   it, and caches it for its `Cache-Control` lifetime (bounded, default 1 h) in
-  the RESP store. Such clients need no registration; consent (OAS-11) shows the
-  document's `client_name`. Advertised via
+  the RESP store. Such clients need no registration: the document is
+  mirrored into the client table when a signed-in user authorizes, so codes,
+  tokens and consent bind to it; the pre-login check of the request writes
+  nothing. Consent (OAS-11) shows the document's `client_name`. Advertised via
   `client_id_metadata_document_supported: true` in OAS-1 metadata.
 - **OAS-14 Issuer identification (RFC 9207):** every authorization response,
   including error redirects, carries `iss=<issuer>`, and OAS-1 metadata sets

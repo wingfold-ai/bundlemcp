@@ -486,6 +486,30 @@ async def test_authorize_login_next_uses_public_url_behind_proxy(oauth_env):
     assert "localhost:8000" not in next_url
 
 
+async def test_unauthenticated_authorize_writes_no_client_mirror(oauth_env):
+    """OAS-13: before login the document is only checked; the mirror is written on authorization."""
+    from bundlemcp.infrastructure.postgres.rows.oauth_client_row import OAuthClientRow
+
+    http, app, user = oauth_env
+    http.cookies.delete(SESSION_COOKIE)
+    _, challenge = make_pkce()
+    resp = await http.get(
+        "/oauth/authorize",
+        params={
+            "client_id": CIMD_CLIENT_ID,
+            "redirect_uri": "https://client.example/cb",
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "resource": f"{PUBLIC_URL}/ep1/mcp",
+        },
+    )
+    assert resp.status_code == 302 and resp.headers["location"].startswith("/login?next=")
+    async with app.state.container.session_factory() as db:
+        rows = (await db.execute(select(OAuthClientRow))).scalars().all()
+    assert all(r.client_id != CIMD_CLIENT_ID for r in rows)
+
+
 async def test_missing_resource_rejected(oauth_env):
     """OAS-10: resource is required and must be a bundlemcp endpoint."""
     http, app, user = oauth_env
