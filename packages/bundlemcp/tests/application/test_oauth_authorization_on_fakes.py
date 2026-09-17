@@ -14,6 +14,7 @@ from bundlemcp.application.oauth_server import (
 )
 from bundlemcp.domain.oauth.client_id_metadata_document import ClientIdMetadataDocument
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
+from bundlemcp.domain.oauth.token_policy import TokenPolicy
 from bundlemcp.domain.shared.secrets import hash_token
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import InMemoryUnitOfWork
 
@@ -105,7 +106,7 @@ async def test_issued_code_is_stored_as_a_hash_bound_to_the_request(uow):
         bundle_name="b",
         user_id=uuid.uuid4(),
     )
-    raw = AuthorizationCodeIssuer(uow).issue(pending)
+    raw = AuthorizationCodeIssuer(uow, TokenPolicy()).issue(pending)
     stored = await uow.authorization_codes.get(hash_token(raw))
     assert stored is not None and stored.is_redeemable
     assert stored.client_id == "c" and stored.endpoint_id == pending.endpoint_id

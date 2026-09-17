@@ -88,6 +88,9 @@ key rejects `1`, an integer key rejects `"3"`.
 | `list_cache_ttl_ms` | `300000` | Milliseconds a modern-era client may cache a tools, prompts or resources list. |
 | `server_error_attempts` | `3` | Consecutive connection failures before a server is marked `error`. |
 | `audit_retention_days` | `90` | Age after which audit records are purged. |
+| `authorization_code_lifetime` | `600` | Seconds a client has to redeem an authorization code from the gateway's OAuth server. |
+| `access_token_lifetime` | `3600` | Seconds an access token issued by the gateway's OAuth server stays valid. |
+| `refresh_token_lifetime` | `604800` | Seconds a refresh token issued by the gateway's OAuth server may be exchanged. |
 
 ```bash
 curl -s -X PUT https://gw.example.com/api/v1/config/call_timeout \

@@ -1,21 +1,20 @@
 import secrets
-from datetime import timedelta
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.oauth_server.pending_authorization import PendingAuthorization
 from bundlemcp.domain.oauth.code_challenge_method import CodeChallengeMethod
 from bundlemcp.domain.oauth.oauth_authorization_code import OAuthAuthorizationCode
+from bundlemcp.domain.oauth.token_policy import TokenPolicy
 from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.shared.secrets import hash_token
 
-CODE_TTL = timedelta(minutes=10)  # OAS-3
-
 
 class AuthorizationCodeIssuer:
-    """Mints a single-use authorization code and stages only its hash."""
+    """Mints a single-use authorization code with the configured lifetime; stores only its hash."""
 
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, policy: TokenPolicy) -> None:
         self._codes = uow.authorization_codes
+        self._policy = policy
 
     def issue(self, pending: PendingAuthorization) -> str:
         """Stage a code bound to the approved request and return its raw value."""
@@ -30,7 +29,7 @@ class AuthorizationCodeIssuer:
                 scope=pending.scope,
                 code_challenge=pending.code_challenge,
                 code_challenge_method=CodeChallengeMethod.S256,
-                expires_at=utcnow() + CODE_TTL,
+                expires_at=utcnow() + self._policy.authorization_code_ttl,  # OAS-3
             )
         )
         return raw_code

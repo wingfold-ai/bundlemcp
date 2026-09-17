@@ -10,7 +10,7 @@ from bundlemcp.application.oauth_server.client_registration_service import (
     ClientRegistrationService,
 )
 from bundlemcp.application.oauth_server.client_resolver import ClientResolver
-from bundlemcp.application.oauth_server.client_source import ClientSource
+from bundlemcp.application.oauth_server.client_source import ClientSource, ClientSourceFactory
 from bundlemcp.application.oauth_server.consent_service import ConsentService
 from bundlemcp.application.oauth_server.introspection_service import TokenIntrospectionService
 from bundlemcp.application.oauth_server.metadata_document_client_source import (
@@ -19,7 +19,7 @@ from bundlemcp.application.oauth_server.metadata_document_client_source import (
 from bundlemcp.application.oauth_server.pending_authorization import PendingAuthorization
 from bundlemcp.application.oauth_server.refresh_token_grant import RefreshTokenGrant
 from bundlemcp.application.oauth_server.registered_client_source import RegisteredClientSource
-from bundlemcp.application.oauth_server.token_grant import TokenGrant
+from bundlemcp.application.oauth_server.token_grant import TokenGrant, TokenGrantFactory
 from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
 from bundlemcp.application.oauth_server.token_purge_service import TokenPurgeService
 from bundlemcp.application.oauth_server.token_request import TokenRequest
@@ -44,6 +44,7 @@ __all__ = [
     "ClientRegistrationService",
     "ClientResolver",
     "ClientSource",
+    "ClientSourceFactory",
     "ConsentService",
     "OAuthClientAuthenticator",
     "MetadataDocumentClientSource",
@@ -52,6 +53,7 @@ __all__ = [
     "RefreshTokenGrant",
     "RegisteredClientSource",
     "TokenGrant",
+    "TokenGrantFactory",
     "TokenIntrospectionService",
     "TokenIssuer",
     "TokenPurgeService",

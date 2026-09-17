@@ -13,6 +13,7 @@ import pytest
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.application.errors import InvalidInputError
 from bundlemcp.application.oauth_server import ClientIdMetadataDocument
+from bundlemcp.domain.oauth.token_policy import TokenPolicy
 from bundlemcp.domain.sessions.admin_session import AdminSession
 from bundlemcp.domain.shared.secrets import hash_token
 from bundlemcp.infrastructure.postgres.engine import session_factory
@@ -337,6 +338,22 @@ async def test_authorize_refuses_a_client_without_the_code_grant(oauth_env):
     )
     assert resp.status_code == 302  # the client is genuine, so it learns at its redirect URI
     assert parse_qs(urlparse(resp.headers["location"]).query)["error"] == ["unauthorized_client"]
+
+
+async def test_token_lifetimes_follow_runtime_config(oauth_env):
+    """OAS-4: access_token_lifetime is read from runtime config when the pair is issued."""
+    from bundlemcp.domain.config.config_entry import ConfigEntry
+
+    http, app, user = oauth_env
+    async with app.state.container.unit_of_work_factory.open() as uow:
+        uow.config_entries.add(ConfigEntry(key="access_token_lifetime", value=120))
+        await uow.commit()
+    await app.state.container.runtime_config.flush()
+    client_id = await _register_client(http)
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
+    tokens = await _exchange(http, client_id, code, verifier)
+    assert tokens["expires_in"] == 120
 
 
 async def test_introspection_requires_service_key(oauth_env):
@@ -672,7 +689,9 @@ async def test_code_burn_is_a_compare_and_set(oauth_env):
             code_verifier=verifier,
         )
         with pytest.raises(OAuthError) as excinfo:
-            await AuthorizationCodeGrant(uow, TokenIssuer(uow)).exchange(client, request)
+            await AuthorizationCodeGrant(uow, TokenIssuer(uow, TokenPolicy())).exchange(
+                client, request
+            )
         assert excinfo.value.error == "invalid_grant"
         rows = (await db.execute(select(OAuthAccessTokenRow))).scalars().all()
     assert rows == []
@@ -705,7 +724,7 @@ async def test_refresh_rotation_is_a_compare_and_set(oauth_env):
         client = await uow.oauth_clients.get(client_id)
         request = TokenRequest(grant_type="refresh_token", refresh_token=tokens["refresh_token"])
         with pytest.raises(OAuthError) as excinfo:
-            await RefreshTokenGrant(uow, TokenIssuer(uow)).exchange(client, request)
+            await RefreshTokenGrant(uow, TokenIssuer(uow, TokenPolicy())).exchange(client, request)
         assert excinfo.value.error == "invalid_grant"
         rows = (await db.execute(select(OAuthAccessTokenRow))).scalars().all()
     assert len(rows) == 1 and rows[0].revoked

@@ -1,9 +1,9 @@
 import uuid
-from datetime import timedelta
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.schemas import TokenResponse
 from bundlemcp.domain.oauth.oauth_access_token import OAuthAccessToken
+from bundlemcp.domain.oauth.token_policy import TokenPolicy
 from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.shared.secrets import (
     ACCESS_TOKEN_PREFIX,
@@ -12,15 +12,13 @@ from bundlemcp.domain.shared.secrets import (
     hash_token,
 )
 
-ACCESS_TOKEN_TTL = timedelta(hours=1)  # OAS-4
-REFRESH_TOKEN_TTL = timedelta(days=7)
-
 
 class TokenIssuer:
-    """Mints an access/refresh pair and stores only their hashes."""
+    """Mints an access/refresh pair with the configured lifetimes and stores only their hashes."""
 
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, policy: TokenPolicy) -> None:
         self._tokens = uow.oauth_tokens
+        self._policy = policy
 
     def issue(
         self,
@@ -43,13 +41,13 @@ class TokenIssuer:
                 endpoint_id=endpoint_id,
                 family_id=family_id or uuid.uuid4(),
                 scope=scope,
-                expires_at=utcnow() + ACCESS_TOKEN_TTL,
-                refresh_expires_at=utcnow() + REFRESH_TOKEN_TTL,
+                expires_at=utcnow() + self._policy.access_token_ttl,
+                refresh_expires_at=utcnow() + self._policy.refresh_token_ttl,
             )
         )
         return TokenResponse(
             access_token=access,
-            expires_in=int(ACCESS_TOKEN_TTL.total_seconds()),
+            expires_in=int(self._policy.access_token_ttl.total_seconds()),
             refresh_token=refresh,
             scope=scope,
         )

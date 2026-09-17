@@ -1,17 +1,12 @@
 """The authorization endpoint's use case: validate a request, then consent and a code."""
 
-from bundlemcp.application.contracts.identity.client_metadata_fetcher import ClientMetadataFetcher
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import AuthorizationRedirectError, InvalidInputError
 from bundlemcp.application.oauth_server.authorization_code_issuer import AuthorizationCodeIssuer
 from bundlemcp.application.oauth_server.authorization_request import AuthorizationRequest
 from bundlemcp.application.oauth_server.client_resolver import ClientResolver
 from bundlemcp.application.oauth_server.consent_service import ConsentService
-from bundlemcp.application.oauth_server.metadata_document_client_source import (
-    MetadataDocumentClientSource,
-)
 from bundlemcp.application.oauth_server.pending_authorization import PendingAuthorization
-from bundlemcp.application.oauth_server.registered_client_source import RegisteredClientSource
 from bundlemcp.domain.access.user import User
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
@@ -28,20 +23,21 @@ class AuthorizationService:
     """
 
     def __init__(
-        self, uow: UnitOfWork, *, public_base: str, client_metadata: ClientMetadataFetcher
+        self,
+        uow: UnitOfWork,
+        *,
+        public_base: str,
+        clients: ClientResolver,
+        consents: ConsentService,
+        codes: AuthorizationCodeIssuer,
     ) -> None:
         self._uow = uow
         self._public_base = public_base
         self._endpoints = uow.endpoints
         self._bundles = uow.bundles
-        self._clients = ClientResolver(
-            (
-                RegisteredClientSource(uow.oauth_clients),
-                MetadataDocumentClientSource(uow.oauth_clients, client_metadata),
-            )
-        )
-        self._consents = ConsentService(uow)
-        self._codes = AuthorizationCodeIssuer(uow)
+        self._clients = clients
+        self._consents = consents
+        self._codes = codes
 
     async def validate(self, request: AuthorizationRequest, user: User) -> PendingAuthorization:
         """Check every parameter and bind the request to the signed-in user.

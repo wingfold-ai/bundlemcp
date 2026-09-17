@@ -11,8 +11,8 @@ INACTIVE = IntrospectionResponse(active=False)
 
 
 class TokenIntrospectionService:
-    def __init__(self, uow: UnitOfWork, *, public_base: str) -> None:
-        self._auth = AuthService(uow)
+    def __init__(self, uow: UnitOfWork, *, auth: AuthService, public_base: str) -> None:
+        self._auth = auth
         self._tokens = uow.oauth_tokens
         self._users = uow.users
         self._endpoints = uow.endpoints

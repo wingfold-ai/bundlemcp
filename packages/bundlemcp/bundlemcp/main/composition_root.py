@@ -20,7 +20,13 @@ from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.management.api_key_service import ApiKeyService
-from bundlemcp.application.oauth_server import PendingAuthorization
+from bundlemcp.application.oauth_server import (
+    AuthorizationCodeGrant,
+    MetadataDocumentClientSource,
+    PendingAuthorization,
+    RefreshTokenGrant,
+    RegisteredClientSource,
+)
 from bundlemcp.application.serving.list_changed_notifier import ListChangedNotifier
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
@@ -174,6 +180,10 @@ class CompositionRoot:
         purger.start()
         self._stack.callback(purger.stop)
 
+        client_metadata = overrides.client_metadata_fetcher or HttpxClientMetadataFetcher(
+            settings, redis
+        )
+
         return AppContainer(
             settings=settings,
             engine=engine,
@@ -210,8 +220,13 @@ class CompositionRoot:
             oidc_provider=await self._build_oidc_provider(),
             invalidation=subscriber,
             mcp_router=mcp_router,
-            client_metadata=overrides.client_metadata_fetcher
-            or HttpxClientMetadataFetcher(settings, redis),
+            client_metadata=client_metadata,
+            # OAS-4: the grants this server serves; OAS-2/OAS-13: how clients identify
+            token_grants=(AuthorizationCodeGrant, RefreshTokenGrant),
+            client_sources=(
+                lambda uow: RegisteredClientSource(uow.oauth_clients),
+                lambda uow: MetadataDocumentClientSource(uow.oauth_clients, client_metadata),
+            ),
         )
 
     def _build_cipher(self) -> SecretCipher | None:

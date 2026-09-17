@@ -1,5 +1,7 @@
+from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 
+from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 
 
@@ -23,3 +25,8 @@ class ClientSource(Protocol):
         exists but may not act as a client of this gateway.
         """
         ...
+
+
+# Builds a source over one request's transaction. The composition root lists
+# the ways clients may identify themselves; a provider instantiates them.
+ClientSourceFactory = Callable[[UnitOfWork], ClientSource]

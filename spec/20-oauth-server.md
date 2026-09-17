@@ -33,7 +33,8 @@ application layer can resolve a stable `sub`.
 - **OAS-3 Authorization code + PKCE**: `GET /oauth/authorize` requires an
   authenticated browser session — if absent, redirect into the OIDC login and
   return to complete the flow. S256 PKCE REQUIRED for public clients. Codes
-  are single-use, 10-minute expiry, bound to client + redirect URI + challenge.
+  are single-use, 10-minute expiry by default (`authorization_code_lifetime`),
+  bound to client + redirect URI + challenge.
   The burn is atomic (a compare-and-set on the stored code), so two
   redemptions racing on one code yield one token pair.
 - **OAS-4 Token endpoint**: `POST /oauth/token` supports `authorization_code`
@@ -41,8 +42,9 @@ application layer can resolve a stable `sub`.
   default 1h lifetime; refresh tokens default 7d and are **rotated on every
   use** (old one revoked). A refresh token presented again after rotation is
   treated as stolen: every pair descended from the same authorization grant
-  (the token *family*) is revoked (RFC 9700 §4.14.2). Lifetimes
-  runtime-configurable (`Config`). The grant types a client registered
+  (the token *family*) is revoked (RFC 9700 §4.14.2). Lifetimes are
+  runtime-configurable (`Config`: `access_token_lifetime`,
+  `refresh_token_lifetime`, in seconds) and read when a pair is issued. The grant types a client registered
   (OAS-2) or its metadata document declares (OAS-13) are honoured: a grant
   outside that list is refused with `unauthorized_client`, and so is an
   authorization request from a client that did not register

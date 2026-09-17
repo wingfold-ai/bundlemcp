@@ -4,11 +4,8 @@ from collections.abc import Sequence
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import OAuthError
-from bundlemcp.application.oauth_server.authorization_code_grant import AuthorizationCodeGrant
 from bundlemcp.application.oauth_server.client_authenticator import OAuthClientAuthenticator
-from bundlemcp.application.oauth_server.refresh_token_grant import RefreshTokenGrant
 from bundlemcp.application.oauth_server.token_grant import TokenGrant
-from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
 from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
 from bundlemcp.domain.oauth.client_credentials import ClientCredentials
@@ -17,18 +14,14 @@ from bundlemcp.domain.shared.secrets import hash_token
 
 
 class OAuthTokenService:
-    def __init__(self, uow: UnitOfWork, grants: Sequence[TokenGrant] | None = None) -> None:
-        # grants defaults to the two this server supports; a caller may narrow the list
+    def __init__(
+        self, uow: UnitOfWork, *, clients: OAuthClientAuthenticator, grants: Sequence[TokenGrant]
+    ) -> None:
+        # Which grants exist is the composition root's decision, not this service's.
         self._uow = uow
-        self._clients = OAuthClientAuthenticator(uow)
+        self._clients = clients
         self._client_rows = uow.oauth_clients
         self._tokens = uow.oauth_tokens
-        if grants is None:
-            issuer = TokenIssuer(uow)
-            grants = (
-                AuthorizationCodeGrant(uow, issuer),
-                RefreshTokenGrant(uow, issuer),
-            )
         self._grants = {grant.grant_type: grant for grant in grants}
 
     async def exchange(
