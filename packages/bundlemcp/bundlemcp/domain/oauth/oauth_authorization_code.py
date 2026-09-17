@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from bundlemcp.domain.oauth.code_challenge_method import CodeChallengeMethod
+from bundlemcp.domain.oauth.pkce import pkce_verifies
 from bundlemcp.domain.shared.clock import utcnow
 
 
@@ -39,3 +40,16 @@ class OAuthAuthorizationCode(BaseModel):
     def is_redeemable(self) -> bool:
         """Unused and not yet expired, so it may still be exchanged for tokens."""
         return not self.used and self.expires_at >= utcnow()
+
+    def issued_to(self, client_id: str) -> bool:
+        """Whether this client is the one the code was issued to; no other may redeem it."""
+        return self.client_id == client_id
+
+    def sent_to(self, redirect_uri: str | None) -> bool:
+        """Whether the exchange repeats the redirect URI the code was delivered to."""
+        return redirect_uri == self.redirect_uri
+
+    def proves_possession(self, code_verifier: str) -> bool:
+        """Whether the verifier matches the challenge the code was bound to (PKCE)."""
+        # only S256 exists; a second method would dispatch on code_challenge_method here
+        return pkce_verifies(code_verifier, self.code_challenge)

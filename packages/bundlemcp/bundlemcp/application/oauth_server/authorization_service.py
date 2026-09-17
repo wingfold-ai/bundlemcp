@@ -11,11 +11,12 @@ from bundlemcp.application.oauth_server.pending_authorization import PendingAuth
 from bundlemcp.domain.access.user import User
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
+from bundlemcp.domain.oauth.client_id_metadata_document import InvalidClientMetadataDocument
 from bundlemcp.domain.oauth.code_challenge_method import CodeChallengeMethod
+from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.oauth_authorization_code import OAuthAuthorizationCode
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 from bundlemcp.domain.oauth.oauth_consent import OAuthConsent
-from bundlemcp.domain.oauth.redirect_uri_rule import InvalidRedirectUri, check_redirect_uri
 from bundlemcp.domain.oauth.response_type import ResponseType
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 from bundlemcp.domain.shared.clock import utcnow
@@ -61,6 +62,8 @@ class AuthorizationService:
 
         if request.response_type != ResponseType.CODE:
             raise redirect("unsupported_response_type")
+        if not client.allows_grant(GrantType.AUTHORIZATION_CODE):
+            raise redirect("unauthorized_client")
         if not request.code_challenge or request.code_challenge_method != CodeChallengeMethod.S256:
             raise redirect("invalid_request", "PKCE S256 code_challenge required")
         # OAS-10: resolve the endpoint audience from `resource`
@@ -104,24 +107,16 @@ class AuthorizationService:
             return await self._clients.get(client_id)
         # OAS-13
         document = await self._client_metadata.fetch(client_id)
-        if document.client_id != client_id:
-            raise InvalidInputError("client metadata document does not name its own URL")
-        if document.token_endpoint_auth_method != TokenEndpointAuthMethod.NONE:
-            raise InvalidInputError("client metadata documents may only describe public clients")
-        for uri in document.redirect_uris:
-            try:
-                check_redirect_uri(uri)
-            except InvalidRedirectUri as exc:
-                raise InvalidInputError(str(exc)) from None
+        try:
+            document.check(fetched_from=client_id)
+        except InvalidClientMetadataDocument as exc:
+            raise InvalidInputError(str(exc)) from None
         client = await self._clients.get(client_id)
         if client is None:
             client = OAuthClient(
                 client_id=client_id, token_endpoint_auth_method=TokenEndpointAuthMethod.NONE
             )
-        client.client_name = document.client_name
-        client.redirect_uris = list(document.redirect_uris)
-        client.grant_types = list(document.grant_types)
-        client.scope = document.scope or "mcp"
+        client.apply_metadata_document(document)
         self._clients.add(client)
         await self._uow.commit()
         return client

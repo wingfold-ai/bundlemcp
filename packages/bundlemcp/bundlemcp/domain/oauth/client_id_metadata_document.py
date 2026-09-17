@@ -1,7 +1,16 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from bundlemcp.domain.oauth.grant_type import GrantType
+from bundlemcp.domain.oauth.redirect_uri_rule import InvalidRedirectUri, check_redirect_uri
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
+
+
+class InvalidClientMetadataDocument(ValueError):
+    """The document cannot stand for a client.
+
+    It names another URL, describes a confidential client, or registers a
+    redirect URI the gateway does not accept.
+    """
 
 
 class ClientIdMetadataDocument(BaseModel):
@@ -25,3 +34,24 @@ class ClientIdMetadataDocument(BaseModel):
         description="Grant types the client intends to use",
     )
     scope: str | None = Field(default=None, description="Space-separated scopes requested")
+
+    def check(self, fetched_from: str) -> None:
+        """Refuse a document that may not describe a client of this gateway.
+
+        It must name the URL it was fetched from as its client_id, describe a
+        public client, and register only redirect URIs the gateway accepts.
+        Raises InvalidClientMetadataDocument with the reason.
+        """
+        if self.client_id != fetched_from:
+            raise InvalidClientMetadataDocument(
+                "client metadata document does not name its own URL"
+            )
+        if self.token_endpoint_auth_method != TokenEndpointAuthMethod.NONE:
+            raise InvalidClientMetadataDocument(
+                "client metadata documents may only describe public clients"
+            )
+        for uri in self.redirect_uris:
+            try:
+                check_redirect_uri(uri)
+            except InvalidRedirectUri as exc:
+                raise InvalidClientMetadataDocument(str(exc)) from None

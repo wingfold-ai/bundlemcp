@@ -3,9 +3,11 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from bundlemcp.domain.oauth.application_type import ApplicationType
+from bundlemcp.domain.oauth.client_id_metadata_document import ClientIdMetadataDocument
 from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 from bundlemcp.domain.shared.clock import utcnow
+from bundlemcp.domain.shared.secrets import hash_token, tokens_equal
 
 
 class OAuthClient(BaseModel):
@@ -45,3 +47,30 @@ class OAuthClient(BaseModel):
         description="When the client last obtained a token. Clients that never used one are "
         "purged, so abandoned registrations do not accumulate",
     )
+
+    @property
+    def is_public(self) -> bool:
+        """A client with no secret, which proves itself with PKCE instead."""
+        return self.token_endpoint_auth_method == TokenEndpointAuthMethod.NONE
+
+    def verifies_secret(self, presented: str | None) -> bool:
+        """Whether a presented secret is this confidential client's; a public client has none."""
+        if presented is None or self.client_secret_hash is None:
+            return False
+        return tokens_equal(hash_token(presented), self.client_secret_hash)
+
+    def allows_grant(self, grant_type: GrantType) -> bool:
+        """Whether the client registered for this grant; the token endpoint refuses the rest."""
+        return grant_type in self.grant_types
+
+    def apply_metadata_document(self, document: ClientIdMetadataDocument) -> None:
+        """Mirror what the client publishes about itself, keeping what this gateway recorded.
+
+        The identifier, creation time and last use stay; everything the
+        document describes is replaced, so a changed document takes effect
+        the next time it is applied.
+        """
+        self.client_name = document.client_name
+        self.redirect_uris = list(document.redirect_uris)
+        self.grant_types = list(document.grant_types)
+        self.scope = document.scope or "mcp"

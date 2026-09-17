@@ -48,6 +48,10 @@ class OAuthTokenService:
         if grant is None:
             await self._uow.commit()
             raise OAuthError("unsupported_grant_type")
+        if not client.allows_grant(grant.grant_type):
+            # RFC 6749 section 5.2: the client exists but did not register for this grant
+            await self._uow.commit()
+            raise OAuthError("unauthorized_client")
         try:
             tokens = await grant.exchange(client, request)
         except OAuthError:

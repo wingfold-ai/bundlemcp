@@ -5,7 +5,6 @@ from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
 from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
-from bundlemcp.domain.oauth.pkce import pkce_verifies
 from bundlemcp.domain.shared.secrets import hash_token
 
 
@@ -22,11 +21,11 @@ class AuthorizationCodeGrant:
         if not request.code or not request.code_verifier:
             raise OAuthError("invalid_request", "code and code_verifier required")
         code = await self._codes.get(hash_token(request.code))
-        if code is None or not code.is_redeemable or code.client_id != client.client_id:
+        if code is None or not code.is_redeemable or not code.issued_to(client.client_id):
             raise OAuthError("invalid_grant")
-        if request.redirect_uri != code.redirect_uri:
+        if not code.sent_to(request.redirect_uri):
             raise OAuthError("invalid_grant", "redirect_uri mismatch")
-        if not pkce_verifies(request.code_verifier, code.code_challenge):
+        if not code.proves_possession(request.code_verifier):
             raise OAuthError("invalid_grant", "PKCE verification failed")
         # OAS-3: the burn is a compare-and-set, so two concurrent redemptions
         # that both read an unused code cannot both be issued a pair.

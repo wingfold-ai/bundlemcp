@@ -42,7 +42,11 @@ application layer can resolve a stable `sub`.
   use** (old one revoked). A refresh token presented again after rotation is
   treated as stolen: every pair descended from the same authorization grant
   (the token *family*) is revoked (RFC 9700 §4.14.2). Lifetimes
-  runtime-configurable (`Config`).
+  runtime-configurable (`Config`). The grant types a client registered
+  (OAS-2) or its metadata document declares (OAS-13) are honoured: a grant
+  outside that list is refused with `unauthorized_client`, and so is an
+  authorization request from a client that did not register
+  `authorization_code`.
 - **OAS-5 Introspection** (RFC 7662): `POST /oauth/introspect` returns
   `active`, `sub` (bundlemcp user id — the stable billing key, see
   [02-domain-model.md](02-domain-model.md) `User`), `client_id`, `exp`,

@@ -287,6 +287,58 @@ async def test_refresh_rotation_revokes_old(oauth_env):
     assert any(r.revoked for r in rows)
 
 
+async def test_token_endpoint_honours_registered_grant_types(oauth_env):
+    """OAS-4: a client registered for the code grant alone may not refresh (unauthorized_client)."""
+    http, app, user = oauth_env
+    resp = await http.post(
+        "/oauth/register",
+        json={
+            "redirect_uris": ["https://client.example/cb"],
+            "grant_types": ["authorization_code"],
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    client_id = resp.json()["client_id"]
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
+    tokens = await _exchange(http, client_id, code, verifier)
+
+    refused = await http.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": tokens["refresh_token"],
+            "client_id": client_id,
+        },
+    )
+    assert refused.status_code == 400
+    assert refused.json()["error"] == "unauthorized_client"
+
+
+async def test_authorize_refuses_a_client_without_the_code_grant(oauth_env):
+    """OAS-4: a client registered only for refresh_token cannot start the code flow."""
+    http, app, user = oauth_env
+    resp = await http.post(
+        "/oauth/register",
+        json={"redirect_uris": ["https://client.example/cb"], "grant_types": ["refresh_token"]},
+    )
+    assert resp.status_code == 201, resp.text
+    _verifier, challenge = make_pkce()
+    resp = await http.get(
+        "/oauth/authorize",
+        params={
+            "client_id": resp.json()["client_id"],
+            "redirect_uri": "https://client.example/cb",
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "resource": f"{PUBLIC_URL}/ep1/mcp",
+        },
+    )
+    assert resp.status_code == 302  # the client is genuine, so it learns at its redirect URI
+    assert parse_qs(urlparse(resp.headers["location"]).query)["error"] == ["unauthorized_client"]
+
+
 async def test_introspection_requires_service_key(oauth_env):
     """OAS-5/UPO-7."""
     http, app, user = oauth_env
