@@ -75,7 +75,8 @@ class ToolsCallHandler:
         return rpc_result(message.id, ctx.shape(result))
 
     async def _retry(self, ctx: RequestContext, message: JsonRpcMessage, tool) -> Response:
-        """PROT-18: the client is answering an earlier input_required result."""
+        # PROT-18
+        """The client is answering an earlier input_required result."""
         cipher = self._support.state_cipher
         if cipher is None:
             return rpc_error(message.id, UPSTREAM_FAILURE, NO_CIPHER)

@@ -1,10 +1,12 @@
-"""The MCP revisions the edge speaks, by era, and handshake-era negotiation (PROT-12).
+"""The MCP revisions the edge speaks, by era, and handshake-era negotiation.
 
 The revision lists come from the MCP SDK's own registry, so a new revision the
-SDK learns is served here without a table edit (PROT-22). The one decision that
-is the gateway's is the floor of the handshake window: revisions older than it
-are never negotiated, however long the SDK keeps them.
+SDK learns is served here without a table edit. The one decision that is the
+gateway's is the floor of the handshake window: revisions older than it are
+never negotiated, however long the SDK keeps them.
 """
+
+# PROT-12 (handshake negotiation), PROT-22 (revisions tracked from the SDK).
 
 import mcp_types.version as sdk_versions
 from mcp_types.version import is_version_at_least

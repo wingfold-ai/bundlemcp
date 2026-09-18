@@ -242,10 +242,11 @@ class ToolCall:
         on_notification: NotificationSink | None,
         started: float,
     ) -> None:
+        # PROT-18: the detached runner is what lets a parked call survive its response
         """Execute, account, and tell the streaming client how it ended.
 
         Runs detached from the response so that a call which asked the client
-        for input keeps going after that response has been sent (PROT-18).
+        for input keeps going after that response has been sent.
         """
         assert self._events is not None  # attached by the streamed renderer
         outcome = await self.execute(on_progress, on_notification)
@@ -277,15 +278,17 @@ class ToolCall:
         await self._events.emit("result", outcome.body(self.shape))
 
     def disconnected(self) -> None:
+        # PROT-19: a disconnect is accounted for as a cancellation
         """The client closed the response stream mid-call: end the upstream call.
 
-        The detached runner then accounts for the call as cancelled (PROT-19).
+        The detached runner then accounts for the call as cancelled.
         """
         if self._handle is not None:
             self._handle.cancel_event.set()
 
     def _channel(self) -> InputChannel | None:
-        """How an upstream's request for input reaches this client (PROT-18)."""
+        # PROT-18: which relay strategy serves a mid-request tool response
+        """How an upstream's request for input reaches this client."""
         if self._ctx.era is ProtocolEra.SESSION:
             return None  # PROT-4: the GET stream relay
         if self._preanswered is not None:

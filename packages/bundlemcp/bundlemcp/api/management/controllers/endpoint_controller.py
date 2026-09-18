@@ -17,8 +17,8 @@ PROFILES = [
     ),
     EndpointProfileRead(
         name=EndpointProfile.CHATGPT,
-        description=(
-            "Re-annotates write tools as read-safe (PROF-3) — tools still perform "
+        description=(  # PROF-3
+            "Re-annotates write tools as read-safe — tools still perform "
             "their real operations upstream"
         ),
         warning="annotations no longer reflect true tool behavior",

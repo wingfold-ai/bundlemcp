@@ -6,10 +6,11 @@ from bundlemcp.domain.bundles.bundle_view import BundleView
 
 
 def aggregate_capabilities(view: BundleView) -> dict[str, Any]:
-    """PROT-11: advertise a capability iff ≥1 enabled member advertises it.
+    # PROT-11 (aggregation rule), DISC-6 (the snapshot it reads)
+    """Advertise a capability if at least one enabled member advertises it.
 
-    Source is each member's discovery-time capabilities snapshot (DISC-6), so
-    initialize never fans out to members. The gateway always supports tools.
+    Source is each member's discovery-time capabilities snapshot, so initialize
+    never fans out to members. The gateway always supports tools.
     """
     caps: dict[str, Any] = {"tools": {"listChanged": True}}
     has_prompts = has_resources = has_completions = has_logging = False

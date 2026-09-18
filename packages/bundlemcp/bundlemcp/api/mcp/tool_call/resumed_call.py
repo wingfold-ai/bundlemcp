@@ -1,4 +1,6 @@
-"""A modern client's retry for a call parked on some replica (PROT-18 park and resume)."""
+"""A stateless client's retry for a call parked on some replica."""
+
+# PROT-18: the resume half of park and resume.
 
 import asyncio
 from typing import Any

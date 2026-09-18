@@ -1,4 +1,6 @@
-"""The cache hints the gateway can honestly give (PROT-16)."""
+"""The cache hints the gateway can honestly give."""
+
+# PROT-16: how long a client may keep a tools/prompts/resources list.
 
 from typing import Any
 
