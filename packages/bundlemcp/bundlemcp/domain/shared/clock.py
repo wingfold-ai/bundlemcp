@@ -13,10 +13,3 @@ class Clock(Protocol):
     """Where a service reads the time; entities take the instant as an argument instead."""
 
     def now(self) -> datetime: ...
-
-
-class SystemClock:
-    """The wall clock, in UTC."""
-
-    def now(self) -> datetime:
-        return utcnow()

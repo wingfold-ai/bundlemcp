@@ -2,8 +2,6 @@
 
 from typing import Protocol, runtime_checkable
 
-from bundlemcp.domain.shared.secrets import hash_token, tokens_equal
-
 
 @runtime_checkable
 class SecretHasher(Protocol):
@@ -14,13 +12,3 @@ class SecretHasher(Protocol):
     def matches(self, secret: str, digest: str) -> bool:
         """Whether the secret hashes to the digest, compared in constant time."""
         ...
-
-
-class Sha256SecretHasher:
-    """Plain SHA-256 of the secret: enough for high-entropy tokens the gateway generated itself."""
-
-    def digest(self, secret: str) -> str:
-        return hash_token(secret)
-
-    def matches(self, secret: str, digest: str) -> bool:
-        return tokens_equal(hash_token(secret), digest)

@@ -6,7 +6,8 @@ from fastapi import Depends, Form, Request, Response
 
 from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.route import route
-from bundlemcp.api.oauth.lockout import AuthLockout, count_credential_failure
+from bundlemcp.api.oauth.auth_lockout import AuthLockout
+from bundlemcp.api.oauth.count_credential_failure import count_credential_failure
 from bundlemcp.api.oauth.presented_client_credentials import ClientCredentialsProvider
 from bundlemcp.api.oauth.presented_token_request import TokenRequestProvider
 from bundlemcp.api.oauth.providers import AuthFailureGuardProvider, TokenServiceProvider

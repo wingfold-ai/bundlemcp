@@ -25,7 +25,7 @@ from bundlemcp.api.oauth.controllers.metadata_controller import OAuthMetadataCon
 from bundlemcp.api.oauth.controllers.registration_controller import ClientRegistrationController
 from bundlemcp.api.oauth.controllers.token_controller import OAuthTokenController
 from bundlemcp.api.oauth.controllers.upstream_connect_controller import UpstreamConnectController
-from bundlemcp.api.oauth.lockout import LockedOut, locked_out_handler
+from bundlemcp.api.oauth.locked_out import LockedOut, locked_out_handler
 from bundlemcp.api.oauth.oauth_error_response import (
     authorization_redirect_handler,
     oauth_error_handler,

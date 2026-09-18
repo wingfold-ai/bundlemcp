@@ -15,7 +15,7 @@ from bundlemcp.domain.oauth.oauth_consent import OAuthConsent
 from bundlemcp.domain.oauth.pkce import PkcePair
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 from bundlemcp.domain.shared.clock import utcnow
-from bundlemcp.domain.shared.secret_hasher import Sha256SecretHasher
+from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
 
 CIMD_URL = "https://client.example/oauth/client.json"
 HASHER = Sha256SecretHasher()

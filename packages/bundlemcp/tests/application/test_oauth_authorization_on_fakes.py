@@ -16,8 +16,8 @@ from bundlemcp.application.oauth_server import (
 from bundlemcp.domain.oauth.client_id_metadata_document import ClientIdMetadataDocument
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 from bundlemcp.domain.oauth.token_policy import TokenPolicy
-from bundlemcp.domain.shared.secret_hasher import Sha256SecretHasher
 from bundlemcp.domain.shared.secrets import hash_token
+from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import InMemoryUnitOfWork
 from bundlemcp.infrastructure.memory.manual_clock import ManualClock
 from bundlemcp.infrastructure.memory.sequential_secret_generator import (

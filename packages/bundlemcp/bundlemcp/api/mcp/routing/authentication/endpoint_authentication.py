@@ -33,6 +33,15 @@ DEFAULT_PRECEDENCE: tuple[CredentialAuthenticator, ...] = (
 
 
 class EndpointAuthentication:
+    """Runs the endpoint's accepted credential kinds against one request.
+
+    The clock and the hasher are the two primitives the authenticators need and
+    cannot get from the request: an API key or access token is looked up by
+    ``hasher`` digest — the gateway stores digests, never the secret — and
+    ``clock`` is the instant its expiry and its last-used window are judged
+    against. Both arrive from the composition root so a test can pin either.
+    """
+
     def __init__(
         self,
         *,
