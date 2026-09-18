@@ -7,9 +7,13 @@ from fastapi import HTTPException, Request, status
 from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.route import route
-from bundlemcp.api.http.service_providers import CallerResolverProvider, EndpointServiceProvider
+from bundlemcp.api.http.service_providers import (
+    BundleServiceProvider,
+    CallerResolverProvider,
+    EndpointServiceProvider,
+)
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
-from bundlemcp.application.schemas import AvailableEndpointRead, MeRead
+from bundlemcp.application.schemas import AvailableEndpointRead, CatalogueToolRead, MeRead
 from bundlemcp.domain.access.api_key import ApiKey
 from bundlemcp.domain.access.user import User
 
@@ -56,3 +60,19 @@ class MeController(Controller):
         """The catalogue for any signed-in person: enabled endpoints that accept OAuth."""
         await self._caller(request, callers)
         return await endpoints.available(settings.public_base)
+
+    @route.get("/bundles/{bundle_name}/tools")
+    async def bundle_tools(
+        self,
+        bundle_name: str,
+        request: Request,
+        callers: CallerResolverProvider,
+        endpoints: EndpointServiceProvider,
+        bundles: BundleServiceProvider,
+    ) -> list[CatalogueToolRead]:
+        """The tools a bundle serves, for a signed-in person reading its catalogue entry."""
+        await self._caller(request, callers)
+        # The bundle is readable only through an endpoint that would accept this
+        # caller, so the reachability check comes before any bundle content.
+        bundle_id = await endpoints.reachable_bundle_id(bundle_name)
+        return await bundles.catalogue_tools(bundle_id)

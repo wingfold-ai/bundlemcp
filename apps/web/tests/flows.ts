@@ -50,10 +50,14 @@ export async function createApiKey(page: Page, name: string): Promise<string> {
 // caller). Guarded on presence so a half-completed test still cleans up.
 export async function deleteApiKey(page: Page, name: string): Promise<void> {
   await page.goto("/api-keys");
-  const row = page.getByTestId(`key-${name}`);
-  if ((await row.count()) > 0) {
-    await page.getByTestId(`delete-${name}`).click();
-    await expect(row).toHaveCount(0);
+  // Key names are not unique and the row marker is keyed by name, so a retried
+  // run leaves several rows sharing one marker. Delete them one at a time until
+  // none is left: matching a single row would fail strict mode and wedge the
+  // teardown this helper exists to guarantee.
+  const rows = page.getByTestId(`key-${name}`);
+  for (let remaining = await rows.count(); remaining > 0; remaining--) {
+    await page.getByTestId(`delete-${name}`).first().click();
+    await expect(rows).toHaveCount(remaining - 1);
   }
 }
 
@@ -65,13 +69,18 @@ export async function deleteEndpointAndBundle(
   endpoint: string,
   bundle: string,
 ): Promise<void> {
+  // Each list is fetched after navigation, so the table must be on the page
+  // before the row is counted: probing too early reads 0, silently skips the
+  // delete, and leaves the fixture behind for the next run to trip over.
   await page.goto("/endpoints");
+  await page.getByTestId("endpoints-table").waitFor();
   if ((await page.getByTestId(`open-${endpoint}`).count()) > 0) {
     await page.getByTestId(`open-${endpoint}`).click();
     await page.getByTestId("delete-endpoint").click();
     await page.waitForURL(/\/endpoints$/);
   }
   await page.goto("/bundles");
+  await page.getByTestId("bundles-table").waitFor();
   if ((await page.getByTestId(`open-${bundle}`).count()) > 0) {
     await page.getByTestId(`open-${bundle}`).click();
     await page.getByTestId("delete-bundle").click();

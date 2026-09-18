@@ -68,3 +68,78 @@ test(testTitle("E2E-06"), async ({ page, steps }) => {
     }),
   ]);
 });
+
+// The composition grid reads what the seeded bundles already contain, so it
+// needs no fixture of its own.
+test(testTitle("E2E-15"), async ({ page, steps }) => {
+  await steps.play([
+    given("the admin on the composition grid", { req: "UI-1" }, async () => {
+      await page.goto("/bundles/matrix");
+      await expect(page.getByTestId("matrix-table")).toBeVisible();
+    }),
+    then("a bundle's member server is marked and a non-member is not", { req: "BND-4" }, async () => {
+      await expect(page.getByTestId("matrix-demo-echo").locator("span[aria-label]")).toBeVisible();
+      await expect(page.getByTestId("matrix-demo-hyperframes")).toHaveText("·");
+    }),
+    then("each row counts its servers and each column its bundles", { req: "BND-4" }, async () => {
+      // The seeded demo bundle holds exactly the echo server; the per-server
+      // total spans every bundle in the database, so it is only ever asserted
+      // to be positive — other scenarios add and remove bundles over echo.
+      await expect(page.getByTestId("matrix-count-demo")).toHaveText("1");
+      await expect(page.getByTestId("matrix-total-echo")).toHaveText(/^[1-9]\d*$/);
+    }),
+  ]);
+});
+
+// The catalogue entry an administrator writes, read back on the catalogue page.
+// Admins may open the catalogue too, so one session covers both sides.
+test(testTitle("E2E-16"), async ({ page, steps }) => {
+  const bundle = "e2e-catalogue";
+  const endpoint = "e2e-catalogue-ep";
+  page.on("dialog", (d) => d.accept());
+
+  await steps.play([
+    given(`a bundle "${bundle}" serving the echo server over OAuth`, { req: "BND-6" }, async () => {
+      await page.goto("/bundles");
+      await page.getByTestId("create-name").fill(bundle);
+      await page.getByTestId("create-submit").click();
+      await page.getByTestId(`open-${bundle}`).click();
+      await page.getByTestId("member-select").selectOption("echo");
+      await page.getByTestId("member-add").click();
+      await expect(page.getByTestId("member-echo")).toBeVisible();
+      await page.getByTestId("create-endpoint-name").fill(endpoint);
+      await page.getByTestId("auth-mode-oauth").check();
+      await page.getByTestId("create-endpoint-submit").click();
+      await expect(page.getByTestId(`bundle-endpoint-${endpoint}`)).toBeVisible();
+    }),
+    when("the administrator writes a catalogue overview", { req: "BND-11" }, async () => {
+      await page.goto(`/bundles/${bundle}`);
+      await page.getByTestId("input-overview").fill("First paragraph.\n\nSecond paragraph.");
+      await page.getByTestId("save-bundle").click();
+      await page.reload();
+      await expect(page.getByTestId("input-overview")).toHaveValue(/First paragraph/);
+    }),
+    then("the catalogue page shows it as paragraphs", { req: "BND-11" }, async () => {
+      await page.goto(`/catalogue/${bundle}`);
+      const overview = page.getByTestId("catalogue-overview");
+      await expect(overview).toContainText("First paragraph.");
+      await expect(overview).toContainText("Second paragraph.");
+    }),
+    then("the tools the bundle serves are listed with their descriptions", { req: "BND-11" }, async () => {
+      await expect(page.getByTestId("catalogue-tools")).toBeVisible();
+      const echoTool = page.getByTestId("catalogue-tool-echo__echo");
+      // BND-11: the reader gets the title and the description, not the wire name
+      await expect(echoTool).toContainText("Echo");
+      await expect(echoTool).toContainText("Return the text unchanged.");
+      await expect(echoTool).not.toContainText("echo__echo");
+    }),
+  ]);
+
+  // cleanup: delete endpoint then bundle
+  await page.goto(`/endpoints/${endpoint}`);
+  await page.getByTestId("delete-endpoint").click();
+  await page.waitForURL(/\/endpoints$/);
+  await page.goto(`/bundles/${bundle}`);
+  await page.getByTestId("delete-bundle").click();
+  await page.waitForURL(/\/bundles$/);
+});

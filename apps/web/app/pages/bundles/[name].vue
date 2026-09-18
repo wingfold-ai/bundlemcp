@@ -17,6 +17,7 @@ const notFound = ref(false);
 // ---- meta card ----
 const bundle = ref<BundleRead | null>(null);
 const description = ref("");
+const overview = ref("");
 const saving = ref(false);
 
 async function loadBundle() {
@@ -33,6 +34,7 @@ async function loadBundle() {
   }
   bundle.value = data;
   description.value = data.description ?? "";
+  overview.value = data.overview ?? "";
 }
 
 async function saveBundle() {
@@ -41,7 +43,11 @@ async function saveBundle() {
   try {
     const { error } = await api.PUT("/api/v1/bundles/{name}", {
       params: { path: { name: bundleName.value } },
-      body: { name: bundleName.value, description: description.value || null },
+      body: {
+        name: bundleName.value,
+        description: description.value || null,
+        overview: overview.value || null,
+      },
     });
     if (error) {
       errorMsg.value = apiErrorMessage(error);
@@ -311,6 +317,25 @@ onMounted(async () => {
             class="wf-input"
             data-testid="input-description"
           />
+          <p class="wf-help">
+            One line, sent to the model as the virtual server's MCP instructions — keep it short
+            (BND-1).
+          </p>
+        </div>
+        <div>
+          <label class="wf-label" for="input-overview">Catalogue overview</label>
+          <textarea
+            id="input-overview"
+            v-model="overview"
+            rows="6"
+            class="wf-input"
+            data-testid="input-overview"
+          />
+          <p class="wf-help">
+            Long-form text shown to people on this bundle's catalogue page, above its tools. Never
+            sent to a model, so write it for a human: what the bundle is for and anything they must
+            set up first. Blank lines start a new paragraph (BND-11).
+          </p>
         </div>
         <div class="flex gap-2">
           <UButton size="sm" :loading="saving" data-testid="save-bundle" @click="saveBundle"

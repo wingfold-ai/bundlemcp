@@ -20,6 +20,13 @@ class BundleRow(SQLModel, table=True):
         default=None,
         description="Free-text note about the bundle, served to clients as MCP instructions",
     )
+    overview: str | None = Field(  # BND-11
+        default=None,
+        description="Long-form description of the bundle for people browsing the "
+        "catalogue: what it is for, what the tools can do, and anything a user must set "
+        "up first. Plain text, paragraphs separated by blank lines. Unlike 'description' "
+        "this is never sent to a model, so it can be as long as it needs to be",
+    )
     created_at: datetime = Field(
         default_factory=utcnow,
         sa_column=timestamp_column(),
