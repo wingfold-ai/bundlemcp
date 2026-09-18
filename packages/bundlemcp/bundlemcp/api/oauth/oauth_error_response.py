@@ -5,26 +5,29 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastmcp.server.auth.redirect_validation import build_client_redirect
 
 from bundlemcp.application.errors import AuthorizationRedirectError, OAuthError
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 
 NO_STORE = {"Cache-Control": "no-store"}
 
 
-def oauth_error_response(error: str, description: str = "", *, status: int = 400) -> JSONResponse:
-    body = {"error": error}
+def oauth_error_response(
+    code: OAuthErrorCode, description: str = "", *, status: int
+) -> JSONResponse:
+    body = {"error": code.value}
     if description:
         body["error_description"] = description
     return JSONResponse(body, status_code=status, headers=NO_STORE)
 
 
 async def oauth_error_handler(request: Request, exc: OAuthError) -> Response:
-    return oauth_error_response(exc.error, exc.description, status=exc.status)
+    return oauth_error_response(exc.code, exc.description, status=exc.status)
 
 
 async def authorization_redirect_handler(
     request: Request, exc: AuthorizationRedirectError
 ) -> Response:
     """Deliver an authorization failure to the client's verified redirect URI."""
-    params = {"error": exc.error}
+    params = {"error": exc.code.value}
     if exc.description:
         params["error_description"] = exc.description
     if exc.state:

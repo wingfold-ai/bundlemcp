@@ -7,7 +7,8 @@ from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.oauth.providers import ClientRegistrationServiceProvider, RateLimiterProvider
-from bundlemcp.application.schemas import ClientRegistrationRequest, ClientRegistrationResponse
+from bundlemcp.api.oauth.registration_body import RegistrationBodyProvider
+from bundlemcp.application.schemas import ClientRegistrationResponse
 
 REGISTRATION_RATE_LIMIT = 10  # per window
 REGISTRATION_RATE_WINDOW = 3600  # seconds
@@ -22,7 +23,7 @@ class ClientRegistrationController(Controller):
     @route.post("/register", status_code=201, response_model_exclude_none=True)
     async def register_client(
         self,
-        body: ClientRegistrationRequest,
+        body: RegistrationBodyProvider,
         request: Request,
         service: ClientRegistrationServiceProvider,
         rate_limiter: RateLimiterProvider,

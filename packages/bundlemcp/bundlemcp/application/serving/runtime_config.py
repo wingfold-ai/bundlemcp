@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta
 from typing import Any
 
 import structlog
@@ -7,6 +8,7 @@ from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkF
 from bundlemcp.domain.config.call_timeouts import CallTimeouts
 from bundlemcp.domain.config.config_registry import DEFAULTS, coerce
 from bundlemcp.domain.config.unknown_config_key import UnknownConfigKey
+from bundlemcp.domain.oauth.token_policy import TokenPolicy
 
 log = structlog.get_logger(__name__)
 
@@ -33,6 +35,16 @@ class RuntimeConfig:
             call=float(await self.get("call_timeout")),
             reset_on_progress=bool(await self.get("reset_timeout_on_progress")),
             max_total=float(await self.get("max_total_timeout")),
+        )
+
+    async def token_policy(self) -> TokenPolicy:
+        """The lifetimes the OAuth server issues with, from overrides or the defaults."""
+        return TokenPolicy(
+            authorization_code_ttl=timedelta(
+                seconds=int(await self.get("authorization_code_lifetime"))
+            ),
+            access_token_ttl=timedelta(seconds=int(await self.get("access_token_lifetime"))),
+            refresh_token_ttl=timedelta(seconds=int(await self.get("refresh_token_lifetime"))),
         )
 
     async def all(self) -> dict[str, Any]:

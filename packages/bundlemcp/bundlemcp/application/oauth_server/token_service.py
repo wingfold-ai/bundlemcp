@@ -4,31 +4,33 @@ from collections.abc import Sequence
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import OAuthError
-from bundlemcp.application.oauth_server.authorization_code_grant import AuthorizationCodeGrant
 from bundlemcp.application.oauth_server.client_authenticator import OAuthClientAuthenticator
-from bundlemcp.application.oauth_server.refresh_token_grant import RefreshTokenGrant
 from bundlemcp.application.oauth_server.token_grant import TokenGrant
-from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
 from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
 from bundlemcp.domain.oauth.client_credentials import ClientCredentials
-from bundlemcp.domain.shared.clock import utcnow
-from bundlemcp.domain.shared.secrets import hash_token
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
+from bundlemcp.domain.shared.clock import Clock
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
 
 
 class OAuthTokenService:
-    def __init__(self, uow: UnitOfWork, grants: Sequence[TokenGrant] | None = None) -> None:
-        # grants defaults to the two this server supports; a caller may narrow the list
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        *,
+        clients: OAuthClientAuthenticator,
+        grants: Sequence[TokenGrant],
+        clock: Clock,
+        hasher: SecretHasher,
+    ) -> None:
+        # Which grants exist is the composition root's decision, not this service's.
         self._uow = uow
-        self._clients = OAuthClientAuthenticator(uow)
+        self._clients = clients
+        self._clock = clock
+        self._hasher = hasher
         self._client_rows = uow.oauth_clients
         self._tokens = uow.oauth_tokens
-        if grants is None:
-            issuer = TokenIssuer(uow)
-            grants = (
-                AuthorizationCodeGrant(uow, issuer),
-                RefreshTokenGrant(uow, issuer),
-            )
         self._grants = {grant.grant_type: grant for grant in grants}
 
     async def exchange(
@@ -41,13 +43,17 @@ class OAuthTokenService:
         """
         client = await self._clients.authenticate(credentials)
         if client is None:
-            raise OAuthError("invalid_client", status=401)
-        client.last_used_at = utcnow()  # SEC-8 stale-client purge signal
+            raise OAuthError(OAuthErrorCode.INVALID_CLIENT)
+        client.last_used_at = self._clock.now()  # SEC-8 stale-client purge signal
         self._client_rows.add(client)
         grant = self._grants.get(request.grant_type)
         if grant is None:
             await self._uow.commit()
-            raise OAuthError("unsupported_grant_type")
+            raise OAuthError(OAuthErrorCode.UNSUPPORTED_GRANT_TYPE)
+        if not client.allows_grant(grant.grant_type):
+            # RFC 6749 section 5.2: the client exists but did not register for this grant
+            await self._uow.commit()
+            raise OAuthError(OAuthErrorCode.UNAUTHORIZED_CLIENT)
         try:
             tokens = await grant.exchange(client, request)
         except OAuthError:
@@ -68,8 +74,8 @@ class OAuthTokenService:
         """
         client = await self._clients.authenticate(credentials)
         if client is None:
-            raise OAuthError("invalid_client", status=401)
-        digest = hash_token(token)
+            raise OAuthError(OAuthErrorCode.INVALID_CLIENT)
+        digest = self._hasher.digest(token)
         row = await self._tokens.by_either_hash(digest)
         if row is None or row.client_id != client.client_id:
             return

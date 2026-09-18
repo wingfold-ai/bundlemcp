@@ -42,6 +42,10 @@ DEFAULTS: dict[str, ConfigSetting] = {
     "server_error_attempts": ConfigSetting(default=3, value_type=int),
     # AUD-5 (days)
     "audit_retention_days": ConfigSetting(default=90, value_type=int),
+    # OAS-3 / OAS-4 (seconds): what the gateway's own OAuth server issues
+    "authorization_code_lifetime": ConfigSetting(default=600, value_type=int),
+    "access_token_lifetime": ConfigSetting(default=3600, value_type=int),
+    "refresh_token_lifetime": ConfigSetting(default=604800, value_type=int),
 }
 
 

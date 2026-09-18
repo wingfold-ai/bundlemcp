@@ -6,6 +6,8 @@ from bundlemcp.application.contracts.live_state.admin_session_store import Admin
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.domain.access.api_key import ApiKey
 from bundlemcp.domain.access.user import User
+from bundlemcp.domain.shared.clock import Clock
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
 
 
 class CallerResolver:
@@ -16,9 +18,16 @@ class CallerResolver:
     place the cookie-then-key precedence is written.
     """
 
-    def __init__(self, uow: UnitOfWork, admin_sessions: AdminSessionStore) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        admin_sessions: AdminSessionStore,
+        *,
+        clock: Clock,
+        hasher: SecretHasher,
+    ) -> None:
         self._sessions = AdminSessionService(uow, admin_sessions)
-        self._auth = AuthService(uow)
+        self._auth = AuthService(uow, clock=clock, hasher=hasher)
 
     async def resolve(
         self, *, session_id: str | None, authorization: str | None, x_api_key: str | None

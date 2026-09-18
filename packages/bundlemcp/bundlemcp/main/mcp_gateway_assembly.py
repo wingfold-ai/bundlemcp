@@ -47,6 +47,8 @@ from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
+from bundlemcp.domain.shared.clock import Clock
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
 
 
 class McpGatewayAssembly(BaseModel):
@@ -81,6 +83,8 @@ class McpGatewayAssembly(BaseModel):
     rate_limiter: RateLimiter = Field(description="Fixed-window limits per endpoint and client")
     auth_failures: AuthFailureGuard = Field(description="Per-IP lockout on bad credentials")
     counters: Counters = Field(description="In-process metric sink")
+    clock: Clock = Field(description="Where the edge reads the time when it checks a credential")
+    secret_hasher: SecretHasher = Field(description="How a presented credential is digested")
 
     def build(self) -> McpGatewayRouter:
         dialects = DialectRegistry.default(legacy_enabled=self.settings.legacy_protocol_enabled)
@@ -139,7 +143,7 @@ class McpGatewayAssembly(BaseModel):
         stateless_adapter = StatelessMcpAdapter(dialects=dialects, methods=methods)
         admission = AdmissionGate(
             unit_of_work_factory=self.unit_of_work_factory,
-            authentication=EndpointAuthentication(),
+            authentication=EndpointAuthentication(clock=self.clock, hasher=self.secret_hasher),
             auth_failures=self.auth_failures,
             public_base=self.settings.public_base,
         )

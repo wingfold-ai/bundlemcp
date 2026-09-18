@@ -22,10 +22,18 @@ from bundlemcp.application.contracts.upstream.upstream_connection_registry impor
     UpstreamConnectionRegistry,
 )
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
-from bundlemcp.application.oauth_server import ClientMetadataFetcher, PendingAuthorization
+from bundlemcp.application.oauth_server import (
+    ClientMetadataFetcher,
+    ClientSourceFactory,
+    PendingAuthorization,
+    TokenGrantFactory,
+)
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
+from bundlemcp.domain.shared.clock import Clock
+from bundlemcp.domain.shared.secret_generator import SecretGenerator
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
 from bundlemcp.infrastructure.valkey.invalidation_subscriber import InvalidationSubscriber
 
 
@@ -40,6 +48,11 @@ class AppContainer(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     settings: Settings = Field(repr=False, description="Deploy-time configuration")
+    clock: Clock = Field(description="Where every service reads the current time")
+    secret_hasher: SecretHasher = Field(
+        description="How stored secrets are digested and presented ones checked"
+    )
+    secret_generator: SecretGenerator = Field(description="Where new secrets come from")
     engine: AsyncEngine = Field(description="Async engine over the durable store")
     session_factory: async_sessionmaker[AsyncSession] = Field(
         description="Opens database sessions for request and background work"
@@ -85,6 +98,12 @@ class AppContainer(BaseModel):
     )
     client_metadata: ClientMetadataFetcher = Field(
         description="Resolves URL-shaped OAuth client ids to their metadata documents"
+    )
+    token_grants: tuple[TokenGrantFactory, ...] = Field(
+        description="The grants the token endpoint serves, built per request in this order"
+    )
+    client_sources: tuple[ClientSourceFactory, ...] = Field(
+        description="The ways an OAuth client may identify itself, asked per request in this order"
     )
     invalidation: InvalidationSubscriber = Field(
         description="This replica's subscription to configuration changes"

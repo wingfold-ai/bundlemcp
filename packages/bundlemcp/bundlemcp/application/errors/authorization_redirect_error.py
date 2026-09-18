@@ -1,4 +1,5 @@
 from bundlemcp.application.errors.service_error import ServiceError
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 
 
 class AuthorizationRedirectError(ServiceError):
@@ -12,7 +13,7 @@ class AuthorizationRedirectError(ServiceError):
         self,
         redirect_uri: str,
         state: str | None,
-        error: str,
+        code: OAuthErrorCode,
         description: str = "",
         *,
         issuer: str,
@@ -20,7 +21,7 @@ class AuthorizationRedirectError(ServiceError):
         # issuer is carried as `iss` on the redirect (RFC 9207)
         self.redirect_uri = redirect_uri
         self.state = state
-        self.error = error
+        self.code = code
         self.description = description
         self.issuer = issuer
-        super().__init__(description or error)
+        super().__init__(description or code.value)
