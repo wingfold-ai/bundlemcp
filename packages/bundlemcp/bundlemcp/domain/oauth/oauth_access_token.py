@@ -41,20 +41,14 @@ class OAuthAccessToken(BaseModel):
     )
     created_at: datetime = Field(default_factory=utcnow, description="When the pair was issued")
 
-    @property
-    def is_expired(self) -> bool:
-        return self.expires_at < utcnow()
-
-    @property
-    def refresh_is_expired(self) -> bool:
-        return self.refresh_expires_at is None or self.refresh_expires_at < utcnow()
-
-    @property
-    def is_usable(self) -> bool:
+    def is_usable_at(self, now: datetime) -> bool:
         """The access token still authenticates: neither revoked nor past its expiry."""
-        return not self.revoked and not self.is_expired
+        return not self.revoked and self.expires_at >= now
 
-    @property
-    def is_refreshable(self) -> bool:
+    def is_refreshable_at(self, now: datetime) -> bool:
         """The refresh token may still be exchanged for a new pair."""
-        return not self.revoked and not self.refresh_is_expired
+        return (
+            not self.revoked
+            and self.refresh_expires_at is not None
+            and self.refresh_expires_at >= now
+        )

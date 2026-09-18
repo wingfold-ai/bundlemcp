@@ -20,11 +20,21 @@ from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.management.api_key_service import ApiKeyService
-from bundlemcp.application.oauth_server import PendingAuthorization
+from bundlemcp.application.oauth_server import (
+    AuthorizationCodeGrant,
+    MetadataDocumentClientSource,
+    PendingAuthorization,
+    RefreshTokenGrant,
+    RegisteredClientSource,
+)
 from bundlemcp.application.serving.list_changed_notifier import ListChangedNotifier
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
+from bundlemcp.domain.shared.os_secret_generator import OsSecretGenerator
+from bundlemcp.domain.shared.secret_generator import SecretGenerator
+from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.crypto.token_cipher import token_cipher
 from bundlemcp.infrastructure.fastmcp.client_factory import default_client_factory
 from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
@@ -97,6 +107,9 @@ class CompositionRoot:
         """
         settings = self._settings
         overrides = self._overrides
+        clock = overrides.clock or SystemClock()
+        hasher = Sha256SecretHasher()
+        generator = overrides.secret_generator or OsSecretGenerator()
 
         engine = overrides.engine or create_engine(settings.database_url)
         if overrides.engine is None:
@@ -157,9 +170,11 @@ class CompositionRoot:
             rate_limiter=rate_limiter,
             auth_failures=auth_failure_guard,
             counters=counters,
+            clock=clock,
+            secret_hasher=hasher,
         ).build()
 
-        await self._ensure_initial_service_key(units)
+        await self._ensure_initial_service_key(units, hasher, generator)
         await BootstrapRunner(units, discovery).run(settings)  # spec 41
 
         subscriber = InvalidationSubscriber(redis)  # STP-2: one subscriber per replica
@@ -170,12 +185,19 @@ class CompositionRoot:
         self._stack.push_async_callback(subscriber.stop)
         self._stack.callback(registry.close_streams)  # PROT-17: streams end with a result
 
-        purger = TokenPurger(units)  # OAS-8/SEC-8: expired grants must not linger
+        purger = TokenPurger(units, clock)  # OAS-8/SEC-8: expired grants must not linger
         purger.start()
         self._stack.callback(purger.stop)
 
+        client_metadata = overrides.client_metadata_fetcher or HttpxClientMetadataFetcher(
+            settings, redis
+        )
+
         return AppContainer(
             settings=settings,
+            clock=clock,
+            secret_hasher=hasher,
+            secret_generator=generator,
             engine=engine,
             session_factory=sessions,
             redis=redis,
@@ -210,8 +232,13 @@ class CompositionRoot:
             oidc_provider=await self._build_oidc_provider(),
             invalidation=subscriber,
             mcp_router=mcp_router,
-            client_metadata=overrides.client_metadata_fetcher
-            or HttpxClientMetadataFetcher(settings, redis),
+            client_metadata=client_metadata,
+            # OAS-4: the grants this server serves; OAS-2/OAS-13: how clients identify
+            token_grants=(AuthorizationCodeGrant, RefreshTokenGrant),
+            client_sources=(
+                lambda uow: RegisteredClientSource(uow.oauth_clients),
+                lambda uow: MetadataDocumentClientSource(uow.oauth_clients, client_metadata),
+            ),
         )
 
     def _build_cipher(self) -> SecretCipher | None:
@@ -221,11 +248,18 @@ class CompositionRoot:
             return None
         return token_cipher(self._settings)
 
-    async def _ensure_initial_service_key(self, units: SqlAlchemyUnitOfWorkFactory) -> None:
+    async def _ensure_initial_service_key(
+        self,
+        units: SqlAlchemyUnitOfWorkFactory,
+        hasher: Sha256SecretHasher,
+        generator: OsSecretGenerator | SecretGenerator,
+    ) -> None:
         if not self._settings.initial_service_key:
             return
         async with units.open() as uow:
-            await ApiKeyService(uow).ensure_initial_service_key(self._settings.initial_service_key)
+            await ApiKeyService(uow, hasher=hasher, generator=generator).ensure_initial_service_key(
+                self._settings.initial_service_key
+            )
 
     async def _build_oidc_provider(self) -> OidcProvider | None:
         """The configured identity provider, ready to build authorize URLs."""

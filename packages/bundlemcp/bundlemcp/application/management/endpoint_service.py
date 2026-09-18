@@ -7,6 +7,7 @@ from bundlemcp.application.management.per_user_upstream_check import PerUserUpst
 from bundlemcp.application.schemas import AvailableEndpointRead, EndpointRead, EndpointUpsert
 from bundlemcp.domain.endpoints.endpoint import Endpoint
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
+from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
 from bundlemcp.domain.shared.resource_names import endpoint_name as endpoint_name_type
 
 
@@ -59,7 +60,7 @@ class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
             entries.append(
                 AvailableEndpointRead(
                     name=endpoint.name,
-                    url=f"{public_base}/{endpoint.name}/mcp",
+                    url=EndpointResource(public_base=public_base, endpoint_name=endpoint.name).url,
                     profile=endpoint.profile,
                     bundle_name=bundle.name if bundle else "",
                     bundle_description=bundle.description if bundle else None,

@@ -6,9 +6,9 @@ from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.http.service_providers import EndpointServiceProvider
-from bundlemcp.api.oauth.urls import endpoint_resource
 from bundlemcp.application.errors import NotFoundError
 from bundlemcp.application.schemas import AuthorizationServerMetadata, ProtectedResourceMetadata
+from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
 
 
 class OAuthMetadataController(Controller):
@@ -32,6 +32,8 @@ class OAuthMetadataController(Controller):
         if not endpoint.enabled:
             raise HTTPException(404, "unknown resource")
         return ProtectedResourceMetadata(
-            resource=endpoint_resource(settings, endpoint_name),
+            resource=EndpointResource(
+                public_base=settings.public_base, endpoint_name=endpoint_name
+            ).url,
             authorization_servers=[settings.public_base],
         )

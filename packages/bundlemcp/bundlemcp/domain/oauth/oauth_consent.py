@@ -23,3 +23,11 @@ class OAuthConsent(BaseModel):
         description="When it was withdrawn. While null the consent stands and the consent "
         "screen is skipped",
     )
+
+    @property
+    def is_active(self) -> bool:
+        """The consent still stands, so the client reaches the endpoint without asking again."""
+        return self.revoked_at is None
+
+    def revoke(self, at: datetime) -> None:
+        self.revoked_at = at

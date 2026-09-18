@@ -45,8 +45,9 @@ def get_endpoint_service(uow: UnitOfWorkProvider) -> EndpointService:
     return EndpointService(uow)
 
 
-def get_api_key_service(uow: UnitOfWorkProvider) -> ApiKeyService:
-    return ApiKeyService(uow)
+def get_api_key_service(request: Request, uow: UnitOfWorkProvider) -> ApiKeyService:
+    container = request.app.state.container
+    return ApiKeyService(uow, hasher=container.secret_hasher, generator=container.secret_generator)
 
 
 def get_user_service(uow: UnitOfWorkProvider) -> UserService:
@@ -61,8 +62,9 @@ def get_audit_service(uow: UnitOfWorkProvider) -> AuditService:
     return AuditService(uow)
 
 
-def get_auth_service(uow: UnitOfWorkProvider) -> AuthService:
-    return AuthService(uow)
+def get_auth_service(request: Request, uow: UnitOfWorkProvider) -> AuthService:
+    container = request.app.state.container
+    return AuthService(uow, clock=container.clock, hasher=container.secret_hasher)
 
 
 def get_admin_session_service(request: Request, uow: UnitOfWorkProvider) -> AdminSessionService:
@@ -70,7 +72,10 @@ def get_admin_session_service(request: Request, uow: UnitOfWorkProvider) -> Admi
 
 
 def get_caller_resolver(request: Request, uow: UnitOfWorkProvider) -> CallerResolver:
-    return CallerResolver(uow, request.app.state.container.admin_sessions)
+    container = request.app.state.container
+    return CallerResolver(
+        uow, container.admin_sessions, clock=container.clock, hasher=container.secret_hasher
+    )
 
 
 ServerServiceProvider = Annotated[ServerService, Depends(get_server_service)]

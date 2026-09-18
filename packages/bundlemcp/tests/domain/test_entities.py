@@ -34,14 +34,16 @@ def test_scoped_service_key_reaches_only_its_endpoints():
 def test_service_error_status_is_inherited():
     """A subclass of a domain error keeps its parent's HTTP status."""
     from bundlemcp.application.errors import ConflictError, OAuthError, ServiceError
+    from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 
     class NameCollisionError(ConflictError):
         pass
 
     assert NameCollisionError("x").status == 409
     assert ServiceError("x").status == 500
-    assert OAuthError("invalid_grant").status == 400
-    assert OAuthError("invalid_client", status=401).status == 401
+    assert OAuthError(OAuthErrorCode.INVALID_GRANT).status == 400
+    assert OAuthError(OAuthErrorCode.INVALID_CLIENT).status == 401  # RFC 6749 section 5.2
+    assert OAuthError(OAuthErrorCode.TOO_MANY_REQUESTS).status == 429
 
 
 def test_config_values_are_validated_strictly():

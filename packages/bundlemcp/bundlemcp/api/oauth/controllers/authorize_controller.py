@@ -20,6 +20,7 @@ from bundlemcp.api.oauth.providers import (
 )
 from bundlemcp.application.errors import AuthorizationRedirectError, InvalidInputError
 from bundlemcp.application.oauth_server import AuthorizationRequest, PendingAuthorization
+from bundlemcp.domain.oauth.oauth_error_code import OAuthErrorCode
 
 log = structlog.get_logger(__name__)
 
@@ -103,7 +104,10 @@ class AuthorizeController(Controller):
             raise HTTPException(403, "session mismatch")
         if action != "approve":
             raise AuthorizationRedirectError(
-                pending.redirect_uri, pending.state, "access_denied", issuer=settings.public_base
+                pending.redirect_uri,
+                pending.state,
+                OAuthErrorCode.ACCESS_DENIED,
+                issuer=settings.public_base,
             )
         await service.grant_consent(pending)
         log.info("oauth.consent_granted", client_id=pending.client_id)
