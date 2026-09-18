@@ -32,21 +32,24 @@ export default defineConfig({
         text: "Guide",
         items: [
           { text: "What is bundlemcp?", link: "/guide/what-is-bundlemcp" },
-          { text: "bundlemcp vs. FastMCP", link: "/guide/bundlemcp-vs-fastmcp" },
           { text: "Quickstart", link: "/guide/quickstart" },
           { text: "Core concepts", link: "/guide/concepts" },
+          { text: "bundlemcp vs. FastMCP", link: "/guide/bundlemcp-vs-fastmcp" },
           { text: "Authentication", link: "/guide/authentication" },
           { text: "Roles and identity", link: "/guide/roles-and-identity" },
+          { text: "Glossary", link: "/guide/glossary" },
         ],
       },
       {
         text: "Self-hosting",
         items: [
+          { text: "Requirements", link: "/self-hosting/requirements" },
           { text: "Production deployment", link: "/self-hosting/deploy" },
           { text: "Configuration", link: "/self-hosting/configuration" },
           { text: "Identity provider", link: "/self-hosting/identity-provider" },
           { text: "Bootstrap file", link: "/self-hosting/bootstrap" },
           { text: "Operations", link: "/self-hosting/operations" },
+          { text: "Troubleshooting", link: "/self-hosting/troubleshooting" },
         ],
       },
       {
@@ -73,6 +76,7 @@ export default defineConfig({
         text: "Integrate",
         items: [
           { text: "Management API", link: "/integrate/management-api" },
+          { text: "Error responses", link: "/integrate/errors" },
           { text: "Metering hook", link: "/integrate/metering-hook" },
           { text: "Identity for upstream servers", link: "/integrate/upstream-identity" },
           { text: "HTTP surface reference", link: "/integrate/http-surface" },

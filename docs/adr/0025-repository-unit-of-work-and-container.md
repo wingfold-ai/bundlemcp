@@ -1,7 +1,7 @@
 # ADR-0025: A repository per entity, a unit of work per request, one typed container
 
-**Status:** accepted (amended by [ADR-0033](0033-clean-architecture-layers.md)) · **Date:** 2026-09-03 · **Amends:**
-[ADR-0020](0020-library-level-service-layer.md), [ADR-0023](0023-import-contracts-and-shared-providers.md)
+**Status:** accepted · **Date:** 2026-09-03 · **Amended by:** [ADR-0033](0033-clean-architecture-layers.md) ·
+**Amends:** [ADR-0020](0020-library-level-service-layer.md), [ADR-0023](0023-import-contracts-and-shared-providers.md)
 
 ## Context
 

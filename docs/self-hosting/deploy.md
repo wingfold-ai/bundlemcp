@@ -5,6 +5,33 @@ putting a TLS-terminating reverse proxy in front, replacing the dev identity pro
 telling the gateway its public identity. This page walks through the topology;
 [Configuration](/self-hosting/configuration) lists every setting.
 
+## Get the images
+
+Every push to `main` publishes both images to the GitHub Container Registry, tagged `:latest` and with the full commit
+SHA:
+
+```text
+ghcr.io/mhoegger/bundlemcp-gateway:<sha>
+ghcr.io/mhoegger/bundlemcp-web:<sha>
+```
+
+There is no versioned release yet, so pin the SHA tag (or the digest) rather than `:latest`, and record which commit you
+deployed. To build from a checkout instead, for your own registry:
+
+```bash
+git clone https://github.com/mhoegger/bundlemcp.git && cd bundlemcp
+SHA=$(git rev-parse --short HEAD)
+
+docker build -f apps/gateway/Dockerfile -t your-registry/bundlemcp-gateway:$SHA .
+docker build -f apps/web/Dockerfile     -t your-registry/bundlemcp-web:$SHA .
+
+docker push your-registry/bundlemcp-gateway:$SHA
+docker push your-registry/bundlemcp-web:$SHA
+```
+
+"Upgrading" means deploying a newer commit; there are no release notes, so the diff between the two commits is the
+changelog — see [Migrations and upgrades](#migrations-and-upgrades) for what to look for in it.
+
 ## Topology
 
 <LikeC4Diagram view="production" />
@@ -27,22 +54,32 @@ cookie that never sticks.
 
 ## Reverse proxy
 
-Terminate TLS at the proxy and forward to the gateway on port 8000 and the web app on port 3000. Then:
+Terminate TLS at the proxy and forward to the gateway on port 8000 and the
+web app on port 3000. Then:
 
-1. Set `BUNDLEMCP_TRUSTED_PROXIES` to the CIDRs your proxies connect from, for example `["10.0.0.0/8"]`.
-   `X-Forwarded-For` is honoured only from those peers; from anyone else the socket address is used. Without this,
-   per-client rate limits and audit records attribute every request to the proxy.
-2. Allow long-lived responses. Handshake-era clients hold a `GET` stream open on the endpoint URL for server-initiated
-   messages, and a tool call can run for the configured call timeout (60 s by default, up to `max_total_timeout`). Set
-   the proxy's read and idle timeouts accordingly and do not buffer responses.
-3. Pass request bodies through unchanged. The gateway enforces its own body size limits.
+1. Set `BUNDLEMCP_TRUSTED_PROXIES` to the CIDRs your proxies connect from,
+   for example `["10.0.0.0/8"]`. `X-Forwarded-For` is honoured only from
+   those peers; from anyone else the socket address is used. Without this,
+   per-client rate limits and audit records attribute every request to the
+   proxy.
+2. Allow long-lived responses and do not buffer them. Session-era clients hold
+   a `GET` stream open for server-initiated messages, and a tool call can run
+   for `call_timeout` (60 s by default) up to a `max_total_timeout` ceiling of
+   1800 s. Set the proxy's read and idle timeouts at or above the ceiling you
+   allow.
+3. Allow a request body of at least 4 MiB — the cap the gateway enforces
+   itself, answering `413` above it. A proxy limit below that turns a request
+   the gateway would have accepted into the proxy's own error.
 
-A minimal Caddyfile:
+These three numbers — **1800 s**, **4 MiB**, **no buffering** — are the whole
+of it, and two of them are below nginx's defaults.
 
-```
+::: code-group
+
+```txt [Caddy]
 gw.example.com {
     reverse_proxy gateway:8000 {
-        flush_interval -1
+        flush_interval -1          # stream SSE straight through
     }
 }
 
@@ -50,6 +87,22 @@ admin.example.com {
     reverse_proxy web:3000
 }
 ```
+
+```nginx [nginx]
+# nginx defaults break both long calls and large bodies, so set all three.
+location / {
+    proxy_pass http://gateway:8000;
+    proxy_http_version 1.1;
+    proxy_buffering off;           # SSE streams; default is on
+    proxy_read_timeout 1800s;      # >= max_total_timeout; default is 60s
+    client_max_body_size 8m;       # the gateway rejects >4 MiB itself; default is 1m
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+:::
 
 ## Browser origins and the web app
 
@@ -91,12 +144,22 @@ Generate real values for every secret the dev compose file defaults inline:
 | Variable | Generate with |
 |---|---|
 | `BUNDLEMCP_INITIAL_SERVICE_KEY` | `python -c "import secrets;print('bmcp_sk_'+secrets.token_urlsafe(32))"` |
-| `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` | `python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"` |
+| `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` | `openssl rand -base64 32 \| tr '+/' '-_'` — a Fernet key is url-safe base64 of 32 random bytes |
 | `BUNDLEMCP_OIDC_CLIENT_SECRET` | Whatever your identity provider issued |
 | Postgres password | Your platform's secret store |
 
-The initial service key is only consulted while no service key exists, so it is safe to rotate away afterwards: create a
-new service key through the API, then delete the first one.
+`cryptography` is a gateway dependency, not something a host has by default, so
+the `openssl` form above avoids a `ModuleNotFoundError`. If you would rather use
+the library, run it inside the image you just built:
+
+```bash
+docker run --rm your-registry/bundlemcp-gateway:$SHA \
+  python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"
+```
+
+The initial service key is only consulted while no service key exists, so
+it is safe to rotate away afterwards: create a new service key through the
+API, then delete the first one.
 
 Token encryption keys protect stored upstream OAuth tokens. The gateway boots without them, but a server with
 `auth_mode: upstream_oauth` cannot be used until they are set. Losing every key invalidates every stored upstream
@@ -107,23 +170,44 @@ connection; users simply reconnect.
 | Route | Meaning |
 |---|---|
 | `GET /healthz` | The process is alive. |
-| `GET /readyz` | Postgres and Valkey are reachable and the schema is current. Returns non-200 until migrations have run. |
+| `GET /readyz` | Postgres answers a trivial query and Valkey answers a ping. |
 
 Both are unauthenticated. Wire `/readyz` into your orchestrator's readiness probe and the proxy's upstream health check;
 the gateway image's own `HEALTHCHECK` already polls it.
 
+`/readyz` does **not** check the schema version. It does not need to for a
+single container — the image runs `alembic upgrade head` before the server
+binds, so a replica that is still migrating is not accepting connections at
+all. It does mean you cannot use `/readyz` to detect a replica running against
+a schema it does not expect.
+
 ## Migrations and upgrades
 
-The gateway image runs `alembic upgrade head` before starting the server, so a plain image bump applies the schema
-change. With several replicas, start the new version as a rolling update:
+The gateway image runs `alembic upgrade head` before starting the server, so
+deploying a newer image applies the schema change. Two consequences to plan
+for:
 
-1. Migrations are written to be backward-compatible one release back, so old replicas keep working against the new
-   schema during the rollout.
-2. Live session records in Valkey carry a schema version. A release reads the previous release's records or treats them
-   as expired, which makes the client re-initialise rather than fail.
-3. `/readyz` stays false on a new replica until it sees the current schema, so the proxy does not route to it early.
+- **Every replica runs the migration on boot, and that is safe.** The Alembic
+  environment takes a Postgres advisory lock before running, so *N* replicas
+  starting together serialise: one migrates, the rest wait and then find
+  nothing to do. You do not need a separate migration job. For a long
+  migration you may still want one — the waiting replicas are not serving yet —
+  in which case run `alembic upgrade head` as a pre-deploy step and start the
+  replicas after it.
+- **Migrations are written to be backward-compatible one release back**, so old
+  replicas keep working against the new schema during a rolling update. This is
+  an authoring convention, not something enforced by a test — read the
+  migration when skipping a version.
 
-Read the release notes before jumping more than one version.
+Live session records in Valkey carry a schema version. A release reads the
+previous release's records or treats them as expired, which makes the client
+re-initialise rather than fail.
+
+Because there are no versioned releases yet (see
+[Get the images](#get-the-images)), "read the release notes" means reading
+`git log` between the commit you deployed and the one you are deploying,
+looking for new files under
+`packages/bundlemcp/bundlemcp/infrastructure/postgres/migrations/versions/`.
 
 ## Scaling out
 
@@ -135,18 +219,56 @@ The one exception is a **live stream**: a handshake-era client's `GET` event str
 to it. Nothing about that requires proxy configuration, but it is why Valkey must be one shared instance, not one per
 replica.
 
+Two facts about a single replica, since they set the shape of a deployment:
+
+- **One container is one uvicorn process with one worker.** Scale out by adding
+  replicas, not workers; there is no worker-count setting.
+- **The container always listens on 8000.** No environment variable changes it;
+  remap at the proxy or in the container's port mapping.
+
 ## Backups
 
 Postgres holds **all** durable state: configuration, users, OAuth clients and tokens, upstream tokens, the audit log. A
 `pg_dump` of the database is a complete backup.
+
+Against a managed Postgres, point `pg_dump` at the same database the gateway
+uses. Note that `BUNDLEMCP_DATABASE_URL` carries a `+asyncpg` driver suffix that
+libpq does not understand, so strip it:
+
+```bash
+pg_dump "$(echo "$BUNDLEMCP_DATABASE_URL" | sed 's|+asyncpg||')" \
+  > bundlemcp-$(date +%F).sql
+```
+
+On the dev compose stack, where Postgres is a container:
 
 ```bash
 docker compose -f deploy/docker-compose.yml exec postgres \
   pg_dump -U bundlemcp bundlemcp > bundlemcp-$(date +%F).sql
 ```
 
-Restore into an empty database and start the gateway; migrations bring the schema forward if the dump is older than the
-running version.
+### Rehearsing the restore
+
+A backup nobody has restored is a hypothesis. The rehearsal is five steps:
+
+```bash
+# 1. a scratch database
+createdb bundlemcp_restore_test
+# 2. load the dump
+psql bundlemcp_restore_test < bundlemcp-2026-09-18.sql
+# 3. point a gateway at it, with the same encryption keys as the original
+BUNDLEMCP_DATABASE_URL=postgresql+asyncpg://…/bundlemcp_restore_test \
+BUNDLEMCP_TOKEN_ENCRYPTION_KEYS='["…"]' \
+  docker run --rm -p 8001:8000 --env-file restore.env your-registry/bundlemcp-gateway:$SHA
+# 4. readiness, which also proves migrations applied
+curl -fsS http://localhost:8001/readyz
+# 5. one real tool call through a restored endpoint, and an upstream-OAuth
+#    server's connection if you have one — that is what proves the keys match
+```
+
+Migrations bring the schema forward if the dump is older than the running
+version, so step 4 failing usually means a migration did not apply rather than
+a bad dump.
 
 Valkey is deliberately **not** backed up. It holds sessions and counters; losing it means clients re-initialise and
 rate-limit windows restart.
@@ -159,14 +281,25 @@ encrypted with a key you no longer have cannot use those connections.
 The gateway makes outbound HTTP requests to server URLs, to upstream OAuth providers, to client metadata documents and
 to your identity provider. All of them go through one egress policy:
 
-- link-local and cloud metadata ranges (`169.254.0.0/16` and the IPv6 equivalents) and the gateway's own loopback are
-  blocked;
-- private RFC 1918 ranges are allowed, since compose and cluster networks are the common case;
-- `BUNDLEMCP_EGRESS_ALLOW_CIDRS` widens and `BUNDLEMCP_EGRESS_DENY_CIDRS` narrows the policy. The allow list is
-  evaluated first.
+- link-local and cloud metadata ranges (`169.254.0.0/16` and the IPv6
+  equivalents) and the gateway's own loopback are blocked by default;
+- private RFC 1918 ranges are allowed, since compose and cluster networks
+  are the common case;
+- `BUNDLEMCP_EGRESS_ALLOW_CIDRS` widens and `BUNDLEMCP_EGRESS_DENY_CIDRS`
+  narrows the policy.
 
-The policy applies to the resolved IP at connect time, including after redirects, so DNS tricks do not bypass it. An
-identity provider that resolves to loopback, as a dev Keycloak on the same host might, needs an allow entry.
+**The allow list is evaluated first and wins outright**, including over the
+built-in blocks. An allow entry covering `169.254.0.0/16` — or `0.0.0.0/0` —
+re-opens the cloud-metadata range. That is deliberate, because it is what lets
+an identity provider on loopback work (a dev Keycloak on the same host needs
+exactly this), but it means the allow list is a security-critical setting: keep
+it as narrow as the one host you meant to reach.
+
+The check resolves the hostname and tests every address it gets back, so a name
+cannot smuggle a blocked IP past a name-based check. It is a **pre-flight**
+check, though, not a connect-time one: the HTTP client resolves again when it
+connects, so a name whose DNS answer changes between the two resolutions is not
+covered. Redirects are not followed, so there is no per-hop gap.
 
 ## Checklist
 
@@ -177,4 +310,29 @@ identity provider that resolves to loopback, as a dev Keycloak on the same host 
 - [ ] `BUNDLEMCP_WEB_ORIGINS` contains the admin UI origin.
 - [ ] `BUNDLEMCP_BOOTSTRAP_STRICT=true` if you provision from a bootstrap file.
 - [ ] `/readyz` wired into the proxy and orchestrator.
-- [ ] Postgres backups scheduled and a restore rehearsed.
+- [ ] Postgres backups scheduled and a [restore rehearsed](#rehearsing-the-restore).
+- [ ] Proxy allows 4 MiB bodies, 1800 s reads, and does not buffer.
+- [ ] An audit-log retention job of your own, since the gateway has none.
+- [ ] `BUNDLEMCP_EGRESS_ALLOW_CIDRS` reviewed — it overrides the built-in blocks.
+
+## Limits
+
+| | Value |
+|---|---|
+| Request body | 4 MiB, `413` above it |
+| Single tool call | `call_timeout` 60 s, ceiling `max_total_timeout` 1800 s |
+| Session idle expiry | `session_lifetime` 86 400 s |
+| Tool-list cache hint | `list_cache_ttl_ms` 300 000 ms |
+| Rate limits | per endpoint, fixed window, counted in Valkey |
+| Auth-failure lockout | 20 failures per 300 s per IP |
+| Process model | one uvicorn worker per container, port 8000 |
+| Audit growth | one row per tool call, never purged — the main unbounded cost |
+
+The runtime-tunable values are the ones with names; see
+[Configuration](/self-hosting/configuration#runtime-settings).
+
+## Next steps
+
+- [Operations](/self-hosting/operations) — what to watch day to day.
+- [Troubleshooting](/self-hosting/troubleshooting) — symptom-first fixes.
+- [Configuration](/self-hosting/configuration) — every setting.

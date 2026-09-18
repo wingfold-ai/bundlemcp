@@ -23,7 +23,7 @@ Every externally visible URL in all four systems is derived from `settings.publi
 
 > **"Redis" here = the RESP store, which ships as Valkey** (BSD-3; ADR-0022). The `bmcp:…` keys and the `redis-py`
 > client are genuinely Redis-protocol-named and stay as written; the store *daemon* is Valkey. See
-> [../../README.md](../../README.md#a-note-on-the-resp-store-valkey-not-redis-adr-0022).
+> [the package README](../../../README.md#a-note-on-the-resp-store-valkey-not-redis-adr-0022).
 
 ---
 

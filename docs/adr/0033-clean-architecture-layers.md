@@ -1,7 +1,7 @@
 # ADR-0033: Four clean-architecture layers; contracts owned by the application; SQLModel entities as the accepted deviation
 
-**Status:** accepted (amended by [ADR-0034](0034-pydantic-entities-and-row-classes.md): entities are now plain Pydantic
-models) · **Date:** 2026-09-08 · **Amends:** [ADR-0003](0003-sqlmodel-pydantic-first.md),
+**Status:** accepted · **Date:** 2026-09-08 · **Amended by:** [ADR-0034](0034-pydantic-entities-and-row-classes.md)
+(entities are now plain Pydantic models) · **Amends:** [ADR-0003](0003-sqlmodel-pydantic-first.md),
 [ADR-0020](0020-library-level-service-layer.md), [ADR-0023](0023-import-contracts-and-shared-providers.md),
 [ADR-0025](0025-repository-unit-of-work-and-container.md)
 

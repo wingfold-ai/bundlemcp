@@ -1,7 +1,9 @@
 # ADR-0028: The OAuth server is services with grant strategies; browser state is typed and single-use
 
-**Status:** accepted · **Date:** 2026-09-03 · **Amends:** [ADR-0014](0014-gateway-rendered-oauth-authlib.md),
-[ADR-0017](0017-upstream-oauth-encryption.md), [ADR-0026](0026-controllers.md)
+**Status:** accepted · **Date:** 2026-09-03 · **Amended by:**
+[ADR-0036](0036-oauth-slice-decomposition-and-shared-contracts.md) · **Amends:**
+[ADR-0014](0014-gateway-rendered-oauth-authlib.md), [ADR-0017](0017-upstream-oauth-encryption.md),
+[ADR-0026](0026-controllers.md)
 
 ## Context
 

@@ -53,26 +53,34 @@ features:
 
 ## See it run
 
-Ten minutes from clone to a working bundle. The compose stack ships a demo server, bundle and endpoint, so the first
-call needs nothing but a key.
+Ten minutes from clone to a working bundle, with Docker and ports 8000, 3000
+and 8080 free. The compose stack ships a demo server, bundle and endpoint, so
+the first call needs nothing but a key.
 
 ::: code-group
 
 ```bash [1. start]
 git clone https://github.com/mhoegger/bundlemcp.git && cd bundlemcp
 cp deploy/.env.example deploy/.env
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env \
+  up -d --build --wait --wait-timeout 300
 ```
 
 ```bash [2. call]
-curl -s http://localhost:8000/demo/mcp \
-  -H "Authorization: Bearer bmcp_sk_devservicekey000000000000000000000000" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
-       "params":{"name":"echo__reverse","arguments":{"text":"bundlemcp"}}}'
+KEY=bmcp_sk_devservicekey000000000000000000000000
+V=2026-07-28
+curl -s -N http://localhost:8000/demo/mcp \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -H "MCP-Protocol-Version: $V" -H "Mcp-Method: tools/call" \
+  -H "Mcp-Name: echo__reverse" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+       "name":"echo__reverse","arguments":{"text":"bundlemcp"},
+       "_meta":{"io.modelcontextprotocol/protocolVersion":"'"$V"'",
+                "io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
 ```json [3. result]
+// arrives as the last `data:` event of an SSE stream
 {
   "jsonrpc": "2.0",
   "id": 1,
@@ -82,5 +90,10 @@ curl -s http://localhost:8000/demo/mcp \
 
 :::
 
-Then open the admin UI at `localhost:3000`, register your own servers, and [connect claude.ai](/connect/claude) with an
-OAuth endpoint. The whole path is in the [Quickstart](/guide/quickstart).
+An MCP SDK builds that envelope for you — the headers and `_meta` above are
+what a hand-rolled client has to send. See
+[Request envelope](/integrate/http-surface#request-envelope).
+
+Then open the admin UI at `localhost:3000`, register your own servers, and
+[connect claude.ai](/connect/claude) with an OAuth endpoint. The whole path is
+in the [Quickstart](/guide/quickstart).

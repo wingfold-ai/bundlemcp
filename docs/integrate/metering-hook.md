@@ -1,8 +1,21 @@
 # Metering hook
 
-Every `tools/call` passes through a middleware chain: tool filter, overrides, profile transform, **metering hook**,
-audit. The hook is the supported place for an application layer to plug in billing, quotas or entitlement checks without
-forking the gateway. It is a small, versioned Python protocol.
+The hook is the supported place for an application layer to plug in billing,
+quotas or entitlement checks without forking the gateway. It is a small,
+versioned Python protocol.
+
+Every `tools/call` runs this chain, and the order matters to you because it
+decides which calls you are asked about at all:
+
+1. **Tool filter.** A tool disabled in the bundle is rejected here. No `pre_call`.
+2. **Overrides and profile transform.**
+3. **Upstream credential resolution.** A `per_user` server the caller has not
+   connected, or an unconfigured upstream OAuth client, fails here with an audit
+   record of `status: error`. **No `pre_call`, so nothing is debited** — you are
+   never charged for a call that could not have gone out.
+4. **`pre_call`.**
+5. **The upstream call**, with at most one internal retry after a token refresh.
+6. **`post_call`**, then the audit record.
 
 ## The contract
 
@@ -38,20 +51,56 @@ class MeteringHook(Protocol):
 
 ## Semantics
 
-**Pre-call decides.** `pre_call` runs after the tool filter, overrides and profile transform, so a call to a disabled
-tool never reaches it. Returning `allowed=False` produces a structured MCP error carrying `reason` to the client, an
-audit record with `status=denied`, and no upstream call.
+**Pre-call decides.** Returning `allowed=False` produces an MCP error carrying
+your `reason` to the client, an audit record with `status=denied`, and no
+upstream call.
 
-**Post-call reports the outcome.** Exactly one `post_call` is delivered for every invocation whose `pre_call` allowed
-it, with the final `status` and the upstream duration. An MCP result with `isError: true` is `error`, as is a cancelled
-call. A failed call after a successful debit is your refund trigger.
+**Post-call reports the outcome.** For an invocation that runs to completion,
+one `post_call` is delivered with the final `status` and the upstream duration.
+An MCP result with `isError: true` is `error`, as is a cancelled call. A failed
+call after a successful debit is your refund trigger.
 
-**Retries do not double-charge.** The gateway retries a call internally in a few cases, such as once after refreshing an
-upstream OAuth token. `pre_call` fires once per client invocation, and the retry reuses the same `idempotency_key`.
-Charge exactly once per key.
+`duration_ms` is the upstream call only — not your hook, not gateway overhead —
+so it is safe to bill on.
 
-**Hook failures.** If the hook raises, the call is denied by default. `BUNDLEMCP_METERING_HOOK_FAIL_OPEN=true` lets it
-proceed with a log line; that is a business decision, not a safety one.
+**Calls that pause for input.** A tool that asks the client a question produces
+an audit record with `status: input_required` and **no `post_call`**. The
+invocation resumes when the client retries, reusing the same
+`idempotency_key`, and `pre_call` fires again on that resume. If the client
+never retries — the user closes the tab, the agent gives up — no `post_call`
+ever arrives. Treat a debit whose only audit record is `input_required`, older
+than your window, as abandoned.
+
+**`pre_call` can fire more than once for one key.** An internal retry (after
+refreshing an upstream OAuth token) does *not* re-fire it. An `input_required`
+resume does, with the key preserved. So: **make `pre_call` idempotent on
+`idempotency_key` and charge exactly once per key.**
+
+**The contract carries no amount, unit or currency.** Pricing is entirely
+yours. The gateway asks one question — may this call proceed? — and reports one
+fact: it ended this way, after this many milliseconds. `MeterContext` also gives
+the *upstream* tool name; if you need the name the client saw, read
+`presented_tool_name` from the audit record.
+
+### Hook failures
+
+| Situation | What the gateway does |
+|---|---|
+| `pre_call` raises | Denies the call (or allows it with `BUNDLEMCP_METERING_HOOK_FAIL_OPEN=true`), with `reason` `metering_unavailable`; logged as `metering.pre_call_failed`. That is a business decision, not a safety one. |
+| `pre_call` hangs | **Nothing — there is no timeout.** The tool call waits as long as your hook does. |
+| `post_call` raises or hangs | Logged as `metering.post_call_failed`. The call's own result is unaffected and the audit record is still written, so your refund simply never happens. |
+| `pre_call` returns `allowed=False` | JSON-RPC error `-32000` whose `message` is your `reason` verbatim; audit `status: denied`, `denied_reason` = your `reason`; no upstream call. |
+
+**Set your own timeout.** The gateway's call timeouts govern the *upstream*
+call, not your hook, and it will not impose one for you. A hook that talks to a
+network service and does not time out is a way to hang every tool call on the
+gateway.
+
+Note also that the denial the client sees is a free-text message, not a
+structured code — `-32000` with your `reason` as the message and no `data`
+field. A client cannot branch on `insufficient_credits` except by string
+comparison; the audit log is the reliable discriminator. See
+[Error responses](/integrate/errors).
 
 ## Installing a hook
 
@@ -64,7 +113,8 @@ from bundlemcp.application.metering import MeterContext, MeterDecision
 
 class LedgerHook:
     def __init__(self) -> None:
-        self._http = httpx.AsyncClient(base_url="http://billing:8000")
+        # The gateway puts no timeout around the hook; set one here.
+        self._http = httpx.AsyncClient(base_url="http://billing:8000", timeout=2.0)
 
     async def pre_call(self, ctx: MeterContext) -> MeterDecision:
         r = await self._http.post("/check-and-debit", json={
@@ -91,18 +141,44 @@ and point the gateway at the attribute:
 BUNDLEMCP_METERING_HOOK=acme_billing.hook:hook
 ```
 
-The gateway checks at startup that the object has both methods and refuses to boot otherwise, so a typo surfaces
-immediately rather than on the first call.
+The attribute may be the instance itself or a zero-argument callable returning
+one, so `acme_billing.hook:LedgerHook` works as well as `…:hook`. A factory is
+the usual way to inject configuration.
+
+The gateway checks at startup that the object has both methods and refuses
+to boot otherwise, so a typo surfaces immediately rather than on the first
+call.
 
 ## Crash reconciliation
 
-If the gateway dies between `pre_call` and `post_call`, no `post_call` fires and nothing refunds. The
-[audit log](/manage/audit) is the reconciliation source: for every invocation that passed `pre_call`, an audit record
-with a terminal status eventually exists. A debit in your ledger with no audit record for its idempotency window is a
-lost invocation to refund out of band. Keep `audit_retention_days` longer than your reconciliation window.
+If the gateway dies between `pre_call` and `post_call`, no `post_call` fires
+and nothing refunds. The [audit log](/manage/audit) is the reconciliation
+source: for an invocation that passed `pre_call` and ran to completion, an audit
+record with a terminal status exists.
+
+::: warning There is no shared key between your ledger and an audit record
+The audit record does **not** carry `idempotency_key` or any correlation id, so
+you cannot look a debit up directly. Reconcile on `(sub, tool_name, created_at)`
+within your window, and accept that two identical calls in the same instant are
+ambiguous — which is exactly what a retry produces.
+:::
+
+Two cases produce a debit with no terminal audit record, and both need a
+time-based sweep rather than a lookup: a crash between the two calls, and an
+`input_required` call the client never resumed. Keep your audit retention
+longer than your reconciliation window — noting that
+[nothing purges the audit log for you](/manage/audit#retention).
 
 ## Versioning
 
-`METERING_PROTOCOL_VERSION` is `1`. A change to the context, the decision or the call pattern bumps it and is a breaking
-change in the gateway's release notes. The hook is not consulted for `tools/list`; entitlement-based tool hiding is not
-part of version 1.
+`METERING_PROTOCOL_VERSION` is `1`. A change to the context, the decision or
+the call pattern bumps it and is a breaking change in the gateway's release
+notes. The hook is not consulted for `tools/list`; entitlement-based tool
+hiding is not part of version 1.
+
+## Next steps
+
+- [Audit log](/manage/audit) — the reconciliation source and its fields.
+- [Error responses](/integrate/errors) — what a denied caller actually receives.
+- [Management API](/integrate/management-api#stability) — what `/api/v1` and
+  `METERING_PROTOCOL_VERSION` each promise.

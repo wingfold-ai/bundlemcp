@@ -69,5 +69,25 @@ what separates them under rules 1 and 2. Six uses of `self._settings` still woul
 
 But `state` appeared in four methods, which is rule 5's signal, and rule 5 outranks rule 2. So the resolution was
 neither alias: `CompositionRoot` holds `self._state = app.state` once in `__init__` (verified safe — Starlette assigns
-`app.state` exactly once and never rebinds it) and every method uses it directly. `self._settings` and `self._overrides`
-are always spelled out.
+`app.state` exactly once and never rebinds it) and every method uses it directly.
+
+### The one exception, and what makes it one
+
+`_compose()` in the same class opens with the two aliases rule 1 rejects:
+
+```python
+settings = self._settings
+overrides = self._overrides
+```
+
+They are there on purpose, and the conditions are narrow enough to state:
+
+- **One method, not four.** Rule 5 does not fire, so this cannot spread.
+- **A build sequence, not logic.** `_compose()` is nothing but construction, with many uses of `settings` and
+  `overrides`. In keyword arguments such as `settings=settings, clock=clock` the alias makes the wiring legible as a
+  table; `settings=self._settings` next to fifteen local names reads as though it came from somewhere else.
+- **Nothing rebinds either attribute** for the life of the object.
+
+This is the whole exception. Anywhere the method also *decides* something, rule 1 applies as written: spell out
+`self._settings`. If you find yourself writing this preamble in a second method, that is rule 5 and the answer is a
+different seam, not another alias.

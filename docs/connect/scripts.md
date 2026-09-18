@@ -31,17 +31,36 @@ Copy the `key` from the response; it is shown once. See
 
 Send the key as a bearer or in `X-API-Key`. The endpoint speaks Streamable HTTP: JSON-RPC over `POST`.
 
+**Use an SDK if you can.** The SDK tabs below open a session with `initialize`
+and handle the protocol for you. A raw `curl` has to build the stateless-era
+envelope itself — every request repeats its protocol version in `params._meta`
+and mirrors three values into headers, and a request carrying neither that
+envelope nor an `Mcp-Session-Id` is refused with `400`. The full contract is in
+[Request envelope](/integrate/http-surface#request-envelope).
+
 ::: code-group
 
 ```bash [curl]
 URL=https://gw.example.com/assistant-ci/mcp
 KEY=bmcp_sk_…
+V=2026-07-28
 
-curl -s $URL -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+curl -s $URL \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -H "MCP-Protocol-Version: $V" -H "Mcp-Method: tools/list" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"'"$V"'",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
 
-curl -s $URL -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"weather__forecast","arguments":{"city":"Zurich"}}}'
+# tools/call also mirrors the tool name into Mcp-Name
+curl -s $URL \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -H "MCP-Protocol-Version: $V" -H "Mcp-Method: tools/call" \
+  -H "Mcp-Name: weather__forecast" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{
+        "name":"weather__forecast","arguments":{"city":"Zurich"},
+        "_meta":{"io.modelcontextprotocol/protocolVersion":"'"$V"'",
+                 "io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
 ```python [Python (fastmcp)]
@@ -89,8 +108,10 @@ console.log(await client.listTools());
 
 :::
 
-Both handshake-era clients (the SDK examples, which call `initialize`) and modern-era clients (the plain `curl` calls)
-are served on the same URL.
+One URL serves both eras. The SDK examples call `initialize` and get a session;
+the `curl` examples send the stateless envelope and get no session. Note that a
+`tools/call` answers with an SSE stream rather than a JSON body, so a raw client
+reads the last `data:` event as the result.
 
 ## Coding agents
 
@@ -116,4 +137,14 @@ the gateway reports an API key as active with that `sub`.
 | `401` with `WWW-Authenticate` | Missing, wrong or deactivated key, or the key is scoped to other endpoints. |
 | `404` | The endpoint name is wrong or the endpoint is disabled. |
 | `429` with `Retry-After` | A rate limit on the endpoint. |
+| `400` with code `-32602` or `-32020` | A hand-built request whose `params._meta` envelope is missing, or whose mirrored headers disagree with the body. |
 | JSON-RPC error on `tools/call` | The tool is disabled in the bundle, the metering hook denied the call, or the upstream failed. The message says which. |
+
+[Error responses](/integrate/errors) lists every code and which are worth
+retrying.
+
+## Next steps
+
+- [Request envelope](/integrate/http-surface#request-envelope) — the raw wire contract.
+- [API keys](/manage/api-keys) — key kinds, scoping and rotation.
+- [Endpoints](/manage/endpoints) — rate limits and auth modes.

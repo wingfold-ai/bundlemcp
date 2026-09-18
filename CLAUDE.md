@@ -42,15 +42,25 @@ See [spec/00-overview.md](spec/00-overview.md) and [spec/01-architecture.md](spe
 
 - Python ≥3.13, uv: `uv sync --all-packages`; run services with `uv run`.
 - Stack: `docker compose -f deploy/docker-compose.yml up` (gateway, web, Postgres, Valkey, dev OIDC IdP).
-- Sibling read-only reference repo: `../metamcp` (what we're replacing). The first consumer, a private application
-  layer, is never named in this repo; its registrar and billing contracts drive specs 40 and 31.
+- Local dev loop without rebuilding containers: bring up `postgres` and `valkey` from compose, then run the gateway on
+  the host with `uv run uvicorn --factory apps.gateway.main:app_factory --reload`.
+- If a sibling checkout of `../metamcp` is present it is read-only reference material (what we're replacing); it is not
+  required to work here. The first consumer, a private application layer, is never named in this repo; its registrar
+  and billing contracts drive specs 40 and 31.
 
 ## Testing
 
-- `uv run pytest -q` — hermetic tests (no Docker/network) grouped by layer: `tests/domain` and `tests/application` run
-  on pure objects and the `infrastructure/memory` fakes, `tests/infrastructure` on sqlite and fakeredis, `tests/api`
-  through the ASGI app. Must pass before any change is done. `uv run ruff check .` must be clean, and so must
-  `uv run rumdl check .` (Markdown lines stay within 120 columns; `uv run rumdl fmt .` rewraps longer ones).
+- `uv run pytest -q` — hermetic tests (no Docker/network) grouped by layer under `packages/bundlemcp/tests/`: `domain/`
+  and `application/` run on pure objects and the `infrastructure/memory` fakes, `infrastructure/` on sqlite and
+  fakeredis, `api/` through the ASGI app. `testpaths` points there, so bare `pytest` collects them; a path argument
+  needs the full `packages/bundlemcp/tests/domain`. Root `tests/` holds only `integration/`. Must pass before any change
+  is done. `uv run ruff check .` must be clean, and so must `uv run rumdl check .` (Markdown lines stay within 120
+  columns; `uv run rumdl fmt .` rewraps longer ones).
+- `cd apps/web && npm run openapi` after any change to a `schemas/` DTO or a route — CI fails on a stale
+  `apps/web/openapi.json` or `apps/web/types/api.d.ts`. `npm run typecheck` passes while that gate fails, so running
+  only typecheck is not enough.
+- `python3 tools/check_docs_links.py`, `check_docs_symbols.py`, `check_docs_settings.py` and `check_adr_graph.py` —
+  documentation consistency over the files the VitePress build does not see. All four are CI gates.
 - `uv run lint-imports` — import contracts (ADR-0023/0033): the inward layer direction, `domain/` and `application/`
   free of every driver, `api/` never naming an adapter, `application/` never touching the ORM. Must pass with zero
   exceptions; never silence a violation with `ignore_imports`. Delete `.import_linter_cache` after moving modules; a
@@ -81,9 +91,11 @@ See [spec/00-overview.md](spec/00-overview.md) and [spec/01-architecture.md](spe
 
 @.claude/docs/module-naming.md
 
-- **Design principles and intrinsic naming.** Protocols and modules are named for their inherent architectural mechanism
-  (no temporal labels like `modern` or `legacy`), DoS defense sequences cheap in-memory checks before DB I/O, and
-  differing transport capabilities are modeled with Front Controller + Protocol Adapters:
+- **Design principles and intrinsic naming.** Protocols and modules are named
+  for their inherent architectural mechanism (no temporal labels like `modern`
+  or `legacy`), DoS defense sequences cheap in-memory checks before DB I/O, and
+  differing transport capabilities are modeled with Front Controller + Protocol
+  Adapters:
 
 @.claude/docs/design-principles.md
 
@@ -94,10 +106,11 @@ See [spec/00-overview.md](spec/00-overview.md) and [spec/01-architecture.md](spe
 @.claude/docs/controllers.md
 
 - **Value objects and entity behavior.** Nothing crosses a layer as a tuple or an untyped dict; a fact about an entity
-  (`server.requires_per_user_token`, `token.is_usable`) is a property on the entity, written once. Services take a
-  `UnitOfWork` and query through `Repository[T]`; invariants that span resources are policy objects
+  (`server.requires_per_user_token`, `token.is_usable_at(now)`) is a property on the entity, written once. Services take
+  a `UnitOfWork` and query through `Repository[T]`; invariants that span resources are policy objects
   (`PerUserUpstreamPolicy`). See ADR-0024/0025.
-- New behavior starts with a spec update in `/spec`; keep requirement IDs stable.
+- New behavior starts with a spec update in `/spec`; keep requirement IDs stable. The read order and the full change
+  checklist are in [CONTRIBUTING.md](CONTRIBUTING.md).
 - Local aliases (`state = self._app.state`) must add meaning, not save typing — the rules, and the cases that justify
   one, are in:
 

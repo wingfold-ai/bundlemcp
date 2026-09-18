@@ -1,6 +1,7 @@
 # ADR-0026: Controllers own an HTTP surface
 
-**Status:** accepted · **Date:** 2026-09-03 · **Amends:** [ADR-0019](0019-api-service-layer.md)
+**Status:** accepted · **Date:** 2026-09-03 · **Amended by:** [ADR-0027](0027-mcp-edge-method-handlers.md),
+[ADR-0028](0028-oauth-server-as-services.md) · **Amends:** [ADR-0019](0019-api-service-layer.md)
 
 ## Context
 

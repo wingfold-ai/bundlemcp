@@ -11,8 +11,10 @@ flow). The bundlemcp user id is the stable `sub` everywhere: introspection, mete
 callers are API keys (`endpoint` vs `service` kind).
 
 ## Typing
-Pydantic v2 everywhere: SQLModel entities → derived DTOs → OpenAPI → generated TS client. Validation at every boundary;
-no hand-written duplicate shapes ([ADR-0003](../adr/0003-sqlmodel-pydantic-first.md)).
+Pydantic v2 everywhere: plain Pydantic entities, SQLModel row classes in the persistence adapter
+([ADR-0034](../adr/0034-pydantic-entities-and-row-classes.md)), DTOs in `application/schemas/` → OpenAPI → generated
+TS client. Validation at every boundary; no hand-written duplicate shapes
+([ADR-0003](../adr/0003-sqlmodel-pydantic-first.md)).
 
 ## Security
 Threat model + controls centralized in [spec/70](../../spec/70-security.md): one egress-policy layer for all
@@ -25,12 +27,14 @@ Structured MCP errors to clients; no silent degradation — partial `tools/list`
 upstream session loss is retried once, then surfaced ([SES-7](../../spec/30-session-management.md)).
 
 ## Observability
-Structured JSON logs (redacted), Prometheus `/metrics`, `/healthz`+`/readyz`, optional OTel; live-log ring in Redis for
-the UI; per-call audit records in Postgres as the billing reconciliation source ([AUD-7](../../spec/50-audit-log.md)).
+Structured JSON logs (redacted), `/healthz`+`/readyz`, in-process counters (Prometheus `/metrics` is reserved but not
+built — §11), optional OTel; live-log ring in Redis for the UI; per-call audit records in Postgres as the billing
+reconciliation source ([AUD-7](../../spec/50-audit-log.md)).
 
 ## Configuration
-Deploy-time: `BUNDLEMCP_*` env via pydantic-settings. Runtime-tunable: `Config` table, editable in UI, propagated via
-invalidation events (timeouts, session lifetime, limits).
+Deploy-time: `BUNDLEMCP_*` env via pydantic-settings. Runtime-tunable: the `config_entries` table, its legal keys
+declared once in `domain/config/config_registry.py`, editable in the UI and propagated via invalidation events
+(timeouts, session lifetime, limits).
 
 ## Testing
 Hermetic unit suite gates every change (ARC-14); integration suite proves the architecture's promises:
