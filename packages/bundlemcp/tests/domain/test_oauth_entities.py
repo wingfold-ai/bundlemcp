@@ -91,6 +91,40 @@ def test_metadata_document_check_names_what_is_wrong(document, reason):
         document.check(fetched_from=CIMD_URL)
 
 
+def test_metadata_document_ignores_grant_types_the_gateway_does_not_implement():
+    """OAS-13: Claude's published document lists jwt-bearer beside the two grants we issue."""
+    claude_url = "https://claude.ai/oauth/mcp-oauth-client-metadata"
+    document = ClientIdMetadataDocument.model_validate(
+        {
+            "client_id": claude_url,
+            "client_name": "Claude",
+            "client_uri": "https://claude.ai",
+            "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"],
+            "grant_types": [
+                "authorization_code",
+                "refresh_token",
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            ],
+            "response_types": ["code"],
+            "token_endpoint_auth_method": "none",
+        }
+    )
+    assert document.grant_types == [GrantType.AUTHORIZATION_CODE, GrantType.REFRESH_TOKEN]
+    document.check(fetched_from=claude_url)
+
+
+def test_metadata_document_of_only_unknown_grants_leaves_no_code_grant():
+    """OAS-4/OAS-13: nothing usable is left, so the authorize endpoint refuses the client."""
+    document = ClientIdMetadataDocument(
+        client_id=CIMD_URL,
+        redirect_uris=["https://client.example/cb"],
+        grant_types=["urn:ietf:params:oauth:grant-type:jwt-bearer"],
+    )
+    client = OAuthClient(client_id=CIMD_URL)
+    client.apply_metadata_document(document)
+    assert not client.allows_grant(GrantType.AUTHORIZATION_CODE)
+
+
 def _code(pkce: PkcePair) -> OAuthAuthorizationCode:
     return OAuthAuthorizationCode(
         code_hash="h",
