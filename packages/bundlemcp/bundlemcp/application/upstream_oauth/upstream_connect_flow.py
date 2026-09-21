@@ -50,14 +50,13 @@ class UpstreamConnectFlow:
         await self.ensure_client(server, redirect_uri)
         config = await self._tokens.client_config(server.id)
         meta = await self.metadata(server)
-        scope = " ".join(meta.scopes_supported) if meta.scopes_supported else None
         url = self._provider.authorize_url(
             meta,
             client_id=config.client_id,
             redirect_uri=redirect_uri,
             state=state,
             code_challenge=pkce.challenge,
-            scope=scope,
+            scope=meta.authorization_scope,
         )
         # UPO-8: record the issuer now, from validated metadata, never from the callback
         return AuthorizeStart(

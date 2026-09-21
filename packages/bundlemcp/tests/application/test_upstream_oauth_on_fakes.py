@@ -49,15 +49,19 @@ class NoLock:
 class FakeProvider:
     """An upstream authorization server; registration is on unless told otherwise."""
 
-    def __init__(self, *, registration: bool = True) -> None:
+    def __init__(self, *, registration: bool = True, resource_scopes=()) -> None:
         self.registration = registration
+        self.resource_scopes = list(resource_scopes)
         self.registered: list[str] = []
+        self.scopes: list[str | None] = []
 
     async def discover(self, server_url):
         return UpstreamMetadata(
             authorization_endpoint="https://idp/authorize",
             token_endpoint="https://idp/token",
             registration_endpoint="https://idp/register" if self.registration else None,
+            scopes_supported=["openid", "profile", "service_account", "organization"],
+            resource_scopes=self.resource_scopes,
         )
 
     async def register(self, meta, *, redirect_uri, client_name):
@@ -65,6 +69,7 @@ class FakeProvider:
         return UpstreamClientRegistration(client_id="dynamic-client")
 
     def authorize_url(self, meta, *, client_id, redirect_uri, state, code_challenge, scope):
+        self.scopes.append(scope)
         return f"{meta.authorization_endpoint}?client_id={client_id}&state={state}"
 
     async def exchange(self, meta, **kw):
@@ -201,6 +206,37 @@ async def test_without_a_registration_endpoint_the_admin_must_store_a_client(uow
             server, CALLBACK, "s"
         )
     assert excinfo.value.reason == "no_client_config"
+
+
+async def test_connect_requests_the_scopes_the_resource_asks_for(uow):
+    """UPO-1: the resource's scopes, never the authorization server's whole catalogue."""
+    server, _ = seed_member(uow)
+    provider = FakeProvider(resource_scopes=["openid"])
+    await token_service(uow, provider).build_authorize(server, CALLBACK, "s")
+    assert provider.scopes == ["openid"]
+
+
+async def test_connect_leaves_the_scope_to_the_server_when_the_resource_names_none(uow):
+    """UPO-1: a client remembered before resource scopes were recorded requests none.
+
+    Its stored metadata carries only the authorization server's catalogue, which a
+    server refuses to grant as a whole; with no scope it applies the client's defaults.
+    """
+    server, _ = seed_member(uow)
+    uow.upstream_clients.add(
+        UpstreamOAuthClient(
+            server_id=server.id,
+            client_id="dynamic-client",
+            metadata_={
+                "authorization_endpoint": "https://idp/authorize",
+                "token_endpoint": "https://idp/token",
+                "scopes_supported": ["openid", "service_account", "organization"],
+            },
+        )
+    )
+    provider = FakeProvider()
+    await token_service(uow, provider).build_authorize(server, CALLBACK, "s")
+    assert provider.scopes == [None]
 
 
 def view_of(server: McpServer, bundle: Bundle) -> BundleView:
