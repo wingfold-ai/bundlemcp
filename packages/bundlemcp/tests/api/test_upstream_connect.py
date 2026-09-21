@@ -45,6 +45,9 @@ class FakeProvider:
             authorization_response_iss_parameter_supported=True,
         )
 
+    async def register(self, meta, *, redirect_uri, client_name):
+        raise AssertionError("a client is already stored")
+
     def authorize_url(self, meta, *, client_id, redirect_uri, state, code_challenge, scope):
         return f"{meta.authorization_endpoint}?state={state}&client_id={client_id}"
 

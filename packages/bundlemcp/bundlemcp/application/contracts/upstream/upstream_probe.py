@@ -23,6 +23,10 @@ class ProbeResult(BaseModel):
 class UpstreamProbe(Protocol):
     """Opens one connection to an upstream server and reports what it offers."""
 
-    async def probe(self, server: McpServer) -> ProbeResult:
-        """List the server's tools and capabilities; raises when it cannot be reached."""
+    async def probe(self, server: McpServer, headers: dict[str, str]) -> ProbeResult:
+        """List the server's tools and capabilities; raises when it cannot be reached.
+
+        ``headers`` are sent on top of the server's static headers, which is how
+        a probe carries the upstream credential a server requires.
+        """
         ...

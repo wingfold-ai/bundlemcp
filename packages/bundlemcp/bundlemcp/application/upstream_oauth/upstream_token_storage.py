@@ -8,6 +8,11 @@ from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_client_config import UpstreamClientConfig
+from bundlemcp.domain.upstream_oauth.upstream_client_registration import (
+    UpstreamClientRegistration,
+)
+from bundlemcp.domain.upstream_oauth.upstream_metadata import UpstreamMetadata
+from bundlemcp.domain.upstream_oauth.upstream_oauth_client import UpstreamOAuthClient
 from bundlemcp.domain.upstream_oauth.upstream_oauth_token import UpstreamOAuthToken
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 
@@ -68,11 +73,17 @@ class UpstreamTokenStorage:
                 await uow.upstream_tokens.delete(row)
                 await uow.commit()
 
-    async def client_config(self, server_id: uuid.UUID) -> UpstreamClientConfig:
+    async def any_valid_user_connection(self, server_id: uuid.UUID) -> UpstreamOAuthToken | None:
+        """Some user's working connection to a per-user server, for discovery to borrow."""
+        async with self._units.open() as uow:
+            return await uow.upstream_tokens.any_valid_user_connection(server_id)
+
+    async def find_client_config(self, server_id: uuid.UUID) -> UpstreamClientConfig | None:
+        """The client this gateway uses at the server's authorization server, if it has one."""
         async with self._units.open() as uow:
             client = await uow.upstream_clients.for_server(server_id)
         if client is None or not client.client_id:
-            raise NeedsConnect("server", "no_client_config")
+            return None
         secret = (
             self._cipher.decrypt(client.client_secret_encrypted)
             if client.client_secret_encrypted
@@ -81,3 +92,35 @@ class UpstreamTokenStorage:
         return UpstreamClientConfig(
             client_id=client.client_id, client_secret=secret, metadata=client.metadata_ or {}
         )
+
+    async def client_config(self, server_id: uuid.UUID) -> UpstreamClientConfig:
+        config = await self.find_client_config(server_id)
+        if config is None:
+            raise NeedsConnect("server", "no_client_config")
+        return config
+
+    async def save_registration(
+        self,
+        server_id: uuid.UUID,
+        registration: UpstreamClientRegistration,
+        meta: UpstreamMetadata,
+    ) -> None:
+        """Keep a dynamically registered client, with the metadata it was registered against.
+
+        A client id an admin stored in the meantime is never overwritten.
+        """
+        async with self._units.open() as uow:
+            client = await uow.upstream_clients.for_server(server_id)
+            if client is not None and client.client_id:
+                return
+            if client is None:
+                client = UpstreamOAuthClient(server_id=server_id)
+            client.client_id = registration.client_id
+            client.client_secret_encrypted = (
+                self._cipher.encrypt(registration.client_secret)
+                if registration.client_secret
+                else None
+            )
+            client.metadata_ = meta.model_dump(exclude_none=True)
+            uow.upstream_clients.add(client)
+            await uow.commit()

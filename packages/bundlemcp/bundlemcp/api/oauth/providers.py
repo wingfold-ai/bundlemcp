@@ -23,6 +23,7 @@ from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.live_state.admin_session_store import AdminSessionStore
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
 from bundlemcp.application.contracts.live_state.single_use_state import SingleUseState
+from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.oauth_server import (
     AuthorizationCodeIssuer,
     AuthorizationService,
@@ -79,6 +80,10 @@ def get_oidc_login_states(request: Request) -> SingleUseState[OidcLoginState]:
 
 def get_connect_states(request: Request) -> SingleUseState[UpstreamConnectState]:
     return request.app.state.container.connect_states
+
+
+def get_discovery(request: Request) -> DiscoveryService:
+    return request.app.state.container.discovery
 
 
 async def get_token_service(request: Request, uow: UnitOfWorkProvider) -> OAuthTokenService:
@@ -161,6 +166,7 @@ PendingAuthorizationsProvider = Annotated[
 ]
 OidcLoginStatesProvider = Annotated[SingleUseState[OidcLoginState], Depends(get_oidc_login_states)]
 ConnectStatesProvider = Annotated[SingleUseState[UpstreamConnectState], Depends(get_connect_states)]
+DiscoveryProvider = Annotated[DiscoveryService, Depends(get_discovery)]
 TokenServiceProvider = Annotated[OAuthTokenService, Depends(get_token_service)]
 IntrospectionServiceProvider = Annotated[
     TokenIntrospectionService, Depends(get_introspection_service)

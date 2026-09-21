@@ -12,8 +12,8 @@ class FastMcpUpstreamProbe:
     def __init__(self, client_factory: UpstreamClientFactory) -> None:
         self._client_factory = client_factory
 
-    async def probe(self, server: McpServer) -> ProbeResult:
-        client = self._client_factory(server, {})
+    async def probe(self, server: McpServer, headers: dict[str, str]) -> ProbeResult:
+        client = self._client_factory(server, headers)
         async with client:
             listed = await client.list_tools()
             capabilities = client.server_capabilities

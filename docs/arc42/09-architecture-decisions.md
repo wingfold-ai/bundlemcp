@@ -43,6 +43,7 @@ in the same PR as the change they govern
 | [0033](../adr/0033-clean-architecture-layers.md) | Four clean-architecture layers; contracts owned by the application | Any adapter is swappable and fakeable |
 | [0034](../adr/0034-pydantic-entities-and-row-classes.md) | Entities are plain Pydantic models; row classes live in the persistence adapter | The domain imports no ORM; rows map generically |
 | [0035](../adr/0035-front-controller-protocol-adapters-and-admission-pipeline.md) | Front Controller, Protocol Adapters (Stateless vs. Session), and Admission Pipeline | DoS defense by design; intrinsic era naming; decomposed router |
+| [0037](../adr/0037-connect-account-tool.md) | Connect-account tool for per-user upstreams | A user with no tools yet can still connect; `tools/list` is per caller |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

@@ -12,6 +12,7 @@ from bundlemcp.application.upstream_oauth.upstream_connect_flow import UpstreamC
 from bundlemcp.application.upstream_oauth.upstream_token_refresher import UpstreamTokenRefresher
 from bundlemcp.application.upstream_oauth.upstream_token_storage import UpstreamTokenStorage
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 
 
@@ -76,6 +77,27 @@ class UpstreamTokenService:
         await self._flow.complete(
             server, user_id, code=code, code_verifier=code_verifier, redirect_uri=redirect_uri
         )
+
+    async def is_connected(self, server_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+        """Whether a user holds a connection to the server that has not been found broken."""
+        row = await self._tokens.load(server_id, user_id)
+        return row is not None and row.is_valid
+
+    async def discovery_access_token(self, server: McpServer) -> str:
+        """A token to list the server's tools with, when there is no caller to act for.
+
+        A shared server uses its shared connection. A per-user server borrows
+        any user's working connection: what a server lists rarely depends on
+        who asks, and without some user's token it cannot be asked at all.
+        Raises NeedsConnect when nobody has connected yet.
+        """
+        user_id = None
+        if server.is_per_user:
+            row = await self._tokens.any_valid_user_connection(server.id)
+            if row is None:
+                raise NeedsConnect(server.name)
+            user_id = row.user_id
+        return await self._refresher.access_token(server, user_id)
 
     async def ensure_access_token(
         self, server: McpServer, user_id: uuid.UUID | None, *, force: bool = False

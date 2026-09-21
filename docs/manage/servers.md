@@ -83,7 +83,12 @@ This needs `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` to be set; until it is, the
 server's upstream OAuth status reports `configured: false`.
 
 1. Register the server with `auth_mode: upstream_oauth`.
-2. Store the client the gateway should present to the upstream:
+2. If the upstream's authorization server offers dynamic client
+   registration, skip this step: on the first connect the gateway registers
+   itself as a public client (PKCE, no secret) with
+   `<public url>/oauth/upstream/callback` as its redirect URI, and keeps that
+   registration. Otherwise, or to use a client you were issued, store the
+   client the gateway should present to the upstream:
 
    ```bash
    curl -s -X PUT $API/servers/crm/upstream-oauth -H "$AUTH" -H "Content-Type: application/json" -d '{
@@ -95,15 +100,27 @@ server's upstream OAuth status reports `configured: false`.
    ```
 
    `authorization_url` and `token_url` may be omitted when the upstream
-   publishes OAuth metadata the gateway can discover from its 401 challenge.
-   The client secret is write-only; the status route reports only whether
-   one is stored.
+   publishes OAuth metadata the gateway can discover. It looks where the MCP
+   authorization spec says: the `resource_metadata` URL in the server's 401
+   `WWW-Authenticate` header, then `/.well-known/oauth-protected-resource`
+   with the server's path appended (for `https://crm.example.com/mcp`,
+   `…/.well-known/oauth-protected-resource/mcp`), then at the origin; the
+   authorization server it names is read through RFC 8414 or OpenID Connect
+   metadata. A stored client always wins over registration. The client
+   secret is write-only; the status route reports only whether one is
+   stored.
 3. Connect an account. From the server's page in the UI click **Connect**, or
    open `<public url>/oauth/upstream/crm/connect` in a browser while signed in
    as an admin. The gateway sends you through the upstream's consent and
    stores the resulting tokens.
 4. Check `GET /api/v1/servers/crm/upstream-oauth`: `shared.connected` is
    `true`, and `account_hint` shows a masked account identifier.
+
+Tool discovery uses the connection: the shared one, or for a `per_user`
+server any user's working one. Until an account is connected the server has
+no tools in the cache, and discovery reports it as not connected rather than
+failing. Every completed connect triggers discovery, and when the tools change
+the server's bundles are invalidated so connected clients re-list them.
 
 `DELETE /api/v1/servers/crm/upstream-oauth/token` disconnects the shared
 account.
@@ -114,11 +131,16 @@ account.
 
 - **`shared`** (default): one connection, established by an admin as above,
   serves every caller. This is right for service accounts.
-- **`per_user`**: every caller connects their own account. When a user calls
-  a tool without a stored token, the call fails with a structured MCP error
-  carrying a connect URL (`…/oauth/upstream/crm/connect?as=me`). The user
-  opens it, signs in to the gateway if needed, completes the upstream
-  consent, and retries.
+- **`per_user`**: every caller connects their own account. A signed-in user
+  who has not connected yet sees an extra tool, `crm__connect_account`, in
+  the endpoint's tool list. Calling it returns the connect URL
+  (`…/oauth/upstream/crm/connect?as=me`); it reaches no upstream and is not
+  metered. The user opens the link, signs in to the gateway if needed,
+  completes the upstream consent, and re-lists tools: the connect tool is
+  gone and the server's tools are there. Calling one of the server's tools
+  without a stored token fails with a structured MCP error carrying the same
+  URL. API-key callers are not offered the connect tool, because a per-user
+  connection belongs to a user.
 
 One account per person per server: the stored token is used for every MCP
 client that person connects with. A `per_user` server can only be served by

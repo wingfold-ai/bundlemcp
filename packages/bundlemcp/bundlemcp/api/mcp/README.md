@@ -108,6 +108,11 @@ Key points that are easy to miss:
   bucketing.
 - **Upstream OAuth is resolved before metering** so that a call to an
   unconnected upstream returns a "connect here" error and is never billed.
+- **Connect-account tools (UPO-3, ADR-0037).** `tools/list` appends
+  `<server>__connect_account` for each per-user member server the signed-in
+  caller has not connected; `AccountConnectPrompts` decides which. A
+  `tools/call` naming one is answered by `ToolsCallHandler` with the connect
+  URL before the pipeline starts, so it is neither metered nor sent upstream.
 - **Two response shapes.** If the client passed a `progressToken`, the response
   is an SSE stream of `notifications/progress` frames followed by the final
   result; otherwise it's a single buffered JSON-RPC frame.
@@ -164,7 +169,13 @@ upstreams.
 
 - **When:** `DiscoveryService.schedule_probe(server_id)` fires a best-effort
   background task that never blocks the caller (e.g. after a server is created
-  or updated via `ServerService`). It is never on the request path.
+  or updated via `ServerService`, or after an upstream OAuth connect
+  completes). It is never on the request path.
+- **Credentials (UPO-9):** an `upstream_oauth` server is probed with the
+  shared connection's bearer, or any user's for a `per_user` server. With none
+  the result is "upstream not connected", which does not count toward the
+  error streak. A probe that changes the tool set invalidates the server's
+  bundles, which sends `tools/list_changed` to their live streams.
 - **How:** `discover(server_id)` opens a FastMCP client to the server,
   calls `list_tools()`, and reads the `initialize` result. Advertised
   capabilities are snapshotted onto `McpServer.capabilities` (DISC-6) to feed
