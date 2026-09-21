@@ -7,8 +7,7 @@ from bundlemcp.api.mcp.protocol.jsonrpc import rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.application.upstream_oauth.account_connect_prompts import AccountConnectPrompts
-from bundlemcp.domain.bundles.presented_tool import PresentedTool
-from bundlemcp.domain.upstream_oauth.connect_account_tool import ConnectAccountTool
+from bundlemcp.domain.bundles.listed_tool import ListedTool
 
 
 class ToolsListHandler:
@@ -23,7 +22,7 @@ class ToolsListHandler:
         self._connect_prompts = connect_prompts
 
     @staticmethod
-    def _entry(tool: PresentedTool | ConnectAccountTool) -> dict[str, Any]:
+    def _entry(tool: ListedTool) -> dict[str, Any]:
         entry: dict[str, Any] = {"name": tool.presented_name, "inputSchema": tool.input_schema}
         if tool.title:
             entry["title"] = tool.title
@@ -34,7 +33,7 @@ class ToolsListHandler:
         return entry
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
-        tools: list[PresentedTool | ConnectAccountTool] = list(ctx.view.tools)
+        tools: list[ListedTool] = list(ctx.view.tools)
         tools += await self._connect_prompts.pending(ctx.view, ctx.identity)  # UPO-3
         result = {"tools": [self._entry(t) for t in tools]}
         return rpc_result(message.id, ctx.shape(result, await self._cache_hints.for_list()))

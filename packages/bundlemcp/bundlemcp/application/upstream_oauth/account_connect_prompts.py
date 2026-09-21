@@ -55,7 +55,7 @@ class AccountConnectPrompts:
     def _candidates(view: BundleView) -> list[ConnectAccountTool]:
         taken = {t.presented_name for t in view.tools}
         candidates = [
-            ConnectAccountTool(server=server)
+            ConnectAccountTool.for_server(server)
             for _, server in sorted(view.servers.items())
             if server.requires_per_user_token
         ]
