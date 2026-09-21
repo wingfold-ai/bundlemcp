@@ -26,6 +26,21 @@ class UpstreamConnectFlow:
             return UpstreamMetadata(**cached)
         return await self._provider.discover(server.url)
 
+    async def _requested_scope(self, server: McpServer, meta: UpstreamMetadata) -> str | None:
+        """The scope to request, asking the protected resource when the metadata has none.
+
+        Which scopes a resource needs is a fact about the resource, not about its
+        authorization server, so remembered or admin-entered endpoints may lack
+        it. The resource is asked again then; when it names none, or cannot be
+        asked, no scope is requested and the server applies the client's defaults.
+        """
+        if meta.resource_scopes:
+            return meta.authorization_scope
+        try:
+            return (await self._provider.discover(server.url)).authorization_scope  # UPO-1
+        except NeedsConnect:
+            return None
+
     async def ensure_client(self, server: McpServer, redirect_uri: str) -> None:
         """Make sure the gateway has a client at the server's authorization server.
 
@@ -56,7 +71,7 @@ class UpstreamConnectFlow:
             redirect_uri=redirect_uri,
             state=state,
             code_challenge=pkce.challenge,
-            scope=meta.authorization_scope,
+            scope=await self._requested_scope(server, meta),
         )
         # UPO-8: record the issuer now, from validated metadata, never from the callback
         return AuthorizeStart(

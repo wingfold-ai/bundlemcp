@@ -141,6 +141,8 @@ class DiscoveryService:
     ) -> DiscoveryResult:
         count = self._failures.get(server.id, 0) + 1
         self._failures[server.id] = count
+        # DISC-4: every failure is observable, not only the one that flips health
+        log.warning("discovery.failed", server=server.name, attempt=count, error=error[:200])
         if count >= self._max_attempts and server.health_status != HealthStatus.ERROR:
             server.health_status = HealthStatus.ERROR
             server.last_error = error[:500]

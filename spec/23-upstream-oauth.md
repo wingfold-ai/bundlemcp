@@ -31,7 +31,9 @@ instead of sharing one credential.
   ([SEC-1](70-security.md)). The connect requests the scopes the **protected
   resource** asks for — the `scope` of its 401 challenge, else its resource
   document's `scopes_supported` — and no `scope` at all when it names none,
-  leaving the authorization server to apply the client's defaults. The
+  leaving the authorization server to apply the client's defaults. Endpoints
+  that were remembered or entered by an admin carry no resource scopes, so the
+  resource is asked again at connect time rather than requesting nothing. The
   authorization server's own `scopes_supported` is never requested: it is the
   server's whole catalogue, and a server refuses the entire request over one
   scope the client was not granted.
