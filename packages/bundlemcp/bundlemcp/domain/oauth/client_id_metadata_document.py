@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.redirect_uri_rule import InvalidRedirectUri, check_redirect_uri
@@ -34,6 +34,21 @@ class ClientIdMetadataDocument(BaseModel):
         description="Grant types the client intends to use",
     )
     scope: str | None = Field(default=None, description="Space-separated scopes requested")
+
+    @field_validator("grant_types", mode="before")
+    @classmethod
+    def _drop_unsupported_grant_types(cls, value: object) -> object:
+        """Keep only the grants this gateway implements.
+
+        A client lists every grant it can use with any server, so an entry the
+        gateway does not implement is not an error; the gateway just never issues
+        it. A document left without the authorization code grant is refused at
+        the authorize endpoint, not here.
+        """
+        if not isinstance(value, list):
+            return value  # the list type check reports it
+        supported = {grant.value for grant in GrantType}
+        return [grant for grant in value if grant in supported]  # OAS-13
 
     def check(self, fetched_from: str) -> None:
         """Refuse a document that may not describe a client of this gateway.

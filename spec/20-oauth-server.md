@@ -100,6 +100,11 @@ application layer can resolve a stable `sub`.
   tokens and consent bind to it; the pre-login check of the request writes
   nothing. Consent (OAS-11) shows the document's `client_name`. Advertised via
   `client_id_metadata_document_supported: true` in OAS-1 metadata.
+  Grant types in the document that the gateway does not implement (claude.ai
+  lists `urn:ietf:params:oauth:grant-type:jwt-bearer`) are ignored, not
+  refused; a document left without `authorization_code` is refused at
+  authorize per OAS-4. A document that arrives but fails validation is
+  reported as invalid, distinct from one that could not be fetched.
 - **OAS-14 Issuer identification (RFC 9207):** every authorization response,
   including error redirects, carries `iss=<issuer>`, and OAS-1 metadata sets
   `authorization_response_iss_parameter_supported: true`.

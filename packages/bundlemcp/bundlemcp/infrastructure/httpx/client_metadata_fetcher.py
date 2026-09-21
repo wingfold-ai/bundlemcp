@@ -2,6 +2,7 @@
 
 import hashlib
 import re
+from collections.abc import Callable
 
 import httpx
 from pydantic import ValidationError
@@ -19,13 +20,22 @@ MAX_TTL = 3600
 MIN_TTL = 60
 _MAX_AGE = re.compile(r"max-age=(\d+)")
 
+ClientFactory = Callable[[], httpx.AsyncClient]
+
+
+def _default_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=False)
+
 
 class HttpxClientMetadataFetcher:
     """The real fetch: HTTPS only, through the egress policy, one hop, no redirects."""
 
-    def __init__(self, settings: Settings, redis: Redis) -> None:
+    def __init__(
+        self, settings: Settings, redis: Redis, *, client_factory: ClientFactory = _default_client
+    ) -> None:
         self._settings = settings
         self._redis = redis
+        self._client_factory = client_factory
 
     async def fetch(self, client_id_url: str) -> ClientIdMetadataDocument:
         key = CLIENT_METADATA_KEY.format(digest=hashlib.sha256(client_id_url.encode()).hexdigest())
@@ -40,12 +50,17 @@ class HttpxClientMetadataFetcher:
         except EgressDenied as exc:
             raise InvalidInputError("client metadata document URL is not allowed") from exc
         try:
-            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=False) as client:
+            async with self._client_factory() as client:
                 response = await client.get(client_id_url, headers={"Accept": "application/json"})
             response.raise_for_status()
-            document = ClientIdMetadataDocument.model_validate(response.json())
-        except (httpx.HTTPError, ValueError, ValidationError) as exc:
+            body = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
             raise InvalidInputError("client metadata document could not be fetched") from exc
+        try:
+            document = ClientIdMetadataDocument.model_validate(body)
+        except ValidationError as exc:
+            # a document that arrived but does not parse is the client's fault, not the network's
+            raise InvalidInputError("client metadata document is invalid") from exc
         await self._redis.set(key, document.model_dump_json(), ex=self._ttl(response))
         return document
 
