@@ -30,6 +30,9 @@ from bundlemcp.application.oauth_server import (
 from bundlemcp.application.serving.list_changed_notifier import ListChangedNotifier
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
+from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
+    UpstreamCredentialResolver,
+)
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
 from bundlemcp.domain.shared.os_secret_generator import OsSecretGenerator
 from bundlemcp.domain.shared.secret_generator import SecretGenerator
@@ -121,18 +124,6 @@ class CompositionRoot:
         units = SqlAlchemyUnitOfWorkFactory(sessions, redis)
 
         client_factory = overrides.client_factory or default_client_factory(settings)
-        discovery = DiscoveryService(units, FastMcpUpstreamProbe(client_factory))
-
-        audit = QueuedAuditWriter(sessions)
-        await audit.start()
-        self._stack.push_async_callback(audit.stop)
-
-        runtime_config = RuntimeConfig(units)
-        registry = InProcessStreamRegistry()
-        signals = ValkeySignalBus(redis, registry)  # SES-13
-        await signals.start()
-        self._stack.push_async_callback(signals.stop)
-        session_store = ValkeySessionStore(redis)
 
         cipher = self._build_cipher()
         upstream_tokens = (
@@ -145,6 +136,23 @@ class CompositionRoot:
             if cipher is not None
             else None
         )
+        # DISC-1: upstream-OAuth servers are probed with a connected account's token
+        discovery = DiscoveryService(
+            units,
+            FastMcpUpstreamProbe(client_factory),
+            credentials=UpstreamCredentialResolver(upstream_tokens, settings.public_base),
+        )
+
+        audit = QueuedAuditWriter(sessions)
+        await audit.start()
+        self._stack.push_async_callback(audit.stop)
+
+        runtime_config = RuntimeConfig(units)
+        registry = InProcessStreamRegistry()
+        signals = ValkeySignalBus(redis, registry)  # SES-13
+        await signals.start()
+        self._stack.push_async_callback(signals.stop)
+        session_store = ValkeySessionStore(redis)
 
         counters = overrides.counters or InProcessCounters()  # RATE-3 metric seam
         auth_failure_limiter = overrides.auth_failure_limiter or ValkeyAuthFailureLimiter(  # RATE-5

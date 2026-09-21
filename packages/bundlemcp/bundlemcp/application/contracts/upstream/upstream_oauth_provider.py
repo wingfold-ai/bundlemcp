@@ -1,5 +1,8 @@
 from typing import Protocol, runtime_checkable
 
+from bundlemcp.domain.upstream_oauth.upstream_client_registration import (
+    UpstreamClientRegistration,
+)
 from bundlemcp.domain.upstream_oauth.upstream_metadata import UpstreamMetadata
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 
@@ -7,6 +10,12 @@ from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 @runtime_checkable
 class UpstreamOAuthProvider(Protocol):
     async def discover(self, server_url: str) -> UpstreamMetadata: ...
+
+    async def register(
+        self, meta: UpstreamMetadata, *, redirect_uri: str, client_name: str
+    ) -> UpstreamClientRegistration:
+        """Register this gateway as a public client at the server's registration endpoint."""
+        ...
 
     def authorize_url(
         self,

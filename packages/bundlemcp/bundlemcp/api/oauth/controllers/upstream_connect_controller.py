@@ -2,7 +2,8 @@
 
 Mirrors the OIDC login flow: an authenticated admin (shared connection) or a
 signed-in user (per_user) is redirected to the upstream's authorize endpoint;
-the callback exchanges the code and stores the encrypted token.
+the callback exchanges the code, stores the encrypted token, and has the
+server's tools discovered with it.
 """
 
 import secrets
@@ -22,6 +23,7 @@ from bundlemcp.api.oauth.pages.page_templates import PAGE_TEMPLATES
 from bundlemcp.api.oauth.providers import (
     ConnectStatesProvider,
     CurrentSessionUserProvider,
+    DiscoveryProvider,
     UpstreamTokensProvider,
 )
 from bundlemcp.application.settings.settings import Settings
@@ -79,7 +81,10 @@ class UpstreamConnectController(Controller):
             start = await store.build_authorize(server, redirect_uri, state)
         except NeedsConnect as exc:
             if exc.reason == "no_client_config":
-                detail = "server has no upstream OAuth client config (set client_id first)"
+                detail = (
+                    "server has no upstream OAuth client config and its authorization server "
+                    "offers no dynamic registration (set client_id first)"
+                )
             else:
                 detail = f"upstream authorization server unavailable: {exc.reason}"
             raise HTTPException(400, detail) from None
@@ -102,6 +107,7 @@ class UpstreamConnectController(Controller):
         uow: UnitOfWorkProvider,
         states: ConnectStatesProvider,
         store: UpstreamTokensProvider,
+        discovery: DiscoveryProvider,
         code: str = "",
         state: str = "",
         iss: str = "",
@@ -137,5 +143,8 @@ class UpstreamConnectController(Controller):
         log.info(
             "upstream_oauth.connected", server=server.name, per_user=pending.user_id is not None
         )
+        # DISC-1: the new token may be the first that can list the server's tools, and
+        # the connecting user's tool list changes either way, so their bundles re-list
+        await discovery.schedule_probe(server.id, announce=True)
         html = PAGE_TEMPLATES.get_template("connected.html").render(server_name=server.name)
         return HTMLResponse(html, headers=PAGE_HEADERS)

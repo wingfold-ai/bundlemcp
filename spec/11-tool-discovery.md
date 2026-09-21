@@ -13,9 +13,14 @@ the substrate for per-bundle overrides ([13-tool-management.md](13-tool-manageme
 ## Requirements
 
 - **DISC-1** Discovery MUST run on server create/update ([SRV-2](10-server-registry.md)),
-  on explicit "refresh tools" from UI/API, and opportunistically whenever the
+  on explicit "refresh tools" from UI/API, opportunistically whenever the
   gateway performs a live `tools/list` against the upstream while serving an
-  endpoint.
+  endpoint, and after an upstream OAuth connect completes
+  ([UPO-9](23-upstream-oauth.md)). An `upstream_oauth` server is probed with a
+  connected account's bearer; until one exists it is reported as not
+  connected, not as failing. A discovery that changes the tool set
+  invalidates every bundle containing the server, so live clients re-list
+  ([BND-7](12-bundles.md)).
 - **DISC-2** Sync is hash-based: compute a stable hash per tool definition;
   write to Postgres only when the hash changed (metamcp's `tools-sync-cache`
   behavior) to keep the hot path write-free in the common case.

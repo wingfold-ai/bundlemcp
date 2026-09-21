@@ -22,3 +22,11 @@ class SqlAlchemyUpstreamTokenRepository(
             else UpstreamOAuthTokenRow.user_id == user_id
         )
         return await self.one(UpstreamOAuthTokenRow.server_id == server_id, user_clause)
+
+    async def any_valid_user_connection(self, server_id: uuid.UUID) -> UpstreamOAuthToken | None:
+        rows = await self.all(
+            UpstreamOAuthTokenRow.server_id == server_id,
+            UpstreamOAuthTokenRow.user_id.is_not(None),  # type: ignore[union-attr]
+            UpstreamOAuthTokenRow.is_valid.is_(True),  # type: ignore[attr-defined]
+        )
+        return rows[0] if rows else None

@@ -43,6 +43,7 @@ from bundlemcp.application.contracts.upstream.upstream_client_factory import Ups
 from bundlemcp.application.metering.metering_hook import MeteringHook
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
+from bundlemcp.application.upstream_oauth.account_connect_prompts import AccountConnectPrompts
 from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
@@ -91,6 +92,7 @@ class McpGatewayAssembly(BaseModel):
         cache_hints = CacheHints(self.runtime_config)
         gate = RateLimitGate(self.rate_limiter, self.counters, self.settings)
         credentials = UpstreamCredentialResolver(self.upstream_tokens, self.settings.public_base)
+        connect_prompts = AccountConnectPrompts(credentials)  # UPO-3
         fanout = MemberFanout(
             self.client_factory, credentials, self.registry, self.signals, self.runtime_config
         )
@@ -106,7 +108,8 @@ class McpGatewayAssembly(BaseModel):
                 runtime_config=self.runtime_config,
                 metering_fail_open=self.settings.metering_hook_fail_open,
                 state_cipher=self.state_cipher,
-            )
+            ),
+            connect_prompts,
         )
         methods = MethodRegistry(
             {
@@ -114,7 +117,9 @@ class McpGatewayAssembly(BaseModel):
                 "server/discover": RateLimited(
                     ServerDiscoverHandler(dialects, cache_hints), gate, tool_call=False
                 ),
-                "tools/list": RateLimited(ToolsListHandler(cache_hints), gate, tool_call=False),
+                "tools/list": RateLimited(
+                    ToolsListHandler(cache_hints, connect_prompts), gate, tool_call=False
+                ),
                 "tools/call": RateLimited(tool_calls, gate, tool_call=True),
                 "prompts/list": PromptsListHandler(fanout, cache_hints),
                 "prompts/get": PromptsGetHandler(fanout),
