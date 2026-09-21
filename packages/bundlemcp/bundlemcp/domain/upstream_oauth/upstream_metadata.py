@@ -11,7 +11,14 @@ class UpstreamMetadata(BaseModel):
         description="Dynamic client registration endpoint, when the server offers one",
     )
     scopes_supported: list[str] = Field(
-        default=[], description="Scopes the authorization server advertises"
+        default=[],
+        description="Scopes the authorization server advertises; its whole catalogue, never "
+        "what a client should request",
+    )
+    resource_scopes: list[str] = Field(  # UPO-1
+        default=[],
+        description="Scopes the protected resource asks clients to request: the 'scope' of its "
+        "WWW-Authenticate challenge, else the scopes_supported of its resource metadata",
     )
     issuer: str | None = Field(  # UPO-8
         default=None,
@@ -23,3 +30,13 @@ class UpstreamMetadata(BaseModel):
         description="Whether the server promises an 'iss' on every authorization response, in "
         "which case a response without one is refused",
     )
+
+    @property
+    def authorization_scope(self) -> str | None:
+        """The scope to request at authorization, or None to leave the choice to the server.
+
+        Only what the protected resource asks for is requested. An authorization
+        server's own catalogue lists scopes the client was never granted, and a
+        server refuses the whole request over one of them.
+        """
+        return " ".join(self.resource_scopes) or None
