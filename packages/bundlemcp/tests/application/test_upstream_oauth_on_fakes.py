@@ -33,6 +33,7 @@ from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWorkFactory,
 )
 from cryptography.fernet import Fernet
+from structlog.testing import capture_logs
 
 PUBLIC_BASE = "https://gw.example"
 CALLBACK = f"{PUBLIC_BASE}/oauth/upstream/callback"
@@ -158,6 +159,23 @@ async def test_per_user_server_is_probed_with_a_connected_users_token(uow):
     assert uow.published == []
 
 
+async def test_a_refused_probe_is_logged_on_the_first_failure(uow):
+    """DISC-4: an upstream refusing the connected user's token shows up at once."""
+
+    class RefusingProbe:
+        async def probe(self, server, headers):
+            raise RuntimeError("Client error '401 Unauthorized'")
+
+    server, _ = seed_member(uow)
+    tokens = token_service(uow)
+    await tokens.save(server.id, uuid.uuid4(), UpstreamTokens(access_token="at", expires_in=3600))
+    with capture_logs() as logs:
+        result = await discovery(uow, tokens, RefusingProbe()).discover(server.id)
+    assert result.error is not None
+    assert [e["event"] for e in logs if e["log_level"] == "warning"] == ["discovery.failed"]
+    assert server.health_status != HealthStatus.ERROR  # one failure is not yet a verdict
+
+
 async def test_shared_server_is_probed_with_the_shared_token(uow):
     server, _ = seed_member(uow, IdentityMode.SHARED)
     tokens = token_service(uow)
@@ -216,13 +234,9 @@ async def test_connect_requests_the_scopes_the_resource_asks_for(uow):
     assert provider.scopes == ["openid"]
 
 
-async def test_connect_leaves_the_scope_to_the_server_when_the_resource_names_none(uow):
-    """UPO-1: a client remembered before resource scopes were recorded requests none.
-
-    Its stored metadata carries only the authorization server's catalogue, which a
-    server refuses to grant as a whole; with no scope it applies the client's defaults.
-    """
-    server, _ = seed_member(uow)
+def remember_client_without_resource_scopes(uow, server: McpServer) -> None:
+    """A client stored with only the authorization server's catalogue, as registrations
+    made before resource scopes were recorded, and admin-entered endpoints, are."""
     uow.upstream_clients.add(
         UpstreamOAuthClient(
             server_id=server.id,
@@ -234,6 +248,25 @@ async def test_connect_leaves_the_scope_to_the_server_when_the_resource_names_no
             },
         )
     )
+
+
+async def test_a_remembered_client_asks_the_resource_for_its_scopes(uow):
+    """UPO-1: the stored catalogue is never requested; the resource is asked again.
+
+    seo-mcp's proxy requires `openid`, which Keycloak's defaults leave out, so
+    requesting no scope here produced tokens the resource refused.
+    """
+    server, _ = seed_member(uow)
+    remember_client_without_resource_scopes(uow, server)
+    provider = FakeProvider(resource_scopes=["openid"])
+    await token_service(uow, provider).build_authorize(server, CALLBACK, "s")
+    assert provider.scopes == ["openid"]
+
+
+async def test_connect_leaves_the_scope_to_the_server_when_the_resource_names_none(uow):
+    """UPO-1: with no scope named anywhere the server applies the client's defaults."""
+    server, _ = seed_member(uow)
+    remember_client_without_resource_scopes(uow, server)
     provider = FakeProvider()
     await token_service(uow, provider).build_authorize(server, CALLBACK, "s")
     assert provider.scopes == [None]
