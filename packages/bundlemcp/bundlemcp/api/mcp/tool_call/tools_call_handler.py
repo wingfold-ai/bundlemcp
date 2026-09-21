@@ -6,7 +6,7 @@ from mcp.types import INVALID_PARAMS, InputResponses
 from pydantic import TypeAdapter, ValidationError
 
 from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
-from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
+from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error, rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.relay import RequestState, ResumeInputs, StateRejected
@@ -15,19 +15,28 @@ from bundlemcp.api.mcp.tool_call.call_outcome import UPSTREAM_FAILURE
 from bundlemcp.api.mcp.tool_call.resumed_call import ResumedCall
 from bundlemcp.api.mcp.tool_call.tool_call import NO_CIPHER, ToolCall
 from bundlemcp.api.mcp.tool_call.tool_call_support import ToolCallSupport
+from bundlemcp.application.upstream_oauth.account_connect_prompts import AccountConnectPrompts
 from bundlemcp.domain.audit.audit_status import AuditStatus
+from bundlemcp.domain.upstream_oauth.connect_account_tool import (
+    CONNECT_ACCOUNT_TOOL,
+    ConnectAccountTool,
+)
 
 input_responses_adapter: TypeAdapter[InputResponses] = TypeAdapter(InputResponses)
 
 
 class ToolsCallHandler:
-    def __init__(self, support: ToolCallSupport) -> None:
+    def __init__(self, support: ToolCallSupport, connect_prompts: AccountConnectPrompts) -> None:
         self._support = support
+        self._connect_prompts = connect_prompts
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         presented_name = message.param("name", "")
         tool = ctx.view.resolve(presented_name)
         if tool is None:
+            connect = self._connect_prompts.resolve(ctx.view, presented_name)
+            if connect is not None:
+                return self._connect_account(ctx, message, connect)
             # TM-2: disabled/unknown tools are rejected on call, not just hidden
             audit = AuditContext.for_request(ctx, presented_name)
             self._support.audit.record(
@@ -52,6 +61,18 @@ class ToolsCallHandler:
             if message.param("requestState") is not None:
                 return await self._retry(ctx, message, tool)
         return await ToolCall(self._support, ctx, message, tool).run()
+
+    def _connect_account(
+        self, ctx: RequestContext, message: JsonRpcMessage, tool: ConnectAccountTool
+    ) -> Response:
+        """UPO-3: answer with the connect link; no upstream is reached and nothing is metered."""
+        audit = AuditContext.for_request(ctx, tool.presented_name).model_copy(
+            update={"server_name": tool.server.name, "tool_name": CONNECT_ACCOUNT_TOOL}
+        )
+        self._support.audit.record(audit.record(AuditStatus.SUCCESS))
+        text = self._connect_prompts.instructions(tool, ctx.identity)
+        result = {"content": [{"type": "text", "text": text}], "isError": False}
+        return rpc_result(message.id, ctx.shape(result))
 
     async def _retry(self, ctx: RequestContext, message: JsonRpcMessage, tool) -> Response:
         """PROT-18: the client is answering an earlier input_required result."""

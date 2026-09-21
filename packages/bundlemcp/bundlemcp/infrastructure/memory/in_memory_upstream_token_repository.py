@@ -9,3 +9,8 @@ class InMemoryUpstreamTokenRepository(InMemoryRepository[UpstreamOAuthToken]):
         self, server_id: uuid.UUID, user_id: uuid.UUID | None
     ) -> UpstreamOAuthToken | None:
         return self.first(lambda t: t.server_id == server_id and t.user_id == user_id)
+
+    async def any_valid_user_connection(self, server_id: uuid.UUID) -> UpstreamOAuthToken | None:
+        return self.first(
+            lambda t: t.server_id == server_id and t.user_id is not None and t.is_valid
+        )

@@ -38,6 +38,9 @@ class FakeProvider:
             token_endpoint="https://idp/token",
         )
 
+    async def register(self, meta, *, redirect_uri, client_name):
+        raise AssertionError("a client is already stored")
+
     def authorize_url(self, meta, **kw):
         return f"{meta.authorization_endpoint}?state={kw['state']}"
 

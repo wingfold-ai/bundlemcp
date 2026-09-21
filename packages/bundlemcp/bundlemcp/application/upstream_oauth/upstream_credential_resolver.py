@@ -35,10 +35,36 @@ class UpstreamCredentialResolver:
         access = await self._tokens.ensure_access_token(server, user, force=force_refresh)
         return {"Authorization": f"Bearer {access}"}
 
+    async def discovery_headers(self, server: McpServer) -> dict[str, str]:
+        """The Authorization header for listing a server's tools with no caller present.
+
+        Raises NeedsConnect when no account is connected to borrow, and
+        UpstreamOAuthNotConfigured when tokens cannot be stored at all.
+        """
+        if not server.uses_upstream_oauth:
+            return {}
+        if self._tokens is None:
+            raise UpstreamOAuthNotConfigured(server.name)
+        return {"Authorization": f"Bearer {await self._tokens.discovery_access_token(server)}"}
+
+    async def needs_account(self, server: McpServer, identity: CallerIdentity) -> bool:
+        """Whether this caller must connect their own account before using the server.
+
+        Only a signed-in user can: their connection is keyed by their user,
+        which an API-key or anonymous caller does not have.
+        """
+        if not server.requires_per_user_token or self._tokens is None:
+            return False
+        user = identity.user_uuid
+        if user is None:
+            return False
+        return not await self._tokens.is_connected(server.id, user)
+
+    def connect_url(self, server: McpServer) -> str:
+        """Where the caller connects their account to the server."""
+        suffix = "?as=me" if server.is_per_user else ""
+        return f"{self._public_base}/oauth/upstream/{server.name}/connect{suffix}"
+
     def connect_hint(self, server: McpServer) -> str:
         """The message a caller sees when the upstream account still has to be connected."""
-        suffix = "?as=me" if server.is_per_user else ""
-        return (
-            "upstream not connected — connect at "
-            f"{self._public_base}/oauth/upstream/{server.name}/connect{suffix}"
-        )
+        return f"upstream not connected — connect at {self.connect_url(server)}"

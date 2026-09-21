@@ -77,6 +77,9 @@ class FakeUpstreamProvider:
             authorization_endpoint="https://idp/a", token_endpoint="https://idp/t"
         )
 
+    async def register(self, meta, *, redirect_uri, client_name):
+        raise AssertionError("a client is already stored")
+
     def authorize_url(self, meta, **kw):
         return "https://idp/a"
 
