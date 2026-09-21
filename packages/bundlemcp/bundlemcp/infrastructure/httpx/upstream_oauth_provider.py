@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import urlencode, urlparse
 
 import httpx
+from pydantic import BaseModel, Field
 
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
@@ -21,6 +22,7 @@ PROTECTED_RESOURCE_PATH = "/.well-known/oauth-protected-resource"
 AUTHORIZATION_SERVER_PATH = "/.well-known/oauth-authorization-server"
 OPENID_CONFIGURATION_PATH = "/.well-known/openid-configuration"
 _RESOURCE_METADATA = re.compile(r'resource_metadata="([^"]+)"')
+_CHALLENGE_SCOPE = re.compile(r'(?:^|[\s,])scope="([^"]*)"')
 
 ClientFactory = Callable[[], httpx.AsyncClient]
 
@@ -55,12 +57,24 @@ def _authorization_server_candidates(issuer: str) -> list[str]:
     return list(dict.fromkeys(candidates))
 
 
-def _metadata(data: dict[str, Any]) -> UpstreamMetadata:
+class _Challenge(BaseModel):
+    """What a 401 from the server says about how to authorize against it."""
+
+    resource_metadata: str | None = Field(
+        default=None, description="URL of the protected resource document it names"
+    )
+    scope: list[str] | None = Field(
+        default=None, description="Scopes it asks for; None when the challenge names none"
+    )
+
+
+def _metadata(data: dict[str, Any], resource_scopes: list[str]) -> UpstreamMetadata:
     return UpstreamMetadata(
         authorization_endpoint=data["authorization_endpoint"],
         token_endpoint=data["token_endpoint"],
         registration_endpoint=data.get("registration_endpoint"),
         scopes_supported=data.get("scopes_supported", []),
+        resource_scopes=resource_scopes,
         issuer=data.get("issuer"),
         authorization_response_iss_parameter_supported=bool(
             data.get("authorization_response_iss_parameter_supported", False)
@@ -95,7 +109,15 @@ class HttpxUpstreamProvider:
         origin, _ = _split(server_url)
         self._check_egress(origin, "egress_denied")
         async with self._client_factory() as client:
-            resource = await self._protected_resource(client, server_url)
+            challenge = await self._challenge(client, server_url)
+            resource = await self._protected_resource(client, server_url, challenge)
+            # UPO-1: request what the resource asks for, never the server's whole catalogue
+            if challenge.scope is not None:
+                scopes = challenge.scope
+            elif resource is not None:
+                scopes = list(resource.get("scopes_supported") or [])
+            else:
+                scopes = []
             if resource is not None:
                 servers = resource.get("authorization_servers") or []
                 if servers:
@@ -104,22 +126,21 @@ class HttpxUpstreamProvider:
                     for url in _authorization_server_candidates(issuer):
                         data = await self._json(client, url)
                         if data is not None and "authorization_endpoint" in data:
-                            return _metadata(data)
+                            return _metadata(data, scopes)
             # no protected resource document: the origin may be its own authorization server
             data = await self._json(client, origin + AUTHORIZATION_SERVER_PATH)
             if data is not None and "authorization_endpoint" in data:
-                return _metadata(data)
+                return _metadata(data, scopes)
         raise NeedsConnect("upstream", "no_oauth_metadata")
 
     async def _protected_resource(
-        self, client: httpx.AsyncClient, server_url: str
+        self, client: httpx.AsyncClient, server_url: str, challenge: _Challenge
     ) -> dict[str, Any] | None:
         # UPO-1: the MCP authorization spec's order, server-named document first
         candidates = _protected_resource_candidates(server_url)
-        named = await self._named_resource_metadata(client, server_url)
-        if named is not None:
-            self._check_egress(named, "resource_metadata_denied")
-            candidates.insert(0, named)
+        if challenge.resource_metadata is not None:
+            self._check_egress(challenge.resource_metadata, "resource_metadata_denied")
+            candidates.insert(0, challenge.resource_metadata)
         for url in dict.fromkeys(candidates):
             data = await self._json(client, url)
             if data is not None and "authorization_servers" in data:
@@ -127,8 +148,8 @@ class HttpxUpstreamProvider:
         return None
 
     @staticmethod
-    async def _named_resource_metadata(client: httpx.AsyncClient, server_url: str) -> str | None:
-        """The document URL a 401 from the server names, if it names one.
+    async def _challenge(client: httpx.AsyncClient, server_url: str) -> _Challenge:
+        """What a 401 from the server names: its resource document and the scopes it wants.
 
         Only the status and headers are read: a server that does not require a
         token may answer with an open event stream, which is not waited on.
@@ -138,11 +159,16 @@ class HttpxUpstreamProvider:
                 "GET", server_url, headers={"Accept": "text/event-stream"}
             ) as response:
                 if response.status_code != 401:
-                    return None
-                named = _RESOURCE_METADATA.search(response.headers.get("www-authenticate", ""))
+                    return _Challenge()
+                header = response.headers.get("www-authenticate", "")
         except httpx.HTTPError:
-            return None
-        return named.group(1) if named else None
+            return _Challenge()
+        named = _RESOURCE_METADATA.search(header)
+        scope = _CHALLENGE_SCOPE.search(header)
+        return _Challenge(
+            resource_metadata=named.group(1) if named else None,
+            scope=scope.group(1).split() if scope else None,
+        )
 
     @staticmethod
     async def _json(client: httpx.AsyncClient, url: str) -> dict[str, Any] | None:

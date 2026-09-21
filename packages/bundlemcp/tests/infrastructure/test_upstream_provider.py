@@ -97,8 +97,11 @@ class PathScopedUpstream:
     """seo-mcp's shape: the protected resource document exists only under the /mcp path and
     is named by the server's 401; the authorization server is a Keycloak realm."""
 
-    def __init__(self, *, challenge: bool = True, registration: bool = True) -> None:
+    def __init__(
+        self, *, challenge: bool = True, registration: bool = True, challenge_scope: str = ""
+    ) -> None:
         self.challenge = challenge
+        self.challenge_scope = challenge_scope
         self.registration = registration
         self.requests: list[str] = []
         self.registrations: list[dict] = []
@@ -111,6 +114,7 @@ class PathScopedUpstream:
                 {
                     "WWW-Authenticate": 'Bearer error="invalid_token", resource_metadata='
                     '"http://10.0.0.5/.well-known/oauth-protected-resource/mcp"'
+                    + (f', scope="{self.challenge_scope}"' if self.challenge_scope else "")
                 }
                 if self.challenge
                 else {}
@@ -118,13 +122,20 @@ class PathScopedUpstream:
             return httpx.Response(401, headers=headers)
         if url == "http://10.0.0.5/.well-known/oauth-protected-resource/mcp":
             return httpx.Response(
-                200, json={"resource": SERVER_URL, "authorization_servers": [KEYCLOAK]}
+                200,
+                json={
+                    "resource": SERVER_URL,
+                    "authorization_servers": [KEYCLOAK],
+                    "scopes_supported": ["openid"],
+                },
             )
         if url == "http://10.0.0.7/.well-known/oauth-authorization-server/realms/x":
             body = {
                 "issuer": KEYCLOAK,
                 "authorization_endpoint": f"{KEYCLOAK}/protocol/openid-connect/auth",
                 "token_endpoint": f"{KEYCLOAK}/protocol/openid-connect/token",
+                # Keycloak lists every scope in the realm, most never granted to a new client
+                "scopes_supported": ["openid", "basic", "service_account", "organization"],
             }
             if self.registration:
                 body["registration_endpoint"] = f"{KEYCLOAK}/clients-registrations/openid-connect"
@@ -148,6 +159,21 @@ async def test_discovery_follows_the_document_a_401_names():
     assert meta.issuer == KEYCLOAK
     assert meta.registration_endpoint == f"{KEYCLOAK}/clients-registrations/openid-connect"
     assert "http://10.0.0.5/.well-known/oauth-protected-resource" not in upstream.requests
+
+
+async def test_requested_scopes_come_from_the_resource_not_the_authorization_server():
+    """UPO-1: the resource document's scopes_supported, not Keycloak's whole catalogue."""
+    meta = await PathScopedUpstream().provider().discover(SERVER_URL)
+    assert meta.resource_scopes == ["openid"]
+    assert meta.authorization_scope == "openid"
+    assert "service_account" in meta.scopes_supported
+
+
+async def test_a_challenge_scope_wins_over_the_resource_document():
+    """UPO-1: the scope a 401 names is the most specific request the server makes."""
+    upstream = PathScopedUpstream(challenge_scope="mcp:tools mcp:read")
+    meta = await upstream.provider().discover(SERVER_URL)
+    assert meta.resource_scopes == ["mcp:tools", "mcp:read"]
 
 
 async def test_discovery_finds_the_path_inserted_document_without_a_challenge():
