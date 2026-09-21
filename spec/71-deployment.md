@@ -69,8 +69,10 @@ non-events" promise, and how state is backed up and keys rotated.
 - **DEP-10** CI (GitHub Actions): every PR runs `ruff`, `pytest`, frontend
   typecheck/build, and LikeC4 model validation ([ADOC-4](62-architecture-documentation.md));
   integration suite runs on main.
-- **DEP-11** Images (`gateway`, `web`) publish to ghcr.io on tags; releases
-  are semver with a changelog; the metering-hook protocol version
+- **DEP-11** Images (`gateway`, `web`) publish to ghcr.io on every push to
+  `main`, tagged `:latest` (what a continuously deployed stack pulls) and
+  `:<commit-sha>` (to pin or roll back to an exact build). Releases publish on
+  tags: semver with a changelog; the metering-hook protocol version
   ([MID-4](31-middleware.md)) is called out in release notes when it changes.
 
 ## Out of scope
