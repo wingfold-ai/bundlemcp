@@ -1,4 +1,5 @@
 from bundlemcp.application.schemas.servers.discovery_result import DiscoveryResult
+from bundlemcp.application.schemas.servers.discovery_sweep import DiscoverySweep
 from bundlemcp.application.schemas.servers.server_read import ServerRead
 from bundlemcp.application.schemas.servers.server_upsert import ServerUpsert
 from bundlemcp.application.schemas.servers.upstream_connection_status import (
@@ -10,6 +11,7 @@ from bundlemcp.application.schemas.servers.upstream_oauth_status_read import Ups
 
 __all__ = [
     "DiscoveryResult",
+    "DiscoverySweep",
     "ServerRead",
     "ServerUpsert",
     "UpstreamConnectionStatus",

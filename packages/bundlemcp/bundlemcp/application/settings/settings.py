@@ -67,6 +67,14 @@ class Settings(BaseModel):
         "list. Cloud metadata ranges are blocked in code regardless of this setting",
     )
 
+    discovery_refresh_interval: int = Field(  # DISC-7
+        default=1800,
+        ge=0,
+        description="Seconds between re-reading every upstream server's tool list, so tools "
+        "of a server that was unreachable when registered, or that changed without notice, "
+        "show up without a manual refresh. One replica refreshes per interval. 0 disables it",
+    )
+
     token_encryption_keys: list[str] = Field(  # DEP-9
         default=[],
         description="Keys for encrypting stored upstream OAuth tokens. The first encrypts and "

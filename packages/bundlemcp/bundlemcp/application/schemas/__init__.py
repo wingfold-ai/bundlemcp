@@ -37,6 +37,7 @@ from bundlemcp.application.schemas.oauth import (
 )
 from bundlemcp.application.schemas.servers import (
     DiscoveryResult,
+    DiscoverySweep,
     ServerRead,
     ServerUpsert,
     UpstreamConnectionStatus,
@@ -66,6 +67,7 @@ __all__ = [
     "ConfigValue",
     "ConsentRead",
     "DiscoveryResult",
+    "DiscoverySweep",
     "EndpointProfileRead",
     "AvailableEndpointRead",
     "EndpointRead",

@@ -13,6 +13,7 @@ from fastapi import FastAPI
 
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
 from bundlemcp.api.jobs.token_purger import TokenPurger
+from bundlemcp.api.jobs.tool_refresher import ToolRefresher
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
 from bundlemcp.application.bootstrap import BootstrapRunner
@@ -196,6 +197,13 @@ class CompositionRoot:
         purger = TokenPurger(units, clock)  # OAS-8/SEC-8: expired grants must not linger
         purger.start()
         self._stack.callback(purger.stop)
+
+        if settings.discovery_refresh_interval:  # DISC-7: 0 disables the periodic refresh
+            refresher = ToolRefresher(
+                discovery, ValkeyRefreshLock(redis), settings.discovery_refresh_interval
+            )
+            refresher.start()
+            self._stack.callback(refresher.stop)
 
         client_metadata = overrides.client_metadata_fetcher or HttpxClientMetadataFetcher(
             settings, redis

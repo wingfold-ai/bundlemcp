@@ -97,6 +97,7 @@ recorded here so nobody re-proposes them without new evidence.
 | **Local password accounts** (better-auth style) | Admin login is OIDC-only; bundlemcp never stores passwords. |
 | **Marketplace/search page** (metamcp's registry-browse UI) | bundlemcp is not a marketplace (00-overview non-goal); servers arrive via API/UI/bootstrap. |
 | **`/oauth/userinfo` endpoint** | Introspection's `sub` covers all known consumers; no OIDC-provider surface ([20-oauth-server.md](20-oauth-server.md) out-of-scope). |
+| **Opportunistic discovery on live `tools/list`** (metamcp's sync-on-list) | bundlemcp serves an endpoint's `tools/list` from the Postgres cache ([DISC-4](11-tool-discovery.md)), so no live upstream `tools/list` happens to piggy-back on. A periodic refresh ([DISC-7](11-tool-discovery.md), [ADR-0038](../docs/adr/0038-periodic-tool-refresh.md)) keeps the cache current instead. |
 
 ## Roadmap — deferred, not dropped
 

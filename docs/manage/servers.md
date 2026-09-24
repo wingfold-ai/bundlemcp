@@ -188,6 +188,12 @@ schema, annotations and `last_seen_at`. `POST /api/v1/servers/{name}:refresh-too
 re-probes and re-discovers; the result reports how many tools were
 discovered and how many definitions changed.
 
+The gateway also re-discovers every server on its own every
+`BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds (default 30 minutes). A server
+you registered before its upstream was reachable therefore gets its tools
+without a manual refresh, and a server whose tools change is picked up within
+one interval. Use the refresh endpoint when you do not want to wait.
+
 Tools that disappear upstream stay in the cache, marked by an old
 `last_seen_at`, so a bundle's curation of them survives a temporary outage.
 

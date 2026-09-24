@@ -6,7 +6,7 @@ import structlog
 from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from bundlemcp.application.contracts.upstream.upstream_probe import UpstreamProbe
-from bundlemcp.application.schemas import DiscoveryResult
+from bundlemcp.application.schemas import DiscoveryResult, DiscoverySweep
 from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
@@ -18,6 +18,10 @@ from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import UpstreamOAuthNotConfigured
 
 DEFAULT_MAX_ATTEMPTS = 3  # SRV-4: consecutive failures before health_status=error
+NOT_CONNECTED = "upstream not connected"
+SWEEP_PAGE_SIZE = 100
+# one hanging upstream must not hold up a sweep of every other server (DISC-7)
+PROBE_TIMEOUT_SECONDS = 60
 
 log = structlog.get_logger(__name__)
 
@@ -98,9 +102,14 @@ class DiscoveryService:
                 if announce:
                     await self._announce(uow, server)
                     await uow.commit()
-                return DiscoveryResult(error="upstream not connected")
+                return DiscoveryResult(error=NOT_CONNECTED)
             try:
-                seen = await self._probe.probe(server, headers)
+                async with asyncio.timeout(PROBE_TIMEOUT_SECONDS):
+                    seen = await self._probe.probe(server, headers)
+            except TimeoutError:
+                return await self._record_failure(
+                    uow, server, f"no answer within {PROBE_TIMEOUT_SECONDS}s"
+                )
             except Exception as exc:
                 return await self._record_failure(uow, server, str(exc))
 
@@ -120,6 +129,36 @@ class DiscoveryService:
                 await self._announce(uow, server)  # BND-7: clients re-list the bundle
             await uow.commit()
             return DiscoveryResult(discovered=len(seen.tools), changed=changed)
+
+    async def discover_all(self) -> DiscoverySweep:
+        """Probe every registered server, one after another.
+
+        A server whose probe fails, or raises, is counted and skipped; the rest
+        are still probed. A server not yet connected through upstream OAuth has
+        nothing to probe with and is not counted as failed.
+        """
+        sweep = DiscoverySweep()
+        for server_id in await self._server_ids():
+            try:
+                result = await self.discover(server_id)
+            except Exception:
+                log.warning("discovery.sweep_probe_failed", server_id=str(server_id), exc_info=True)
+                sweep.failed += 1
+            else:
+                if result.error is not None and result.error != NOT_CONNECTED:
+                    sweep.failed += 1
+                sweep.changed += result.changed
+            sweep.servers += 1
+        return sweep
+
+    async def _server_ids(self) -> list[uuid.UUID]:
+        ids: list[uuid.UUID] = []
+        async with self._units.open() as uow:
+            while True:
+                total, page = await uow.servers.page(offset=len(ids), limit=SWEEP_PAGE_SIZE)
+                ids.extend(server.id for server in page)
+                if not page or len(ids) >= total:
+                    return ids
 
     async def _headers(self, server: McpServer) -> dict[str, str]:
         if self._credentials is None:
