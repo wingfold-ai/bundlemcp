@@ -9,7 +9,10 @@
     }
   },
   "enabledPlugins": {
-    "git-attribution@claude-skills": true
+    "git-attribution@claude-skills": true,
+    "software-architecture@claude-skills": true,
+    "git-conventions@claude-skills": true,
+    "docker@claude-skills": true
   },
   "hooks": {
     "SessionStart": [
