@@ -752,6 +752,17 @@
         "title": "BundleUpsert",
         "type": "object"
       },
+      "ClientIdentification": {
+        "description": "How the gateway identifies itself to an upstream authorization server.\n\nListed in the MCP authorization spec's priority order after a client an\nadmin stored, which always wins.",
+        "enum": [
+          "preregistered",
+          "metadata_document",
+          "dynamic_registration",
+          "preregistered_required"
+        ],
+        "title": "ClientIdentification",
+        "type": "string"
+      },
       "ConfigEntryRead": {
         "description": "One runtime-tunable setting after a change.",
         "properties": {
@@ -785,6 +796,23 @@
         ],
         "title": "ConfigValue",
         "type": "object"
+      },
+      "ConnectionState": {
+        "description": "What the last attempt to reach an upstream server found out about it.\n\nClassified from the upstream's HTTP response rather than from the MCP\nclient's error text, so each state names what an operator has to do.",
+        "enum": [
+          "unknown",
+          "ready",
+          "oauth_required",
+          "account_required",
+          "insufficient_scope",
+          "credential_required",
+          "not_mcp",
+          "unreachable",
+          "egress_denied",
+          "error"
+        ],
+        "title": "ConnectionState",
+        "type": "string"
       },
       "ConsentRead": {
         "description": "A user's standing consent for one OAuth client on one endpoint.",
@@ -830,6 +858,11 @@
             "description": "Tools written to the cache because their definition hash moved",
             "title": "Changed",
             "type": "integer"
+          },
+          "connection_state": {
+            "$ref": "#/components/schemas/ConnectionState",
+            "default": "unknown",
+            "description": "What the probe found out about the upstream: ready on success, otherwise why it gave no MCP answer (oauth_required, credential_required, not_mcp, unreachable, ...)"
           },
           "discovered": {
             "default": 0,
@@ -1150,6 +1183,83 @@
         "title": "MeRead",
         "type": "object"
       },
+      "OAuthInspection": {
+        "description": "What an OAuth-protected upstream's authorization chain revealed.",
+        "properties": {
+          "authorization_endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where users are sent to sign in",
+            "title": "Authorization Endpoint"
+          },
+          "callback_url": {
+            "description": "The redirect URI to register when a client must be created by hand",
+            "title": "Callback Url",
+            "type": "string"
+          },
+          "client_identification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClientIdentification"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the gateway can identify itself there without an admin: 'metadata_document' (its own client metadata URL), 'dynamic_registration', or 'preregistered_required' when an admin must register a client and enter it on the server's page, with the callback URL as redirect URI"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Issuer identifier of the server's authorization server",
+            "title": "Issuer"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the metadata the server points to cannot be used (issuer mismatch, no PKCE support, blocked address); null when it can",
+            "title": "Problem"
+          },
+          "scopes": {
+            "default": [],
+            "description": "Scopes the protected resource asks clients to request",
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "supports_client_credentials": {
+            "default": false,
+            "description": "Whether the authorization server advertises the client_credentials grant, for a shared connection that authorizes the gateway itself",
+            "title": "Supports Client Credentials",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "callback_url"
+        ],
+        "title": "OAuthInspection",
+        "type": "object"
+      },
       "Page_ApiKeyRead_": {
         "properties": {
           "items": {
@@ -1460,20 +1570,354 @@
         "type": "object"
       },
       "ServerAuthMode": {
+        "description": "How the gateway authenticates to an upstream server.",
         "enum": [
           "none",
           "static_headers",
-          "upstream_oauth"
+          "upstream_oauth",
+          "delegated_token"
         ],
         "title": "ServerAuthMode",
         "type": "string"
+      },
+      "ServerInfoRead": {
+        "description": "How an upstream describes itself (its MCP serverInfo).",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the server says it provides, when it says",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Implementation name the server reports",
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display title, when the server sets one",
+            "title": "Title"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Implementation version",
+            "title": "Version"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Website, when the server sets one",
+            "title": "Website Url"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ServerInfoRead",
+        "type": "object"
+      },
+      "ServerInspectRequest": {
+        "description": "Body for POST /servers:inspect.",
+        "properties": {
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Credential headers to try, such as {'authorization': 'Bearer \u2026'} or {'x-api-key': '\u2026'}. Used for this probe only: never stored, logged or returned",
+            "title": "Headers",
+            "type": "object"
+          },
+          "url": {
+            "description": "Streamable HTTP URL of the upstream MCP server to inspect",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "ServerInspectRequest",
+        "type": "object"
+      },
+      "ServerInspection": {
+        "description": "What an upstream is, as far as it can be learnt without registering it.",
+        "properties": {
+          "connection_state": {
+            "$ref": "#/components/schemas/ConnectionState",
+            "description": "ready (it answered as an MCP server), oauth_required, credential_required (refused without OAuth metadata: it wants an API key or token header), insufficient_scope, not_mcp, unreachable, egress_denied or error"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the probe got no MCP answer, when it did not; header values never appear here",
+            "title": "Detail"
+          },
+          "hints": {
+            "default": [],
+            "description": "Plain-language notes on what to do next, most important first",
+            "items": {
+              "type": "string"
+            },
+            "title": "Hints",
+            "type": "array"
+          },
+          "oauth": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OAuthInspection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The authorization chain, for an OAuth-protected server"
+          },
+          "protocol_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MCP revision negotiated with the server, when it answered",
+            "title": "Protocol Version"
+          },
+          "server_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServerInfoRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the server describes itself, when it answered"
+          },
+          "suggested_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A nearby URL that does answer as MCP (such as the same URL with /mcp appended), when the given one is not an MCP endpoint",
+            "title": "Suggested Url"
+          },
+          "suggestion": {
+            "$ref": "#/components/schemas/ServerUpsert",
+            "description": "A registration derived from what was found: submit it to PUT /servers/{name} as is, adding the credential headers the server needs"
+          },
+          "tool_names": {
+            "default": [],
+            "description": "Names of the tools the server lists, when it answered",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tool Names",
+            "type": "array"
+          },
+          "url": {
+            "description": "The URL that was inspected",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "connection_state",
+          "suggestion"
+        ],
+        "title": "ServerInspection",
+        "type": "object"
+      },
+      "ServerJsonDraft": {
+        "description": "A registration drafted from a registry server.json, for an operator to complete.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The document's description of the server",
+            "title": "Description"
+          },
+          "headers": {
+            "default": [],
+            "description": "Headers the remote declares, in the document's order",
+            "items": {
+              "$ref": "#/components/schemas/ServerJsonHeader"
+            },
+            "title": "Headers",
+            "type": "array"
+          },
+          "name": {
+            "description": "A slug-safe server name derived from the document's name",
+            "title": "Name",
+            "type": "string"
+          },
+          "problems": {
+            "default": [],
+            "description": "Why parts of the document could not be used, such as an sse-only remote",
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The first streamable-http remote's URL; null when the document has none",
+            "title": "Url"
+          },
+          "url_variables": {
+            "default": [],
+            "description": "Names of {placeholders} in the URL the operator must fill in first",
+            "items": {
+              "type": "string"
+            },
+            "title": "Url Variables",
+            "type": "array"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The document's website URL",
+            "title": "Website Url"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ServerJsonDraft",
+        "type": "object"
+      },
+      "ServerJsonHeader": {
+        "description": "A header a registry server.json says a remote needs.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the value is and where to get it, from the publisher",
+            "title": "Description"
+          },
+          "is_required": {
+            "default": false,
+            "description": "Whether the server needs it",
+            "title": "Is Required",
+            "type": "boolean"
+          },
+          "is_secret": {
+            "default": false,
+            "description": "Whether the value is a secret to enter in a masked field",
+            "title": "Is Secret",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Header name, such as 'X-API-Key' or 'Authorization'",
+            "title": "Name",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A value template from the document, such as 'Bearer {api_key}', when it gives one",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ServerJsonHeader",
+        "type": "object"
+      },
+      "ServerJsonImport": {
+        "description": "Body for POST /servers:from-server-json.",
+        "properties": {
+          "document": {
+            "additionalProperties": true,
+            "description": "An MCP Registry server.json document, as published by the server's author",
+            "title": "Document",
+            "type": "object"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "title": "ServerJsonImport",
+        "type": "object"
       },
       "ServerRead": {
         "description": "An upstream server as stored, with header values withheld.",
         "properties": {
           "auth_mode": {
             "$ref": "#/components/schemas/ServerAuthMode",
-            "description": "How the gateway authenticates to this server"
+            "description": "How the gateway authenticates to this server: none, static_headers, upstream_oauth or delegated_token"
           },
           "capabilities": {
             "additionalProperties": true,
@@ -1481,6 +1925,22 @@
             "description": "What the server advertised at its last probe: which of tools, prompts, resources, completions and logging it supports, with its listChanged and subscribe flags",
             "title": "Capabilities",
             "type": "object"
+          },
+          "configuration_mismatch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the connection state contradicts the configuration, the change that would fix it; null otherwise",
+            "title": "Configuration Mismatch"
+          },
+          "connection_state": {
+            "$ref": "#/components/schemas/ConnectionState",
+            "description": "What the last probe found out: ready, oauth_required, account_required, insufficient_scope, credential_required, not_mcp, unreachable, egress_denied, error, or unknown before the first probe"
           },
           "created_at": {
             "description": "When the server was registered",
@@ -1507,6 +1967,12 @@
             "description": "Client headers passed through, mapped from incoming name to upstream name",
             "title": "Forward Headers",
             "type": "object"
+          },
+          "forwards_caller_token": {
+            "default": false,
+            "description": "Whether a forward mapping passes the caller's own authorization header through to the server (token passthrough)",
+            "title": "Forwards Caller Token",
+            "type": "boolean"
           },
           "health_status": {
             "$ref": "#/components/schemas/HealthStatus",
@@ -1595,6 +2061,7 @@
           "protocol_version",
           "health_status",
           "last_error",
+          "connection_state",
           "created_at",
           "updated_at"
         ],
@@ -1607,7 +2074,7 @@
           "auth_mode": {
             "$ref": "#/components/schemas/ServerAuthMode",
             "default": "none",
-            "description": "How the gateway authenticates to this server"
+            "description": "How the gateway authenticates to this server: 'none' or 'static_headers' (which of the two is derived from whether static headers are stored), 'upstream_oauth' (the gateway holds OAuth tokens from the server's authorization server) or 'delegated_token' (each call carries a short-lived token the gateway issues for the caller, valid only at this server, which the server verifies through the gateway's introspection endpoint). Run POST /servers:inspect to learn which one a server needs"
           },
           "description": {
             "anyOf": [
@@ -1631,7 +2098,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Client headers to pass through, mapped from incoming name to upstream name",
+            "description": "Client headers to pass through, mapped from incoming name to upstream name. Host, cookie, content-length, x-api-key, mcp-session-id and any sec-* or proxy-* header are refused. Forwarding 'authorization' passes the caller's gateway token through; prefer auth_mode 'delegated_token'",
             "title": "Forward Headers",
             "type": "object"
           },
@@ -1647,17 +2114,29 @@
             "type": "string"
           },
           "protocol_mode": {
-            "default": "auto",
-            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision",
-            "pattern": "^(auto|legacy|\\d{4}-\\d{2}-\\d{2})$",
-            "title": "Protocol Mode",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(auto|legacy|\\d{4}-\\d{2}-\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. Omitted on create it is 'auto'; omitted on update, the stored value is kept",
+            "title": "Protocol Mode"
           },
           "send_identity_header": {
-            "default": true,
-            "description": "Whether the calling user's identity is forwarded to the upstream server",
-            "title": "Send Identity Header",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the calling user's identity is sent to the server as X-MCP-User. Omitted on create, it is on for a server on the gateway's own network and off for any public host; omitted on update, the stored value is kept",
+            "title": "Send Identity Header"
           },
           "static_headers": {
             "additionalProperties": {
@@ -1907,6 +2386,15 @@
         "title": "UpstreamConnectionStatus",
         "type": "object"
       },
+      "UpstreamGrant": {
+        "description": "How the gateway obtains tokens from an upstream authorization server.",
+        "enum": [
+          "authorization_code",
+          "client_credentials"
+        ],
+        "title": "UpstreamGrant",
+        "type": "string"
+      },
       "UpstreamOAuthClientRead": {
         "description": "The stored upstream OAuth client registration, secret withheld.",
         "properties": {
@@ -1966,6 +2454,11 @@
             "description": "Client secret for the upstream authorization server. Write-only; it is never returned",
             "title": "Client Secret"
           },
+          "grant_type": {
+            "$ref": "#/components/schemas/UpstreamGrant",
+            "default": "authorization_code",
+            "description": "How the gateway obtains tokens: 'authorization_code' (a person signs in through the browser) or 'client_credentials' (the gateway authenticates as this client, for a shared server that authorizes a machine; requires a client secret)"
+          },
           "token_url": {
             "anyOf": [
               {
@@ -2017,6 +2510,22 @@
             "title": "Configured",
             "type": "boolean"
           },
+          "grant_type": {
+            "$ref": "#/components/schemas/UpstreamGrant",
+            "default": "authorization_code",
+            "description": "How tokens are obtained: through a browser sign-in, or with the client credentials grant"
+          },
+          "identification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClientIdentification"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the client came to be: 'preregistered' (an admin stored it), 'metadata_document' (the gateway's own client metadata URL is its id) or 'dynamic_registration'; null until there is a client"
+          },
           "identity_mode": {
             "$ref": "#/components/schemas/IdentityMode",
             "description": "Whether callers share one upstream identity or each connects their own"
@@ -2031,6 +2540,15 @@
               }
             ],
             "description": "State of the shared connection; null when upstream OAuth is not configured"
+          },
+          "step_up_scopes": {
+            "default": [],
+            "description": "Scopes the upstream demanded after connecting; the next connect requests them too",
+            "items": {
+              "type": "string"
+            },
+            "title": "Step Up Scopes",
+            "type": "array"
           },
           "token_url": {
             "anyOf": [
@@ -3767,6 +4285,49 @@
         ]
       }
     },
+    "/api/v1/servers/{name}/upstream-oauth:connect": {
+      "post": {
+        "description": "Obtain the shared connection of a client-credentials client now.",
+        "operationId": "connect_upstream_oauth_client_api_v1_servers__name__upstream_oauth_connect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpstreamOAuthStatusRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connect Upstream Oauth Client",
+        "tags": [
+          "servers"
+        ]
+      }
+    },
     "/api/v1/servers/{name}:refresh-tools": {
       "post": {
         "operationId": "refresh_tools_api_v1_servers__name__refresh_tools_post",
@@ -3865,6 +4426,90 @@
           }
         },
         "summary": "Rename Server",
+        "tags": [
+          "servers"
+        ]
+      }
+    },
+    "/api/v1/servers:from-server-json": {
+      "post": {
+        "description": "Draft a registration from an MCP Registry server.json; nothing is stored.",
+        "operationId": "draft_from_server_json_api_v1_servers_from_server_json_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerJsonImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerJsonDraft"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft From Server Json",
+        "tags": [
+          "servers"
+        ]
+      }
+    },
+    "/api/v1/servers:inspect": {
+      "post": {
+        "description": "Probe a URL without registering it: what it is and what registering it takes.",
+        "operationId": "inspect_server_api_v1_servers_inspect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerInspectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerInspection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inspect Server",
         "tags": [
           "servers"
         ]

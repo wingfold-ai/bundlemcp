@@ -22,47 +22,10 @@ const { data: servers, refresh } = await useAsyncData<ServerRead[]>(
   { default: () => [] },
 );
 
-const createName = ref("");
-const createUrl = ref("");
-const createAuthMode = ref<"none" | "static_headers" | "upstream_oauth">("none");
-const createIdentityMode = ref<"shared" | "per_user">("shared");
-const creating = ref(false);
-
-async function createServer() {
-  errorMsg.value = "";
-  const name = createName.value.trim();
-  // UI-4: client-side validation before submit
-  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
-    errorMsg.value = "Name must match ^[a-zA-Z0-9_-]+$";
-    return;
-  }
-  if (name.includes("__")) {
-    errorMsg.value = 'Server name must not contain "__"';
-    return;
-  }
-  creating.value = true;
-  try {
-    const { error } = await api.PUT("/api/v1/servers/{name}", {
-      params: { path: { name } },
-      body: {
-        name,
-        url: createUrl.value.trim(),
-        auth_mode: createAuthMode.value,
-        identity_mode: createIdentityMode.value,
-      },
-    });
-    if (error) {
-      errorMsg.value = apiErrorMessage(error);
-      return;
-    }
-    createName.value = "";
-    createUrl.value = "";
-    createAuthMode.value = "none";
-    createIdentityMode.value = "shared";
-    await refresh();
-  } finally {
-    creating.value = false;
-  }
+/** A new server opens on its own page, where OAuth connect and tools live. */
+async function onCreated(name: string) {
+  await refresh();
+  await navigateTo(`/servers/${name}`);
 }
 </script>
 
@@ -79,6 +42,7 @@ async function createServer() {
           <th>URL</th>
           <th>Connection</th>
           <th>Auth</th>
+          <th>State</th>
           <th>Health</th>
           <th>Updated</th>
         </tr>
@@ -93,7 +57,7 @@ async function createServer() {
               ><UIcon name="i-lucide-server" class="size-4 text-muted" />{{ s.name }}</NuxtLink
             >
           </td>
-          <td class="break-all">{{ s.url }}</td>
+          <td class="break-all min-w-56">{{ s.url }}</td>
           <td class="whitespace-nowrap" :data-testid="`connection-${s.name}`">
             <UBadge
               :icon="NETWORK_ICON[connectionKind(s.url).network]"
@@ -131,6 +95,16 @@ async function createServer() {
               {{ IDENTITY_MODE_LABEL[s.identity_mode] }}
             </UBadge>
           </td>
+          <td class="whitespace-nowrap" :data-testid="`state-${s.name}`">
+            <UBadge
+              :icon="CONNECTION_STATE_ICON[s.connection_state]"
+              :color="connectionStateColor(s.connection_state)"
+              variant="subtle"
+              :title="s.configuration_mismatch || CONNECTION_STATE_HELP[s.connection_state]"
+            >
+              {{ CONNECTION_STATE_LABEL[s.connection_state] }}
+            </UBadge>
+          </td>
           <td>
             <UBadge
               :icon="HEALTH_ICON[s.health_status]"
@@ -142,7 +116,7 @@ async function createServer() {
           <td class="whitespace-nowrap text-muted">{{ s.updated_at }}</td>
         </tr>
         <tr v-if="servers.length === 0">
-          <td colspan="6" class="text-muted">No servers registered.</td>
+          <td colspan="7" class="text-muted">No servers registered.</td>
         </tr>
       </tbody>
     </table>
@@ -153,60 +127,6 @@ async function createServer() {
       and is registered by the sidecar's URL.
     </p>
 
-    <form class="wf-card space-y-3 max-w-xl" @submit.prevent="createServer">
-      <h2 class="text-sm font-semibold">Register server</h2>
-      <div>
-        <label class="wf-label" for="create-name">Name</label>
-        <input
-          id="create-name"
-          v-model="createName"
-          class="wf-input"
-          data-testid="create-name"
-        />
-      </div>
-      <div>
-        <label class="wf-label" for="create-url">URL</label>
-        <input id="create-url" v-model="createUrl" class="wf-input" data-testid="create-url" />
-      </div>
-      <div>
-        <label class="wf-label" for="create-auth-mode">Auth mode</label>
-        <select
-          id="create-auth-mode"
-          v-model="createAuthMode"
-          class="wf-input"
-          data-testid="create-auth-mode"
-        >
-          <option value="none">none — the server needs no credential</option>
-          <option value="static_headers">static_headers — API key or token sent as a header</option>
-          <option value="upstream_oauth">upstream_oauth — the gateway signs in with OAuth</option>
-        </select>
-        <p class="wf-help">
-          For an API key, choose <em>static_headers</em> and add the header (for example
-          <code>authorization: Bearer …</code>) on the server's page after creating it; values are
-          stored write-only. For OAuth, configure the client and connect an account on the
-          server's page.
-        </p>
-      </div>
-      <div>
-        <label class="wf-label" for="create-identity-mode">Identity mode</label>
-        <select
-          id="create-identity-mode"
-          v-model="createIdentityMode"
-          class="wf-input"
-          data-testid="create-identity-mode"
-        >
-          <option value="shared">shared — one upstream identity for every caller</option>
-          <option value="per_user">per_user — each caller connects their own account</option>
-        </select>
-        <p class="wf-help">
-          Only meaningful with upstream OAuth. <em>shared</em> uses the account an admin connects
-          once (a service account). <em>per_user</em> makes each user of an endpoint connect their
-          own account the first time they call a tool, so the upstream sees them as themselves.
-        </p>
-      </div>
-      <UButton type="submit" size="sm" :loading="creating" data-testid="create-submit"
-        >Create</UButton
-      >
-    </form>
+    <ServerRegistration @created="onCreated" />
   </div>
 </template>

@@ -16,7 +16,8 @@ const notFound = ref(false);
 const server = ref<ServerRead | null>(null);
 const url = ref("");
 const description = ref("");
-const authMode = ref<"none" | "static_headers" | "upstream_oauth">("none");
+const authMode = ref<"none" | "static_headers" | "upstream_oauth" | "delegated_token">("none");
+const protocolMode = ref("auto");
 const identityMode = ref<"shared" | "per_user">("shared");
 const sendIdentityHeader = ref(true);
 const fwdRows = ref<{ key: string; val: string }[]>([]);
@@ -42,6 +43,7 @@ async function loadServer() {
   authMode.value = data.auth_mode as typeof authMode.value;
   identityMode.value = data.identity_mode as typeof identityMode.value;
   sendIdentityHeader.value = data.send_identity_header;
+  protocolMode.value = data.protocol_mode;
   fwdRows.value = Object.entries(data.forward_headers).map(([key, val]) => ({ key, val }));
   staticHeaderNames.value = data.static_header_names ?? [];
   hdrRows.value = [];
@@ -53,6 +55,23 @@ function addFwdRow() {
 
 function addHdrRow() {
   hdrRows.value.push({ key: "", val: "" });
+}
+
+const forwardsCallerToken = computed(() =>
+  fwdRows.value.some((r) => r.key.trim().toLowerCase() === "authorization"),
+);
+
+/** Apply the change a contradicting connection state calls for (SRV-12). */
+async function fixMismatch() {
+  if (server.value?.connection_state === "oauth_required") {
+    authMode.value = "upstream_oauth";
+    identityMode.value = "per_user";
+    await saveServer();
+    await loadUpstreamStatus();
+  } else {
+    addHdrRow();
+    document.getElementById("static-headers")?.scrollIntoView({ behavior: "smooth" });
+  }
 }
 
 async function saveServer() {
@@ -75,8 +94,10 @@ async function saveServer() {
         url: url.value.trim(),
         description: description.value || null,
         auth_mode: authMode.value,
-        identity_mode: identityMode.value,
+        // whose account only means something for upstream OAuth
+        identity_mode: authMode.value === "upstream_oauth" ? identityMode.value : "shared",
         send_identity_header: sendIdentityHeader.value,
+        protocol_mode: protocolMode.value,
         forward_headers,
         static_headers,
       },
@@ -119,9 +140,10 @@ async function refreshTools() {
       errorMsg.value = apiErrorMessage(error);
       return;
     }
-    const r = data as { discovered?: unknown; changed?: unknown; error?: unknown };
-    refreshResult.value = `discovered: ${r.discovered ?? "-"}, changed: ${r.changed ?? "-"}, error: ${r.error ?? "none"}`;
-    await loadTools();
+    refreshResult.value = data.error
+      ? `${CONNECTION_STATE_LABEL[data.connection_state ?? "error"]}: ${data.error}`
+      : `${data.discovered} tools, ${data.changed} changed`;
+    await Promise.all([loadTools(), loadServer()]);
   } finally {
     refreshing.value = false;
   }
@@ -133,7 +155,9 @@ const upClientId = ref("");
 const upClientSecret = ref("");
 const upAuthUrl = ref("");
 const upTokenUrl = ref("");
+const upGrant = ref<"authorization_code" | "client_credentials">("authorization_code");
 const upSaving = ref(false);
+const upConnecting = ref(false);
 
 async function loadUpstreamStatus() {
   const { data, error } = await api.GET("/api/v1/servers/{name}/upstream-oauth", {
@@ -144,6 +168,7 @@ async function loadUpstreamStatus() {
   upClientId.value = data.client_id ?? "";
   upAuthUrl.value = data.authorization_url ?? "";
   upTokenUrl.value = data.token_url ?? "";
+  upGrant.value = data.grant_type ?? "authorization_code";
 }
 
 async function saveUpstream() {
@@ -157,6 +182,7 @@ async function saveUpstream() {
         client_secret: upClientSecret.value || null,
         authorization_url: upAuthUrl.value.trim() || null,
         token_url: upTokenUrl.value.trim() || null,
+        grant_type: upGrant.value,
       },
     });
     if (error) {
@@ -167,6 +193,24 @@ async function saveUpstream() {
     await loadUpstreamStatus();
   } finally {
     upSaving.value = false;
+  }
+}
+
+/** UPO-11: a client-credentials client connects with a grant, not a browser sign-in. */
+async function connectAsClient() {
+  errorMsg.value = "";
+  upConnecting.value = true;
+  try {
+    const { error } = await api.POST("/api/v1/servers/{name}/upstream-oauth:connect", {
+      params: { path: { name: serverName.value } },
+    });
+    if (error) {
+      errorMsg.value = apiErrorMessage(error);
+      return;
+    }
+    await Promise.all([loadUpstreamStatus(), refreshTools()]);
+  } finally {
+    upConnecting.value = false;
   }
 }
 
@@ -246,6 +290,31 @@ onMounted(async () => {
     <p v-if="notFound" class="text-muted" data-testid="not-found">not found</p>
 
     <template v-else-if="server">
+      <!-- What the last probe found out (SRV-12) -->
+      <div class="flex flex-wrap items-center gap-2 text-sm" data-testid="connection-state">
+        <UBadge
+          :icon="CONNECTION_STATE_ICON[server.connection_state]"
+          :color="connectionStateColor(server.connection_state)"
+          variant="subtle"
+          >{{ CONNECTION_STATE_LABEL[server.connection_state] }}</UBadge
+        >
+        <span class="text-muted">{{ CONNECTION_STATE_HELP[server.connection_state] }}</span>
+        <span v-if="server.protocol_version" class="text-muted">
+          · MCP {{ server.protocol_version }}
+        </span>
+      </div>
+      <div
+        v-if="server.configuration_mismatch"
+        class="wf-card border-warning flex flex-wrap items-center gap-3 max-w-2xl"
+        data-testid="configuration-mismatch"
+      >
+        <UIcon name="i-lucide-triangle-alert" class="size-5 text-warning" />
+        <span class="text-sm grow">{{ server.configuration_mismatch }}</span>
+        <UButton size="xs" data-testid="fix-mismatch" @click="fixMismatch">
+          {{ server.connection_state === "oauth_required" ? "Switch to OAuth" : "Add a header" }}
+        </UButton>
+      </div>
+
       <!-- Config -->
       <form class="wf-card space-y-3 max-w-2xl" @submit.prevent="saveServer">
         <h2 class="text-sm font-semibold">Configuration</h2>
@@ -270,22 +339,31 @@ onMounted(async () => {
             class="wf-input"
             data-testid="input-auth-mode"
           >
-            <option value="none">none</option>
-            <option value="static_headers">static_headers</option>
-            <option value="upstream_oauth">upstream_oauth</option>
+            <option value="none">no credential</option>
+            <option value="static_headers">API key / static headers</option>
+            <option value="upstream_oauth">upstream OAuth</option>
+            <option value="delegated_token">delegated token</option>
           </select>
+          <p class="wf-help">
+            {{ AUTH_MODE_HELP[authMode] }}.
+            <template v-if="authMode === 'none' || authMode === 'static_headers'">
+              API keys go in the static headers below; the mode follows from whether any are
+              stored.
+            </template>
+          </p>
         </div>
-        <div>
-          <label class="wf-label" for="input-identity-mode">Identity mode</label>
+        <div v-if="authMode === 'upstream_oauth'">
+          <label class="wf-label" for="input-identity-mode">Whose account</label>
           <select
             id="input-identity-mode"
             v-model="identityMode"
             class="wf-input"
             data-testid="input-identity-mode"
           >
-            <option value="shared">shared</option>
-            <option value="per_user">per_user</option>
+            <option value="per_user">each user's own account</option>
+            <option value="shared">one shared account</option>
           </select>
+          <p class="wf-help">{{ IDENTITY_MODE_HELP[identityMode] }}.</p>
         </div>
         <div>
           <label class="text-sm">
@@ -294,8 +372,12 @@ onMounted(async () => {
               type="checkbox"
               data-testid="input-send-identity-header"
             />
-            Send identity header
+            Send the caller's identity as <code>X-MCP-User</code>
           </label>
+          <p class="wf-help">
+            Useful for your own servers on the gateway's network; leave it off for third-party
+            servers.
+          </p>
         </div>
 
         <div>
@@ -321,9 +403,14 @@ onMounted(async () => {
           <UButton size="xs" variant="soft" data-testid="fwd-add" @click="addFwdRow"
             >Add forward header</UButton
           >
+          <p v-if="forwardsCallerToken" class="wf-help text-warning" data-testid="passthrough-warning">
+            Forwarding <code>authorization</code> passes the caller's own gateway token to the
+            server (token passthrough, which the MCP spec forbids). Prefer the
+            <em>delegated token</em> auth mode, which gives the server a token bound to it.
+          </p>
         </div>
 
-        <div>
+        <div id="static-headers">
           <span class="wf-label">Static headers (API keys, tokens)</span>
           <p class="text-xs text-muted mb-1">
             Sent on every request to this server. Values are write-only and never displayed
@@ -356,6 +443,23 @@ onMounted(async () => {
             >Add static header</UButton
           >
         </div>
+
+        <details class="text-sm">
+          <summary class="cursor-pointer text-muted">Advanced</summary>
+          <div class="mt-2">
+            <label class="wf-label" for="input-protocol-mode">Protocol</label>
+            <select
+              id="input-protocol-mode"
+              v-model="protocolMode"
+              class="wf-input"
+              data-testid="input-protocol-mode"
+            >
+              <option value="auto">auto — negotiate (recommended)</option>
+              <option value="legacy">legacy — always the initialize handshake</option>
+              <option value="2026-07-28">pin 2026-07-28</option>
+            </select>
+          </div>
+        </details>
 
         <UButton type="submit" size="sm" :loading="saving" data-testid="save-server"
           >Save</UButton
@@ -402,13 +506,14 @@ onMounted(async () => {
       </div>
 
       <!-- Upstream OAuth -->
-      <div class="wf-card space-y-3 max-w-2xl">
+      <div v-if="server.auth_mode === 'upstream_oauth'" class="wf-card space-y-3 max-w-2xl">
         <h2 class="text-sm font-semibold">Upstream OAuth</h2>
         <p class="wf-help">
-          For servers that are themselves OAuth-protected. Register a client at the server's
-          authorization server with the redirect URI <code>{{ callbackUrl }}</code>, enter it
-          here, save, then <em>Connect</em> to sign in and store the tokens. Leave the URLs empty
-          when the server publishes OAuth metadata the gateway can discover.
+          The gateway identifies itself to the server's authorization server automatically when
+          it can (client metadata document, else dynamic registration), so <em>Connect</em>
+          usually works with the fields below left empty. Enter a client only when the provider
+          requires one you registered, with the redirect URI <code>{{ callbackUrl }}</code>, or
+          for client credentials.
         </p>
         <div class="flex flex-wrap items-center gap-2 text-sm" data-testid="upstream-status">
           <template v-if="!upstreamStatus">
@@ -420,8 +525,9 @@ onMounted(async () => {
               Set BUNDLEMCP_TOKEN_ENCRYPTION_KEYS on the gateway before connecting.
             </span>
           </template>
-          <template v-else-if="!upstreamStatus.client_id">
-            <UBadge color="neutral" variant="subtle">client not configured</UBadge>
+          <template v-else-if="!upstreamStatus.client_id && !upstreamStatus.shared?.connected">
+            <UBadge color="neutral" variant="subtle">no client yet</UBadge>
+            <span class="text-muted">obtained automatically on the first connect</span>
           </template>
           <template v-else-if="upstreamStatus.shared?.connected">
             <UBadge :color="upstreamStatus.shared.valid ? 'success' : 'error'" variant="subtle">
@@ -443,7 +549,22 @@ onMounted(async () => {
             </span>
           </template>
         </div>
+        <p v-if="upstreamStatus?.identification" class="wf-help mt-0">
+          Client: {{ upstreamStatus.identification.replaceAll("_", " ") }}
+          <template v-if="upstreamStatus.step_up_scopes?.length">
+            · the next connect also requests {{ upstreamStatus.step_up_scopes.join(" ") }}
+          </template>
+        </p>
         <form class="space-y-3" @submit.prevent="saveUpstream">
+          <div>
+            <label class="wf-label" for="upstream-grant">Grant</label>
+            <select id="upstream-grant" v-model="upGrant" class="wf-input" data-testid="upstream-grant">
+              <option value="authorization_code">authorization code — a person signs in</option>
+              <option value="client_credentials">
+                client credentials — the gateway signs in as this client (shared only)
+              </option>
+            </select>
+          </div>
           <div>
             <label class="wf-label" for="upstream-client-id">Client ID</label>
             <input
@@ -486,7 +607,17 @@ onMounted(async () => {
             <UButton type="submit" size="sm" :loading="upSaving" data-testid="upstream-save"
               >Save OAuth config</UButton
             >
+            <UButton
+              v-if="upstreamStatus?.grant_type === 'client_credentials'"
+              size="sm"
+              variant="soft"
+              :loading="upConnecting"
+              data-testid="upstream-connect"
+              @click="connectAsClient"
+              >Connect</UButton
+            >
             <a
+              v-else
               :href="connectUrl"
               target="_blank"
               rel="noopener"
