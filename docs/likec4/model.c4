@@ -84,7 +84,7 @@ model {
         technology 'FastAPI; api/mcp also the MCP protocol library'
       }
       application = component 'application' {
-        description 'Use cases (management, auth, oauth_server, upstream_oauth, discovery, serving, bootstrap), contracts (interfaces infrastructure fulfils), DTO schemas, settings model'
+        description 'Use cases (management, auth, oauth_server, upstream_oauth, delegation, discovery, serving, bootstrap), contracts (interfaces infrastructure fulfils), DTO schemas, settings model'
         technology 'Python, Pydantic; imports domain only'
       }
       domain = component 'domain' {

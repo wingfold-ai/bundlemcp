@@ -45,6 +45,9 @@ in the same PR as the change they govern
 | [0035](../adr/0035-front-controller-protocol-adapters-and-admission-pipeline.md) | Front Controller, Protocol Adapters (Stateless vs. Session), and Admission Pipeline | DoS defense by design; intrinsic era naming; decomposed router |
 | [0037](../adr/0037-connect-account-tool.md) | Connect-account tool for per-user upstreams | A user with no tools yet can still connect; `tools/list` is per caller |
 | [0038](../adr/0038-periodic-tool-refresh.md) | Periodic tool-cache sweep, one replica per interval | A server unreachable at registration heals on its own; every upstream is probed once per interval |
+| [0039](../adr/0039-server-inspection-and-connection-state.md) | Inspect upstreams and classify refusals from HTTP evidence below the MCP client | Registration asks one question; operators see why a server fails and how to fix it |
+| [0040](../adr/0040-upstream-client-identification.md) | Pre-registered → client metadata document → DCR; resource indicators, PKCE and issuer checks, step-up, client credentials | Conforms to MCP authorization 2026-07-28; CIMD needs an https gateway |
+| [0041](../adr/0041-delegated-upstream-tokens.md) | Gateway-issued, audience-bound delegated tokens instead of token passthrough | Upstreams verify callers without holding their credential; one Valkey write per call |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

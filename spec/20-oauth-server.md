@@ -59,7 +59,10 @@ application layer can resolve a stable `sub`.
   `active` with `sub` `api_key:<id>` ([FWD-3](24-identity-forwarding.md)
   identity format), so introspecting upstreams ([FWD-4](24-identity-forwarding.md))
   can serve api_key-authenticated callers and tool discovery of such
-  upstreams can authenticate via a static `authorization` header.
+  upstreams can authenticate via a static `authorization` header. A
+  **delegated token** ([FWD-6](24-identity-forwarding.md)) is reported
+  `active` with its audience server's URL as `aud`, `token_use`
+  `delegated`, and the endpoint it was issued through as `act.sub`.
 - **OAS-6 Revocation** (RFC 7009): `POST /oauth/revoke` for access and
   refresh tokens. The client authenticates as at the token endpoint (a
   public client by `client_id` alone) and may revoke only tokens issued to

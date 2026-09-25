@@ -11,6 +11,58 @@ API=https://gw.example.com/api/v1
 AUTH="Authorization: Bearer $SERVICE_KEY"
 ```
 
+## Which settings a server needs
+
+Most of a server's configuration is a fact about the server, and the gateway
+asks the server instead of you. Only one question is really yours: **where
+does the credential come from?**
+
+| Answer | When | Settings |
+|---|---|---|
+| **No credential needed** | The server answers anyone who can reach it. | `auth_mode: none` |
+| **A key or token you enter** | The server's docs give you an API key or personal access token. Every caller shares it. | `static_headers`, e.g. `{"x-api-key": "…"}` |
+| **Each user signs in with their own account** | The server is OAuth-protected and should see each person as themselves (Linear, Notion, GitHub-style). | `auth_mode: upstream_oauth`, `identity_mode: per_user` |
+| **One shared account, signed in once** | OAuth-protected, but a single service account should serve everyone. | `auth_mode: upstream_oauth`, `identity_mode: shared` |
+| **One shared machine account** | OAuth-protected and the provider issued you a client id and secret for machine access (client credentials). | as above, plus a client with `grant_type: client_credentials` |
+| **A token the gateway issues per caller** | Your own server on the gateway's network wants to know who is calling and verify it. | `auth_mode: delegated_token` |
+
+The admin UI asks exactly this question, with the answer the server gave
+already selected. Everything else — forwarded headers, the identity header,
+the protocol pin — sits under *Advanced* because the defaults are right for
+almost every server.
+
+## Inspecting a server before registering it
+
+`POST /api/v1/servers:inspect` contacts a URL the way discovery would and
+reports what it found. Nothing is stored.
+
+```bash
+curl -s -X POST $API/servers:inspect -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"url": "https://mcp.example.com/mcp"}'
+```
+
+The answer's `connection_state` is one of:
+
+| State | What the server did | What to do |
+|---|---|---|
+| `ready` | Answered as an MCP server. | Register it; `server_info` and `tool_names` show what it is. |
+| `oauth_required` | Refused with an OAuth challenge, or publishes OAuth metadata. | Choose whose account to use; `oauth` shows the issuer, the scopes and how the gateway identifies itself there. |
+| `credential_required` | Refused, with no OAuth metadata anywhere. | It wants an API key or token header. Try one with `"headers": {...}` — it is used for that probe only, never stored or echoed. |
+| `not_mcp` | Answered, but not as Streamable HTTP MCP (404/405, a web page). | The gateway already retried with `/mcp` appended; `suggested_url` names it when that worked. |
+| `unreachable` | No connection (DNS, refused, TLS, timeout). | Check the URL. A server that is not up yet can still be registered. |
+| `egress_denied` | The address is outside what the gateway may reach. | See [Network egress](/self-hosting/deploy#network-egress). |
+
+`suggestion` is a ready-to-submit body for `PUT /servers/{name}`: a name
+derived from the server's own `serverInfo`, its description, the detected
+`auth_mode`, and `per_user` for an OAuth server (a person's own account is the
+safe default; switch to `shared` for a service account).
+
+A registry `server.json` can seed the same flow:
+`POST /api/v1/servers:from-server-json` with `{"document": {...}}` returns a
+draft with the first `streamable-http` remote's URL and the headers its
+publisher declared (name, description, required, secret), so you know which
+credential to enter. It fetches nothing.
+
 ## Registering a server
 
 `PUT /api/v1/servers/{name}` creates or updates a server by name. The path
@@ -42,12 +94,12 @@ discovery loop converge by repeatedly `PUT`ting desired state.
 | `name` | required | Letters, digits, `_` and `-`. No double underscore: `__` separates server from tool in presented names. |
 | `url` | required | The Streamable HTTP URL, usually ending in `/mcp`. Must resolve to an address the egress policy allows. |
 | `description` | none | Free text, shown in the UI. |
-| `auth_mode` | `none` | `none`, `static_headers` or `upstream_oauth`. |
+| `auth_mode` | `none` | `none`, `static_headers`, `upstream_oauth` or `delegated_token`. `none` and `static_headers` are settled by whether static headers are stored, so you never need to pick between them. |
 | `static_headers` | `{}` | Headers sent on every request to the server. |
-| `forward_headers` | `{}` | Client headers to pass through, incoming name → upstream name. |
-| `send_identity_header` | `true` | Inject `X-MCP-User` with the caller's identity. |
+| `forward_headers` | `{}` | Client headers to pass through, incoming name → upstream name. Denied headers are rejected with 422. |
+| `send_identity_header` | derived | Inject `X-MCP-User` with the caller's identity. Omitted on create: on for a host on the gateway's own network (dotless names, `.local`, `.internal`, `.svc`, private addresses), off for public hosts. Omitted on update: unchanged. |
 | `identity_mode` | `shared` | `shared` or `per_user`; only meaningful with upstream OAuth. |
-| `protocol_mode` | `auto` | `auto`, `legacy`, or a pinned revision such as `2026-07-28`. |
+| `protocol_mode` | `auto` | `auto`, `legacy`, or a pinned revision such as `2026-07-28`. Omitted on update: unchanged. |
 | `transport` | omitted | Accepted for compatibility; only `streamable-http` is valid. |
 | `force` | `false` | Acknowledge a rename that would otherwise be rejected. |
 
@@ -83,12 +135,23 @@ This needs `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` to be set; until it is, the
 server's upstream OAuth status reports `configured: false`.
 
 1. Register the server with `auth_mode: upstream_oauth`.
-2. If the upstream's authorization server offers dynamic client
-   registration, skip this step: on the first connect the gateway registers
-   itself as a public client (PKCE, no secret) with
-   `<public url>/oauth/upstream/callback` as its redirect URI, and keeps that
-   registration. Otherwise, or to use a client you were issued, store the
-   client the gateway should present to the upstream:
+2. Usually skip this step. The gateway identifies itself the way the MCP
+   authorization spec orders it:
+   - a client you stored (below) always wins;
+   - otherwise, when the authorization server accepts **client metadata
+     documents** and the gateway is served over https, the gateway's client
+     id is its own document, `<public url>/oauth/upstream/client.json`
+     (nothing is registered);
+   - otherwise, when it offers **dynamic client registration**, the gateway
+     registers itself as a public web client (PKCE, no secret) with
+     `<public url>/oauth/upstream/callback` as its redirect URI, and keeps
+     that registration bound to the authorization server's issuer — if the
+     server later moves to another authorization server, the registration
+     and its tokens are dropped and the gateway registers again;
+   - otherwise you store a client. `POST /servers:inspect` tells you in
+     advance (`oauth.client_identification: preregistered_required`).
+
+   To store the client the gateway should present to the upstream:
 
    ```bash
    curl -s -X PUT $API/servers/crm/upstream-oauth -H "$AUTH" -H "Content-Type: application/json" -d '{
@@ -115,6 +178,29 @@ server's upstream OAuth status reports `configured: false`.
    stores the resulting tokens.
 4. Check `GET /api/v1/servers/crm/upstream-oauth`: `shared.connected` is
    `true`, and `account_hint` shows a masked account identifier.
+
+Every authorization, token and refresh request names the server as the
+RFC 8707 `resource`, so the token is issued for that server only. The gateway
+refuses an authorization server that does not offer PKCE (`S256`) or whose
+metadata names a different issuer than the one it was fetched for.
+
+#### Client credentials
+
+For a shared server whose provider issued a client for machine access, store
+the client with `grant_type: client_credentials` and its secret. The gateway
+then obtains tokens with the client credentials grant (the MCP OAuth Client
+Credentials extension) — no browser sign-in — and simply requests a new token
+when one expires. Connect it right away with
+`POST /api/v1/servers/{name}/upstream-oauth:connect`, or let the first call do
+it. Such a client only works with `identity_mode: shared`.
+
+#### When a server asks for more permission
+
+A server may accept the token but refuse one operation with
+`403 insufficient_scope` and the scope it needs. The gateway does not retry
+blindly: it remembers the scope, and the caller gets an error with the
+reconnect link. The next connect requests the original scopes plus the new
+ones; the status route lists them as `step_up_scopes`.
 
 Tool discovery uses the connection: the shared one, or for a `per_user`
 server any user's working one. Until an account is connected the server has
@@ -156,11 +242,23 @@ Tokens are never returned by any API. The UI shows connection status
 
 Two separate mechanisms carry the caller to the upstream:
 
-- **`forward_headers`** passes selected client headers through. The common
-  case is `{"authorization": "authorization"}` so the upstream receives the
-  gateway-issued bearer and can verify it against the gateway's introspection
-  route. `host`, `cookie`, `content-length`, `x-api-key`, `mcp-session-id`
-  and anything `sec-*` or `proxy-*` can never be forwarded.
+- **`auth_mode: delegated_token`** gives the upstream a token of its own on
+  every call: short-lived (five minutes), issued by the gateway for the
+  caller, with the server's URL as its audience. The upstream verifies it at
+  the gateway's introspection route and learns `sub`, `email`, `aud` and the
+  endpoint the call came through (`act.sub`). This is the token-exchange
+  pattern, and the recommended way for your own servers to learn who is
+  calling.
+- **`forward_headers`** passes selected client headers through.
+  `{"authorization": "authorization"}` forwards the caller's own gateway
+  token, which the upstream can also introspect — but that token was issued
+  for the gateway endpoint, and passing it on is the token passthrough the
+  MCP authorization spec forbids an MCP server to accept. It keeps working for
+  trusted internal servers; the API reports it as `forwards_caller_token` and
+  the UI marks it. Prefer `delegated_token`. `host`, `cookie`,
+  `content-length`, `x-api-key`, `mcp-session-id` and anything `sec-*` or
+  `proxy-*` can never be forwarded, and are rejected when the server is
+  saved.
 - **`send_identity_header`** injects `X-MCP-User: <sub>`, where `sub` is the
   user id or `api_key:<id>`. A client-sent `X-MCP-User` is always stripped.
   On a `none` endpoint the header is omitted.
@@ -175,7 +273,7 @@ Details for the server side are in
 | Value | Behaviour |
 |---|---|
 | `auto` | Probe the modern `server/discover` first, fall back to the `initialize` handshake. |
-| `legacy` | Always use the handshake. For upstreams whose tools need server-initiated requests such as elicitation or sampling over a session. |
+| `legacy` | Always use the handshake. Only for a server that speaks both eras but serves server-initiated requests (elicitation, sampling) on the handshake path only. |
 | `YYYY-MM-DD` | Pin one modern revision. |
 
 The negotiated revision is stored as `protocol_version` so you can see which
@@ -200,6 +298,16 @@ Tools that disappear upstream stay in the cache, marked by an old
 `health_status` is `ok`, `error` or `unknown`. It turns `error` after
 `server_error_attempts` consecutive failures (a runtime setting, default 3)
 and returns to `ok` on the next successful connection.
+
+`connection_state` says *why*, and is updated on every probe: the states of
+[inspection](#inspecting-a-server-before-registering-it), plus
+`account_required` (upstream OAuth is set up but nobody has connected) and
+`insufficient_scope`. When the state contradicts the configuration —
+`oauth_required` on a server without OAuth, `credential_required` on one
+that sends no credential — `configuration_mismatch` names the change, and the
+UI offers it as a button. A server that sends a key and is refused stays
+`credential_required`: the gateway never reads a rejected key as a reason to
+start OAuth.
 
 ## Renaming
 
