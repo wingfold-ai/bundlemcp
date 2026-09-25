@@ -79,6 +79,9 @@ class FakeProvider:
     async def refresh(self, meta, **kw):
         return UpstreamTokens(access_token="at2", expires_in=3600)
 
+    async def client_credentials(self, meta, **kw):
+        return UpstreamTokens(access_token="at-client", expires_in=3600)
+
 
 class RecordingProbe:
     def __init__(self) -> None:

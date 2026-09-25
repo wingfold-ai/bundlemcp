@@ -21,6 +21,9 @@ from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.contracts.upstream.upstream_connection_registry import (
     UpstreamConnectionRegistry,
 )
+from bundlemcp.application.contracts.upstream.upstream_probe import UpstreamProbe
+from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
+from bundlemcp.application.discovery.connection_diagnoser import ConnectionDiagnoser
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.oauth_server import (
     ClientMetadataFetcher,
@@ -62,6 +65,15 @@ class AppContainer(BaseModel):
         description="Opens a transaction that publishes its invalidation events on commit"
     )
     discovery: DiscoveryService = Field(description="Probes upstream servers for their tools")
+    upstream_probe: UpstreamProbe = Field(
+        description="Opens one connection to an upstream to see what it offers"
+    )
+    connection_diagnoser: ConnectionDiagnoser = Field(
+        description="Settles what an upstream's refusal means, following its OAuth chain"
+    )
+    delegated_tokens: DelegatedTokenIssuer = Field(  # FWD-6
+        description="Issues and recognises the upstream-bound tokens of delegated_token servers"
+    )
     audit: AuditSink = Field(description="Queued writer for audit records")
     runtime_config: RuntimeConfig = Field(description="Runtime-tunable config, cached per replica")
     counters: Counters = Field(description="In-process metric sink")

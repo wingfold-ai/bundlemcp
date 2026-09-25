@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import JSON, Column, String, text
 from sqlmodel import Field, SQLModel
 
+from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
@@ -71,6 +72,12 @@ class McpServerRow(SQLModel, table=True):
         description="Result of the most recent probe: ok, error or unknown",
     )
     last_error: str | None = Field(default=None, description="Why the last probe failed, if it did")
+    connection_state: ConnectionState = Field(  # SRV-12
+        default=ConnectionState.UNKNOWN,
+        sa_column=Column(String, nullable=False, server_default=text("'unknown'")),
+        description="What the last probe found out about the upstream, classified from its "
+        "HTTP response",
+    )
     created_at: datetime = Field(
         default_factory=utcnow,
         sa_column=timestamp_column(),

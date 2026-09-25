@@ -12,7 +12,7 @@ from urllib.parse import quote
 
 import structlog
 from fastapi import HTTPException, Query, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.providers import SettingsProvider, UnitOfWorkProvider
@@ -27,6 +27,9 @@ from bundlemcp.api.oauth.providers import (
     UpstreamTokensProvider,
 )
 from bundlemcp.application.settings.settings import Settings
+from bundlemcp.application.upstream_oauth.upstream_connect_flow import CLIENT_NAME
+from bundlemcp.domain.oauth.application_type import ApplicationType
+from bundlemcp.domain.oauth.client_id_metadata_document import ClientIdMetadataDocument
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 
 log = structlog.get_logger(__name__)
@@ -40,6 +43,25 @@ class UpstreamConnectController(Controller):
     @staticmethod
     def _redirect_uri(settings: Settings) -> str:
         return f"{settings.public_base}/oauth/upstream/callback"
+
+    @route.get("/client.json")
+    async def client_document(self, settings: SettingsProvider) -> Response:
+        """The gateway's own OAuth client metadata document (UPO-1, CIMD).
+
+        An upstream authorization server that accepts metadata-document client
+        ids fetches this URL, which is also the client id the gateway presents.
+        """
+        document = ClientIdMetadataDocument(
+            client_id=f"{settings.public_base}/oauth/upstream/client.json",
+            client_name=CLIENT_NAME,
+            client_uri=settings.public_base,
+            redirect_uris=[self._redirect_uri(settings)],
+            application_type=ApplicationType.WEB,
+        )
+        return JSONResponse(
+            document.model_dump(mode="json", exclude_none=True),
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
 
     @route.get("/{server_name}/connect")
     async def connect(
@@ -83,7 +105,13 @@ class UpstreamConnectController(Controller):
             if exc.reason == "no_client_config":
                 detail = (
                     "server has no upstream OAuth client config and its authorization server "
-                    "offers no dynamic registration (set client_id first)"
+                    "offers neither client metadata documents nor dynamic registration "
+                    "(set client_id first)"
+                )
+            elif exc.reason == "client_credentials_client":
+                detail = (
+                    "the server's client uses client credentials; connect it with "
+                    "POST /api/v1/servers/{name}/upstream-oauth:connect instead"
                 )
             else:
                 detail = f"upstream authorization server unavailable: {exc.reason}"

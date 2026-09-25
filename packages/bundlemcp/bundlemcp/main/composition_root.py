@@ -19,6 +19,8 @@ from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamCon
 from bundlemcp.application.bootstrap import BootstrapRunner
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
+from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
+from bundlemcp.application.discovery.connection_diagnoser import ConnectionDiagnoser
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.management.api_key_service import ApiKeyService
 from bundlemcp.application.oauth_server import (
@@ -56,6 +58,7 @@ from bundlemcp.infrastructure.readiness.store_readiness_probe import StoreReadin
 from bundlemcp.infrastructure.valkey.admin_session_store import AdminSessionStore
 from bundlemcp.infrastructure.valkey.auth_failure_limiter import ValkeyAuthFailureLimiter
 from bundlemcp.infrastructure.valkey.client import create_redis
+from bundlemcp.infrastructure.valkey.delegated_token_store import ValkeyDelegatedTokenStore
 from bundlemcp.infrastructure.valkey.invalidation_subscriber import InvalidationSubscriber
 from bundlemcp.infrastructure.valkey.rate_limiter import ValkeyRateLimiter
 from bundlemcp.infrastructure.valkey.refresh_lock import ValkeyRefreshLock
@@ -67,6 +70,9 @@ from bundlemcp.main.container import AppContainer
 from bundlemcp.main.mcp_gateway_assembly import McpGatewayAssembly
 
 log = structlog.get_logger(__name__)
+
+# Where the gateway publishes its own client metadata document for upstreams (UPO-1).
+UPSTREAM_CLIENT_DOCUMENT_PATH = "/oauth/upstream/client.json"
 
 # Key layouts of the browser-state records parked in the live store (spec 20, 23).
 PENDING_CONSENT_PREFIX = "bmcp:pendingconsent"
@@ -127,21 +133,31 @@ class CompositionRoot:
         client_factory = overrides.client_factory or default_client_factory(settings)
 
         cipher = self._build_cipher()
+        upstream_oauth = overrides.upstream_oidc_provider or HttpxUpstreamProvider(settings)
         upstream_tokens = (
             UpstreamTokenService(
                 units,
                 cipher,
                 ValkeyRefreshLock(redis),
-                overrides.upstream_oidc_provider or HttpxUpstreamProvider(settings),
+                upstream_oauth,
+                metadata_document_url=self._client_document_url(),
             )
             if cipher is not None
             else None
         )
+        delegated_tokens = DelegatedTokenIssuer(  # FWD-6
+            ValkeyDelegatedTokenStore(redis), clock=clock, generator=generator, hasher=hasher
+        )
+        upstream_probe = FastMcpUpstreamProbe(client_factory)
+        diagnoser = ConnectionDiagnoser(upstream_oauth)  # SRV-12
         # DISC-1: upstream-OAuth servers are probed with a connected account's token
         discovery = DiscoveryService(
             units,
-            FastMcpUpstreamProbe(client_factory),
-            credentials=UpstreamCredentialResolver(upstream_tokens, settings.public_base),
+            upstream_probe,
+            credentials=UpstreamCredentialResolver(
+                upstream_tokens, settings.public_base, delegated=delegated_tokens
+            ),
+            diagnoser=diagnoser,
         )
 
         audit = QueuedAuditWriter(sessions)
@@ -175,6 +191,7 @@ class CompositionRoot:
             client_factory=client_factory,
             runtime_config=runtime_config,
             upstream_tokens=upstream_tokens,
+            delegated_tokens=delegated_tokens,
             state_cipher=cipher,
             rate_limiter=rate_limiter,
             auth_failures=auth_failure_guard,
@@ -219,6 +236,9 @@ class CompositionRoot:
             redis=redis,
             unit_of_work_factory=units,
             discovery=discovery,
+            upstream_probe=upstream_probe,
+            connection_diagnoser=diagnoser,
+            delegated_tokens=delegated_tokens,
             audit=audit,
             runtime_config=runtime_config,
             counters=counters,
@@ -256,6 +276,16 @@ class CompositionRoot:
                 lambda uow: MetadataDocumentClientSource(uow.oauth_clients, client_metadata),
             ),
         )
+
+    def _client_document_url(self) -> str | None:
+        """The gateway's client metadata document, when an authorization server can fetch it.
+
+        A client id must be an https URL, so a gateway served over plain http
+        falls back to dynamic registration (UPO-1).
+        """
+        if not self._settings.public_base.startswith("https://"):
+            return None
+        return f"{self._settings.public_base}{UPSTREAM_CLIENT_DOCUMENT_PATH}"
 
     def _build_cipher(self) -> SecretCipher | None:
         # spec 23 / DEP-9: without keys nothing is stored, so upstream_oauth

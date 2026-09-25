@@ -17,6 +17,8 @@ from bundlemcp.application.management.audit_service import AuditService
 from bundlemcp.application.management.bundle_service import BundleService
 from bundlemcp.application.management.config_service import ConfigService
 from bundlemcp.application.management.endpoint_service import EndpointService
+from bundlemcp.application.management.server_inspection_service import ServerInspectionService
+from bundlemcp.application.management.server_json_importer import ServerJsonImporter
 from bundlemcp.application.management.server_service import ServerService
 from bundlemcp.application.management.upstream_oauth_config_service import (
     UpstreamOAuthConfigService,
@@ -26,6 +28,22 @@ from bundlemcp.application.management.user_service import UserService
 
 def get_server_service(request: Request, uow: UnitOfWorkProvider) -> ServerService:
     return ServerService(uow, discovery=request.app.state.container.discovery)
+
+
+def get_server_inspection_service(
+    request: Request, uow: UnitOfWorkProvider
+) -> ServerInspectionService:
+    container = request.app.state.container
+    return ServerInspectionService(
+        uow,
+        container.upstream_probe,
+        container.connection_diagnoser,
+        public_base=container.settings.public_base,
+    )
+
+
+def get_server_json_importer() -> ServerJsonImporter:
+    return ServerJsonImporter()
 
 
 def get_upstream_oauth_config_service(
@@ -79,6 +97,10 @@ def get_caller_resolver(request: Request, uow: UnitOfWorkProvider) -> CallerReso
 
 
 ServerServiceProvider = Annotated[ServerService, Depends(get_server_service)]
+ServerInspectionServiceProvider = Annotated[
+    ServerInspectionService, Depends(get_server_inspection_service)
+]
+ServerJsonImporterProvider = Annotated[ServerJsonImporter, Depends(get_server_json_importer)]
 UpstreamOAuthConfigServiceProvider = Annotated[
     UpstreamOAuthConfigService, Depends(get_upstream_oauth_config_service)
 ]

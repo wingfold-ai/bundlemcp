@@ -5,6 +5,8 @@ from fastapi import HTTPException, status
 from bundlemcp.api.http.pagination import PageProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.http.service_providers import (
+    ServerInspectionServiceProvider,
+    ServerJsonImporterProvider,
     ServerServiceProvider,
     UpstreamOAuthConfigServiceProvider,
 )
@@ -12,6 +14,10 @@ from bundlemcp.api.management.controllers.management_controller import Managemen
 from bundlemcp.application.schemas import (
     DiscoveryResult,
     Page,
+    ServerInspection,
+    ServerInspectRequest,
+    ServerJsonDraft,
+    ServerJsonImport,
     ServerRead,
     ServerUpsert,
     ToolRead,
@@ -30,6 +36,20 @@ class ServerController(ManagementController):
         self, service: ServerServiceProvider, page: PageProvider
     ) -> Page[ServerRead]:
         return await service.list(offset=page.offset, limit=page.limit)
+
+    @route.post(":inspect")
+    async def inspect_server(
+        self, body: ServerInspectRequest, service: ServerInspectionServiceProvider
+    ) -> ServerInspection:
+        """Probe a URL without registering it: what it is and what registering it takes."""
+        return await service.inspect(body)
+
+    @route.post(":from-server-json")
+    async def draft_from_server_json(
+        self, body: ServerJsonImport, importer: ServerJsonImporterProvider
+    ) -> ServerJsonDraft:
+        """Draft a registration from an MCP Registry server.json; nothing is stored."""
+        return importer.draft(body.document)
 
     @route.get("/{name}")
     async def get_server(self, name: str, service: ServerServiceProvider) -> ServerRead:
@@ -78,6 +98,13 @@ class ServerController(ManagementController):
         self, name: str, service: UpstreamOAuthConfigServiceProvider
     ) -> UpstreamOAuthStatusRead:
         return await service.status(name)
+
+    @route.post("/{name}/upstream-oauth:connect")
+    async def connect_upstream_oauth_client(
+        self, name: str, service: UpstreamOAuthConfigServiceProvider
+    ) -> UpstreamOAuthStatusRead:
+        """Obtain the shared connection of a client-credentials client now."""
+        return await service.connect_client(name)
 
     @route.delete("/{name}/upstream-oauth/token", status_code=status.HTTP_204_NO_CONTENT)
     async def disconnect_upstream_oauth(

@@ -18,3 +18,7 @@ class UpstreamTokenRepository(Repository[UpstreamOAuthToken], Protocol):
     async def any_valid_user_connection(self, server_id: uuid.UUID) -> UpstreamOAuthToken | None:
         """Some user's still-valid connection to one server, or None when nobody has one."""
         ...
+
+    async def for_server(self, server_id: uuid.UUID) -> list[UpstreamOAuthToken]:
+        """Every connection to one server, shared and per user."""
+        ...

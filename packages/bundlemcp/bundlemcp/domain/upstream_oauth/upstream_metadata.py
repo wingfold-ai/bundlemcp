@@ -1,5 +1,10 @@
 from pydantic import BaseModel, Field
 
+from bundlemcp.domain.upstream_oauth.client_identification import ClientIdentification
+
+PKCE_METHOD = "S256"
+PUBLIC_CLIENT_AUTH_METHOD = "none"
+
 
 class UpstreamMetadata(BaseModel):
     """The endpoints of an upstream authorization server, discovered or configured."""
@@ -30,13 +35,60 @@ class UpstreamMetadata(BaseModel):
         description="Whether the server promises an 'iss' on every authorization response, in "
         "which case a response without one is refused",
     )
+    resource: str | None = Field(  # UPO-12
+        default=None,
+        description="The RFC 8707 resource indicator every authorization, token and refresh "
+        "request names: the protected resource's identifier or the server's canonical URL",
+    )
+    client_id_metadata_document_supported: bool = Field(  # UPO-1
+        default=False,
+        description="Whether the server accepts a client metadata document URL as a client id",
+    )
+    token_endpoint_auth_methods_supported: list[str] = Field(
+        default=[],
+        description="How clients may authenticate at the token endpoint; empty when the "
+        "server does not say",
+    )
+    grant_types_supported: list[str] = Field(
+        default=[], description="Grant types the server advertises; empty when it does not say"
+    )
+    step_up_scopes: list[str] = Field(  # UPO-10
+        default=[],
+        description="Scopes an upstream later asked for with insufficient_scope, requested on "
+        "top of the resource scopes at the next connect",
+    )
 
     @property
     def authorization_scope(self) -> str | None:
         """The scope to request at authorization, or None to leave the choice to the server.
 
-        Only what the protected resource asks for is requested. An authorization
+        Only what the protected resource asks for is requested: the scopes it
+        named at discovery, plus any it later demanded with insufficient_scope.
+        An authorization
         server's own catalogue lists scopes the client was never granted, and a
         server refuses the whole request over one of them.
         """
-        return " ".join(self.resource_scopes) or None
+        scopes = list(dict.fromkeys([*self.resource_scopes, *self.step_up_scopes]))
+        return " ".join(scopes) or None
+
+    @property
+    def accepts_public_clients(self) -> bool:
+        """The token endpoint takes a client that has no secret (or does not say otherwise)."""
+        methods = self.token_endpoint_auth_methods_supported
+        return not methods or PUBLIC_CLIENT_AUTH_METHOD in methods
+
+    def automatic_identification(self, *, metadata_document_usable: bool) -> ClientIdentification:
+        """How the gateway can identify itself here without an admin storing a client.
+
+        A metadata document is preferred, then dynamic registration; the
+        gateway's document is only usable when it is served over https.
+        """
+        if (
+            metadata_document_usable
+            and self.client_id_metadata_document_supported
+            and self.accepts_public_clients
+        ):
+            return ClientIdentification.METADATA_DOCUMENT
+        if self.registration_endpoint:
+            return ClientIdentification.DYNAMIC_REGISTRATION
+        return ClientIdentification.PREREGISTERED_REQUIRED

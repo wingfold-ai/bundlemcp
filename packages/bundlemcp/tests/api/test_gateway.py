@@ -79,7 +79,7 @@ def write_note(text: str) -> str:
 UPSTREAMS = {"echo": echo_server, "notes": notes_server}
 
 
-def upstream_factory(server, extra_headers):
+def upstream_factory(server, extra_headers, *, observer=None, **handlers):
     client = Client(UPSTREAMS[server.name])
     client._test_extra_headers = extra_headers  # inspected by the forwarding test
     return client
@@ -713,7 +713,7 @@ async def test_identity_header_injected_and_spoof_stripped(engine, redis):
     """FWD-2/FWD-3: X-MCP-User injected from resolved identity; client value ignored."""
     captured: dict = {}
 
-    def capturing_factory(server, extra_headers, **handlers):
+    def capturing_factory(server, extra_headers, *, observer=None, **handlers):
         captured.update(extra_headers)
         return upstream_factory(server, extra_headers)
 

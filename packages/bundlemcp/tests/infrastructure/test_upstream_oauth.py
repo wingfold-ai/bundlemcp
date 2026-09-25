@@ -54,6 +54,9 @@ class FakeProvider:
             raise RuntimeError("refresh denied")
         return UpstreamTokens(access_token="at-refreshed", refresh_token="rt-2", expires_in=3600)
 
+    async def client_credentials(self, meta, **kw):
+        return UpstreamTokens(access_token="at-client", expires_in=3600)
+
 
 async def _seed_server(engine, c, *, with_client=True) -> McpServerRow:
     async with session_factory(engine)() as db:

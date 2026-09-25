@@ -2,6 +2,7 @@ from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 from bundlemcp.application.schemas import UpstreamConnectionStatus
+from bundlemcp.domain.servers.mcp_server import McpServer
 
 
 @runtime_checkable
@@ -19,4 +20,8 @@ class UpstreamConnectionRegistry(Protocol):
 
     async def disconnect(self, server_id: UUID, user_id: UUID | None) -> None:
         """Forget the stored token set, forcing a reconnect."""
+        ...
+
+    async def connect_as_client(self, server: McpServer) -> None:
+        """Obtain the shared connection of a client-credentials client now."""
         ...

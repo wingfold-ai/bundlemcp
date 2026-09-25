@@ -68,7 +68,7 @@ def greeting_resource() -> str:
     return "hello resource"
 
 
-def upstream_factory(server, extra_headers, **handlers):
+def upstream_factory(server, extra_headers, *, observer=None, **handlers):
     return Client(echo_server, mode=server.protocol_mode, **handlers)
 
 

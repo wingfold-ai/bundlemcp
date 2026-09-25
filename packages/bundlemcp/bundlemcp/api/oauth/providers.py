@@ -115,6 +115,7 @@ def get_introspection_service(
         clock=container.clock,
         hasher=container.secret_hasher,
         public_base=settings.public_base,
+        delegated=container.delegated_tokens,
     )
 
 
