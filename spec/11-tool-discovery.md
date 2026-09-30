@@ -13,10 +13,12 @@ the substrate for per-bundle overrides ([13-tool-management.md](13-tool-manageme
 ## Requirements
 
 - **DISC-1** Discovery MUST run on server create/update ([SRV-2](10-server-registry.md)),
-  on explicit "refresh tools" from UI/API, opportunistically whenever the
-  gateway performs a live `tools/list` against the upstream while serving an
-  endpoint, and after an upstream OAuth connect completes
-  ([UPO-9](23-upstream-oauth.md)). An `upstream_oauth` server is probed with a
+  on explicit "refresh tools" from UI/API, on the periodic refresh (DISC-7),
+  and after an upstream OAuth connect completes
+  ([UPO-9](23-upstream-oauth.md)). An endpoint's `tools/list` is served from
+  the cache (DISC-4) and never reaches an upstream, so serving it does not
+  trigger discovery; the periodic refresh covers what that would have caught
+  ([ADR-0038](../docs/adr/0038-periodic-tool-refresh.md)). An `upstream_oauth` server is probed with a
   connected account's bearer; until one exists it is reported as not
   connected, not as failing. A discovery that changes the tool set
   invalidates every bundle containing the server, so live clients re-list
@@ -43,6 +45,23 @@ the substrate for per-bundle overrides ([13-tool-management.md](13-tool-manageme
   aggregation ([PROT-11](32-protocol-passthrough.md)) so `initialize` need not
   fan out to members. Refreshed on every discovery run; degrade-observably on
   failure (DISC-4), keeping the last-known snapshot.
+- **DISC-7** Periodic refresh: every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL`
+  seconds (default 1800; `0` disables it) the gateway re-runs discovery for
+  every registered server, one server at a time. Only one replica refreshes
+  per interval: the run takes a shared, self-expiring lease in Valkey, and a
+  replica that finds it held skips that tick. Each run is an ordinary
+  discovery, so a changed tool set is announced (BND-7), and failures count
+  toward `health_status` like any other probe
+  ([SRV-4](10-server-registry.md)): an upstream that stays unreachable is
+  marked `error` after that many refreshes instead of staying `unknown`. One
+  server's failure never stops the run for the rest, and every discovery probe
+  is bounded (60 s) so a hanging upstream fails instead of stalling the run. This covers the upstreams
+  the other triggers miss: one that was unreachable when it was registered,
+  and one whose tools change while no call is open to it. Per-call upstream
+  connections ([ADR-0012](../docs/adr/0012-per-call-upstream-connections.md))
+  never receive a `list_changed` sent between calls
+  ([PROT-10](32-protocol-passthrough.md) residual). Rationale and the
+  alternatives weighed: [ADR-0038](../docs/adr/0038-periodic-tool-refresh.md).
 
 ## Out of scope
 
@@ -54,6 +73,9 @@ the substrate for per-bundle overrides ([13-tool-management.md](13-tool-manageme
 ## Open questions
 
 - ~~Whether `tools/list_changed` notifications from upstreams should trigger
-  re-discovery in v1 or be deferred.~~ **Resolved:** consumed in v1 — upstream
-  `list_changed` triggers re-discovery and downstream propagation
-  ([PROT-10](32-protocol-passthrough.md), [BND-7](12-bundles.md)).
+  re-discovery in v1 or be deferred.~~ **Resolved:** required by
+  [PROT-10](32-protocol-passthrough.md), with downstream propagation per
+  [BND-7](12-bundles.md). Per-call upstream connections cannot receive a
+  `list_changed` sent between calls (PROT-10 residual), and the gateway does
+  not yet re-discover on one received during a call; the periodic refresh
+  (DISC-7) bounds how stale the cache gets meanwhile.

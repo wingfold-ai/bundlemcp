@@ -43,3 +43,7 @@ process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2,
 | [0034](0034-pydantic-entities-and-row-classes.md) | Entities are plain Pydantic models; the persistence adapter owns the row classes | accepted |
 | [0035](0035-front-controller-protocol-adapters-and-admission-pipeline.md) | Front Controller, Protocol Adapters (Stateless vs. Session), and Admission Pipeline at the MCP Edge | accepted |
 | [0037](0037-connect-account-tool.md) | A gateway-provided connect-account tool for per-user upstreams | accepted |
+| [0038](0038-periodic-tool-refresh.md) | A periodic sweep keeps the tool cache current | accepted |
+| [0039](0039-server-inspection-and-connection-state.md) | Upstreams are inspected, and their refusals classified, below the MCP client | accepted |
+| [0040](0040-upstream-client-identification.md) | The gateway identifies itself upstream in the MCP spec's order | accepted |
+| [0041](0041-delegated-upstream-tokens.md) | Delegated tokens replace token passthrough for identity-aware upstreams | accepted |

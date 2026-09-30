@@ -29,9 +29,15 @@ class UpstreamTokenService:
         cipher: SecretCipher,
         lock: RefreshLock,
         provider: UpstreamOAuthProvider,
+        *,
+        metadata_document_url: str | None = None,
     ) -> None:
+        # metadata_document_url: the gateway's client metadata document, when an
+        # authorization server can fetch it (the gateway is served over https)
         self._tokens = UpstreamTokenStorage(units, cipher)
-        self._flow = UpstreamConnectFlow(self._tokens, provider)
+        self._flow = UpstreamConnectFlow(
+            self._tokens, provider, metadata_document_url=metadata_document_url
+        )
         self._refresher = UpstreamTokenRefresher(self._tokens, self._flow, provider, lock)
 
     @property
@@ -77,6 +83,14 @@ class UpstreamTokenService:
         await self._flow.complete(
             server, user_id, code=code, code_verifier=code_verifier, redirect_uri=redirect_uri
         )
+
+    async def connect_as_client(self, server: McpServer) -> None:
+        """Establish the shared connection of a client-credentials client now (UPO-11)."""
+        await self._flow.grant_client_credentials(server)
+
+    async def request_step_up(self, server: McpServer, scopes: list[str]) -> bool:
+        """Have the next connect ask for scopes the upstream demanded (UPO-10)."""
+        return await self._tokens.add_step_up_scopes(server.id, scopes)
 
     async def is_connected(self, server_id: uuid.UUID, user_id: uuid.UUID) -> bool:
         """Whether a user holds a connection to the server that has not been found broken."""

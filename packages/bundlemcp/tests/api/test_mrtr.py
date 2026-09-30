@@ -106,7 +106,7 @@ async def modern_ask_name(ctx: Context) -> InputRequiredResult | str:
 UPSTREAMS = {"legacyup": legacy_up, "modernup": modern_up}
 
 
-def upstream_factory(server, extra_headers, **handlers):
+def upstream_factory(server, extra_headers, *, observer=None, **handlers):
     return Client(UPSTREAMS[server.name], mode=server.protocol_mode, **handlers)
 
 

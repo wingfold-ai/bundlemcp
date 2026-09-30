@@ -8,7 +8,7 @@ Playwright test title, the recording filename, and this table.
 |----|------|-----------|--------------|--------------|-----------|
 | E2E-01 | Signed-in admin sees the seeded servers | `tests/login.spec.ts` | [`60-admin-ui.md`](../../../spec/60-admin-ui.md) | UI-2, UI-1 | `E2E-01__60-admin-ui__login-admin-sees-seeded-servers.webm` |
 | E2E-02 | Navigation reaches every page of the admin UI | `tests/login.spec.ts` | [`60-admin-ui.md`](../../../spec/60-admin-ui.md) | UI-1 | `E2E-02__60-admin-ui__login-navigation-all-pages.webm` |
-| E2E-03 | Create a server, discover its tools, delete it | `tests/server-flow.spec.ts` | [`10-server-registry.md`](../../../spec/10-server-registry.md) | SRV-2, DISC-1 | `E2E-03__10-server-registry__server-create-discover-delete.webm` |
+| E2E-03 | Check a server's URL, register it, discover its tools, delete it | `tests/server-flow.spec.ts` | [`10-server-registry.md`](../../../spec/10-server-registry.md) | SRV-11, UI-6, SRV-2, DISC-1 | `E2E-03__10-server-registry__server-create-discover-delete.webm` |
 | E2E-04 | Form validation blocks a '__' server name client-side | `tests/server-flow.spec.ts` | [`60-admin-ui.md`](../../../spec/60-admin-ui.md) | UI-4 | `E2E-04__60-admin-ui__server-name-validation.webm` |
 | E2E-05 | Compose a bundle, curate a tool, expose it as an endpoint | `tests/bundle-flow.spec.ts` | [`12-bundles.md`](../../../spec/12-bundles.md) | BND-6, BND-4, TM-1, TM-3, EP-7 | `E2E-05__12-bundles__bundle-compose-curate-expose.webm` |
 | E2E-06 | The chatgpt profile warns that write tools are re-annotated | `tests/bundle-flow.spec.ts` | [`15-endpoint-profiles.md`](../../../spec/15-endpoint-profiles.md) | PROF-3 | `E2E-06__15-endpoint-profiles__bundle-chatgpt-warning.webm` |
@@ -17,8 +17,8 @@ Playwright test title, the recording filename, and this table.
 | E2E-09 | Users page lists the admin and drills into consents **(new)** | `tests/users.spec.ts` | [`21-admin-auth.md`](../../../spec/21-admin-auth.md) | ADM-6, OAS-11, UI-1 | `E2E-09__21-admin-auth__users-list-and-consents.webm` |
 | E2E-10 | An API key is shown once, then deactivated and deleted | `tests/keys-settings.spec.ts` | [`22-api-keys.md`](../../../spec/22-api-keys.md) | KEY-1, KEY-4 | `E2E-10__22-api-keys__api-key-lifecycle.webm` |
 | E2E-11 | A runtime Config value can be edited, persisted and reset | `tests/keys-settings.spec.ts` | [`40-management-api.md`](../../../spec/40-management-api.md) | API-1, DOM-5 | `E2E-11__40-management-api__runtime-config-edit-reset.webm` |
-| E2E-12 | The UI surfaces header forwarding and upstream status | `tests/gsc-upstream.spec.ts` | [`24-identity-forwarding.md`](../../../spec/24-identity-forwarding.md) | FWD-4 | `E2E-12__24-identity-forwarding__gsc-forwarding-status.webm` |
-| E2E-13 | The upstream-OAuth connect link targets the gateway route | `tests/gsc-upstream.spec.ts` | [`23-upstream-oauth.md`](../../../spec/23-upstream-oauth.md) | UPO-1 | `E2E-13__23-upstream-oauth__gsc-connect-link.webm` |
+| E2E-12 | The UI surfaces header forwarding and flags it as passthrough | `tests/gsc-upstream.spec.ts` | [`24-identity-forwarding.md`](../../../spec/24-identity-forwarding.md) | FWD-4, FWD-7 | `E2E-12__24-identity-forwarding__gsc-forwarding-status.webm` |
+| E2E-13 | The upstream-OAuth connect link targets the gateway route | `tests/gsc-upstream.spec.ts` | [`60-admin-ui.md`](../../../spec/60-admin-ui.md) | UI-6, UPO-1 | `E2E-13__60-admin-ui__gsc-connect-link.webm` |
 | E2E-14 | A signed-in non-admin sees only the endpoint catalogue | `tests/catalogue.spec.ts` | [`60-admin-ui.md`](../../../spec/60-admin-ui.md) | UI-2, API-1, ADM-3 | `E2E-14__60-admin-ui__catalogue-non-admin-sees-endpoints.webm` |
 
 ## Requirements referenced
@@ -26,9 +26,11 @@ Playwright test title, the recording filename, and this table.
 | Requirement | Spec | Statement |
 |-------------|------|-----------|
 | UI-2 | `60-admin-ui.md` | Auth: OIDC login redirect (21-admin-auth.md); all routes behind it; non-admin users get a "no access" page. |
-| UI-1 | `60-admin-ui.md` | - Servers — list w/ health badges; detail: config, secret header editing (write-only), forward-headers, upstream OAuth connect status (UPO-5), discovered too… |
+| UI-1 | `60-admin-ui.md` | - Servers — list w/ health and connection-state badges; detail: config, secret header editing (write-only), forward-headers, upstream OAuth connect status (U… |
+| SRV-11 | `10-server-registry.md` | POST /servers:inspect takes a url and optional candidate headers, stores nothing, and reports what the upstream is: its connection_state (SRV-12), negotiated… |
+| UI-6 | `60-admin-ui.md` | Registering a server starts from its URL (or a pasted registry server.json, SRV-15): the UI runs inspection (SRV-11), shows what was detected, and asks only … |
 | SRV-2 | `10-server-registry.md` | Create/update/delete/list/get MUST be available in the management API (40-management-api.md) and the UI. Create and update MUST validate the config by connec… |
-| DISC-1 | `11-tool-discovery.md` | Discovery MUST run on server create/update (SRV-2), on explicit "refresh tools" from UI/API, and opportunistically whenever the gateway performs a live tools… |
+| DISC-1 | `11-tool-discovery.md` | Discovery MUST run on server create/update (SRV-2), on explicit "refresh tools" from UI/API, on the periodic refresh (DISC-7), and after an upstream OAuth co… |
 | UI-4 | `60-admin-ui.md` | Form validation mirrors backend rules (generated from the OpenAPI constraints where possible) so users see slug/uniqueness errors before submitting. |
 | BND-6 | `12-bundles.md` | Bundle CRUD + membership management MUST be available in the management API and UI. |
 | BND-4 | `12-bundles.md` | BundleServer.enabled=false removes all of a server's tools from the bundle's tools/list and blocks calls to them, without deleting the membership or its Bund… |
@@ -47,5 +49,6 @@ Playwright test title, the recording filename, and this table.
 | API-1 | `40-management-api.md` | Base path /api/v1; resources: servers, servers/{id}/tools, bundles, bundles/{id}/servers, bundles/{id}/tools, endpoints, api-keys, users, audit-records, conf… |
 | DOM-5 | `02-domain-model.md` | Config-class entities participate in cross-replica cache invalidation per 33-state-propagation.md. |
 | FWD-4 | `24-identity-forwarding.md` | Upstreams that need to verify the forwarded bearer can call POST /oauth/introspect (OAS-5) — the sequence the first consumer's servers use today against meta… |
-| UPO-1 | `23-upstream-oauth.md` | A server with auth_mode=upstream_oauth (SRV-1) gets upstream OAuth client config: either dynamic registration against the upstream (RFC 7591, discovered via … |
+| FWD-7 | `24-identity-forwarding.md` | A forward_headers entry that forwards authorization passes the caller's gateway token to the upstream — token passthrough, which the MCP authorization spec f… |
+| UPO-1 | `23-upstream-oauth.md` | A server with auth_mode=upstream_oauth (SRV-1) needs a client identity at the upstream authorization server. The gateway uses the MCP authorization spec's pr… |
 | ADM-3 | `21-admin-auth.md` | Admin role: users listed in BUNDLEMCP_ADMIN_EMAILS (or matching a configured claim, e.g. a group/role claim) get is_admin=true. The role is re-evaluated on e… |

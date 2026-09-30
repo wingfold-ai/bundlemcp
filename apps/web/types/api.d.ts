@@ -411,6 +411,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/servers/{name}/upstream-oauth:connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect Upstream Oauth Client
+         * @description Obtain the shared connection of a client-credentials client now.
+         */
+        post: operations["connect_upstream_oauth_client_api_v1_servers__name__upstream_oauth_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/servers/{name}:refresh-tools": {
         parameters: {
             query?: never;
@@ -439,6 +459,46 @@ export interface paths {
         put?: never;
         /** Rename Server */
         post: operations["rename_server_api_v1_servers__name__rename_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers:from-server-json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Draft From Server Json
+         * @description Draft a registration from an MCP Registry server.json; nothing is stored.
+         */
+        post: operations["draft_from_server_json_api_v1_servers_from_server_json_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers:inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inspect Server
+         * @description Probe a URL without registering it: what it is and what registering it takes.
+         */
+        post: operations["inspect_server_api_v1_servers_inspect_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -962,6 +1022,15 @@ export interface components {
             name: string;
         };
         /**
+         * ClientIdentification
+         * @description How the gateway identifies itself to an upstream authorization server.
+         *
+         *     Listed in the MCP authorization spec's priority order after a client an
+         *     admin stored, which always wins.
+         * @enum {string}
+         */
+        ClientIdentification: "preregistered" | "metadata_document" | "dynamic_registration" | "preregistered_required";
+        /**
          * ConfigEntryRead
          * @description One runtime-tunable setting after a change.
          */
@@ -988,6 +1057,15 @@ export interface components {
              */
             value: unknown;
         };
+        /**
+         * ConnectionState
+         * @description What the last attempt to reach an upstream server found out about it.
+         *
+         *     Classified from the upstream's HTTP response rather than from the MCP
+         *     client's error text, so each state names what an operator has to do.
+         * @enum {string}
+         */
+        ConnectionState: "unknown" | "ready" | "oauth_required" | "account_required" | "insufficient_scope" | "credential_required" | "not_mcp" | "unreachable" | "egress_denied" | "error";
         /**
          * ConsentRead
          * @description A user's standing consent for one OAuth client on one endpoint.
@@ -1028,6 +1106,11 @@ export interface components {
              * @default 0
              */
             changed?: number;
+            /**
+             * @description What the probe found out about the upstream: ready on success, otherwise why it gave no MCP answer (oauth_required, credential_required, not_mcp, unreachable, ...)
+             * @default unknown
+             */
+            connection_state?: components["schemas"]["ConnectionState"];
             /**
              * Discovered
              * @description Tools the upstream reported in this probe
@@ -1220,6 +1303,46 @@ export interface components {
              * @description The signed-in user; null for service keys
              */
             user_id?: string | null;
+        };
+        /**
+         * OAuthInspection
+         * @description What an OAuth-protected upstream's authorization chain revealed.
+         */
+        OAuthInspection: {
+            /**
+             * Authorization Endpoint
+             * @description Where users are sent to sign in
+             */
+            authorization_endpoint?: string | null;
+            /**
+             * Callback Url
+             * @description The redirect URI to register when a client must be created by hand
+             */
+            callback_url: string;
+            /** @description How the gateway can identify itself there without an admin: 'metadata_document' (its own client metadata URL), 'dynamic_registration', or 'preregistered_required' when an admin must register a client and enter it on the server's page, with the callback URL as redirect URI */
+            client_identification?: components["schemas"]["ClientIdentification"] | null;
+            /**
+             * Issuer
+             * @description Issuer identifier of the server's authorization server
+             */
+            issuer?: string | null;
+            /**
+             * Problem
+             * @description Why the metadata the server points to cannot be used (issuer mismatch, no PKCE support, blocked address); null when it can
+             */
+            problem?: string | null;
+            /**
+             * Scopes
+             * @description Scopes the protected resource asks clients to request
+             * @default []
+             */
+            scopes?: string[];
+            /**
+             * Supports Client Credentials
+             * @description Whether the authorization server advertises the client_credentials grant, for a shared connection that authorizes the gateway itself
+             * @default false
+             */
+            supports_client_credentials?: boolean;
         };
         /** Page[ApiKeyRead] */
         Page_ApiKeyRead_: {
@@ -1422,15 +1545,201 @@ export interface components {
         };
         /**
          * ServerAuthMode
+         * @description How the gateway authenticates to an upstream server.
          * @enum {string}
          */
-        ServerAuthMode: "none" | "static_headers" | "upstream_oauth";
+        ServerAuthMode: "none" | "static_headers" | "upstream_oauth" | "delegated_token";
+        /**
+         * ServerInfoRead
+         * @description How an upstream describes itself (its MCP serverInfo).
+         */
+        ServerInfoRead: {
+            /**
+             * Description
+             * @description What the server says it provides, when it says
+             */
+            description?: string | null;
+            /**
+             * Name
+             * @description Implementation name the server reports
+             */
+            name: string;
+            /**
+             * Title
+             * @description Display title, when the server sets one
+             */
+            title?: string | null;
+            /**
+             * Version
+             * @description Implementation version
+             */
+            version?: string | null;
+            /**
+             * Website Url
+             * @description Website, when the server sets one
+             */
+            website_url?: string | null;
+        };
+        /**
+         * ServerInspectRequest
+         * @description Body for POST /servers:inspect.
+         */
+        ServerInspectRequest: {
+            /**
+             * Headers
+             * @description Credential headers to try, such as {'authorization': 'Bearer …'} or {'x-api-key': '…'}. Used for this probe only: never stored, logged or returned
+             */
+            headers?: {
+                [key: string]: string;
+            };
+            /**
+             * Url
+             * @description Streamable HTTP URL of the upstream MCP server to inspect
+             */
+            url: string;
+        };
+        /**
+         * ServerInspection
+         * @description What an upstream is, as far as it can be learnt without registering it.
+         */
+        ServerInspection: {
+            /** @description ready (it answered as an MCP server), oauth_required, credential_required (refused without OAuth metadata: it wants an API key or token header), insufficient_scope, not_mcp, unreachable, egress_denied or error */
+            connection_state: components["schemas"]["ConnectionState"];
+            /**
+             * Detail
+             * @description Why the probe got no MCP answer, when it did not; header values never appear here
+             */
+            detail?: string | null;
+            /**
+             * Hints
+             * @description Plain-language notes on what to do next, most important first
+             * @default []
+             */
+            hints?: string[];
+            /** @description The authorization chain, for an OAuth-protected server */
+            oauth?: components["schemas"]["OAuthInspection"] | null;
+            /**
+             * Protocol Version
+             * @description MCP revision negotiated with the server, when it answered
+             */
+            protocol_version?: string | null;
+            /** @description How the server describes itself, when it answered */
+            server_info?: components["schemas"]["ServerInfoRead"] | null;
+            /**
+             * Suggested Url
+             * @description A nearby URL that does answer as MCP (such as the same URL with /mcp appended), when the given one is not an MCP endpoint
+             */
+            suggested_url?: string | null;
+            /** @description A registration derived from what was found: submit it to PUT /servers/{name} as is, adding the credential headers the server needs */
+            suggestion: components["schemas"]["ServerUpsert"];
+            /**
+             * Tool Names
+             * @description Names of the tools the server lists, when it answered
+             * @default []
+             */
+            tool_names?: string[];
+            /**
+             * Url
+             * @description The URL that was inspected
+             */
+            url: string;
+        };
+        /**
+         * ServerJsonDraft
+         * @description A registration drafted from a registry server.json, for an operator to complete.
+         */
+        ServerJsonDraft: {
+            /**
+             * Description
+             * @description The document's description of the server
+             */
+            description?: string | null;
+            /**
+             * Headers
+             * @description Headers the remote declares, in the document's order
+             * @default []
+             */
+            headers?: components["schemas"]["ServerJsonHeader"][];
+            /**
+             * Name
+             * @description A slug-safe server name derived from the document's name
+             */
+            name: string;
+            /**
+             * Problems
+             * @description Why parts of the document could not be used, such as an sse-only remote
+             * @default []
+             */
+            problems?: string[];
+            /**
+             * Url
+             * @description The first streamable-http remote's URL; null when the document has none
+             */
+            url?: string | null;
+            /**
+             * Url Variables
+             * @description Names of {placeholders} in the URL the operator must fill in first
+             * @default []
+             */
+            url_variables?: string[];
+            /**
+             * Website Url
+             * @description The document's website URL
+             */
+            website_url?: string | null;
+        };
+        /**
+         * ServerJsonHeader
+         * @description A header a registry server.json says a remote needs.
+         */
+        ServerJsonHeader: {
+            /**
+             * Description
+             * @description What the value is and where to get it, from the publisher
+             */
+            description?: string | null;
+            /**
+             * Is Required
+             * @description Whether the server needs it
+             * @default false
+             */
+            is_required?: boolean;
+            /**
+             * Is Secret
+             * @description Whether the value is a secret to enter in a masked field
+             * @default false
+             */
+            is_secret?: boolean;
+            /**
+             * Name
+             * @description Header name, such as 'X-API-Key' or 'Authorization'
+             */
+            name: string;
+            /**
+             * Value
+             * @description A value template from the document, such as 'Bearer {api_key}', when it gives one
+             */
+            value?: string | null;
+        };
+        /**
+         * ServerJsonImport
+         * @description Body for POST /servers:from-server-json.
+         */
+        ServerJsonImport: {
+            /**
+             * Document
+             * @description An MCP Registry server.json document, as published by the server's author
+             */
+            document: {
+                [key: string]: unknown;
+            };
+        };
         /**
          * ServerRead
          * @description An upstream server as stored, with header values withheld.
          */
         ServerRead: {
-            /** @description How the gateway authenticates to this server */
+            /** @description How the gateway authenticates to this server: none, static_headers, upstream_oauth or delegated_token */
             auth_mode: components["schemas"]["ServerAuthMode"];
             /**
              * Capabilities
@@ -1440,6 +1749,13 @@ export interface components {
             capabilities?: {
                 [key: string]: unknown;
             };
+            /**
+             * Configuration Mismatch
+             * @description When the connection state contradicts the configuration, the change that would fix it; null otherwise
+             */
+            configuration_mismatch?: string | null;
+            /** @description What the last probe found out: ready, oauth_required, account_required, insufficient_scope, credential_required, not_mcp, unreachable, egress_denied, error, or unknown before the first probe */
+            connection_state: components["schemas"]["ConnectionState"];
             /**
              * Created At
              * Format: date-time
@@ -1458,6 +1774,12 @@ export interface components {
             forward_headers: {
                 [key: string]: string;
             };
+            /**
+             * Forwards Caller Token
+             * @description Whether a forward mapping passes the caller's own authorization header through to the server (token passthrough)
+             * @default false
+             */
+            forwards_caller_token?: boolean;
             /** @description Result of the most recent probe: ok, error or unknown */
             health_status: components["schemas"]["HealthStatus"];
             /**
@@ -1517,7 +1839,7 @@ export interface components {
          */
         ServerUpsert: {
             /**
-             * @description How the gateway authenticates to this server
+             * @description How the gateway authenticates to this server: 'none' or 'static_headers' (which of the two is derived from whether static headers are stored), 'upstream_oauth' (the gateway holds OAuth tokens from the server's authorization server) or 'delegated_token' (each call carries a short-lived token the gateway issues for the caller, valid only at this server, which the server verifies through the gateway's introspection endpoint). Run POST /servers:inspect to learn which one a server needs
              * @default none
              */
             auth_mode?: components["schemas"]["ServerAuthMode"];
@@ -1534,7 +1856,7 @@ export interface components {
             force?: boolean;
             /**
              * Forward Headers
-             * @description Client headers to pass through, mapped from incoming name to upstream name
+             * @description Client headers to pass through, mapped from incoming name to upstream name. Host, cookie, content-length, x-api-key, mcp-session-id and any sec-* or proxy-* header are refused. Forwarding 'authorization' passes the caller's gateway token through; prefer auth_mode 'delegated_token'
              */
             forward_headers?: {
                 [key: string]: string;
@@ -1551,16 +1873,14 @@ export interface components {
             name: string;
             /**
              * Protocol Mode
-             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision
-             * @default auto
+             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. Omitted on create it is 'auto'; omitted on update, the stored value is kept
              */
-            protocol_mode?: string;
+            protocol_mode?: string | null;
             /**
              * Send Identity Header
-             * @description Whether the calling user's identity is forwarded to the upstream server
-             * @default true
+             * @description Whether the calling user's identity is sent to the server as X-MCP-User. Omitted on create, it is on for a server on the gateway's own network and off for any public host; omitted on update, the stored value is kept
              */
-            send_identity_header?: boolean;
+            send_identity_header?: boolean | null;
             /**
              * Static Headers
              * @description Headers sent on every upstream request, for credentials the server needs. Values are write-only and never returned
@@ -1710,6 +2030,12 @@ export interface components {
             valid?: boolean;
         };
         /**
+         * UpstreamGrant
+         * @description How the gateway obtains tokens from an upstream authorization server.
+         * @enum {string}
+         */
+        UpstreamGrant: "authorization_code" | "client_credentials";
+        /**
          * UpstreamOAuthClientRead
          * @description The stored upstream OAuth client registration, secret withheld.
          */
@@ -1751,6 +2077,11 @@ export interface components {
              */
             client_secret?: string | null;
             /**
+             * @description How the gateway obtains tokens: 'authorization_code' (a person signs in through the browser) or 'client_credentials' (the gateway authenticates as this client, for a shared server that authorizes a machine; requires a client secret)
+             * @default authorization_code
+             */
+            grant_type?: components["schemas"]["UpstreamGrant"];
+            /**
              * Token Url
              * @description Token endpoint, when it cannot be discovered automatically
              */
@@ -1776,10 +2107,23 @@ export interface components {
              * @description Whether this gateway can store upstream tokens at all; false until token encryption keys are configured
              */
             configured: boolean;
+            /**
+             * @description How tokens are obtained: through a browser sign-in, or with the client credentials grant
+             * @default authorization_code
+             */
+            grant_type?: components["schemas"]["UpstreamGrant"];
+            /** @description How the client came to be: 'preregistered' (an admin stored it), 'metadata_document' (the gateway's own client metadata URL is its id) or 'dynamic_registration'; null until there is a client */
+            identification?: components["schemas"]["ClientIdentification"] | null;
             /** @description Whether callers share one upstream identity or each connects their own */
             identity_mode: components["schemas"]["IdentityMode"];
             /** @description State of the shared connection; null when upstream OAuth is not configured */
             shared?: components["schemas"]["UpstreamConnectionStatus"] | null;
+            /**
+             * Step Up Scopes
+             * @description Scopes the upstream demanded after connecting; the next connect requests them too
+             * @default []
+             */
+            step_up_scopes?: string[];
             /**
              * Token Url
              * @description Operator-configured token endpoint; null when it is discovered
@@ -2860,6 +3204,37 @@ export interface operations {
             };
         };
     };
+    connect_upstream_oauth_client_api_v1_servers__name__upstream_oauth_connect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpstreamOAuthStatusRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     refresh_tools_api_v1_servers__name__refresh_tools_post: {
         parameters: {
             query?: never;
@@ -2912,6 +3287,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServerRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    draft_from_server_json_api_v1_servers_from_server_json_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerJsonImport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerJsonDraft"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inspect_server_api_v1_servers_inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerInspectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerInspection"];
                 };
             };
             /** @description Validation Error */

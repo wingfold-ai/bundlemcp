@@ -12,6 +12,7 @@ from bundlemcp.application.upstream_oauth.upstream_connect_flow import UpstreamC
 from bundlemcp.application.upstream_oauth.upstream_token_storage import UpstreamTokenStorage
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
+from bundlemcp.domain.upstream_oauth.upstream_grant import UpstreamGrant
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 
 log = structlog.get_logger(__name__)
@@ -39,14 +40,42 @@ class UpstreamTokenRefresher:
     async def access_token(
         self, server: McpServer, user_id: uuid.UUID | None, *, force: bool = False
     ) -> str:
-        """A valid access token, refreshed proactively when near expiry or when forced."""
+        """A valid access token, refreshed proactively when near expiry or when forced.
+
+        A shared client-credentials connection is obtained on first use rather
+        than through a browser connect, and renewed by granting again (UPO-11).
+        """
         row = await self._tokens.load(server.id, user_id)
         if row is None or not row.is_valid:
+            if user_id is None and await self._uses_client_credentials(server):
+                return await self._grant_single_flight(server)
             raise NeedsConnect(server.name)
         tokens = self._tokens.decode(row)
         if not force and not row.expires_within(REFRESH_SKEW):
             return tokens.access_token  # still fresh
         return await self._refresh_single_flight(server, user_id, tokens)
+
+    async def _uses_client_credentials(self, server: McpServer) -> bool:
+        config = await self._tokens.find_client_config(server.id)
+        return config is not None and config.grant == UpstreamGrant.CLIENT_CREDENTIALS
+
+    async def _grant_single_flight(self, server: McpServer) -> str:
+        lock_key = REFRESH_LOCK_KEY.format(server_id=server.id, user_key="shared")
+        if not await self._lock.acquire(lock_key, ttl_seconds=REFRESH_LOCK_TTL):
+            return await self._wait_for_other_refresh(server, None)
+        try:
+            return await self._grant(server)
+        finally:
+            await self._lock.release(lock_key)
+
+    async def _grant(self, server: McpServer) -> str:
+        try:
+            return await self._flow.grant_client_credentials(server)
+        except NeedsConnect:
+            raise
+        except Exception:
+            log.warning("upstream_oauth.client_credentials_failed", server=server.name)
+            raise NeedsConnect(server.name, "client_credentials_failed") from None
 
     async def _refresh_single_flight(
         self, server: McpServer, user_id: uuid.UUID | None, tokens: UpstreamTokens
@@ -65,7 +94,9 @@ class UpstreamTokenRefresher:
         for _ in range(WAIT_ATTEMPTS):
             await asyncio.sleep(WAIT_INTERVAL)
             row = await self._tokens.load(server.id, user_id)
-            if row is None or not row.is_valid:
+            if row is None:  # a first client-credentials grant has not landed yet
+                continue
+            if not row.is_valid:
                 raise NeedsConnect(server.name, "refresh_failed")
             if not row.expires_within(REFRESH_SKEW):
                 return self._tokens.decode(row).access_token
@@ -74,6 +105,8 @@ class UpstreamTokenRefresher:
     async def _refresh(
         self, server: McpServer, user_id: uuid.UUID | None, tokens: UpstreamTokens
     ) -> str:
+        if user_id is None and await self._uses_client_credentials(server):
+            return await self._grant(server)  # UPO-11: nothing to refresh, grant again
         if not tokens.refresh_token:
             await self._tokens.invalidate(server.id, user_id)
             raise NeedsConnect(server.name, "no_refresh_token")

@@ -29,13 +29,13 @@ def _units(engine, redis) -> SqlAlchemyUnitOfWorkFactory:
 
 
 def factory_for(upstream: FastMCP):
-    def factory(server, extra_headers):
+    def factory(server, extra_headers, *, observer=None):
         return Client(upstream, mode=server.protocol_mode)  # SRV-10
 
     return factory
 
 
-def failing_factory(server, extra_headers):
+def failing_factory(server, extra_headers, *, observer=None):
     raise ConnectionError("upstream down")
 
 
@@ -168,3 +168,91 @@ async def test_health_error_after_consecutive_failures_and_self_heal(engine, red
         srv = (await db.execute(select(McpServerRow))).scalar_one()
         assert srv.health_status == HealthStatus.OK
         assert srv.last_error is None
+
+
+def factory_by_name(upstreams: dict[str, FastMCP]):
+    """Route each server to its own upstream; a name without one is unreachable."""
+
+    def factory(server, extra_headers, *, observer=None):
+        upstream = upstreams.get(server.name)
+        if upstream is None:
+            raise ConnectionError(f"{server.name} unreachable")
+        return Client(upstream, mode=server.protocol_mode)
+
+    return factory
+
+
+async def test_sweep_probes_every_server_past_a_failing_one(engine, redis):
+    """DISC-7: one server's failure never stops the sweep for the rest."""
+    await seed_server(engine, name="down")
+    await seed_server(engine, name="up")
+    svc = DiscoveryService(
+        _units(engine, redis),
+        FastMcpUpstreamProbe(factory_by_name({"up": make_upstream(["alpha", "beta"])})),
+    )
+
+    sweep = await svc.discover_all()
+
+    assert (sweep.servers, sweep.failed, sweep.changed) == (2, 1, 2)
+    async with session_factory(engine)() as db:
+        assert {t.name for t in (await db.execute(select(ToolRow))).scalars()} == {
+            "alpha",
+            "beta",
+        }
+
+
+async def test_sweep_heals_a_server_unreachable_at_registration(engine, redis):
+    """DISC-7: a server whose first discovery failed gets its tools on the next sweep."""
+    server = await seed_server(engine)
+    upstreams: dict[str, FastMCP] = {}
+    svc = DiscoveryService(_units(engine, redis), FastMcpUpstreamProbe(factory_by_name(upstreams)))
+
+    assert (await svc.discover(server.id)).error is not None  # e.g. its container is not up yet
+    upstreams["srv"] = make_upstream(["alpha"])
+    sweep = await svc.discover_all()
+
+    assert (sweep.servers, sweep.failed, sweep.changed) == (1, 0, 1)
+    async with session_factory(engine)() as db:
+        srv = (await db.execute(select(McpServerRow))).scalar_one()
+        assert srv.health_status == HealthStatus.OK
+        assert [t.name for t in (await db.execute(select(ToolRow))).scalars()] == ["alpha"]
+
+
+async def test_sweep_pages_through_every_server(engine, redis, monkeypatch):
+    """DISC-7: servers beyond the first page are swept too."""
+    from bundlemcp.application.discovery import discovery_service
+
+    monkeypatch.setattr(discovery_service, "SWEEP_PAGE_SIZE", 2)
+    for i in range(5):
+        await seed_server(engine, name=f"srv{i}")
+    svc = DiscoveryService(
+        _units(engine, redis), FastMcpUpstreamProbe(factory_for(make_upstream(["alpha"])))
+    )
+
+    sweep = await svc.discover_all()
+
+    assert (sweep.servers, sweep.failed) == (5, 0)
+
+
+async def test_sweep_moves_past_a_hanging_upstream(engine, redis, monkeypatch):
+    """DISC-7: a probe that never answers times out as a failure; the sweep continues."""
+    import asyncio
+
+    from bundlemcp.application.discovery import discovery_service
+
+    monkeypatch.setattr(discovery_service, "PROBE_TIMEOUT_SECONDS", 0.05)
+    await seed_server(engine, name="hang")
+    await seed_server(engine, name="up")
+    live = FastMcpUpstreamProbe(factory_by_name({"up": make_upstream(["alpha"])}))
+
+    class HangingForOne:
+        async def probe(self, server, headers):
+            if server.name == "hang":
+                await asyncio.sleep(3600)
+            return await live.probe(server, headers)
+
+    svc = DiscoveryService(_units(engine, redis), HangingForOne())
+
+    sweep = await svc.discover_all()
+
+    assert (sweep.servers, sweep.failed, sweep.changed) == (2, 1, 1)

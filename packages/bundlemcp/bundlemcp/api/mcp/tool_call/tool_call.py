@@ -163,7 +163,7 @@ class ToolCall:
             self._ctx.request.headers, self._tool.server, self._ctx.identity.sub
         )
         upstream = await self._support.credentials.headers_for(
-            self._tool.server, self._ctx.identity
+            self._tool.server, self._ctx.identity, endpoint=self._ctx.view.endpoint.name
         )
         headers.update(upstream)  # spec 23: the upstream OAuth bearer wins
         return headers
@@ -190,22 +190,51 @@ class ToolCall:
     async def execute(
         self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
     ) -> CallOutcome:
-        """Drive the upstream once; on an upstream-OAuth failure, refresh and retry once."""
-        outcome = await self._upstream_call(self._headers, on_progress, on_notification).run()
-        # UPO-4 reactive: a failure despite a fresh token forces a refresh and one
-        # retry. The same metering context is reused — an internal retry does
-        # NOT re-fire pre_call (MID-3).
-        if not outcome.reached_upstream and self._tool.server.uses_upstream_oauth:
-            try:
-                refreshed = await self._support.credentials.headers_for(
-                    self._tool.server, self._ctx.identity, force_refresh=True
-                )
-            except (NeedsConnect, UpstreamOAuthNotConfigured):
-                return outcome  # keep the original error outcome
-            outcome = await self._upstream_call(
-                {**self._headers, **refreshed}, on_progress, on_notification
-            ).run()
-        return outcome
+        """Drive the upstream once; act on what an upstream refusal says.
+
+        A 401 from an upstream-OAuth server forces a token refresh and one
+        retry (UPO-4); a 403 insufficient_scope records the scopes the next
+        connect must request and asks the caller to reconnect (UPO-10). The
+        same metering context is reused — an internal retry does NOT re-fire
+        pre_call (MID-3).
+        """
+        attempt = self._upstream_call(self._headers, on_progress, on_notification)
+        outcome = await attempt.run()
+        if outcome.reached_upstream:
+            return outcome
+        server = self._tool.server
+        step_up = attempt.responses.insufficient_scope
+        if step_up is not None and server.uses_upstream_oauth:
+            return await self._step_up(outcome, step_up.challenge.scope or [])
+        if not attempt.responses.saw_unauthorized:
+            return outcome
+        if not server.uses_upstream_oauth:
+            return outcome.model_copy(
+                update={"error_message": "the upstream server refused the gateway's credential"}
+            )
+        try:
+            refreshed = await self._support.credentials.headers_for(
+                server, self._ctx.identity, force_refresh=True
+            )
+        except (NeedsConnect, UpstreamOAuthNotConfigured):
+            return outcome.model_copy(
+                update={"error_message": self._support.credentials.connect_hint(server)}
+            )
+        return await self._upstream_call(
+            {**self._headers, **refreshed}, on_progress, on_notification
+        ).run()
+
+    async def _step_up(self, outcome: CallOutcome, scopes: list[str]) -> CallOutcome:
+        """Remember the demanded scopes and tell the caller to reconnect (UPO-10)."""
+        server = self._tool.server
+        await self._support.credentials.request_step_up(server, scopes)
+        needed = f" ({' '.join(scopes)})" if scopes else ""
+        return outcome.model_copy(
+            update={
+                "error_message": f"the upstream needs additional permission{needed} — "
+                f"reconnect at {self._support.credentials.connect_url(server)}"
+            }
+        )
 
     async def conclude(
         self,

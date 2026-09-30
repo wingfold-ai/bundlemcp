@@ -33,6 +33,7 @@ class FakeUpstream:
                     "issuer": AS_URL,
                     "authorization_endpoint": f"{AS_URL}/authorize",
                     "token_endpoint": f"{AS_URL}/token",
+                    "code_challenge_methods_supported": ["S256"],
                 },
             )
         if request.url.path == "/token":
@@ -136,6 +137,7 @@ class PathScopedUpstream:
                 "token_endpoint": f"{KEYCLOAK}/protocol/openid-connect/token",
                 # Keycloak lists every scope in the realm, most never granted to a new client
                 "scopes_supported": ["openid", "basic", "service_account", "organization"],
+                "code_challenge_methods_supported": ["plain", "S256"],
             }
             if self.registration:
                 body["registration_endpoint"] = f"{KEYCLOAK}/clients-registrations/openid-connect"
@@ -227,3 +229,126 @@ async def test_registration_endpoint_on_blocked_range_is_refused():
         await upstream.provider().register(meta, redirect_uri="https://gw/cb", client_name="b")
     assert excinfo.value.reason == "registration_endpoint_denied"
     assert upstream.requests == []
+
+
+class CompliantUpstream:
+    """A 2026-era server: POST-only (GET is 405), challenge names its document."""
+
+    def __init__(self, **metadata) -> None:
+        self.metadata = {
+            "issuer": KEYCLOAK,
+            "authorization_endpoint": f"{KEYCLOAK}/auth",
+            "token_endpoint": f"{KEYCLOAK}/token",
+            "registration_endpoint": f"{KEYCLOAK}/register",
+            "code_challenge_methods_supported": ["S256"],
+            "client_id_metadata_document_supported": True,
+            "token_endpoint_auth_methods_supported": ["none", "client_secret_post"],
+            "grant_types_supported": ["authorization_code", "client_credentials"],
+            **metadata,
+        }
+        self.requests: list[httpx.Request] = []
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        url = str(request.url)
+        if url == SERVER_URL:
+            if request.method != "POST":
+                return httpx.Response(405)
+            return httpx.Response(
+                401,
+                headers={
+                    "WWW-Authenticate": 'Bearer resource_metadata="http://10.0.0.5/prm", '
+                    'scope="files:read"'
+                },
+            )
+        if url == "http://10.0.0.5/prm":
+            return httpx.Response(
+                200, json={"resource": "http://10.0.0.5", "authorization_servers": [KEYCLOAK]}
+            )
+        if url == "http://10.0.0.7/.well-known/oauth-authorization-server/realms/x":
+            return httpx.Response(200, json=self.metadata)
+        if url == f"{KEYCLOAK}/register":
+            return httpx.Response(201, json={"client_id": "c"})
+        if url == f"{KEYCLOAK}/token":
+            return httpx.Response(200, json={"access_token": "at", "expires_in": 60})
+        return httpx.Response(404)
+
+    def provider(self) -> HttpxUpstreamProvider:
+        return HttpxUpstreamProvider(
+            EnvSettings(_env_file=None),
+            client_factory=lambda: httpx.AsyncClient(transport=httpx.MockTransport(self.handler)),
+        )
+
+
+async def test_upo1_the_challenge_is_a_post_so_a_stateless_server_answers_it():
+    """UPO-1: a GET would meet 405 from a stateless server before any challenge."""
+    upstream = CompliantUpstream()
+    meta = await upstream.provider().discover(SERVER_URL)
+    first = upstream.requests[0]
+    assert first.method == "POST"
+    assert json.loads(first.content)["method"] == "server/discover"
+    assert first.headers["mcp-method"] == "server/discover"
+    assert meta.resource_scopes == ["files:read"]
+    assert meta.client_id_metadata_document_supported
+    assert "client_credentials" in meta.grant_types_supported
+
+
+async def test_upo12_every_request_names_the_resource():
+    upstream = CompliantUpstream()
+    provider = upstream.provider()
+    meta = await provider.discover(SERVER_URL)
+    assert meta.resource == "http://10.0.0.5"  # the document's identifier covers /mcp
+    url = provider.authorize_url(
+        meta, client_id="c", redirect_uri="https://gw/cb", state="s", code_challenge="x", scope=None
+    )
+    assert "resource=http%3A%2F%2F10.0.0.5" in url
+    await provider.exchange(
+        meta,
+        code="c",
+        redirect_uri="https://gw/cb",
+        code_verifier="v",
+        client_id="c",
+        client_secret=None,
+    )
+    await provider.refresh(meta, refresh_token="rt", client_id="c", client_secret=None)
+    token_requests = [r for r in upstream.requests if str(r.url) == f"{KEYCLOAK}/token"]
+    assert len(token_requests) == 2
+    assert all(b"resource=http%3A%2F%2F10.0.0.5" in r.content for r in token_requests)
+
+
+async def test_upo1_registration_names_the_application_type():
+    upstream = CompliantUpstream()
+    provider = upstream.provider()
+    meta = await provider.discover(SERVER_URL)
+    await provider.register(meta, redirect_uri="https://gw/cb", client_name="bundlemcp")
+    (sent,) = [r for r in upstream.requests if str(r.url) == f"{KEYCLOAK}/register"]
+    assert json.loads(sent.content)["application_type"] == "web"
+
+
+async def test_upo13_metadata_without_pkce_is_refused():
+    upstream = CompliantUpstream(code_challenge_methods_supported=["plain"])
+    with pytest.raises(NeedsConnect) as excinfo:
+        await upstream.provider().discover(SERVER_URL)
+    assert excinfo.value.reason == "pkce_not_supported"
+
+
+async def test_upo13_metadata_naming_another_issuer_is_refused():
+    upstream = CompliantUpstream(issuer="http://10.0.0.99/realms/x")
+    with pytest.raises(NeedsConnect) as excinfo:
+        await upstream.provider().discover(SERVER_URL)
+    assert excinfo.value.reason == "issuer_mismatch"
+
+
+async def test_upo11_client_credentials_grant_sends_secret_scope_and_resource():
+    upstream = CompliantUpstream()
+    provider = upstream.provider()
+    meta = await provider.discover(SERVER_URL)
+    tokens = await provider.client_credentials(
+        meta, client_id="machine", client_secret="shh", scope="files:read"
+    )
+    assert tokens.access_token == "at"
+    (sent,) = [r for r in upstream.requests if str(r.url) == f"{KEYCLOAK}/token"]
+    body = dict(pair.split("=") for pair in sent.content.decode().split("&"))
+    assert body["grant_type"] == "client_credentials"
+    assert body["client_id"] == "machine" and body["client_secret"] == "shh"
+    assert body["scope"] == "files%3Aread" and body["resource"] == "http%3A%2F%2F10.0.0.5"

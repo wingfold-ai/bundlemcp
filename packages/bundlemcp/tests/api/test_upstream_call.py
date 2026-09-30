@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
 from bundlemcp.domain.servers.identity_mode import IdentityMode
+from bundlemcp.domain.servers.observed_response import ObservedResponse
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.domain.shared.secrets import display_prefix, hash_token
 from bundlemcp.domain.upstream_oauth.upstream_metadata import UpstreamMetadata
@@ -49,10 +50,12 @@ class BearerCapturingFactory:
         self.seen: list[str | None] = []
         self.reject = reject or set()
 
-    def __call__(self, server, extra_headers, **handlers):
+    def __call__(self, server, extra_headers, *, observer=None, **handlers):
         bearer = extra_headers.get("Authorization")
         self.seen.append(bearer)
         if bearer in self.reject:
+            if observer is not None:  # what the HTTP transport would have seen
+                observer.record(ObservedResponse(status=401))
             return _RaisingClient()
         return Client(up_server)
 
@@ -89,6 +92,9 @@ class FakeUpstreamProvider:
     async def refresh(self, meta, *, refresh_token, client_id, client_secret):
         self.refresh_calls += 1
         return UpstreamTokens(access_token="at-refreshed", refresh_token="rt2", expires_in=3600)
+
+    async def client_credentials(self, meta, **kw):
+        return UpstreamTokens(access_token="at-client", expires_in=3600)
 
 
 async def _seed(engine, *, identity_mode=IdentityMode.SHARED):

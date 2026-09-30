@@ -135,7 +135,7 @@ async def modern_ask_name(ctx: Context) -> InputRequiredResult | str:
 UPSTREAMS = {"relay": relay_server, "modern": modern_server}
 
 
-def upstream_factory(server, extra_headers, **handlers):
+def upstream_factory(server, extra_headers, *, observer=None, **handlers):
     # `relay` is pinned to the handshake era by its protocol_mode (SRV-10);
     # `modern` negotiates 2026-07-28 through server/discover.
     return Client(UPSTREAMS[server.name], mode=server.protocol_mode, **handlers)

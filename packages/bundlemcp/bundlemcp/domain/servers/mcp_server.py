@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from bundlemcp.domain.servers.connection_state import ConnectionState
+from bundlemcp.domain.servers.forward_header_rules import CALLER_TOKEN_HEADER
 from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
@@ -56,6 +58,11 @@ class McpServer(BaseModel):
         description="Result of the most recent probe: ok, error or unknown",
     )
     last_error: str | None = Field(default=None, description="Why the last probe failed, if it did")
+    connection_state: ConnectionState = Field(  # SRV-12
+        default=ConnectionState.UNKNOWN,
+        description="What the last probe found out about the upstream, classified from its "
+        "HTTP response",
+    )
     created_at: datetime = Field(
         default_factory=utcnow,
         description="When the record was created",
@@ -72,6 +79,35 @@ class McpServer(BaseModel):
     @property
     def is_per_user(self) -> bool:
         return self.identity_mode == IdentityMode.PER_USER
+
+    @property
+    def uses_delegated_token(self) -> bool:
+        return self.auth_mode == ServerAuthMode.DELEGATED_TOKEN
+
+    @property
+    def forwards_caller_token(self) -> bool:
+        """The caller's own bearer is passed through to the upstream unchanged (FWD-7)."""
+        return any(header.lower() == CALLER_TOKEN_HEADER for header in self.forward_headers)
+
+    @property
+    def configuration_mismatch(self) -> str | None:
+        """Why the last probe's finding contradicts how the server is configured, if it does.
+
+        A server challenged for OAuth but not set up for it, or refused for a
+        missing credential while holding none, will keep failing until the
+        configuration changes, so this names the change.
+        """
+        state = self.connection_state
+        if state == ConnectionState.OAUTH_REQUIRED and not self.uses_upstream_oauth:
+            return "the server asks for OAuth sign-in; switch it to upstream OAuth"
+        if (
+            state == ConnectionState.CREDENTIAL_REQUIRED
+            and not self.static_headers
+            and not self.forward_headers
+            and self.auth_mode != ServerAuthMode.DELEGATED_TOKEN
+        ):
+            return "the server refuses requests without a credential; add one as a header"
+        return None
 
     @property
     def requires_per_user_token(self) -> bool:

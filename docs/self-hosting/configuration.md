@@ -45,6 +45,12 @@ across all replicas without a restart.
 | `BUNDLEMCP_AUTH_FAILURE_LIMIT` | `20` | Failed authentication attempts from one IP before it is locked out. |
 | `BUNDLEMCP_AUTH_FAILURE_WINDOW` | `300` | Seconds the failure count is retained. |
 
+### Upstream discovery
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` | `1800` | Seconds between re-reading every server's tool list. Picks up a server that was unreachable when you registered it, and tools that changed without the upstream announcing it. One replica refreshes per interval. `0` disables it. |
+
 ### Provisioning
 
 | Variable | Default | Meaning |

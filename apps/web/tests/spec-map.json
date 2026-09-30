@@ -24,8 +24,10 @@
       "id": "E2E-03",
       "testFile": "server-flow.spec.ts",
       "slug": "server-create-discover-delete",
-      "title": "Create a server, discover its tools, delete it",
+      "title": "Check a server's URL, register it, discover its tools, delete it",
       "requirements": [
+        "SRV-11",
+        "UI-6",
         "SRV-2",
         "DISC-1"
       ]
@@ -123,9 +125,10 @@
       "id": "E2E-12",
       "testFile": "gsc-upstream.spec.ts",
       "slug": "gsc-forwarding-status",
-      "title": "The UI surfaces header forwarding and upstream status",
+      "title": "The UI surfaces header forwarding and flags it as passthrough",
       "requirements": [
-        "FWD-4"
+        "FWD-4",
+        "FWD-7"
       ]
     },
     {
@@ -134,6 +137,7 @@
       "slug": "gsc-connect-link",
       "title": "The upstream-OAuth connect link targets the gateway route",
       "requirements": [
+        "UI-6",
         "UPO-1"
       ]
     },

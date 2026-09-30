@@ -32,11 +32,15 @@ class EgressDenied(Exception):
         super().__init__(f"egress denied for {url}: {reason}")
 
 
+class HostUnresolvable(EgressDenied):
+    """The host does not resolve, so the policy has no address to judge."""
+
+
 def _resolve(host: str) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror as exc:
-        raise EgressDenied(host, f"DNS resolution failed: {exc}") from exc
+        raise HostUnresolvable(host, f"DNS resolution failed: {exc}") from exc
     return [ipaddress.ip_address(info[4][0]) for info in infos]
 
 

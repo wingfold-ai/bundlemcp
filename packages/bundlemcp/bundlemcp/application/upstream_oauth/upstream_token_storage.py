@@ -6,8 +6,13 @@ from datetime import timedelta
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.domain.shared.clock import utcnow
+from bundlemcp.domain.upstream_oauth.client_identification import ClientIdentification
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
-from bundlemcp.domain.upstream_oauth.upstream_client_config import UpstreamClientConfig
+from bundlemcp.domain.upstream_oauth.upstream_client_config import (
+    IDENTIFICATION_KEY,
+    STEP_UP_KEY,
+    UpstreamClientConfig,
+)
 from bundlemcp.domain.upstream_oauth.upstream_client_registration import (
     UpstreamClientRegistration,
 )
@@ -84,14 +89,7 @@ class UpstreamTokenStorage:
             client = await uow.upstream_clients.for_server(server_id)
         if client is None or not client.client_id:
             return None
-        secret = (
-            self._cipher.decrypt(client.client_secret_encrypted)
-            if client.client_secret_encrypted
-            else None
-        )
-        return UpstreamClientConfig(
-            client_id=client.client_id, client_secret=secret, metadata=client.metadata_ or {}
-        )
+        return self._config(client)
 
     async def client_config(self, server_id: uuid.UUID) -> UpstreamClientConfig:
         config = await self.find_client_config(server_id)
@@ -104,15 +102,19 @@ class UpstreamTokenStorage:
         server_id: uuid.UUID,
         registration: UpstreamClientRegistration,
         meta: UpstreamMetadata,
-    ) -> None:
-        """Keep a dynamically registered client, with the metadata it was registered against.
+        identification: ClientIdentification,
+    ) -> UpstreamClientConfig:
+        """Keep a client the gateway obtained itself, with the metadata it belongs to.
 
-        A client id an admin stored in the meantime is never overwritten.
+        It replaces an earlier one the gateway obtained (for another issuer),
+        but never a client an admin stored, which is returned instead.
         """
         async with self._units.open() as uow:
             client = await uow.upstream_clients.for_server(server_id)
             if client is not None and client.client_id:
-                return
+                existing = self._config(client)
+                if existing.is_admin_stored:
+                    return existing
             if client is None:
                 client = UpstreamOAuthClient(server_id=server_id)
             client.client_id = registration.client_id
@@ -121,6 +123,54 @@ class UpstreamTokenStorage:
                 if registration.client_secret
                 else None
             )
-            client.metadata_ = meta.model_dump(exclude_none=True)
+            client.metadata_ = {
+                **meta.model_dump(exclude_none=True, exclude={"step_up_scopes"}),
+                IDENTIFICATION_KEY: identification.value,
+            }
             uow.upstream_clients.add(client)
             await uow.commit()
+            return self._config(client)
+
+    async def forget_registration(self, server_id: uuid.UUID) -> None:
+        """Drop a client the gateway obtained itself, and every token issued to it (UPO-13)."""
+        async with self._units.open() as uow:
+            client = await uow.upstream_clients.for_server(server_id)
+            if client is None or self._config(client).is_admin_stored:
+                return
+            client.client_id = None
+            client.client_secret_encrypted = None
+            client.metadata_ = {}
+            uow.upstream_clients.add(client)
+            for row in await uow.upstream_tokens.for_server(server_id):
+                await uow.upstream_tokens.delete(row)
+            await uow.commit()
+
+    async def add_step_up_scopes(self, server_id: uuid.UUID, scopes: list[str]) -> bool:
+        """Remember scopes an upstream demanded, for the next connect to request (UPO-10).
+
+        Returns whether anything new was added.
+        """
+        async with self._units.open() as uow:
+            client = await uow.upstream_clients.for_server(server_id)
+            if client is None:
+                return False
+            metadata = dict(client.metadata_ or {})
+            known = list(metadata.get(STEP_UP_KEY) or [])
+            merged = list(dict.fromkeys([*known, *scopes]))
+            if merged == known:
+                return False
+            metadata[STEP_UP_KEY] = merged
+            client.metadata_ = metadata
+            uow.upstream_clients.add(client)
+            await uow.commit()
+            return True
+
+    def _config(self, client: UpstreamOAuthClient) -> UpstreamClientConfig:
+        secret = (
+            self._cipher.decrypt(client.client_secret_encrypted)
+            if client.client_secret_encrypted
+            else None
+        )
+        return UpstreamClientConfig(
+            client_id=client.client_id or "", client_secret=secret, metadata=client.metadata_ or {}
+        )
