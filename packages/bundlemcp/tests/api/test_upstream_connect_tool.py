@@ -52,7 +52,7 @@ class HeaderRecordingFactory:
     def __init__(self) -> None:
         self.headers: list[dict[str, str]] = []
 
-    def __call__(self, server, extra_headers, **handlers):
+    def __call__(self, server, extra_headers, *, observer=None, **handlers):
         self.headers.append(dict(extra_headers))
         return Client(seo)
 
@@ -74,6 +74,9 @@ class FakeProvider:
 
     async def refresh(self, meta, **kw):
         return UpstreamTokens(access_token="seo-user-token-2", expires_in=3600)
+
+    async def client_credentials(self, meta, **kw):
+        return UpstreamTokens(access_token="at-client", expires_in=3600)
 
 
 async def _seed(engine, *, with_tool: bool):

@@ -2,10 +2,9 @@
 
 from collections.abc import Mapping
 
+from bundlemcp.domain.servers.forward_header_rules import is_forwardable
 from bundlemcp.domain.servers.mcp_server import McpServer
 
-# Never forwarded regardless of a server's mapping (DOM-3 / SEC-3).
-DENIED_FORWARD_HEADERS = {"host", "content-length", "cookie", "x-api-key", "mcp-session-id"}
 IDENTITY_HEADER = "X-MCP-User"  # spec 24
 
 
@@ -20,8 +19,7 @@ def forwarded_headers(
     """
     extra: dict[str, str] = {}
     for client_header, upstream_header in server.forward_headers.items():
-        lower = client_header.lower()
-        if lower in DENIED_FORWARD_HEADERS or lower.startswith(("sec-", "proxy-")):
+        if not is_forwardable(client_header):  # FWD-2: also refused at write time (SRV-14)
             continue
         value = client_headers.get(client_header)
         if value is not None:

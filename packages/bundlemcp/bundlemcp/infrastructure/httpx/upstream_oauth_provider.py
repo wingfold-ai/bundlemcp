@@ -1,19 +1,19 @@
 """The real upstream authorization server, reached over HTTP."""
 
-import re
 from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
 import httpx
-from pydantic import BaseModel, Field
 
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
+from bundlemcp.domain.upstream_oauth.resource_indicator import resource_indicator
+from bundlemcp.domain.upstream_oauth.upstream_challenge import UpstreamChallenge
 from bundlemcp.domain.upstream_oauth.upstream_client_registration import (
     UpstreamClientRegistration,
 )
-from bundlemcp.domain.upstream_oauth.upstream_metadata import UpstreamMetadata
+from bundlemcp.domain.upstream_oauth.upstream_metadata import PKCE_METHOD, UpstreamMetadata
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, check_url_allowed
 
@@ -21,8 +21,21 @@ HTTP_TIMEOUT = 10
 PROTECTED_RESOURCE_PATH = "/.well-known/oauth-protected-resource"
 AUTHORIZATION_SERVER_PATH = "/.well-known/oauth-authorization-server"
 OPENID_CONFIGURATION_PATH = "/.well-known/openid-configuration"
-_RESOURCE_METADATA = re.compile(r'resource_metadata="([^"]+)"')
-_CHALLENGE_SCOPE = re.compile(r'(?:^|[\s,])scope="([^"]*)"')
+# UPO-1: the challenge is asked for with the request a modern client sends first
+CHALLENGE_PROTOCOL_VERSION = "2026-07-28"
+CHALLENGE_REQUEST = {
+    "jsonrpc": "2.0",
+    "id": 0,
+    "method": "server/discover",
+    "params": {"_meta": {"io.modelcontextprotocol/protocolVersion": CHALLENGE_PROTOCOL_VERSION}},
+}
+CHALLENGE_HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream",
+    "MCP-Protocol-Version": CHALLENGE_PROTOCOL_VERSION,
+    "Mcp-Method": "server/discover",
+}
+DYNAMIC_CLIENT_APPLICATION_TYPE = "web"  # the redirect URI is the gateway's https callback
 
 ClientFactory = Callable[[], httpx.AsyncClient]
 
@@ -57,18 +70,7 @@ def _authorization_server_candidates(issuer: str) -> list[str]:
     return list(dict.fromkeys(candidates))
 
 
-class _Challenge(BaseModel):
-    """What a 401 from the server says about how to authorize against it."""
-
-    resource_metadata: str | None = Field(
-        default=None, description="URL of the protected resource document it names"
-    )
-    scope: list[str] | None = Field(
-        default=None, description="Scopes it asks for; None when the challenge names none"
-    )
-
-
-def _metadata(data: dict[str, Any], resource_scopes: list[str]) -> UpstreamMetadata:
+def _metadata(data: dict[str, Any], resource_scopes: list[str], resource: str) -> UpstreamMetadata:
     return UpstreamMetadata(
         authorization_endpoint=data["authorization_endpoint"],
         token_endpoint=data["token_endpoint"],
@@ -79,7 +81,31 @@ def _metadata(data: dict[str, Any], resource_scopes: list[str]) -> UpstreamMetad
         authorization_response_iss_parameter_supported=bool(
             data.get("authorization_response_iss_parameter_supported", False)
         ),
+        resource=resource,
+        client_id_metadata_document_supported=bool(
+            data.get("client_id_metadata_document_supported", False)
+        ),
+        token_endpoint_auth_methods_supported=list(
+            data.get("token_endpoint_auth_methods_supported") or []
+        ),
+        grant_types_supported=list(data.get("grant_types_supported") or []),
     )
+
+
+def _acceptable(data: dict[str, Any] | None, issuer: str) -> dict[str, Any] | None:
+    """Authorization server metadata the connect can use, or None to try the next location.
+
+    UPO-13: the document must name the issuer it was fetched for and offer
+    PKCE with S256; one that does not is refused rather than followed.
+    """
+    if data is None or "authorization_endpoint" not in data or "token_endpoint" not in data:
+        return None
+    named = data.get("issuer")
+    if not isinstance(named, str) or named.rstrip("/") != issuer.rstrip("/"):
+        raise NeedsConnect("upstream", "issuer_mismatch")
+    if PKCE_METHOD not in (data.get("code_challenge_methods_supported") or []):
+        raise NeedsConnect("upstream", "pkce_not_supported")
+    return data
 
 
 class HttpxUpstreamProvider:
@@ -91,7 +117,10 @@ class HttpxUpstreamProvider:
     document is looked for where RFC 9728 puts it for the server's path, then
     at the origin. The authorization server it names is read through RFC 8414
     or OpenID Connect metadata, whichever it serves; a server with no protected
-    resource document is tried as its own authorization server.
+    resource document is tried as its own authorization server. Metadata that
+    names another issuer than the one it was fetched for, or that does not
+    offer PKCE with S256, is refused. Every authorization, token and refresh
+    request names the resource it is for (RFC 8707).
 
     Every URL this provider reaches passes the egress policy before a request
     is made: the server's origin, the documents and authorization server the
@@ -118,23 +147,24 @@ class HttpxUpstreamProvider:
                 scopes = list(resource.get("scopes_supported") or [])
             else:
                 scopes = []
+            indicator = resource_indicator(server_url, resource)  # UPO-12
             if resource is not None:
                 servers = resource.get("authorization_servers") or []
                 if servers:
-                    issuer = servers[0].rstrip("/")
+                    issuer = servers[0]
                     self._check_egress(issuer, "authorization_server_denied")
-                    for url in _authorization_server_candidates(issuer):
-                        data = await self._json(client, url)
-                        if data is not None and "authorization_endpoint" in data:
-                            return _metadata(data, scopes)
+                    for url in _authorization_server_candidates(issuer.rstrip("/")):
+                        data = _acceptable(await self._json(client, url), issuer)
+                        if data is not None:
+                            return _metadata(data, scopes, indicator)
             # no protected resource document: the origin may be its own authorization server
-            data = await self._json(client, origin + AUTHORIZATION_SERVER_PATH)
-            if data is not None and "authorization_endpoint" in data:
-                return _metadata(data, scopes)
+            data = _acceptable(await self._json(client, origin + AUTHORIZATION_SERVER_PATH), origin)
+            if data is not None:
+                return _metadata(data, scopes, indicator)
         raise NeedsConnect("upstream", "no_oauth_metadata")
 
     async def _protected_resource(
-        self, client: httpx.AsyncClient, server_url: str, challenge: _Challenge
+        self, client: httpx.AsyncClient, server_url: str, challenge: UpstreamChallenge
     ) -> dict[str, Any] | None:
         # UPO-1: the MCP authorization spec's order, server-named document first
         candidates = _protected_resource_candidates(server_url)
@@ -148,27 +178,23 @@ class HttpxUpstreamProvider:
         return None
 
     @staticmethod
-    async def _challenge(client: httpx.AsyncClient, server_url: str) -> _Challenge:
-        """What a 401 from the server names: its resource document and the scopes it wants.
+    async def _challenge(client: httpx.AsyncClient, server_url: str) -> UpstreamChallenge:
+        """What an unauthenticated MCP request to the server is challenged with.
 
-        Only the status and headers are read: a server that does not require a
-        token may answer with an open event stream, which is not waited on.
+        The request is the POST a modern client sends first; a GET would meet
+        405 from a stateless server before any authorization check. Only the
+        status and headers are read: a server that does not require a token
+        may answer with an open event stream, which is not waited on.
         """
         try:
             async with client.stream(
-                "GET", server_url, headers={"Accept": "text/event-stream"}
+                "POST", server_url, json=CHALLENGE_REQUEST, headers=CHALLENGE_HEADERS
             ) as response:
-                if response.status_code != 401:
-                    return _Challenge()
-                header = response.headers.get("www-authenticate", "")
+                if response.status_code not in (401, 403):
+                    return UpstreamChallenge()
+                return UpstreamChallenge.parse(response.headers.get("www-authenticate"))
         except httpx.HTTPError:
-            return _Challenge()
-        named = _RESOURCE_METADATA.search(header)
-        scope = _CHALLENGE_SCOPE.search(header)
-        return _Challenge(
-            resource_metadata=named.group(1) if named else None,
-            scope=scope.group(1).split() if scope else None,
-        )
+            return UpstreamChallenge()
 
     @staticmethod
     async def _json(client: httpx.AsyncClient, url: str) -> dict[str, Any] | None:
@@ -195,6 +221,7 @@ class HttpxUpstreamProvider:
             "grant_types": ["authorization_code", "refresh_token"],
             "response_types": ["code"],
             "token_endpoint_auth_method": "none",
+            "application_type": DYNAMIC_CLIENT_APPLICATION_TYPE,  # UPO-1
         }
         async with self._client_factory() as client:
             response = await client.post(meta.registration_endpoint, json=request)
@@ -225,6 +252,8 @@ class HttpxUpstreamProvider:
         }
         if scope:
             params["scope"] = scope
+        if meta.resource:  # UPO-12
+            params["resource"] = meta.resource
         return f"{meta.authorization_endpoint}?{urlencode(params)}"
 
     async def exchange(
@@ -263,6 +292,20 @@ class HttpxUpstreamProvider:
             client_secret,
         )
 
+    async def client_credentials(
+        self,
+        meta: UpstreamMetadata,
+        *,
+        client_id: str,
+        client_secret: str,
+        scope: str | None,
+    ) -> UpstreamTokens:
+        # UPO-11: the MCP OAuth Client Credentials extension, secret in the request body
+        data = {"grant_type": "client_credentials", "client_id": client_id}
+        if scope:
+            data["scope"] = scope
+        return await self._token_request(meta, data, client_secret)
+
     async def _token_request(
         self, meta: UpstreamMetadata, data: dict[str, str], client_secret: str | None
     ) -> UpstreamTokens:
@@ -270,6 +313,8 @@ class HttpxUpstreamProvider:
         self._check_egress(meta.token_endpoint, "token_endpoint_denied")
         if client_secret:
             data["client_secret"] = client_secret
+        if meta.resource:  # UPO-12: token and refresh requests name the resource too
+            data["resource"] = meta.resource
         async with self._client_factory() as client:
             response = await client.post(meta.token_endpoint, data=data)
             response.raise_for_status()

@@ -11,14 +11,22 @@ test(testTitle("E2E-03"), async ({ page, steps }) => {
 
   await steps.play([
     given("the admin on the servers page", () => page.goto("/servers")),
-    when(`registering upstream "${name}" pointing at echo-mcp`, { req: "SRV-2" }, async () => {
-      await page.getByTestId("create-name").fill(name);
+    when("checking the echo-mcp URL before registering it", { req: "SRV-11" }, async () => {
       await page.getByTestId("create-url").fill("http://echo-mcp:9000/mcp");
+      await page.getByTestId("create-inspect").click();
+      await expect(page.getByTestId("inspection-state")).toContainText("ready", {
+        timeout: 20_000,
+      });
+    }),
+    then("no credential is detected and pre-selected", { req: "UI-6" }, async () => {
+      await expect(page.getByTestId("source-none")).toBeChecked();
+    }),
+    when(`registering it as "${name}"`, { req: "SRV-2" }, async () => {
+      await page.getByTestId("create-name").fill(name);
       await page.getByTestId("create-submit").click();
-      await expect(page.getByTestId(`row-${name}`)).toBeVisible();
+      await page.waitForURL(new RegExp(`/servers/${name}$`));
     }),
     when("refreshing tools so discovery probes the live upstream", { req: "DISC-1" }, async () => {
-      await page.getByTestId(`open-${name}`).click();
       await page.getByTestId("refresh-tools").click();
     }),
     then("the discovered echo tools are listed", { req: "DISC-1" }, async () => {
@@ -36,8 +44,9 @@ test(testTitle("E2E-04"), async ({ page, steps }) => {
   await steps.play([
     given("the admin on the servers page", () => page.goto("/servers")),
     when("submitting a server name containing '__'", { req: "UI-4" }, async () => {
-      await page.getByTestId("create-name").fill("bad__name");
       await page.getByTestId("create-url").fill("http://x/mcp");
+      await page.getByTestId("create-manual").click();
+      await page.getByTestId("create-name").fill("bad__name");
       await page.getByTestId("create-submit").click();
     }),
     then("client-side validation blocks it before any row is created", { req: "UI-4" }, async () => {

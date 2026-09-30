@@ -29,13 +29,13 @@ def _units(engine, redis) -> SqlAlchemyUnitOfWorkFactory:
 
 
 def factory_for(upstream: FastMCP):
-    def factory(server, extra_headers):
+    def factory(server, extra_headers, *, observer=None):
         return Client(upstream, mode=server.protocol_mode)  # SRV-10
 
     return factory
 
 
-def failing_factory(server, extra_headers):
+def failing_factory(server, extra_headers, *, observer=None):
     raise ConnectionError("upstream down")
 
 
@@ -173,7 +173,7 @@ async def test_health_error_after_consecutive_failures_and_self_heal(engine, red
 def factory_by_name(upstreams: dict[str, FastMCP]):
     """Route each server to its own upstream; a name without one is unreachable."""
 
-    def factory(server, extra_headers):
+    def factory(server, extra_headers, *, observer=None):
         upstream = upstreams.get(server.name)
         if upstream is None:
             raise ConnectionError(f"{server.name} unreachable")

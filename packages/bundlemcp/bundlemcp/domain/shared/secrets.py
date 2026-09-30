@@ -12,6 +12,7 @@ import secrets
 API_KEY_PREFIX = "bmcp_sk_"  # KEY-1
 ACCESS_TOKEN_PREFIX = "bmcp_at_"  # OAS-4
 REFRESH_TOKEN_PREFIX = "bmcp_rt_"
+DELEGATED_TOKEN_PREFIX = "bmcp_dt_"  # FWD-6
 
 
 def generate_token(prefix: str) -> str:

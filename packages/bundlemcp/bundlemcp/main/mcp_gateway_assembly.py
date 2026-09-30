@@ -40,6 +40,7 @@ from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
+from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
 from bundlemcp.application.metering.metering_hook import MeteringHook
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
@@ -77,6 +78,9 @@ class McpGatewayAssembly(BaseModel):
     upstream_tokens: UpstreamTokenService | None = Field(
         description="Store for upstream OAuth tokens; None when no encryption keys are configured"
     )
+    delegated_tokens: DelegatedTokenIssuer = Field(  # FWD-6
+        description="Issues the upstream-bound tokens delegated_token servers receive"
+    )
     state_cipher: SecretCipher | None = Field(
         description="Seals a modern client's requestState; None when no encryption keys are "
         "configured"
@@ -91,7 +95,9 @@ class McpGatewayAssembly(BaseModel):
         dialects = DialectRegistry.default(legacy_enabled=self.settings.legacy_protocol_enabled)
         cache_hints = CacheHints(self.runtime_config)
         gate = RateLimitGate(self.rate_limiter, self.counters, self.settings)
-        credentials = UpstreamCredentialResolver(self.upstream_tokens, self.settings.public_base)
+        credentials = UpstreamCredentialResolver(
+            self.upstream_tokens, self.settings.public_base, delegated=self.delegated_tokens
+        )
         connect_prompts = AccountConnectPrompts(credentials)  # UPO-3
         fanout = MemberFanout(
             self.client_factory, credentials, self.registry, self.signals, self.runtime_config

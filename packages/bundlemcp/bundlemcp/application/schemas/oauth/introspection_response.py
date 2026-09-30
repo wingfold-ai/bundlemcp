@@ -13,9 +13,18 @@ class IntrospectionResponse(BaseModel):
     scope: str | None = Field(default=None, description="Scopes granted")
     exp: int | None = Field(default=None, description="Expiry as a Unix timestamp")
     aud: str | None = Field(
-        default=None, description="Resource identifier of the endpoint the token is valid for"
+        default=None,
+        description="Resource identifier the token is valid for: the endpoint's URL, or the "
+        "upstream server's URL for a delegated token",
     )
     email: str | None = Field(default=None, description="Email of the user, when known")
     token_use: str | None = Field(
-        default=None, description="'api_key' when the presented value was a gateway API key"
+        default=None,
+        description="'api_key' when the presented value was a gateway API key, 'delegated' "
+        "when it was a token the gateway issued for one upstream server on a caller's behalf",
+    )
+    act: dict[str, str] | None = Field(
+        default=None,
+        description="For a delegated token, the actor it was issued through: {'sub': "
+        "'endpoint:<name>'}",
     )

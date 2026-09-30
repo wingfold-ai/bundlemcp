@@ -14,3 +14,6 @@ class InMemoryUpstreamTokenRepository(InMemoryRepository[UpstreamOAuthToken]):
         return self.first(
             lambda t: t.server_id == server_id and t.user_id is not None and t.is_valid
         )
+
+    async def for_server(self, server_id: uuid.UUID) -> list[UpstreamOAuthToken]:
+        return self.where(lambda t: t.server_id == server_id)

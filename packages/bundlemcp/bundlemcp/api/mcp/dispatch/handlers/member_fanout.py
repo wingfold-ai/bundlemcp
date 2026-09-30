@@ -58,7 +58,11 @@ class MemberFanout:
     async def client_for(self, ctx: RequestContext, server: McpServer) -> Client:
         """A client for one member, with forwarded headers and its upstream bearer attached."""
         headers = forwarded_headers(ctx.request.headers, server, ctx.identity.sub)
-        headers.update(await self._credentials.headers_for(server, ctx.identity))
+        headers.update(
+            await self._credentials.headers_for(
+                server, ctx.identity, endpoint=ctx.view.endpoint.name
+            )
+        )
         handlers: dict[str, Any] = {}
         if ctx.era is ProtocolEra.SESSION:
             # PROT-4: a handshake client's GET stream answers an upstream's requests

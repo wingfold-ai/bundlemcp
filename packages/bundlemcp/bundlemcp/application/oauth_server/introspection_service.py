@@ -2,8 +2,10 @@
 
 from bundlemcp.application.auth.auth_service import AuthService
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
+from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
 from bundlemcp.application.schemas import IntrospectionResponse
 from bundlemcp.domain.access.caller_identity import API_KEY_SUBJECT_PREFIX
+from bundlemcp.domain.delegation.delegated_token import DELEGATION_CLIENT_ID
 from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
 from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.shared.secret_hasher import SecretHasher
@@ -20,7 +22,10 @@ class TokenIntrospectionService:
         clock: Clock,
         hasher: SecretHasher,
         public_base: str,
+        delegated: DelegatedTokenIssuer | None = None,
     ) -> None:
+        # delegated is None only where no delegated tokens are ever issued
+        self._delegated = delegated
         self._auth = auth
         self._clock = clock
         self._hasher = hasher
@@ -30,6 +35,19 @@ class TokenIntrospectionService:
         self._public_base = public_base
 
     async def introspect(self, token: str) -> IntrospectionResponse:
+        if self._delegated is not None:
+            delegated = await self._delegated.resolve(token)
+            if delegated is not None:  # FWD-6 / OAS-5
+                return IntrospectionResponse(
+                    active=True,
+                    sub=delegated.sub,
+                    client_id=DELEGATION_CLIENT_ID,
+                    exp=int(delegated.expires_at.timestamp()),
+                    aud=delegated.audience,
+                    email=delegated.email,
+                    token_use="delegated",
+                    act={"sub": delegated.actor} if delegated.actor else None,
+                )
         row = await self._tokens.by_access_hash(self._hasher.digest(token))
         if row is None:
             # FWD-4: forwarded bearers may be gateway API keys, not OAuth tokens —

@@ -62,6 +62,9 @@ class FakeProvider:
     async def refresh(self, meta, **kw):
         return UpstreamTokens(access_token=REFRESHED_ACCESS_TOKEN, expires_in=3600)
 
+    async def client_credentials(self, meta, **kw):
+        return UpstreamTokens(access_token="at-client", expires_in=3600)
+
 
 @asynccontextmanager
 async def _running(engine, redis, *, provider=None, bearer=None):

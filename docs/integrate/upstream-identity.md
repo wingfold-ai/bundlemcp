@@ -10,8 +10,9 @@ This page is the upstream half of a bigger picture; for how the caller got
 
 ## `X-MCP-User`: trusted on the internal network
 
-When a server's `send_identity_header` is on (the default), every request the
-gateway sends it carries:
+When a server's `send_identity_header` is on — the default for a server on
+the gateway's own network, off for public hosts — every request the gateway
+sends it carries:
 
 ```
 X-MCP-User: <sub>
@@ -30,10 +31,41 @@ the internet.
 A server that keys its state by `X-MCP-User` needs no OAuth handling at all.
 The `hyperframes` server in the reference stack works this way.
 
-## Forwarded bearer plus introspection: verifiable
+## Delegated token plus introspection: verifiable, and bound to you
 
-For servers that must verify the caller, forward the client's bearer and let
-the server ask the gateway whether it is valid:
+For servers that must verify the caller, register them with
+`auth_mode: delegated_token`. On every call the gateway sends
+`Authorization: Bearer bmcp_dt_…`, a token it issued for this caller that is
+valid for five minutes and **only at your server**: its audience is your
+server's URL. Verify it at the introspection route (below, with a
+`service`-kind API key):
+
+```json
+{
+  "active": true,
+  "sub": "…",
+  "aud": "http://weather-mcp:8080/mcp",
+  "token_use": "delegated",
+  "act": { "sub": "endpoint:main" },
+  "client_id": "bundlemcp-delegation",
+  "email": "…",
+  "exp": 1757340300
+}
+```
+
+Check that `aud` is your own URL; `sub` is the caller (a user id or
+`api_key:<id>`), `act.sub` the endpoint the call came through. This is token
+exchange: the caller's token never leaves the gateway, so a compromised or
+curious upstream holds nothing that would open the caller's endpoint.
+Anonymous callers (open endpoints) get no token.
+
+## Forwarded bearer plus introspection: legacy
+
+The older way forwards the client's own bearer and lets the server ask the
+gateway whether it is valid. It works, but the bearer was issued for the
+gateway endpoint, and passing it on is the token passthrough the MCP
+authorization spec forbids; the UI and API flag it (`forwards_caller_token`).
+Prefer a delegated token for new servers.
 
 1. Register the server with `forward_headers: {"authorization": "authorization"}`.
    The gateway then passes the caller's `Authorization` header through on
@@ -64,9 +96,10 @@ stores per-user Google tokens keyed by `sub`.
 
 ## Tool discovery of an introspecting server
 
-When the gateway probes a server to discover its tools, there is no caller
-and no bearer to forward. If the server refuses unauthenticated requests,
-give it a static credential for that path:
+When the gateway probes a server to discover its tools, there is no caller,
+so there is no bearer to forward and no delegated token to issue. If the
+server refuses unauthenticated requests, give it a static credential for that
+path (it works the same with `auth_mode: delegated_token`):
 
 ```json
 {

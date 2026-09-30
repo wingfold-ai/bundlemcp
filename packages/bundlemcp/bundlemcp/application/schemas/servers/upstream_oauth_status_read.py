@@ -4,6 +4,8 @@ from bundlemcp.application.schemas.servers.upstream_connection_status import (
     UpstreamConnectionStatus,
 )
 from bundlemcp.domain.servers.identity_mode import IdentityMode
+from bundlemcp.domain.upstream_oauth.client_identification import ClientIdentification
+from bundlemcp.domain.upstream_oauth.upstream_grant import UpstreamGrant
 
 
 class UpstreamOAuthStatusRead(BaseModel):
@@ -31,4 +33,20 @@ class UpstreamOAuthStatusRead(BaseModel):
     token_url: str | None = Field(
         default=None,
         description="Operator-configured token endpoint; null when it is discovered",
+    )
+    identification: ClientIdentification | None = Field(
+        default=None,
+        description="How the client came to be: 'preregistered' (an admin stored it), "
+        "'metadata_document' (the gateway's own client metadata URL is its id) or "
+        "'dynamic_registration'; null until there is a client",
+    )
+    grant_type: UpstreamGrant = Field(
+        default=UpstreamGrant.AUTHORIZATION_CODE,
+        description="How tokens are obtained: through a browser sign-in, or with the client "
+        "credentials grant",
+    )
+    step_up_scopes: list[str] = Field(
+        default=[],
+        description="Scopes the upstream demanded after connecting; the next connect requests "
+        "them too",
     )
