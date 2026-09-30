@@ -482,27 +482,29 @@ onMounted(async () => {
             refreshResult
           }}</span>
         </div>
-        <table class="wf-table" data-testid="tools-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Title</th>
-              <th>Description</th>
-              <th>Last seen</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="t in tools" :key="t.id" :data-testid="`tool-${t.name}`">
-              <td>{{ t.name }}</td>
-              <td>{{ t.title }}</td>
-              <td>{{ t.description }}</td>
-              <td>{{ t.last_seen_at }}</td>
-            </tr>
-            <tr v-if="tools.length === 0">
-              <td colspan="4" class="text-muted">No tools discovered.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="overflow-x-auto">
+          <table class="wf-table" data-testid="tools-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Last seen</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="t in tools" :key="t.id" :data-testid="`tool-${t.name}`">
+                <td>{{ t.name }}</td>
+                <td>{{ t.title }}</td>
+                <td>{{ t.description }}</td>
+                <td><TimestampText :value="t.last_seen_at" /></td>
+              </tr>
+              <tr v-if="tools.length === 0">
+                <td colspan="4" class="text-muted">No tools discovered.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Upstream OAuth -->
@@ -537,7 +539,7 @@ onMounted(async () => {
               as {{ upstreamStatus.shared.account_hint }}
             </span>
             <span v-if="upstreamStatus.shared.expires_at" class="text-muted">
-              · expires {{ upstreamStatus.shared.expires_at }}
+              · expires <TimestampText :value="upstreamStatus.shared.expires_at" />
             </span>
           </template>
           <template v-else>
