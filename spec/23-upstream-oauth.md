@@ -14,16 +14,27 @@ instead of sharing one credential.
 ## Requirements
 
 - **UPO-1** A server with `auth_mode=upstream_oauth`
-  ([SRV-1](10-server-registry.md)) gets upstream OAuth client config: either
-  **dynamic registration** against the upstream (RFC 7591) or
-  **pre-registered** client id/secret entered by the admin (for providers
-  without DCR). A stored client always wins. Without one, the first connect
-  registers the gateway as a **public** client (`token_endpoint_auth_method:
-  none`, PKCE, grants `authorization_code` + `refresh_token`, the gateway's
-  callback as the only redirect URI) and stores the registration with the
-  metadata it was made against; an authorization server that offers no
-  registration endpoint leaves the admin to store a client. The authorization
-  server is found the way the MCP authorization spec orders it: the
+  ([SRV-1](10-server-registry.md)) needs a client identity at the upstream
+  authorization server. The gateway uses the MCP authorization spec's
+  priority order ([ADR-0040](../docs/adr/0040-upstream-client-identification.md)):
+  1. a **pre-registered** client id/secret an admin stored — always wins;
+  2. a **Client ID Metadata Document**: when the authorization server
+     advertises `client_id_metadata_document_supported` and accepts `none`
+     as a token endpoint auth method, the gateway's client id is the URL of
+     its own published document, `{public_base}/oauth/upstream/client.json`
+     (public client, PKCE, the gateway's callback as the only redirect URI) —
+     nothing is registered or stored;
+  3. **dynamic registration** (RFC 7591, deprecated by the MCP spec but kept
+     for authorization servers without CIMD): the gateway registers as a
+     public client (`token_endpoint_auth_method: none`, `application_type:
+     web`, grants `authorization_code` + `refresh_token`, the callback as the
+     only redirect URI) and stores the registration with the metadata and
+     issuer it was made against;
+  4. otherwise the connect fails with "the admin has to store a client",
+     and inspection ([SRV-11](10-server-registry.md)) reports
+     `preregistered_required` before anyone tries.
+
+  The authorization server is found the way the MCP authorization spec orders it: the
   `resource_metadata` a 401 from the server names in `WWW-Authenticate`, then
   the RFC 9728 document path-inserted for the server's path, then at the
   origin; its metadata through RFC 8414 (path-inserted) or OpenID Connect
@@ -36,7 +47,9 @@ instead of sharing one credential.
   resource is asked again at connect time rather than requesting nothing. The
   authorization server's own `scopes_supported` is never requested: it is the
   server's whole catalogue, and a server refuses the entire request over one
-  scope the client was not granted.
+  scope the client was not granted. The challenge is obtained with an
+  unauthenticated `POST` of an MCP request (`server/discover`), because a
+  stateless server answers `GET` with 405 before it ever challenges.
 - **UPO-2** Token storage is keyed `(server_id, user_id)`; `user_id = NULL` is
   the **shared/service connection** established by an admin from the UI.
   Per-server setting `identity_mode`: `shared` (all callers use the NULL row —
@@ -67,7 +80,9 @@ instead of sharing one credential.
   and invalidates the server's bundles, so live clients receive
   `tools/list_changed` ([BND-7](12-bundles.md)).
 - **UPO-4** On upstream 401/token-expiry: refresh with the stored refresh
-  token, retry the original request once; if refresh fails, surface a
+  token (or, for a client-credentials client, a new grant — UPO-11), retry
+  the original request once. The retry is triggered by the upstream's 401
+  itself, observed on the HTTP response, not by any failed call; if refresh fails, surface a
   structured MCP error telling the caller (or admin) to re-connect, and mark
   the token row invalid. Refresh must be single-flight per token row
   (Redis lock) to avoid stampedes.
@@ -92,6 +107,38 @@ instead of sharing one credential.
   advertises `authorization_response_iss_parameter_supported`. Stored
   credentials are bound to the issuer that granted them and are never
   presented to another authorization server.
+- **UPO-10 Scope step-up.** A 403 with `error="insufficient_scope"` from an
+  upstream on a call ([SRV-12](10-server-registry.md)) is not retried
+  blindly: the challenge's `scope` is added to the scopes the server's next
+  connect requests (the union with what was requested before), and the
+  caller receives the structured reconnect error of UPO-4 naming the
+  missing permission, so reconnecting grants it. The step-up scopes are
+  stored with the server's client configuration and survive restarts.
+- **UPO-11 Client credentials.** For a shared upstream that authorizes a
+  machine rather than a person, an admin may store the client with
+  `grant_type: client_credentials` (the MCP OAuth Client Credentials
+  extension). The gateway then obtains and renews tokens with the
+  `client_credentials` grant — client secret in the request body,
+  `resource` and resource scopes included — without any browser connect;
+  "Connect" performs the grant immediately. Such a client requires
+  `identity_mode=shared`, a client secret, and an authorization server
+  whose `grant_types_supported` (when advertised) includes
+  `client_credentials`. JWT client assertions (RFC 7523) are not
+  supported.
+- **UPO-12 Resource indicators.** Every authorization request, token request
+  and refresh request carries the RFC 8707 `resource` parameter: the
+  protected resource document's `resource` when it is a parent of the
+  server URL, otherwise the canonical server URL — whether or not the
+  authorization server advertises support.
+- **UPO-13 Metadata the gateway refuses.** Discovery rejects authorization
+  server metadata that does not list `S256` in
+  `code_challenge_methods_supported` (the connect cannot use PKCE), and
+  metadata whose `issuer` differs from the issuer the document was fetched
+  for. A dynamically registered client is bound to the issuer it was
+  registered at: when the server's authorization server changes, the stored
+  registration is discarded and the gateway registers again. An
+  admin-stored client is never discarded; a connect against a different
+  issuer than it was stored for is refused with a message naming both.
 
 ## Out of scope
 

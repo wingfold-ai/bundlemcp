@@ -1,5 +1,6 @@
 """The Authorization header an upstream server needs, resolved for one caller."""
 
+from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
 from bundlemcp.domain.access.caller_identity import CallerIdentity
 from bundlemcp.domain.servers.mcp_server import McpServer
@@ -8,21 +9,43 @@ from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import Upstre
 
 
 class UpstreamCredentialResolver:
-    """Turns a server's upstream OAuth configuration into headers for one call.
+    """Turns a server's credential configuration into headers for one call.
 
-    Servers without upstream OAuth need nothing. Shared servers use the one
-    connection an admin established; per-user servers use the calling user's
-    own, so an anonymous caller can never reach one.
+    Servers without upstream OAuth or delegation need nothing beyond their
+    static headers. Shared OAuth servers use the one connection an admin
+    established; per-user servers use the calling user's own, so an anonymous
+    caller can never reach one. A delegated-token server gets a token the
+    gateway issues for the caller, valid only at that server.
     """
 
-    def __init__(self, tokens: UpstreamTokenService | None, public_base: str) -> None:
-        # tokens is None exactly when no encryption keys are configured (spec 23)
+    def __init__(
+        self,
+        tokens: UpstreamTokenService | None,
+        public_base: str,
+        *,
+        delegated: DelegatedTokenIssuer | None = None,
+    ) -> None:
+        # tokens is None exactly when no encryption keys are configured (spec 23);
+        # delegated is None only where no call is ever made on a caller's behalf
         self._tokens = tokens
         self._public_base = public_base
+        self._delegated = delegated
 
     async def headers_for(
-        self, server: McpServer, identity: CallerIdentity, *, force_refresh: bool = False
+        self,
+        server: McpServer,
+        identity: CallerIdentity,
+        *,
+        endpoint: str | None = None,
+        force_refresh: bool = False,
     ) -> dict[str, str]:
+        if server.uses_delegated_token:  # FWD-6
+            token = (
+                await self._delegated.issue(server, identity, endpoint=endpoint)
+                if self._delegated is not None
+                else None
+            )
+            return {"Authorization": f"Bearer {token}"} if token is not None else {}
         if not server.uses_upstream_oauth:
             return {}
         if self._tokens is None:
@@ -59,6 +82,11 @@ class UpstreamCredentialResolver:
         if user is None:
             return False
         return not await self._tokens.is_connected(server.id, user)
+
+    async def request_step_up(self, server: McpServer, scopes: list[str]) -> None:
+        """Have the server's next connect request scopes it demanded (UPO-10)."""
+        if self._tokens is not None and scopes:
+            await self._tokens.request_step_up(server, scopes)
 
     def connect_url(self, server: McpServer) -> str:
         """Where the caller connects their account to the server."""

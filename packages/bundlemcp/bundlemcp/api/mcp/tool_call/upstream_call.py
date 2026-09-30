@@ -21,6 +21,7 @@ from bundlemcp.application.contracts.upstream.upstream_client_factory import Ups
 from bundlemcp.application.serving.call_handle import CallHandle
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
 from bundlemcp.domain.config.call_timeouts import CallTimeouts
+from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.domain.sessions.session_record import SessionRecord
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
 
@@ -85,6 +86,7 @@ class UpstreamCall:
         self._last_activity = self._started
         self._timeout_reason: str | None = None
         self._cancelled = False
+        self.responses = ResponseLog()  # SRV-12: what the upstream answered below MCP
 
     async def _progress(self, progress: float, total: float | None, message: str | None) -> None:
         self._last_activity = self._loop.time()  # PROT-2: reset the idle window
@@ -93,7 +95,9 @@ class UpstreamCall:
 
     async def _call(self) -> Any:
         handlers = self._relay.client_kwargs(self._client_capabilities)
-        client = self._client_factory(self._tool.server, self._headers, **handlers)
+        client = self._client_factory(
+            self._tool.server, self._headers, observer=self.responses, **handlers
+        )
         async with client:
             if self._session is not None:  # SES-6 bookkeeping, handshake sessions only
                 await self._sessions.set_binding(

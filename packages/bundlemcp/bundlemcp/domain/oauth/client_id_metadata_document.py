@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from bundlemcp.domain.oauth.application_type import ApplicationType
 from bundlemcp.domain.oauth.grant_type import GrantType
 from bundlemcp.domain.oauth.redirect_uri_rule import InvalidRedirectUri, check_redirect_uri
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
@@ -34,6 +35,9 @@ class ClientIdMetadataDocument(BaseModel):
         description="Grant types the client intends to use",
     )
     scope: str | None = Field(default=None, description="Space-separated scopes requested")
+    application_type: ApplicationType | None = Field(
+        default=None, description="'web' or 'native', when the document says"
+    )
 
     @field_validator("grant_types", mode="before")
     @classmethod

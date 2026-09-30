@@ -30,3 +30,6 @@ class SqlAlchemyUpstreamTokenRepository(
             UpstreamOAuthTokenRow.is_valid.is_(True),  # type: ignore[attr-defined]
         )
         return rows[0] if rows else None
+
+    async def for_server(self, server_id: uuid.UUID) -> list[UpstreamOAuthToken]:
+        return await self.all(UpstreamOAuthTokenRow.server_id == server_id)

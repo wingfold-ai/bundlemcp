@@ -12,9 +12,10 @@ surface. It is a pure client of the management API
 ## Requirements
 
 - **UI-1 Pages**:
-  - **Servers** — list w/ health badges; detail: config, secret header
-    editing (write-only), forward-headers, upstream OAuth connect status
-    ([UPO-5](23-upstream-oauth.md)), discovered tools, refresh/prune, probe.
+  - **Servers** — list w/ health and connection-state badges; detail:
+    config, secret header editing (write-only), forward-headers, upstream
+    OAuth connect status ([UPO-5](23-upstream-oauth.md)), discovered tools,
+    refresh/prune, probe.
   - **Bundles** — list; detail: member servers (add/remove/enable), tool
     curation table (enable toggles, inline overrides, stale/overridden
     badges — [TM-5](13-tool-management.md)), endpoints of this bundle.
@@ -42,6 +43,21 @@ surface. It is a pure client of the management API
   submitting.
 - **UI-5** The web container is optional at runtime: the gateway is fully
   operable via API alone ([API parity — 40-management-api.md](40-management-api.md)).
+- **UI-6 Guided server registration.** Registering a server starts from its
+  URL (or a pasted registry `server.json`, [SRV-15](10-server-registry.md)):
+  the UI runs inspection ([SRV-11](10-server-registry.md)), shows what was
+  detected, and asks only what the upstream cannot answer, as one question —
+  *where does the credential come from?* — with the detected answer
+  pre-selected: none; a key or token the operator enters (verified by
+  re-inspecting with it before saving); each user signs in with their own
+  account; one shared account (interactive, or client credentials,
+  [UPO-11](23-upstream-oauth.md)); a delegated gateway token
+  ([FWD-6](24-identity-forwarding.md)). OAuth client fields appear only when
+  inspection reports that no automatic client identification is possible.
+  Forward headers, the identity header and the protocol pin sit in a
+  collapsed *Advanced* section. The server detail page shows the connection
+  state (SRV-12) and offers the fix for a state that contradicts the
+  configuration, and shows the upstream OAuth card only for OAuth servers.
 
 ## Out of scope
 

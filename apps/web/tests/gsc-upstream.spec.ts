@@ -1,4 +1,4 @@
-import { test, expect, given, then } from "./gherkin";
+import { test, expect, given, when, then } from "./gherkin";
 import { STORAGE } from "./flows";
 import { testTitle } from "./spec-map";
 
@@ -16,21 +16,33 @@ test(testTitle("E2E-12"), async ({ page, steps }) => {
     then("the seeded forward_headers pass the caller's bearer through", { req: "FWD-4" }, async () => {
       await expect(page.getByTestId("fwd-key-0")).toHaveValue("authorization");
     }),
-    then("the upstream OAuth status card renders", { req: "FWD-4" }, async () => {
-      await expect(page.getByTestId("upstream-status")).toBeVisible();
+    then("forwarding the caller's bearer is flagged as passthrough", { req: "FWD-7" }, async () => {
+      await expect(page.getByTestId("passthrough-warning")).toBeVisible();
     }),
   ]);
 });
 
-// The gateway-native upstream OAuth flow: the connect link must point at the
-// gateway connect route. Following it requires a live upstream IdP, so only the
-// wiring is asserted here.
+// The gateway-native upstream OAuth flow: the connect link of an OAuth server
+// must point at the gateway connect route. Following it requires a live
+// upstream IdP, so only the wiring is asserted here.
 test(testTitle("E2E-13"), async ({ page, steps }) => {
+  const name = "e2e-oauth";
+  page.on("dialog", (d) => d.accept());
   await steps.play([
-    given("the seo-gsc server detail page", () => page.goto("/servers/seo-gsc")),
-    then("the connect link targets /oauth/upstream/seo-gsc/connect", { req: "UPO-1" }, async () => {
+    given("the admin on the servers page", () => page.goto("/servers")),
+    when("registering a server whose users sign in with their own account", { req: "UI-6" }, async () => {
+      await page.getByTestId("create-url").fill("http://oauth-e2e.invalid/mcp");
+      await page.getByTestId("create-manual").click();
+      await page.getByTestId("create-name").fill(name);
+      await page.getByTestId("source-per_user").check();
+      await page.getByTestId("create-submit").click();
+      await page.waitForURL(new RegExp(`/servers/${name}$`));
+    }),
+    then("the connect link targets its gateway connect route", { req: "UPO-1" }, async () => {
       const href = await page.getByTestId("upstream-connect").getAttribute("href");
-      expect(href).toContain("/oauth/upstream/seo-gsc/connect");
+      expect(href).toContain(`/oauth/upstream/${name}/connect`);
+      await page.getByTestId("delete-server").click();
+      await page.waitForURL(/\/servers$/);
     }),
   ]);
 });
