@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@nuxt/ui": "^4.0.0",
-    "nuxt": "^4.0.0",
+    "nuxt": "^4.6.0",
     "openapi-fetch": "^0.14.0"
   },
   "devDependencies": {
@@ -25,5 +25,9 @@
     "openapi-typescript": "^7.9.0",
     "typescript": "^5.9.0",
     "vue-tsc": "^3.3.11"
+  },
+  "overrides": {
+    "simple-git": "^4.0.2",
+    "esbuild": "^0.28.2"
   }
 }
