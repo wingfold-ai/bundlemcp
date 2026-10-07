@@ -2,9 +2,12 @@
 name: CI
 
 on:
+  # A pull request runs CI once through pull_request; push covers main only, so
+  # a branch with an open pull request is not built twice.
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
