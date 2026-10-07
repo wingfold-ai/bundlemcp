@@ -37,13 +37,14 @@ class UpstreamTokenRefresher:
         self._provider = provider
         self._lock = lock
 
+    # UPO-11
     async def access_token(
         self, server: McpServer, user_id: uuid.UUID | None, *, force: bool = False
     ) -> str:
         """A valid access token, refreshed proactively when near expiry or when forced.
 
         A shared client-credentials connection is obtained on first use rather
-        than through a browser connect, and renewed by granting again (UPO-11).
+        than through a browser connect, and renewed by granting again.
         """
         row = await self._tokens.load(server.id, user_id)
         if row is None or not row.is_valid:

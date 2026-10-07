@@ -74,13 +74,14 @@ class UpstreamConnectFlow:
             update={"resource_scopes": resource_scopes, "step_up_scopes": config.step_up_scopes}
         ).authorization_scope
 
+    # UPO-13
     async def ensure_client(self, server: McpServer, redirect_uri: str) -> UpstreamClientConfig:
         """The client this gateway uses at the server's authorization server, obtaining one.
 
         An admin-stored client is used as it is. A client the gateway obtained
         earlier is reused while its issuer is still the server's; when the
         server moved to another authorization server it is discarded along with
-        its tokens and a new one is obtained (UPO-13).
+        its tokens and a new one is obtained.
         """
         config = await self._tokens.find_client_config(server.id)
         if config is not None and config.is_admin_stored:
@@ -151,8 +152,9 @@ class UpstreamConnectFlow:
         )
         await self._tokens.save(server.id, user_id, tokens)
 
+    # UPO-11
     async def grant_client_credentials(self, server: McpServer) -> str:
-        """Obtain and store the shared token of a client-credentials client (UPO-11)."""
+        """Obtain and store the shared token of a client-credentials client."""
         config = await self._tokens.client_config(server.id)
         if config.grant != UpstreamGrant.CLIENT_CREDENTIALS or not config.client_secret:
             raise NeedsConnect(server.name, "not_client_credentials")

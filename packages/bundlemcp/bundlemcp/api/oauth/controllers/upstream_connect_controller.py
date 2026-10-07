@@ -44,9 +44,10 @@ class UpstreamConnectController(Controller):
     def _redirect_uri(settings: Settings) -> str:
         return f"{settings.public_base}/oauth/upstream/callback"
 
+    # UPO-1 (CIMD)
     @route.get("/client.json")
     async def client_document(self, settings: SettingsProvider) -> Response:
-        """The gateway's own OAuth client metadata document (UPO-1, CIMD).
+        """The gateway's own OAuth client metadata document.
 
         An upstream authorization server that accepts metadata-document client
         ids fetches this URL, which is also the client id the gateway presents.

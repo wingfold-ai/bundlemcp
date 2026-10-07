@@ -277,11 +277,12 @@ class CompositionRoot:
             ),
         )
 
+    # UPO-1
     def _client_document_url(self) -> str | None:
         """The gateway's client metadata document, when an authorization server can fetch it.
 
         A client id must be an https URL, so a gateway served over plain http
-        falls back to dynamic registration (UPO-1).
+        falls back to dynamic registration.
         """
         if not self._settings.public_base.startswith("https://"):
             return None

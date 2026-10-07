@@ -131,8 +131,9 @@ class UpstreamTokenStorage:
             await uow.commit()
             return self._config(client)
 
+    # UPO-13
     async def forget_registration(self, server_id: uuid.UUID) -> None:
-        """Drop a client the gateway obtained itself, and every token issued to it (UPO-13)."""
+        """Drop a client the gateway obtained itself, and every token issued to it."""
         async with self._units.open() as uow:
             client = await uow.upstream_clients.for_server(server_id)
             if client is None or self._config(client).is_admin_stored:
@@ -145,8 +146,9 @@ class UpstreamTokenStorage:
                 await uow.upstream_tokens.delete(row)
             await uow.commit()
 
+    # UPO-10
     async def add_step_up_scopes(self, server_id: uuid.UUID, scopes: list[str]) -> bool:
-        """Remember scopes an upstream demanded, for the next connect to request (UPO-10).
+        """Remember scopes an upstream demanded, for the next connect to request.
 
         Returns whether anything new was added.
         """

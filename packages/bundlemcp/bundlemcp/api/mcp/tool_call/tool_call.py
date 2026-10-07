@@ -187,16 +187,17 @@ class ToolCall:
                 allowed=self._support.metering_fail_open, reason="metering_unavailable"
             )
 
+    # UPO-4, UPO-10, MID-3
     async def execute(
         self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
     ) -> CallOutcome:
         """Drive the upstream once; act on what an upstream refusal says.
 
         A 401 from an upstream-OAuth server forces a token refresh and one
-        retry (UPO-4); a 403 insufficient_scope records the scopes the next
-        connect must request and asks the caller to reconnect (UPO-10). The
+        retry; a 403 insufficient_scope records the scopes the next
+        connect must request and asks the caller to reconnect. The
         same metering context is reused — an internal retry does NOT re-fire
-        pre_call (MID-3).
+        pre_call.
         """
         attempt = self._upstream_call(self._headers, on_progress, on_notification)
         outcome = await attempt.run()
@@ -224,8 +225,9 @@ class ToolCall:
             {**self._headers, **refreshed}, on_progress, on_notification
         ).run()
 
+    # UPO-10
     async def _step_up(self, outcome: CallOutcome, scopes: list[str]) -> CallOutcome:
-        """Remember the demanded scopes and tell the caller to reconnect (UPO-10)."""
+        """Remember the demanded scopes and tell the caller to reconnect."""
         server = self._tool.server
         await self._support.credentials.request_step_up(server, scopes)
         needed = f" ({' '.join(scopes)})" if scopes else ""

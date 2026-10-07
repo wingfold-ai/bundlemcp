@@ -62,10 +62,11 @@ class ToolsCallHandler:
                 return await self._retry(ctx, message, tool)
         return await ToolCall(self._support, ctx, message, tool).run()
 
+    # UPO-3
     def _connect_account(
         self, ctx: RequestContext, message: JsonRpcMessage, tool: ConnectAccountTool
     ) -> Response:
-        """UPO-3: answer with the connect link; no upstream is reached and nothing is metered."""
+        """Answer with the connect link; no upstream is reached and nothing is metered."""
         audit = AuditContext.for_request(ctx, tool.presented_name).model_copy(
             update={"server_name": tool.server.name, "tool_name": CONNECT_ACCOUNT_TOOL}
         )
