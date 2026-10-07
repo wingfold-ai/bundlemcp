@@ -1,9 +1,8 @@
 # Endpoints
 
-An endpoint is a public URL that serves one bundle over Streamable HTTP.
-Create several for the same bundle to give each kind of client its own
-surface: OAuth for claude.ai, re-annotated tools for ChatGPT, an API key for
-scripts, each with its own rate limits.
+An endpoint is a public URL that serves one bundle over Streamable HTTP. Create several for the same bundle to give each
+kind of client its own surface: OAuth for claude.ai, re-annotated tools for ChatGPT, an API key for scripts, each with
+its own rate limits.
 
 The examples assume:
 
@@ -20,20 +19,16 @@ Every endpoint is served at:
 <BUNDLEMCP_PUBLIC_URL>/<endpoint_name>/mcp
 ```
 
-`POST` carries JSON-RPC. Handshake-era clients additionally use `GET` for the
-server-to-client stream and `DELETE` to end a session, both with an
-`Mcp-Session-Id`; without one they answer 405. There is no `/sse` route and
-no REST bridge.
+`POST` carries JSON-RPC. Handshake-era clients additionally use `GET` for the server-to-client stream and `DELETE` to
+end a session, both with an `Mcp-Session-Id`; without one they answer 405. There is no `/sse` route and no REST bridge.
 
-The endpoint page in the UI shows this URL with a copy button and the setup
-instructions for each client type.
+The endpoint page in the UI shows this URL with a copy button and the setup instructions for each client type.
 
 ## Creating an endpoint
 
-In the UI an endpoint is created on the page of the bundle it exposes: open
-the bundle, and its **Endpoints** card lists the existing ones and holds the
-create form. The **All endpoints** overview under Bundles shows every public
-URL across bundles. Through the API:
+In the UI an endpoint is created on the page of the bundle it exposes: open the bundle, and its **Endpoints** card lists
+the existing ones and holds the create form. The **All endpoints** overview under Bundles shows every public URL across
+bundles. Through the API:
 
 ```bash
 curl -s -X PUT $API/endpoints/assistant -H "$AUTH" -H "Content-Type: application/json" -d '{
@@ -55,8 +50,8 @@ curl -s -X PUT $API/endpoints/assistant -H "$AUTH" -H "Content-Type: application
 | `enabled` | `true` | A disabled endpoint answers 404 and keeps its configuration. |
 | `force` | `false` | Acknowledge a rename. |
 
-Reserved names are rejected: `api`, `oauth`, `.well-known`, `healthz`,
-`readyz`, `metrics`, `docs`, `login`, `consent`, `static`.
+Reserved names are rejected: `api`, `oauth`, `.well-known`, `healthz`, `readyz`, `metrics`, `docs`, `login`, `consent`,
+`static`.
 
 ## Auth modes
 
@@ -68,25 +63,21 @@ A request is accepted if it satisfies **any** listed mode.
 | `api_key` | `Authorization: Bearer bmcp_sk_…` or `X-API-Key: bmcp_sk_…` | `api_key:<key id>` |
 | `none` | nothing | anonymous |
 
-When a request carries both a valid OAuth bearer and an API key, OAuth wins
-and that identity is used everywhere: rate limiting, audit, metering,
-identity forwarding.
+When a request carries both a valid OAuth bearer and an API key, OAuth wins and that identity is used everywhere: rate
+limiting, audit, metering, identity forwarding.
 
-Endpoints that accept `oauth` appear in the users' catalogue, since a person
-can connect to them with their gateway identity; endpoints that accept only
-`api_key` are for automation and stay out of it. See
+Endpoints that accept `oauth` appear in the users' catalogue, since a person can connect to them with their gateway
+identity; endpoints that accept only `api_key` are for automation and stay out of it. See
 [Roles and identity](/guide/roles-and-identity).
 
-An OAuth token is bound to the endpoint it was issued for. Presenting it at
-another endpoint fails with `invalid_token`, and the client re-authorises
-for that endpoint.
+An OAuth token is bound to the endpoint it was issued for. Presenting it at another endpoint fails with `invalid_token`,
+and the client re-authorises for that endpoint.
 
-Unauthenticated requests receive a 401 with a `WWW-Authenticate` challenge
-pointing at `/.well-known/oauth-protected-resource/<name>/mcp`, which is how
-claude.ai discovers where to register and authorise.
+Unauthenticated requests receive a 401 with a `WWW-Authenticate` challenge pointing at
+`/.well-known/oauth-protected-resource/<name>/mcp`, which is how claude.ai discovers where to register and authorise.
 
-`none` is only valid on its own, requires `allow_unauthenticated: true`, and
-cannot serve a bundle that contains a `per_user` upstream OAuth server.
+`none` is only valid on its own, requires `allow_unauthenticated: true`, and cannot serve a bundle that contains a
+`per_user` upstream OAuth server.
 
 ## Profiles
 
@@ -96,13 +87,12 @@ cannot serve a bundle that contains a `per_user` upstream OAuth server.
 | `claude` | exactly `["oauth"]` | Passthrough; guarantees the OAuth discovery surface claude.ai requires. See [claude.ai](/connect/claude). |
 | `chatgpt` | must contain `oauth` or `api_key` | Presents every tool as read-only. See [ChatGPT](/connect/chatgpt). |
 
-`GET /api/v1/endpoints/profiles` returns the list with a description and,
-for `chatgpt`, a warning the UI displays on the endpoint page.
+`GET /api/v1/endpoints/profiles` returns the list with a description and, for `chatgpt`, a warning the UI displays on
+the endpoint page.
 
 ::: warning The chatgpt profile changes what clients are told, not what tools do
-A tool that deletes records is still called and still deletes. Only the
-annotations shown to ChatGPT say `readOnlyHint: true`. The audit log records
-every call normally.
+A tool that deletes records is still called and still deletes. Only the annotations shown to ChatGPT say
+`readOnlyHint: true`. The audit log records every call normally.
 :::
 
 ## Rate limits
@@ -127,9 +117,8 @@ every call normally.
 | `include_initialize_list` | Count `initialize` and `tools/list` too. Off by default so client startup is never throttled. |
 | `fail_closed` | Deny requests while Valkey is unreachable. Off by default: availability over throttling. |
 
-Counting happens in Valkey with fixed windows and holds across replicas. A
-rejected request gets HTTP 429 with `Retry-After`. Rejections are counted in
-metrics and logs, not in the audit log.
+Counting happens in Valkey with fixed windows and holds across replicas. A rejected request gets HTTP 429 with
+`Retry-After`. Rejections are counted in metrics and logs, not in the audit log.
 
 Omit `rate_limit` entirely for an unlimited endpoint.
 
@@ -149,15 +138,13 @@ Three URLs, one curated tool set, three different contracts with clients.
 
 ## Renaming and disabling
 
-Renaming changes the public URL and breaks every connected client. The
-rename route refuses unless forced:
+Renaming changes the public URL and breaks every connected client. The rename route refuses unless forced:
 
 ```bash
 curl -s -X POST "$API/endpoints/assistant:rename?new_name=helper&force=true" -H "$AUTH"
 ```
 
-Prefer `enabled: false` to take an endpoint offline: it answers 404, keeps
-its configuration, and can be switched back on.
+Prefer `enabled: false` to take an endpoint offline: it answers 404, keeps its configuration, and can be switched back
+on.
 
-`DELETE /api/v1/endpoints/{name}` removes the endpoint. OAuth tokens bound
-to it stop working.
+`DELETE /api/v1/endpoints/{name}` removes the endpoint. OAuth tokens bound to it stop working.

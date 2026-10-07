@@ -2,24 +2,20 @@
   <img src="docs/public/banner.svg" alt="bundlemcp: unified mcp server bundler" width="720">
 </p>
 
-A self-hostable **MCP bundling gateway**. Register upstream MCP servers
-(Streamable HTTP), compose them into **bundles**, and expose each bundle
-through one or more **endpoints** shaped for the client that will use it:
-an OAuth profile for claude.ai, a re-annotation profile for ChatGPT, API-key
-access for scripts. One gateway, any number of replicas: sessions, rate
-limits and cross-replica signalling live in Valkey, configuration, tokens and
-the audit log in Postgres, so a restart or a second replica is a non-event.
+A self-hostable **MCP bundling gateway**. Register upstream MCP servers (Streamable HTTP), compose them into
+**bundles**, and expose each bundle through one or more **endpoints** shaped for the client that will use it: an OAuth
+profile for claude.ai, a re-annotation profile for ChatGPT, API-key access for scripts. One gateway, any number of
+replicas: sessions, rate limits and cross-replica signalling live in Valkey, configuration, tokens and the audit log in
+Postgres, so a restart or a second replica is a non-event.
 
-It is a focused rewrite of the bundling core of
-[metamcp](https://github.com/metatool-ai/metamcp), built to be consumed by an
-application layer that adds its own identity provider, billing and discovery,
-but fully usable on its own with any OIDC provider.
+It is a focused rewrite of the bundling core of [metamcp](https://github.com/metatool-ai/metamcp), built to be consumed
+by an application layer that adds its own identity provider, billing and discovery, but fully usable on its own with any
+OIDC provider.
 
 ## Quickstart
 
-Prerequisites: Docker with the compose plugin, and `127.0.0.1 keycloak` in
-`/etc/hosts` (the gateway hands the browser Keycloak URLs under the compose
-hostname):
+Prerequisites: Docker with the compose plugin, and `127.0.0.1 keycloak` in `/etc/hosts` (the gateway hands the browser
+Keycloak URLs under the compose hostname):
 
 ```bash
 echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
@@ -29,11 +25,10 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 
 Then:
 
-1. Open the admin UI at <http://localhost:3000> and sign in through the
-   bundled dev identity provider with `admin` / `admin`.
-2. The seed (`deploy/seed.yaml`) has already registered the `echo` example
-   server, bundled it as `demo`, and exposed it at the `demo` endpoint with
-   API-key access. Call it with the dev service key:
+1. Open the admin UI at <http://localhost:3000> and sign in through the bundled dev identity provider with `admin` /
+   `admin`.
+2. The seed (`deploy/seed.yaml`) has already registered the `echo` example server, bundled it as `demo`, and exposed it
+   at the `demo` endpoint with API-key access. Call it with the dev service key:
 
    ```bash
    curl -s http://localhost:8000/demo/mcp \
@@ -42,15 +37,13 @@ Then:
      -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
    ```
 
-3. Create an endpoint with the `claude` profile and connect it in claude.ai;
-   the gateway runs the OAuth authorization server and the consent screen
-   itself.
+3. Create an endpoint with the `claude` profile and connect it in claude.ai; the gateway runs the OAuth authorization
+   server and the consent screen itself.
 
-The user guides (deployment, connecting clients, the management API) live in
-[docs/](docs/README.md); run `pnpm docs:install && pnpm docs:dev` to browse
-them. The management API is documented at <http://localhost:8000/api/v1/docs>. The
-maintainers' fleet of upstreams (private images) starts with
-`--profile fleet`; see [deploy/TESTING.md](deploy/TESTING.md).
+The user guides (deployment, connecting clients, the management API) live in [docs/](docs/README.md); run
+`pnpm docs:install && pnpm docs:dev` to browse them. The management API is documented at
+<http://localhost:8000/api/v1/docs>. The maintainers' fleet of upstreams (private images) starts with `--profile fleet`;
+see [deploy/TESTING.md](deploy/TESTING.md).
 
 ## Where things are
 
@@ -73,9 +66,19 @@ uv sync --all-packages
 uv run pytest -q          # hermetic unit tests: in-memory SQLite + fakeredis
 uv run ruff check .
 uv run lint-imports       # the layer contract
+uv run rumdl check .      # Markdown, 120 columns (`rumdl fmt .` rewraps)
 cd apps/web && npm ci && npm run typecheck
 ```
 
-Integration and browser tests run against the compose stack; see
-[deploy/TESTING.md](deploy/TESTING.md). Contributor conventions are in
+Integration and browser tests run against the compose stack; see [deploy/TESTING.md](deploy/TESTING.md). Contributor
+conventions are in
 [CLAUDE.md](CLAUDE.md).
+
+## Contributing
+
+Contributions are welcome — read [CONTRIBUTING.md](CONTRIBUTING.md) first. Report security problems privately as
+described in [SECURITY.md](SECURITY.md). Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## License
+
+bundlemcp is licensed under the [Apache License 2.0](LICENSE).

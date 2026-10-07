@@ -16,29 +16,20 @@
 
 - No metamcp-migration importer — manual migration for the primary user
   ([roadmap](../../spec/README.md)).
-- Prompts/resources are uncurated live passthrough (BND-8,
-  [ADR-0021](../adr/0021-mcp-surface-completion.md)) — implemented, but by design
-  no per-bundle curation like tools have.
-- **Upstream→client push between calls is pooling-dependent**
-  ([ADR-0021](../adr/0021-mcp-surface-completion.md)): `resources/subscribe`
-  updates, PROT-7 upstream log push, and PROT-10 upstream `list_changed` outside
-  an active call need a persistent upstream connection that the per-call model
-  (ADR-0012) lacks. Advertised + delivered within an active-call window; full
-  between-call push lands with connection pooling (SES-8).
-- `subscriptions/listen` acknowledges only `toolsListChanged`
-  ([PROT-17](../../spec/32-protocol-passthrough.md)) — prompt/resource
-  list-changed and resource subscriptions wait for the same pooling.
-- Protocol extensions (Tasks, MCP Apps) are not proxied and not advertised
-  (PROT-11).
-- Single scope in OAuth; audience-only binding (OAS-10) — fine-grained scopes
-  deferred.
+- Prompts/resources are uncurated live passthrough (BND-8, [ADR-0021](../adr/0021-mcp-surface-completion.md)) —
+  implemented, but by design no per-bundle curation like tools have.
+- **Upstream→client push between calls is pooling-dependent** ([ADR-0021](../adr/0021-mcp-surface-completion.md)):
+  `resources/subscribe` updates, PROT-7 upstream log push, and PROT-10 upstream `list_changed` outside an active call
+  need a persistent upstream connection that the per-call model (ADR-0012) lacks. Advertised + delivered within an
+  active-call window; full between-call push lands with connection pooling (SES-8).
+- `subscriptions/listen` acknowledges only `toolsListChanged` ([PROT-17](../../spec/32-protocol-passthrough.md)) —
+  prompt/resource list-changed and resource subscriptions wait for the same pooling.
+- Protocol extensions (Tasks, MCP Apps) are not proxied and not advertised (PROT-11).
+- Single scope in OAuth; audience-only binding (OAS-10) — fine-grained scopes deferred.
 - Inspector covers tools only (spec/53 out-of-scope list).
-- Rate limiting ([16](../../spec/16-rate-limiting.md),
-  [ADR-0018](../adr/0018-rate-limiting.md)) uses a fixed-window counter — up to
-  a 2× burst at window edges; a sliding-window log is the noted upgrade. Its
-  rejection/lockout counters are in-process; the Prometheus `/metrics` export
-  is still pending (spec 51).
-- The `application/contracts/` package holds protocols for in-process objects
-  (`StreamRegistry`, `Counters`) as well as for stores; they exist so the MCP
-  edge names no adapter and can be faked, not because a second implementation
-  is planned ([ADR-0033](../adr/0033-clean-architecture-layers.md)).
+- Rate limiting ([16](../../spec/16-rate-limiting.md), [ADR-0018](../adr/0018-rate-limiting.md)) uses a fixed-window
+  counter — up to a 2× burst at window edges; a sliding-window log is the noted upgrade. Its rejection/lockout counters
+  are in-process; the Prometheus `/metrics` export is still pending (spec 51).
+- The `application/contracts/` package holds protocols for in-process objects (`StreamRegistry`, `Counters`) as well as
+  for stores; they exist so the MCP edge names no adapter and can be faked, not because a second implementation is
+  planned ([ADR-0033](../adr/0033-clean-architecture-layers.md)).

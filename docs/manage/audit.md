@@ -1,9 +1,8 @@
 # Audit log
 
-Every `tools/call` through every endpoint produces one audit record in
-Postgres: who called what, where it went, how long it took, how it ended.
-It is the answer to "what happened?", and the reconciliation source for an
-application layer that meters calls.
+Every `tools/call` through every endpoint produces one audit record in Postgres: who called what, where it went, how
+long it took, how it ended. It is the answer to "what happened?", and the reconciliation source for an application layer
+that meters calls.
 
 ## What is recorded
 
@@ -19,18 +18,16 @@ application layer that meters calls.
 | `error_message` | Truncated failure detail. |
 | `created_at` | When the record was written. |
 
-Tool **arguments and results are not stored**. Neither are authentication
-failures or rate-limit rejections; those go to logs and metrics, not the
-audit log.
+Tool **arguments and results are not stored**. Neither are authentication failures or rate-limit rejections; those go to
+logs and metrics, not the audit log.
 
-Records are written asynchronously after the response, so auditing never
-adds latency to a call. Under normal operation they are durable; a queue
-overflow is logged and counted rather than silently dropped.
+Records are written asynchronously after the response, so auditing never adds latency to a call. Under normal operation
+they are durable; a queue overflow is logged and counted rather than silently dropped.
 
 ## Querying
 
-The **Audit** page filters by time range, endpoint, bundle, server, tool,
-caller and status. The same filters are query parameters on the API:
+The **Audit** page filters by time range, endpoint, bundle, server, tool, caller and status. The same filters are query
+parameters on the API:
 
 ```bash
 curl -s "https://gw.example.com/api/v1/audit-records?endpoint_name=assistant&status=error&created_from=2026-09-01T00:00:00Z&limit=100" \
@@ -45,20 +42,18 @@ curl -s "https://gw.example.com/api/v1/audit-records?endpoint_name=assistant&sta
 | `status` | One of the four statuses. |
 | `offset`, `limit` | Pagination, default 50, maximum 500. |
 
-Results are ordered by creation time and paginated like every other list
-route, with `items`, `total`, `offset` and `limit`.
+Results are ordered by creation time and paginated like every other list route, with `items`, `total`, `offset` and
+`limit`.
 
 ## Retention
 
-Records older than `audit_retention_days` (a runtime setting, default 90)
-are purged. If you meter calls and reconcile against the audit log, keep
-retention longer than your reconciliation window. Pull records out through
-the API on a schedule if you need them longer.
+Records older than `audit_retention_days` (a runtime setting, default 90) are purged. If you meter calls and reconcile
+against the audit log, keep retention longer than your reconciliation window. Pull records out through the API on a
+schedule if you need them longer.
 
 ## Reconciling with a metering hook
 
-For every call whose pre-call metering decision succeeded, an audit record
-with a terminal status eventually exists. A debit with no matching record
-means the gateway died between the pre-call and post-call hooks, and the
-application layer can refund it out of band. The details are in
+For every call whose pre-call metering decision succeeded, an audit record with a terminal status eventually exists. A
+debit with no matching record means the gateway died between the pre-call and post-call hooks, and the application layer
+can refund it out of band. The details are in
 [Metering hook](/integrate/metering-hook#crash-reconciliation).

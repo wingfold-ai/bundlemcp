@@ -1,6 +1,7 @@
 {
   "name": "bundlemcp-repo",
   "private": true,
+  "license": "Apache-2.0",
   "description": "Root scripts; the JavaScript projects live in docs/ and apps/web with their own package.json",
   "scripts": {
     "docs:install": "pnpm --dir docs install",

@@ -3,30 +3,28 @@
 ## Quality tree
 
 - **Resilience**
-  - Gateway restart drops no session — verified restart-under-load
-    ([SES-12](../../spec/30-session-management.md), [DEP-7](../../spec/71-deployment.md))
-  - Explicit degradation under Redis/Postgres outage (SES-14, RATE-6) — no
-    silent failure ([OBS-4](../../spec/51-observability.md))
+  - Gateway restart drops no session — verified restart-under-load ([SES-12](../../spec/30-session-management.md),
+    [DEP-7](../../spec/71-deployment.md))
+  - Explicit degradation under Redis/Postgres outage (SES-14, RATE-6) — no silent failure
+    ([OBS-4](../../spec/51-observability.md))
 - **Scalability**
   - Any replica serves any session; no sticky sessions (ARC-9, SES-2)
-  - Rate limits and caches correct across replicas (RATE-2,
-    [STP-3](../../spec/33-state-propagation.md) ≤ 2 s propagation)
+  - Rate limits and caches correct across replicas (RATE-2, [STP-3](../../spec/33-state-propagation.md) ≤ 2 s
+    propagation)
 - **Performance**
-  - Gateway overhead ≤ 50 ms p95 added latency on tool calls, measured each
-    integration run ([OBS-6](../../spec/51-observability.md))
+  - Gateway overhead ≤ 50 ms p95 added latency on tool calls, measured each integration run
+    ([OBS-6](../../spec/51-observability.md))
   - Long-running calls usable: progress-aware timeouts, cancellation
     ([PROT-1..3](../../spec/32-protocol-passthrough.md))
 - **Security**
-  - Tokens endpoint-bound + consented ([OAS-10/11](../../spec/20-oauth-server.md));
-    SSRF egress policy ([SEC-1/2](../../spec/70-security.md)); secrets never
-    logged/returned (SEC-10, testable)
+  - Tokens endpoint-bound + consented ([OAS-10/11](../../spec/20-oauth-server.md)); SSRF egress policy
+    ([SEC-1/2](../../spec/70-security.md)); secrets never logged/returned (SEC-10, testable)
 - **Integrability**
-  - Registrar converges by PUTting desired state ([API-4](../../spec/40-management-api.md));
-    metering hook exactly-once per invocation with crash reconciliation
-    ([MID-3](../../spec/31-middleware.md), [AUD-7](../../spec/50-audit-log.md))
+  - Registrar converges by PUTting desired state ([API-4](../../spec/40-management-api.md)); metering hook exactly-once
+    per invocation with crash reconciliation ([MID-3](../../spec/31-middleware.md), [AUD-7](../../spec/50-audit-log.md))
 - **Maintainability**
-  - Latest-stable policy (ARC-1); spec-first change process; generated
-    frontend types (ARC-4); hermetic test gate (ARC-14)
+  - Latest-stable policy (ARC-1); spec-first change process; generated frontend types (ARC-4); hermetic test gate
+    (ARC-14)
 
 ## Concrete scenarios
 

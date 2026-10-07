@@ -9,10 +9,9 @@ view: production — "bundlemcp — Deployment (reference topology)"
 
 ## Reference topology
 
-Operator's reverse proxy (TLS, `X-Forwarded-*`) → N stateless **gateway**
-replicas + **web** container; **Postgres** and **Valkey** (the RESP store,
-BSD-3 — [ADR-0022](../adr/0022-valkey-store.md)) shared by all replicas. No
-sticky sessions — the proxy may round-robin freely
+Operator's reverse proxy (TLS, `X-Forwarded-*`) → N stateless **gateway** replicas + **web** container; **Postgres** and
+**Valkey** (the RESP store, BSD-3 — [ADR-0022](../adr/0022-valkey-store.md)) shared by all replicas. No sticky sessions
+— the proxy may round-robin freely
 ([ARC-9](../../spec/01-architecture.md)).
 
 | Aspect | Rule | Spec |

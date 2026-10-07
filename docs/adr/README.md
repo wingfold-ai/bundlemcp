@@ -1,9 +1,9 @@
 # Architecture Decision Records
 
-MADR-style records: **Status / Context / Decision drivers / Decision / Alternatives considered / Consequences** (Consequences split into Positive and Trade-offs).
-Append-only — a superseding decision adds a new ADR and flips the old one to
-`superseded by NNNN`. Indexed from [arc42 §9](../arc42/09-architecture-decisions.md);
-process rules in [spec/62](../../spec/62-architecture-documentation.md) (ADOC-2, ADOC-5).
+MADR-style records: **Status / Context / Decision drivers / Decision / Alternatives considered / Consequences**
+(Consequences split into Positive and Trade-offs). Append-only — a superseding decision adds a new ADR and flips the old
+one to `superseded by NNNN`. Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules in
+[spec/62](../../spec/62-architecture-documentation.md) (ADOC-2, ADOC-5).
 
 | # | Decision | Status |
 |---|---|---|
