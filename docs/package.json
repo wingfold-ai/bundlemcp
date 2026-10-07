@@ -1,6 +1,7 @@
 {
   "name": "bundlemcp-docs",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "likec4": "likec4 codegen webcomponent -o public/likec4-views.js likec4",

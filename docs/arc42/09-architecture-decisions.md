@@ -1,9 +1,7 @@
 # 9. Architecture Decisions
 
-Decisions are recorded as ADRs in [`../adr/`](../adr/README.md) — MADR-style
-(Status / Context / Decision drivers / Decision / Alternatives considered /
-Consequences), append-only, written
-in the same PR as the change they govern
+Decisions are recorded as ADRs in [`../adr/`](../adr/README.md) — MADR-style (Status / Context / Decision drivers /
+Decision / Alternatives considered / Consequences), append-only, written in the same PR as the change they govern
 ([ADOC-2/ADOC-5](../../spec/62-architecture-documentation.md)).
 
 | ADR | Decision | Consequence in one line |

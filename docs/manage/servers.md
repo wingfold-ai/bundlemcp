@@ -1,10 +1,10 @@
 # Servers
 
-A server is an upstream MCP server the gateway connects to over Streamable
-HTTP. Register it once; bundles reference it by name.
+A server is an upstream MCP server the gateway connects to over Streamable HTTP. Register it once; bundles reference it
+by name.
 
-Everything on this page is available in the admin UI under **Servers** and
-through the management API. The API examples assume:
+Everything on this page is available in the admin UI under **Servers** and through the management API. The API examples
+assume:
 
 ```bash
 API=https://gw.example.com/api/v1
@@ -13,9 +13,8 @@ AUTH="Authorization: Bearer $SERVICE_KEY"
 
 ## Which settings a server needs
 
-Most of a server's configuration is a fact about the server, and the gateway
-asks the server instead of you. Only one question is really yours: **where
-does the credential come from?**
+Most of a server's configuration is a fact about the server, and the gateway asks the server instead of you. Only one
+question is really yours: **where does the credential come from?**
 
 | Answer | When | Settings |
 |---|---|---|
@@ -26,15 +25,13 @@ does the credential come from?**
 | **One shared machine account** | OAuth-protected and the provider issued you a client id and secret for machine access (client credentials). | as above, plus a client with `grant_type: client_credentials` |
 | **A token the gateway issues per caller** | Your own server on the gateway's network wants to know who is calling and verify it. | `auth_mode: delegated_token` |
 
-The admin UI asks exactly this question, with the answer the server gave
-already selected. Everything else — forwarded headers, the identity header,
-the protocol pin — sits under *Advanced* because the defaults are right for
-almost every server.
+The admin UI asks exactly this question, with the answer the server gave already selected. Everything else — forwarded
+headers, the identity header, the protocol pin — sits under *Advanced* because the defaults are right for almost every
+server.
 
 ## Inspecting a server before registering it
 
-`POST /api/v1/servers:inspect` contacts a URL the way discovery would and
-reports what it found. Nothing is stored.
+`POST /api/v1/servers:inspect` contacts a URL the way discovery would and reports what it found. Nothing is stored.
 
 ```bash
 curl -s -X POST $API/servers:inspect -H "$AUTH" -H "Content-Type: application/json" \
@@ -52,21 +49,17 @@ The answer's `connection_state` is one of:
 | `unreachable` | No connection (DNS, refused, TLS, timeout). | Check the URL. A server that is not up yet can still be registered. |
 | `egress_denied` | The address is outside what the gateway may reach. | See [Network egress](/self-hosting/deploy#network-egress). |
 
-`suggestion` is a ready-to-submit body for `PUT /servers/{name}`: a name
-derived from the server's own `serverInfo`, its description, the detected
-`auth_mode`, and `per_user` for an OAuth server (a person's own account is the
-safe default; switch to `shared` for a service account).
+`suggestion` is a ready-to-submit body for `PUT /servers/{name}`: a name derived from the server's own `serverInfo`, its
+description, the detected `auth_mode`, and `per_user` for an OAuth server (a person's own account is the safe default;
+switch to `shared` for a service account).
 
-A registry `server.json` can seed the same flow:
-`POST /api/v1/servers:from-server-json` with `{"document": {...}}` returns a
-draft with the first `streamable-http` remote's URL and the headers its
-publisher declared (name, description, required, secret), so you know which
-credential to enter. It fetches nothing.
+A registry `server.json` can seed the same flow: `POST /api/v1/servers:from-server-json` with `{"document": {...}}`
+returns a draft with the first `streamable-http` remote's URL and the headers its publisher declared (name, description,
+required, secret), so you know which credential to enter. It fetches nothing.
 
 ## Registering a server
 
-`PUT /api/v1/servers/{name}` creates or updates a server by name. The path
-name and the body name must match.
+`PUT /api/v1/servers/{name}` creates or updates a server by name. The path name and the body name must match.
 
 ```bash
 curl -s -X PUT $API/servers/weather -H "$AUTH" -H "Content-Type: application/json" -d '{
@@ -76,15 +69,13 @@ curl -s -X PUT $API/servers/weather -H "$AUTH" -H "Content-Type: application/jso
 }'
 ```
 
-The gateway immediately probes the URL, negotiates the protocol revision,
-runs `tools/list` and stores the tools. The response is the server including
-`health_status`, `protocol_version` and `capabilities`.
+The gateway immediately probes the URL, negotiates the protocol revision, runs `tools/list` and stores the tools. The
+response is the server including `health_status`, `protocol_version` and `capabilities`.
 
 ::: tip Registering a server that is not up yet
-A failed probe does not reject the request. The server is stored with
-`health_status: error` and `last_error` explaining why, and it is probed
-again on the next refresh or the next live call. This is what lets a
-discovery loop converge by repeatedly `PUT`ting desired state.
+A failed probe does not reject the request. The server is stored with `health_status: error` and `last_error` explaining
+why, and it is probed again on the next refresh or the next live call. This is what lets a discovery loop converge by
+repeatedly `PUT`ting desired state.
 :::
 
 ### Fields
@@ -107,8 +98,7 @@ discovery loop converge by repeatedly `PUT`ting desired state.
 
 ### Static headers
 
-For servers that expect a fixed credential, set `auth_mode: static_headers`
-and the headers to send:
+For servers that expect a fixed credential, set `auth_mode: static_headers` and the headers to send:
 
 ```json
 {
@@ -119,37 +109,31 @@ and the headers to send:
 }
 ```
 
-Header values are **write-only**. Responses list `static_header_names`
-only, the values never leave the gateway and never appear in logs. Sending
-the server again without `static_headers` keeps the stored values; send a
-new value to replace one.
+Header values are **write-only**. Responses list `static_header_names` only, the values never leave the gateway and
+never appear in logs. Sending the server again without `static_headers` keeps the stored values; send a new value to
+replace one.
 
 ### Upstream OAuth
 
-Some servers are themselves OAuth-protected and expect a bearer obtained
-from their authorization server. Set `auth_mode: upstream_oauth` and the
-gateway performs that OAuth flow, stores the tokens encrypted, refreshes them
-on expiry, and retries a call once after a refresh.
+Some servers are themselves OAuth-protected and expect a bearer obtained from their authorization server. Set
+`auth_mode: upstream_oauth` and the gateway performs that OAuth flow, stores the tokens encrypted, refreshes them on
+expiry, and retries a call once after a refresh.
 
-This needs `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` to be set; until it is, the
-server's upstream OAuth status reports `configured: false`.
+This needs `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` to be set; until it is, the server's upstream OAuth status reports
+`configured: false`.
 
 1. Register the server with `auth_mode: upstream_oauth`.
-2. Usually skip this step. The gateway identifies itself the way the MCP
-   authorization spec orders it:
+2. Usually skip this step. The gateway identifies itself the way the MCP authorization spec orders it:
    - a client you stored (below) always wins;
-   - otherwise, when the authorization server accepts **client metadata
-     documents** and the gateway is served over https, the gateway's client
-     id is its own document, `<public url>/oauth/upstream/client.json`
-     (nothing is registered);
-   - otherwise, when it offers **dynamic client registration**, the gateway
-     registers itself as a public web client (PKCE, no secret) with
-     `<public url>/oauth/upstream/callback` as its redirect URI, and keeps
-     that registration bound to the authorization server's issuer — if the
-     server later moves to another authorization server, the registration
-     and its tokens are dropped and the gateway registers again;
-   - otherwise you store a client. `POST /servers:inspect` tells you in
-     advance (`oauth.client_identification: preregistered_required`).
+   - otherwise, when the authorization server accepts **client metadata documents** and the gateway is served over
+     https, the gateway's client id is its own document, `<public url>/oauth/upstream/client.json` (nothing is
+     registered);
+   - otherwise, when it offers **dynamic client registration**, the gateway registers itself as a public web client
+     (PKCE, no secret) with `<public url>/oauth/upstream/callback` as its redirect URI, and keeps that registration
+     bound to the authorization server's issuer — if the server later moves to another authorization server, the
+     registration and its tokens are dropped and the gateway registers again;
+   - otherwise you store a client. `POST /servers:inspect` tells you in advance
+     (`oauth.client_identification: preregistered_required`).
 
    To store the client the gateway should present to the upstream:
 
@@ -162,106 +146,83 @@ server's upstream OAuth status reports `configured: false`.
    }'
    ```
 
-   `authorization_url` and `token_url` may be omitted when the upstream
-   publishes OAuth metadata the gateway can discover. It looks where the MCP
-   authorization spec says: the `resource_metadata` URL in the server's 401
-   `WWW-Authenticate` header, then `/.well-known/oauth-protected-resource`
-   with the server's path appended (for `https://crm.example.com/mcp`,
-   `…/.well-known/oauth-protected-resource/mcp`), then at the origin; the
-   authorization server it names is read through RFC 8414 or OpenID Connect
-   metadata. A stored client always wins over registration. The client
-   secret is write-only; the status route reports only whether one is
-   stored.
-3. Connect an account. From the server's page in the UI click **Connect**, or
-   open `<public url>/oauth/upstream/crm/connect` in a browser while signed in
-   as an admin. The gateway sends you through the upstream's consent and
-   stores the resulting tokens.
-4. Check `GET /api/v1/servers/crm/upstream-oauth`: `shared.connected` is
-   `true`, and `account_hint` shows a masked account identifier.
+   `authorization_url` and `token_url` may be omitted when the upstream publishes OAuth metadata the gateway can
+   discover. It looks where the MCP authorization spec says: the `resource_metadata` URL in the server's 401
+   `WWW-Authenticate` header, then `/.well-known/oauth-protected-resource` with the server's path appended (for
+   `https://crm.example.com/mcp`, `…/.well-known/oauth-protected-resource/mcp`), then at the origin; the authorization
+   server it names is read through RFC 8414 or OpenID Connect metadata. A stored client always wins over registration.
+   The client secret is write-only; the status route reports only whether one is stored.
 
-Every authorization, token and refresh request names the server as the
-RFC 8707 `resource`, so the token is issued for that server only. The gateway
-refuses an authorization server that does not offer PKCE (`S256`) or whose
-metadata names a different issuer than the one it was fetched for.
+3. Connect an account. From the server's page in the UI click **Connect**, or open
+   `<public url>/oauth/upstream/crm/connect` in a browser while signed in as an admin. The gateway sends you through the
+   upstream's consent and stores the resulting tokens.
+4. Check `GET /api/v1/servers/crm/upstream-oauth`: `shared.connected` is `true`, and `account_hint` shows a masked
+   account identifier.
+
+Every authorization, token and refresh request names the server as the RFC 8707 `resource`, so the token is issued for
+that server only. The gateway refuses an authorization server that does not offer PKCE (`S256`) or whose metadata names
+a different issuer than the one it was fetched for.
 
 #### Client credentials
 
-For a shared server whose provider issued a client for machine access, store
-the client with `grant_type: client_credentials` and its secret. The gateway
-then obtains tokens with the client credentials grant (the MCP OAuth Client
-Credentials extension) — no browser sign-in — and simply requests a new token
-when one expires. Connect it right away with
-`POST /api/v1/servers/{name}/upstream-oauth:connect`, or let the first call do
-it. Such a client only works with `identity_mode: shared`.
+For a shared server whose provider issued a client for machine access, store the client with
+`grant_type: client_credentials` and its secret. The gateway then obtains tokens with the client credentials grant (the
+MCP OAuth Client Credentials extension) — no browser sign-in — and simply requests a new token when one expires. Connect
+it right away with `POST /api/v1/servers/{name}/upstream-oauth:connect`, or let the first call do it. Such a client only
+works with `identity_mode: shared`.
 
 #### When a server asks for more permission
 
-A server may accept the token but refuse one operation with
-`403 insufficient_scope` and the scope it needs. The gateway does not retry
-blindly: it remembers the scope, and the caller gets an error with the
-reconnect link. The next connect requests the original scopes plus the new
-ones; the status route lists them as `step_up_scopes`.
+A server may accept the token but refuse one operation with `403 insufficient_scope` and the scope it needs. The gateway
+does not retry blindly: it remembers the scope, and the caller gets an error with the reconnect link. The next connect
+requests the original scopes plus the new ones; the status route lists them as `step_up_scopes`.
 
-Tool discovery uses the connection: the shared one, or for a `per_user`
-server any user's working one. Until an account is connected the server has
-no tools in the cache, and discovery reports it as not connected rather than
-failing. Every completed connect triggers discovery, and when the tools change
-the server's bundles are invalidated so connected clients re-list them.
+Tool discovery uses the connection: the shared one, or for a `per_user` server any user's working one. Until an account
+is connected the server has no tools in the cache, and discovery reports it as not connected rather than failing. Every
+completed connect triggers discovery, and when the tools change the server's bundles are invalidated so connected
+clients re-list them.
 
-`DELETE /api/v1/servers/crm/upstream-oauth/token` disconnects the shared
-account.
+`DELETE /api/v1/servers/crm/upstream-oauth/token` disconnects the shared account.
 
 #### Shared versus per-user identity
 
 `identity_mode` decides whose account the gateway uses:
 
-- **`shared`** (default): one connection, established by an admin as above,
-  serves every caller. This is right for service accounts.
-- **`per_user`**: every caller connects their own account. A signed-in user
-  who has not connected yet sees an extra tool, `crm__connect_account`, in
-  the endpoint's tool list. Calling it returns the connect URL
-  (`…/oauth/upstream/crm/connect?as=me`); it reaches no upstream and is not
-  metered. The user opens the link, signs in to the gateway if needed,
-  completes the upstream consent, and re-lists tools: the connect tool is
-  gone and the server's tools are there. Calling one of the server's tools
-  without a stored token fails with a structured MCP error carrying the same
-  URL. API-key callers are not offered the connect tool, because a per-user
-  connection belongs to a user.
+- **`shared`** (default): one connection, established by an admin as above, serves every caller. This is right for
+  service accounts.
+- **`per_user`**: every caller connects their own account. A signed-in user who has not connected yet sees an extra
+  tool, `crm__connect_account`, in the endpoint's tool list. Calling it returns the connect URL
+  (`…/oauth/upstream/crm/connect?as=me`); it reaches no upstream and is not metered. The user opens the link, signs in
+  to the gateway if needed, completes the upstream consent, and re-lists tools: the connect tool is gone and the
+  server's tools are there. Calling one of the server's tools without a stored token fails with a structured MCP error
+  carrying the same URL. API-key callers are not offered the connect tool, because a per-user connection belongs to a
+  user.
 
-One account per person per server: the stored token is used for every MCP
-client that person connects with. A `per_user` server can only be served by
-endpoints that identify callers: the gateway refuses to put such a server in
-a bundle exposed by a `none` endpoint, and refuses the endpoint change that
-would create that situation. How this fits with the caller identity is on
+One account per person per server: the stored token is used for every MCP client that person connects with. A `per_user`
+server can only be served by endpoints that identify callers: the gateway refuses to put such a server in a bundle
+exposed by a `none` endpoint, and refuses the endpoint change that would create that situation. How this fits with the
+caller identity is on
 [Roles and identity](/guide/roles-and-identity).
 
-Tokens are never returned by any API. The UI shows connection status
-(connected, expired, invalid) and the account hint only.
+Tokens are never returned by any API. The UI shows connection status (connected, expired, invalid) and the account hint
+only.
 
 ## Forwarding headers and identity
 
 Two separate mechanisms carry the caller to the upstream:
 
-- **`auth_mode: delegated_token`** gives the upstream a token of its own on
-  every call: short-lived (five minutes), issued by the gateway for the
-  caller, with the server's URL as its audience. The upstream verifies it at
-  the gateway's introspection route and learns `sub`, `email`, `aud` and the
-  endpoint the call came through (`act.sub`). This is the token-exchange
-  pattern, and the recommended way for your own servers to learn who is
-  calling.
-- **`forward_headers`** passes selected client headers through.
-  `{"authorization": "authorization"}` forwards the caller's own gateway
-  token, which the upstream can also introspect — but that token was issued
-  for the gateway endpoint, and passing it on is the token passthrough the
-  MCP authorization spec forbids an MCP server to accept. It keeps working for
-  trusted internal servers; the API reports it as `forwards_caller_token` and
-  the UI marks it. Prefer `delegated_token`. `host`, `cookie`,
-  `content-length`, `x-api-key`, `mcp-session-id` and anything `sec-*` or
-  `proxy-*` can never be forwarded, and are rejected when the server is
-  saved.
-- **`send_identity_header`** injects `X-MCP-User: <sub>`, where `sub` is the
-  user id or `api_key:<id>`. A client-sent `X-MCP-User` is always stripped.
-  On a `none` endpoint the header is omitted.
+- **`auth_mode: delegated_token`** gives the upstream a token of its own on every call: short-lived (five minutes),
+  issued by the gateway for the caller, with the server's URL as its audience. The upstream verifies it at the gateway's
+  introspection route and learns `sub`, `email`, `aud` and the endpoint the call came through (`act.sub`). This is the
+  token-exchange pattern, and the recommended way for your own servers to learn who is calling.
+- **`forward_headers`** passes selected client headers through. `{"authorization": "authorization"}` forwards the
+  caller's own gateway token, which the upstream can also introspect — but that token was issued for the gateway
+  endpoint, and passing it on is the token passthrough the MCP authorization spec forbids an MCP server to accept. It
+  keeps working for trusted internal servers; the API reports it as `forwards_caller_token` and the UI marks it. Prefer
+  `delegated_token`. `host`, `cookie`, `content-length`, `x-api-key`, `mcp-session-id` and anything `sec-*` or `proxy-*`
+  can never be forwarded, and are rejected when the server is saved.
+- **`send_identity_header`** injects `X-MCP-User: <sub>`, where `sub` is the user id or `api_key:<id>`. A client-sent
+  `X-MCP-User` is always stripped. On a `none` endpoint the header is omitted.
 
 Details for the server side are in
 [Identity for upstream servers](/integrate/upstream-identity).
@@ -276,44 +237,35 @@ Details for the server side are in
 | `legacy` | Always use the handshake. Only for a server that speaks both eras but serves server-initiated requests (elicitation, sampling) on the handshake path only. |
 | `YYYY-MM-DD` | Pin one modern revision. |
 
-The negotiated revision is stored as `protocol_version` so you can see which
-servers still speak the handshake era.
+The negotiated revision is stored as `protocol_version` so you can see which servers still speak the handshake era.
 
 ## Tools and health
 
-`GET /api/v1/servers/{name}/tools` lists the cached tools with their input
-schema, annotations and `last_seen_at`. `POST /api/v1/servers/{name}:refresh-tools`
-re-probes and re-discovers; the result reports how many tools were
+`GET /api/v1/servers/{name}/tools` lists the cached tools with their input schema, annotations and `last_seen_at`.
+`POST /api/v1/servers/{name}:refresh-tools` re-probes and re-discovers; the result reports how many tools were
 discovered and how many definitions changed.
 
-The gateway also re-discovers every server on its own every
-`BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds (default 30 minutes). A server
-you registered before its upstream was reachable therefore gets its tools
-without a manual refresh, and a server whose tools change is picked up within
-one interval. Use the refresh endpoint when you do not want to wait.
+The gateway also re-discovers every server on its own every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds (default 30
+minutes). A server you registered before its upstream was reachable therefore gets its tools without a manual refresh,
+and a server whose tools change is picked up within one interval. Use the refresh endpoint when you do not want to wait.
 
-Tools that disappear upstream stay in the cache, marked by an old
-`last_seen_at`, so a bundle's curation of them survives a temporary outage.
+Tools that disappear upstream stay in the cache, marked by an old `last_seen_at`, so a bundle's curation of them
+survives a temporary outage.
 
-`health_status` is `ok`, `error` or `unknown`. It turns `error` after
-`server_error_attempts` consecutive failures (a runtime setting, default 3)
-and returns to `ok` on the next successful connection.
+`health_status` is `ok`, `error` or `unknown`. It turns `error` after `server_error_attempts` consecutive failures (a
+runtime setting, default 3) and returns to `ok` on the next successful connection.
 
 `connection_state` says *why*, and is updated on every probe: the states of
-[inspection](#inspecting-a-server-before-registering-it), plus
-`account_required` (upstream OAuth is set up but nobody has connected) and
-`insufficient_scope`. When the state contradicts the configuration —
-`oauth_required` on a server without OAuth, `credential_required` on one
-that sends no credential — `configuration_mismatch` names the change, and the
-UI offers it as a button. A server that sends a key and is refused stays
-`credential_required`: the gateway never reads a rejected key as a reason to
-start OAuth.
+[inspection](#inspecting-a-server-before-registering-it), plus `account_required` (upstream OAuth is set up but nobody
+has connected) and `insufficient_scope`. When the state contradicts the configuration — `oauth_required` on a server
+without OAuth, `credential_required` on one that sends no credential — `configuration_mismatch` names the change, and
+the UI offers it as a button. A server that sends a key and is refused stays `credential_required`: the gateway never
+reads a rejected key as a reason to start OAuth.
 
 ## Renaming
 
-The name is part of every presented tool name, so renaming a server that is
-a member of any bundle changes what every connected client sees. The rename
-route refuses unless you acknowledge that:
+The name is part of every presented tool name, so renaming a server that is a member of any bundle changes what every
+connected client sees. The rename route refuses unless you acknowledge that:
 
 ```bash
 curl -s -X POST "$API/servers/weather:rename?new_name=forecast&force=true" -H "$AUTH"
@@ -321,16 +273,14 @@ curl -s -X POST "$API/servers/weather:rename?new_name=forecast&force=true" -H "$
 
 ## Deleting
 
-`DELETE /api/v1/servers/{name}` removes the server, its cached tools and its
-bundle memberships. Endpoints of those bundles keep serving the remaining
-members.
+`DELETE /api/v1/servers/{name}` removes the server, its cached tools and its bundle memberships. Endpoints of those
+bundles keep serving the remaining members.
 
 ## Reaching the server
 
-The gateway connects to the URL you give it from inside its own network. On
-the compose stack that means service names such as `http://weather-mcp:8080/mcp`.
-Loopback and cloud metadata addresses are refused by the egress policy;
-private ranges are allowed. See
+The gateway connects to the URL you give it from inside its own network. On the compose stack that means service names
+such as `http://weather-mcp:8080/mcp`. Loopback and cloud metadata addresses are refused by the egress policy; private
+ranges are allowed. See
 [Network egress](/self-hosting/deploy#network-egress).
 
 Servers that only speak stdio are wrapped in a small HTTP sidecar first:

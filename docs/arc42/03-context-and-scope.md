@@ -1,7 +1,7 @@
 # 3. Context and Scope
 
-Rendered from the LikeC4 view `index` in [`../likec4/model.c4`](../likec4/model.c4)
-(render with `npx likec4` or the VS Code extension):
+Rendered from the LikeC4 view `index` in [`../likec4/model.c4`](../likec4/model.c4) (render with `npx likec4` or the VS
+Code extension):
 
 ```likec4-view
 view: index — "bundlemcp — System Context"
@@ -19,13 +19,11 @@ view: index — "bundlemcp — System Context"
 
 ## Technical context
 
-All external interfaces are HTTPS (TLS at the operator's reverse proxy,
-[DEP-1/2](../../spec/71-deployment.md)): MCP Streamable HTTP on
-`/{endpoint}/mcp`, OAuth/`.well-known` routes, REST `/api/v1`, and probes
+All external interfaces are HTTPS (TLS at the operator's reverse proxy, [DEP-1/2](../../spec/71-deployment.md)): MCP
+Streamable HTTP on `/{endpoint}/mcp`, OAuth/`.well-known` routes, REST `/api/v1`, and probes
 `/healthz`/`/readyz`/`/metrics` ([ARC-11](../../spec/01-architecture.md)).
 
 ## Out of scope
 
-Billing, identity provision, container discovery, storefront — application
-layer ([spec/00](../../spec/00-overview.md) boundary table); dropped metamcp
-features per the [decision log](../../spec/README.md).
+Billing, identity provision, container discovery, storefront — application layer ([spec/00](../../spec/00-overview.md)
+boundary table); dropped metamcp features per the [decision log](../../spec/README.md).

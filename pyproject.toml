@@ -3,6 +3,8 @@ name = "bundlemcp-workspace"
 version = "0.1.0"
 description = "bundlemcp workspace root (see packages/ and apps/)"
 requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 
 [tool.uv.workspace]
 members = ["packages/*"]
@@ -16,6 +18,7 @@ dev-dependencies = [
     "aiosqlite>=0.21",
     "httpx>=0.28",
     "import-linter>=2.14",
+    "rumdl>=0.2.78",
 ]
 
 [tool.uv.sources]
@@ -26,6 +29,22 @@ line-length = 100
 target-version = "py313"
 # Skill scripts under .claude/ are tooling that ships with the skills, not project code.
 extend-exclude = [".claude"]
+
+# Markdown: lines stay within 120 columns; `uv run rumdl fmt .` rewraps only the lines that are
+# longer. Tables, code blocks and headings cannot be wrapped and are not checked. Reflow mode
+# "normalize" is deliberately not used: it moves a paragraph that follows a code block inside a
+# list item out of the list, and it does not treat `1)` as a list marker.
+[tool.rumdl]
+enable = ["MD013"]
+line-length = 120
+exclude = [".claude/skills"]
+
+[tool.rumdl.MD013]
+line-length = 120
+reflow = true
+tables = false
+code-blocks = false
+headings = false
 
 [tool.ruff.lint]
 select = [

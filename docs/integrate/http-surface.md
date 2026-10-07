@@ -1,7 +1,7 @@
 # HTTP surface reference
 
-Every route the gateway serves, by prefix. All of them live on the one port
-the gateway listens on; the reverse proxy needs no path-based routing.
+Every route the gateway serves, by prefix. All of them live on the one port the gateway listens on; the reverse proxy
+needs no path-based routing.
 
 ## MCP endpoints
 
@@ -11,13 +11,11 @@ the gateway listens on; the reverse proxy needs no path-based routing.
 | `GET` | `/{endpoint}/mcp` | Server-to-client event stream for handshake-era sessions. Requires `Mcp-Session-Id`; 405 without one. |
 | `DELETE` | `/{endpoint}/mcp` | Ends a handshake-era session. Requires `Mcp-Session-Id`; 405 without one. |
 
-Responses: 401 with a `WWW-Authenticate` challenge for missing or invalid
-credentials, 404 for an unknown or disabled endpoint, 429 with
-`Retry-After` for rate limits.
+Responses: 401 with a `WWW-Authenticate` challenge for missing or invalid credentials, 404 for an unknown or disabled
+endpoint, 429 with `Retry-After` for rate limits.
 
-CORS on these routes is permissive (the request origin is reflected, no
-credentials) so browser-based MCP clients work; `Mcp-Session-Id` and
-`WWW-Authenticate` are exposed.
+CORS on these routes is permissive (the request origin is reflected, no credentials) so browser-based MCP clients work;
+`Mcp-Session-Id` and `WWW-Authenticate` are exposed.
 
 ## OAuth authorization server
 
@@ -32,8 +30,7 @@ credentials) so browser-based MCP clients work; `Mcp-Session-Id` and
 | `POST` | `/oauth/introspect` | RFC 7662. Requires a service API key, as a bearer, in `X-API-Key`, or as the HTTP Basic client secret. |
 | `POST` | `/oauth/revoke` | RFC 7009. The client may revoke only its own tokens. |
 
-Every authorization response, including error redirects, carries
-`iss=<issuer>` (RFC 9207).
+Every authorization response, including error redirects, carries `iss=<issuer>` (RFC 9207).
 
 ## Browser login and upstream connect
 
@@ -66,9 +63,8 @@ CORS on `/api/v1` is restricted to `BUNDLEMCP_WEB_ORIGINS`.
 
 ## Reserved names
 
-Because endpoints are served at the root, these first path segments cannot
-be endpoint names: `api`, `oauth`, `.well-known`, `healthz`, `readyz`,
-`metrics`, `docs`, `login`, `consent`, `static`.
+Because endpoints are served at the root, these first path segments cannot be endpoint names: `api`, `oauth`,
+`.well-known`, `healthz`, `readyz`, `metrics`, `docs`, `login`, `consent`, `static`.
 
 ## Limits
 

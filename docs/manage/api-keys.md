@@ -1,8 +1,7 @@
 # API keys
 
-API keys authenticate anything that cannot do an OAuth flow: scripts, CI,
-automation platforms, server-to-server callers, and the management API
-itself.
+API keys authenticate anything that cannot do an OAuth flow: scripts, CI, automation platforms, server-to-server
+callers, and the management API itself.
 
 ## Two kinds
 
@@ -11,16 +10,13 @@ itself.
 | `endpoint` | MCP endpoints that list `api_key` in their `auth_modes`, restricted to the endpoints in its scope. |
 | `service` | Everything an `endpoint` key can, plus the management API under `/api/v1`. |
 
-Use `service` keys for automation that configures the gateway and for
-upstream servers that call the introspection route. Hand out `endpoint` keys
-to anything that only needs to use tools.
+Use `service` keys for automation that configures the gateway and for upstream servers that call the introspection
+route. Hand out `endpoint` keys to anything that only needs to use tools.
 
-Keys are created by administrators only. A person using an endpoint does not
-get a key: they connect their MCP client through OAuth, and the call is
-attributed to them. Keys identify a script or a service, never a person; see
-[Authentication](/guide/authentication) for how the kinds of credential fit
-together, and [Roles and identity](/guide/roles-and-identity) for what each
-role may do.
+Keys are created by administrators only. A person using an endpoint does not get a key: they connect their MCP client
+through OAuth, and the call is attributed to them. Keys identify a script or a service, never a person; see
+[Authentication](/guide/authentication) for how the kinds of credential fit together, and
+[Roles and identity](/guide/roles-and-identity) for what each role may do.
 
 ## Creating a key
 
@@ -46,11 +42,10 @@ The response is the only time the value is shown:
 }
 ```
 
-Only a hash and the display prefix are stored. A lost key is replaced, not
-recovered.
+Only a hash and the display prefix are stored. A lost key is replaced, not recovered.
 
-`endpoint_ids` scopes an `endpoint` key to specific endpoints; an empty list
-means every endpoint. Endpoint ids come from `GET /api/v1/endpoints`.
+`endpoint_ids` scopes an `endpoint` key to specific endpoints; an empty list means every endpoint. Endpoint ids come
+from `GET /api/v1/endpoints`.
 
 ## Using a key
 
@@ -63,34 +58,28 @@ curl https://gw.example.com/assistant-ci/mcp \
   -H "X-API-Key: bmcp_sk_…" …
 ```
 
-Against the management API, only `Authorization: Bearer` with a `service`
-key. Keys are never accepted in a query parameter.
+Against the management API, only `Authorization: Bearer` with a `service` key. Keys are never accepted in a query
+parameter.
 
-The caller identity of a key is `api_key:<id>`. That is what appears in
-audit records, what the metering hook receives, what `X-MCP-User` carries
-upstream, and what the introspection route reports for the key.
+The caller identity of a key is `api_key:<id>`. That is what appears in audit records, what the metering hook receives,
+what `X-MCP-User` carries upstream, and what the introspection route reports for the key.
 
 ## Deactivating and deleting
 
-`POST /api/v1/api-keys/{id}:deactivate` keeps the record but stops accepting
-the key; `DELETE /api/v1/api-keys/{id}` removes it. Both take effect on every
-replica within the cross-replica signalling budget, not after a cache
-expiry.
+`POST /api/v1/api-keys/{id}:deactivate` keeps the record but stops accepting the key; `DELETE /api/v1/api-keys/{id}`
+removes it. Both take effect on every replica within the cross-replica signalling budget, not after a cache expiry.
 
-`last_used_at` is maintained coarsely (at most about once a minute per key)
-so you can spot keys nobody uses before revoking them.
+`last_used_at` is maintained coarsely (at most about once a minute per key) so you can spot keys nobody uses before
+revoking them.
 
 ## The first service key
 
-A fresh gateway has no keys and no admin session, so the management API
-would be unreachable headlessly. `BUNDLEMCP_INITIAL_SERVICE_KEY` solves the
-bootstrap problem: on the first boot with no service key present, the
-gateway stores the hash of that value as a `service` key. Once any service
-key exists the variable is ignored, so create your real keys through the
-API and retire the initial one.
+A fresh gateway has no keys and no admin session, so the management API would be unreachable headlessly.
+`BUNDLEMCP_INITIAL_SERVICE_KEY` solves the bootstrap problem: on the first boot with no service key present, the gateway
+stores the hash of that value as a `service` key. Once any service key exists the variable is ignored, so create your
+real keys through the API and retire the initial one.
 
 ## Limits
 
-Keys have no expiry date and no per-key rate limit. Use the endpoint's
-`per_client` limit, where the key is the client, and revoke keys on a
-schedule of your own.
+Keys have no expiry date and no per-key rate limit. Use the endpoint's `per_client` limit, where the key is the client,
+and revoke keys on a schedule of your own.
