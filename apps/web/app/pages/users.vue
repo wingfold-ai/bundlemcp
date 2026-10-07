@@ -160,11 +160,11 @@ async function revokeConsent(userId: string, consentId: string) {
                     </tr>
                   </tbody>
                 </table>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
     </div>
-            </td>
-          </tr>
-        </template>
-      </tbody>
-    </table>
   </div>
 </template>
