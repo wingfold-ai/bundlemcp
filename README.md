@@ -79,3 +79,13 @@ cd apps/web && npm ci && npm run typecheck
 Integration and browser tests run against the compose stack; see
 [deploy/TESTING.md](deploy/TESTING.md). Contributor conventions are in
 [CLAUDE.md](CLAUDE.md).
+
+## Contributing
+
+Contributions are welcome — read [CONTRIBUTING.md](CONTRIBUTING.md) first. Report
+security problems privately as described in [SECURITY.md](SECURITY.md). Everyone
+taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## License
+
+bundlemcp is licensed under the [Apache License 2.0](LICENSE).

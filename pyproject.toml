@@ -3,6 +3,8 @@ name = "bundlemcp-workspace"
 version = "0.1.0"
 description = "bundlemcp workspace root (see packages/ and apps/)"
 requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 
 [tool.uv.workspace]
 members = ["packages/*"]
