@@ -11,5 +11,16 @@
   "devDependencies": {
     "likec4": "^1.59.3",
     "vitepress": "^1.6.4"
+  },
+  "overrides": {
+    "vitepress": {
+      "vite": "^6.4.3"
+    },
+    "vite-plugin-singlefile": {
+      "vite": "^6.4.3"
+    },
+    "bundle-require": {
+      "esbuild": "^0.28.1"
+    }
   }
 }
