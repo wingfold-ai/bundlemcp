@@ -65,7 +65,7 @@ represents a code of conduct violation, and this Code of Conduct reinforces enco
 avoid conflicts and minimize harm.
 
 When an incident does occur, it is important to report it promptly. To report a possible violation, **contact the
-maintainers privately: TODO(oss-repo-setup): add a private contact (an email address or a form), never a public issue.**
+maintainers privately at contact@wingfold.ch, never a public issue.**
 
 Community Moderators take reports of violations seriously and will make every effort to respond in a timely manner. They
 will investigate all reports of code of conduct violations, reviewing messages, logs, and recordings, or interviewing
