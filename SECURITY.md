@@ -30,5 +30,4 @@ Include what you can of the following:
 - We acknowledge a report within 3 working days, and always within 14 days.
 - We tell you whether we can reproduce the problem and what we plan to do.
 - We aim to release a fix within 90 days and coordinate the publication date with you.
-- We publish a GitHub Security Advisory for confirmed vulnerabilities and credit
-  the reporter unless you ask us not to.
+- We publish a GitHub Security Advisory for confirmed vulnerabilities and credit the reporter unless you ask us not to.

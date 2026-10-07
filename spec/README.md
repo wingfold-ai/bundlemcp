@@ -1,18 +1,14 @@
 # bundlemcp — Specifications
 
-bundlemcp is a self-hostable **MCP bundling gateway**: register upstream MCP
-servers, compose them into **bundles**, and expose each bundle through one or
-more **endpoints** tailored to the consuming client (claude.ai, ChatGPT, plain
-API clients). It is a focused Python/Nuxt rewrite of the bundling core of
-[metamcp](https://github.com/metatool-ai/metamcp), designed from day one for
-restart-safe sessions and horizontal scaling, and built to be consumed by an
-application layer that adds its own identity provider, billing, and discovery
-on top.
+bundlemcp is a self-hostable **MCP bundling gateway**: register upstream MCP servers, compose them into **bundles**, and
+expose each bundle through one or more **endpoints** tailored to the consuming client (claude.ai, ChatGPT, plain API
+clients). It is a focused Python/Nuxt rewrite of the bundling core of [metamcp](https://github.com/metatool-ai/metamcp),
+designed from day one for restart-safe sessions and horizontal scaling, and built to be consumed by an application layer
+that adds its own identity provider, billing, and discovery on top.
 
 ## How to read these specs
 
-Every numbered file is an **atomic spec**: one capability, independently
-acceptable. Shared structure:
+Every numbered file is an **atomic spec**: one capability, independently acceptable. Shared structure:
 
 | Section | Meaning |
 |---|---|
@@ -82,8 +78,8 @@ acceptable. Shared structure:
 
 ## Decision log — deliberately dropped from metamcp
 
-These metamcp features were reviewed and **rejected** for bundlemcp. They are
-recorded here so nobody re-proposes them without new evidence.
+These metamcp features were reviewed and **rejected** for bundlemcp. They are recorded here so nobody re-proposes them
+without new evidence.
 
 | Dropped | Why |
 |---|---|
@@ -110,9 +106,7 @@ recorded here so nobody re-proposes them without new evidence.
 
 Specs cite these read-only reference repos (sibling checkouts):
 
-- `../metamcp` — the fork being replaced; schema at
-  `apps/backend/src/db/schema.ts`, gateway at `apps/backend/src/lib/metamcp/`,
-  OAuth server at `apps/backend/src/routers/oauth/`.
-- The first consumer, a private application layer, is not named in this repo;
-  its registrar client and its metering router are the contracts specs 40 and
-  31 were written against.
+- `../metamcp` — the fork being replaced; schema at `apps/backend/src/db/schema.ts`, gateway at
+  `apps/backend/src/lib/metamcp/`, OAuth server at `apps/backend/src/routers/oauth/`.
+- The first consumer, a private application layer, is not named in this repo; its registrar client and its metering
+  router are the contracts specs 40 and 31 were written against.

@@ -53,8 +53,8 @@ features:
 
 ## See it run
 
-Ten minutes from clone to a working bundle. The compose stack ships a demo
-server, bundle and endpoint, so the first call needs nothing but a key.
+Ten minutes from clone to a working bundle. The compose stack ships a demo server, bundle and endpoint, so the first
+call needs nothing but a key.
 
 ::: code-group
 
@@ -82,6 +82,5 @@ curl -s http://localhost:8000/demo/mcp \
 
 :::
 
-Then open the admin UI at `localhost:3000`, register your own servers, and
-[connect claude.ai](/connect/claude) with an OAuth endpoint. The whole path is
-in the [Quickstart](/guide/quickstart).
+Then open the admin UI at `localhost:3000`, register your own servers, and [connect claude.ai](/connect/claude) with an
+OAuth endpoint. The whole path is in the [Quickstart](/guide/quickstart).

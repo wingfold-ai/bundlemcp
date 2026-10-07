@@ -4,26 +4,23 @@
 
 ## Context
 
-metamcp's #1 production failure: sessions, pools, and counters lived in
-process memory — restarts dropped everything, replicas were impossible. The
-rewrite's headline quality goals are "restarts are non-events" and "any
-replica serves any session".
+metamcp's #1 production failure: sessions, pools, and counters lived in process memory — restarts dropped everything,
+replicas were impossible. The rewrite's headline quality goals are "restarts are non-events" and "any replica serves any
+session".
 
 ## Decision drivers
 
 - Directly eliminates the failure mode that motivated the rewrite.
-- Redis was accepted as an additional required service precisely because
-  Postgres-only session storage would put hot-path session churn on the
-  system of record.
+- Redis was accepted as an additional required service precisely because Postgres-only session storage would put
+  hot-path session churn on the system of record.
 
 ## Decision
 
-Two-store split (ARC-7/8/9/10 in [spec/01](../../spec/01-architecture.md)):
-Postgres holds everything durable (config, users, tokens, audit); Redis holds
-everything live (sessions, bindings, rate limits, log ring, pub/sub). **No
-request may depend on process-local state.** A session is data, not an object
-([spec/30](../../spec/30-session-management.md)); cross-replica signaling and
-config invalidation ride Redis pub/sub ([spec/32](../../spec/32-protocol-passthrough.md),
+Two-store split (ARC-7/8/9/10 in [spec/01](../../spec/01-architecture.md)): Postgres holds everything durable (config,
+users, tokens, audit); Redis holds everything live (sessions, bindings, rate limits, log ring, pub/sub).
+**No request may depend on process-local state.** A session is data, not an object
+([spec/30](../../spec/30-session-management.md)); cross-replica signaling and config invalidation ride Redis pub/sub
+([spec/32](../../spec/32-protocol-passthrough.md),
 [spec/33](../../spec/33-state-propagation.md)).
 
 ## Alternatives considered
@@ -38,9 +35,7 @@ _Not recorded at the time of the decision._
 
 ### Trade-offs
 
-- Redis becomes availability-critical for live traffic; behavior under
-  outage is explicitly specified (degradation matrix SES-14, RATE-6) instead
-  of hand-waved.
-- Live streams remain replica-pinned; cross-replica delivery machinery
-  (SES-13) is the price of the model.
+- Redis becomes availability-critical for live traffic; behavior under outage is explicitly specified (degradation
+  matrix SES-14, RATE-6) instead of hand-waved.
+- Live streams remain replica-pinned; cross-replica delivery machinery (SES-13) is the price of the model.
 

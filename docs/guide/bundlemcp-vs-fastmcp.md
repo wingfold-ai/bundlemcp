@@ -2,9 +2,11 @@
 
 A common question when evaluating bundlemcp is:
 
-> *"Can't I just expose my tools directly using FastMCP? What does bundlemcp do differently, and what value does it add?"*
+> *"Can't I just expose my tools directly using FastMCP? What does bundlemcp do differently, and what value does it
+> add?"*
 
-The short answer: **FastMCP is a framework for building individual MCP servers. bundlemcp is an infrastructure gateway for operating, aggregating, and securing multiple MCP servers in production.** 
+The short answer: **FastMCP is a framework for building individual MCP servers. bundlemcp is an infrastructure gateway
+for operating, aggregating, and securing multiple MCP servers in production.**
 
 In fact, bundlemcp does not replace FastMCP — it uses FastMCP internally as its upstream client engine.
 
@@ -32,8 +34,10 @@ Consuming Clients (Claude.ai, ChatGPT, Agents, CI/CD)
  └───────────────┘       └───────────────┘
 ```
 
-- **Use FastMCP when:** You want to author tools in Python. FastMCP provides a great developer experience for defining `@mcp.tool()` functions, prompts, and resources.
-- **Use bundlemcp when:** You have one or more MCP servers and need to serve them to real users, LLMs, or production agents with enterprise requirements: horizontal scaling, authentication, auditing, and per-client shaping.
+- **Use FastMCP when:** You want to author tools in Python. FastMCP provides a great developer experience for defining
+  `@mcp.tool()` functions, prompts, and resources.
+- **Use bundlemcp when:** You have one or more MCP servers and need to serve them to real users, LLMs, or production
+  agents with enterprise requirements: horizontal scaling, authentication, auditing, and per-client shaping.
 
 ---
 
@@ -55,22 +59,31 @@ Consuming Clients (Claude.ai, ChatGPT, Agents, CI/CD)
 ## Key Values bundlemcp Delivers
 
 ### 1. Zero-Downtime Rolling Restarts & Horizontal Scaling
-Standard MCP servers maintain connection pools and session IDs in local memory. When deployed behind a load balancer or Kubernetes ingress, this causes two critical failure modes:
+Standard MCP servers maintain connection pools and session IDs in local memory. When deployed behind a load balancer or
+Kubernetes ingress, this causes two critical failure modes:
 1. Replicas cannot share sessions without sticky session affinity.
 2. Any deployment, restart, or worker crash instantly drops all client connections with `404 Session not found`.
 
-bundlemcp solves this by storing all durable state in Postgres and all live sessions in Valkey. A client session is pure data: any replica can serve any request, and gateway restarts never interrupt active client conversations.
+bundlemcp solves this by storing all durable state in Postgres and all live sessions in Valkey. A client session is pure
+data: any replica can serve any request, and gateway restarts never interrupt active client conversations.
 
 ### 2. Multi-Server Sprawl Eliminated
-Instead of requiring users to register 5 to 10 distinct connection URLs in Claude or Cursor, bundlemcp lets operators register servers once, curate tools into logical bundles (e.g. `engineering-bundle`, `analytics-bundle`), and hand users a single stable connection URL.
+Instead of requiring users to register 5 to 10 distinct connection URLs in Claude or Cursor, bundlemcp lets operators
+register servers once, curate tools into logical bundles (e.g. `engineering-bundle`, `analytics-bundle`), and hand users
+a single stable connection URL.
 
 ### 3. Work Around Client Quirks Without Changing Server Code
 Different LLM clients enforce conflicting constraints:
-- **Claude.ai** requires a strict OAuth 2.1 authorization server with dynamic client registration and metadata discovery endpoints.
+- **Claude.ai** requires a strict OAuth 2.1 authorization server with dynamic client registration and metadata discovery
+  endpoints.
 - **ChatGPT** refuses MCP write tools unless they are explicitly re-annotated as read-safe.
 - **CI/CD scripts and local agents** need direct API key authentication without interactive browser redirects.
 
-With bundlemcp, you author your tools once in FastMCP. You then create multiple **Endpoints** in bundlemcp pointing to the same bundle — one shaped for Claude.ai with OAuth, one with read-safe re-annotations for ChatGPT, and one authenticated by API key for automation.
+With bundlemcp, you author your tools once in FastMCP. You then create multiple **Endpoints** in bundlemcp pointing to
+the same bundle — one shaped for Claude.ai with OAuth, one with read-safe re-annotations for ChatGPT, and one
+authenticated by API key for automation.
 
 ### 4. Enterprise Auditability & Billing
-bundlemcp provides a unified audit trail recording caller identity, endpoint, upstream server, tool name, execution duration, and outcome status across all aggregated tools. Its `MeteringHook` allows commercial platforms to enforce check-and-debit credit balances before driving upstream calls.
+bundlemcp provides a unified audit trail recording caller identity, endpoint, upstream server, tool name, execution
+duration, and outcome status across all aggregated tools. Its `MeteringHook` allows commercial platforms to enforce
+check-and-debit credit balances before driving upstream calls.

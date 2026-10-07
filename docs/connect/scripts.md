@@ -1,9 +1,7 @@
 # Connect scripts and agents
 
-Anything that cannot run a browser-based OAuth flow, or should not act as a
-person, connects with an **API key**: cron jobs, CI pipelines, automation
-platforms such as n8n, backend services, and coding agents on a developer
-machine.
+Anything that cannot run a browser-based OAuth flow, or should not act as a person, connects with an **API key**: cron
+jobs, CI pipelines, automation platforms such as n8n, backend services, and coding agents on a developer machine.
 
 ## 1. An endpoint that accepts API keys
 
@@ -13,13 +11,12 @@ curl -s -X PUT https://gw.example.com/api/v1/endpoints/assistant-ci \
   -d '{"name":"assistant-ci","bundle_name":"assistant","profile":"default","auth_modes":["api_key"]}'
 ```
 
-An endpoint can list both `oauth` and `api_key`, serving humans and scripts
-from one URL. Keep a separate endpoint when you want separate rate limits.
+An endpoint can list both `oauth` and `api_key`, serving humans and scripts from one URL. Keep a separate endpoint when
+you want separate rate limits.
 
 ## 2. An endpoint key
 
-Create an `endpoint`-kind key scoped to that endpoint, from **API keys** in
-the UI or:
+Create an `endpoint`-kind key scoped to that endpoint, from **API keys** in the UI or:
 
 ```bash
 curl -s -X POST https://gw.example.com/api/v1/api-keys \
@@ -32,8 +29,7 @@ Copy the `key` from the response; it is shown once. See
 
 ## 3. Call the endpoint
 
-Send the key as a bearer or in `X-API-Key`. The endpoint speaks Streamable
-HTTP: JSON-RPC over `POST`.
+Send the key as a bearer or in `X-API-Key`. The endpoint speaks Streamable HTTP: JSON-RPC over `POST`.
 
 ::: code-group
 
@@ -93,28 +89,25 @@ console.log(await client.listTools());
 
 :::
 
-Both handshake-era clients (the SDK examples, which call `initialize`) and
-modern-era clients (the plain `curl` calls) are served on the same URL.
+Both handshake-era clients (the SDK examples, which call `initialize`) and modern-era clients (the plain `curl` calls)
+are served on the same URL.
 
 ## Coding agents
 
-Claude Code and similar tools register remote MCP servers by URL with a
-header. For Claude Code:
+Claude Code and similar tools register remote MCP servers by URL with a header. For Claude Code:
 
 ```bash
 claude mcp add --transport http assistant https://gw.example.com/assistant-ci/mcp \
   --header "Authorization: Bearer bmcp_sk_…"
 ```
 
-Other agents take an equivalent `url` plus `headers` block in their MCP
-configuration.
+Other agents take an equivalent `url` plus `headers` block in their MCP configuration.
 
 ## Identity
 
-An API key call is identified as `api_key:<key id>`. Upstream servers see
-that value in `X-MCP-User`, audit records carry the key id, and the
-metering hook receives it as `sub`. If an upstream server introspects the
-forwarded bearer, the gateway reports an API key as active with that `sub`.
+An API key call is identified as `api_key:<key id>`. Upstream servers see that value in `X-MCP-User`, audit records
+carry the key id, and the metering hook receives it as `sub`. If an upstream server introspects the forwarded bearer,
+the gateway reports an API key as active with that `sub`.
 
 ## Errors you will meet
 

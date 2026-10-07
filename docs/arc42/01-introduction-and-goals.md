@@ -1,18 +1,16 @@
 # 1. Introduction and Goals
 
-bundlemcp is a self-hostable **MCP bundling gateway**: it registers upstream
-MCP servers, composes them into **bundles**, and exposes each bundle through
-one or more **endpoints** shaped for the consuming client. Full vision:
+bundlemcp is a self-hostable **MCP bundling gateway**: it registers upstream MCP servers, composes them into
+**bundles**, and exposes each bundle through one or more **endpoints** shaped for the consuming client. Full vision:
 [spec/00-overview](../../spec/00-overview.md).
 
 ## Requirements overview
 
-- Bundle Streamable-HTTP MCP servers; serve bundles over Streamable HTTP with
-  full protocol fidelity (progress, cancellation, sampling/elicitation relay).
-- Per-client endpoint shaping: claude.ai OAuth profile, ChatGPT re-annotation
-  profile, API-key access — one bundle, many surfaces.
-- Everything manageable via UI **and** an equivalent service-authenticated
-  REST API.
+- Bundle Streamable-HTTP MCP servers; serve bundles over Streamable HTTP with full protocol fidelity (progress,
+  cancellation, sampling/elicitation relay).
+- Per-client endpoint shaping: claude.ai OAuth profile, ChatGPT re-annotation profile, API-key access — one bundle, many
+  surfaces.
+- Everything manageable via UI **and** an equivalent service-authenticated REST API.
 
 ## Quality goals (top 3)
 

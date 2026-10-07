@@ -23,11 +23,9 @@ LikeC4 view `layers` in [`../likec4/model.c4`](../likec4/model.c4):
 view: layers — "Gateway — Clean-architecture layers"
 ```
 
-The library `packages/bundlemcp/bundlemcp/` is four layers and a composition
-root. Dependencies point inward: `api` and `infrastructure` import
-`application`, `application` imports `domain`, and no layer knows the one
-outside it. `uv run lint-imports` enforces the direction and keeps the inner
-two layers free of every driver.
+The library `packages/bundlemcp/bundlemcp/` is four layers and a composition root. Dependencies point inward: `api` and
+`infrastructure` import `application`, `application` imports `domain`, and no layer knows the one outside it.
+`uv run lint-imports` enforces the direction and keeps the inner two layers free of every driver.
 
 ```
 packages/bundlemcp/bundlemcp/
@@ -60,13 +58,10 @@ packages/bundlemcp/bundlemcp/
 
 Key internal seams:
 
-- **Middleware chain** ([spec/31](../../spec/31-middleware.md)): filter →
-  overrides → profile → metering hook → audit; the hook is the only
-  sanctioned third-party extension point (`application/metering/metering_hook.py`).
-- **Egress layer** ([SEC-1](../../spec/70-security.md)): all
-  gateway-initiated HTTP to admin-supplied URLs passes one policy module
-  (`infrastructure/egress/egress_policy.py`).
-- **Session store** ([spec/30](../../spec/30-session-management.md)):
-  the only component allowed to touch session records; enforces atomic
-  updates (SES-1a) (`infrastructure/valkey/session_store.py` behind the
-  `SessionStore` contract).
+- **Middleware chain** ([spec/31](../../spec/31-middleware.md)): filter → overrides → profile → metering hook → audit;
+  the hook is the only sanctioned third-party extension point (`application/metering/metering_hook.py`).
+- **Egress layer** ([SEC-1](../../spec/70-security.md)): all gateway-initiated HTTP to admin-supplied URLs passes one
+  policy module (`infrastructure/egress/egress_policy.py`).
+- **Session store** ([spec/30](../../spec/30-session-management.md)): the only component allowed to touch session
+  records; enforces atomic updates (SES-1a) (`infrastructure/valkey/session_store.py` behind the `SessionStore`
+  contract).

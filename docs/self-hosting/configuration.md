@@ -1,13 +1,11 @@
 # Configuration
 
-The gateway is configured through environment variables prefixed
-`BUNDLEMCP_`, read once at startup. A `.env` file in the working directory is
-also read. List-valued settings are JSON arrays, for example
+The gateway is configured through environment variables prefixed `BUNDLEMCP_`, read once at startup. A `.env` file in
+the working directory is also read. List-valued settings are JSON arrays, for example
 `BUNDLEMCP_ADMIN_EMAILS='["a@example.com","b@example.com"]'`.
 
-A second, smaller set of **runtime settings** is editable while the gateway
-runs, through the UI's Settings page or the `config` API, and takes effect
-across all replicas without a restart.
+A second, smaller set of **runtime settings** is editable while the gateway runs, through the UI's Settings page or the
+`config` API, and takes effect across all replicas without a restart.
 
 ## Environment variables
 
@@ -75,15 +73,13 @@ across all replicas without a restart.
 | `BUNDLEMCP_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
 | `BUNDLEMCP_LOG_FORMAT` | `json` | `json` for a log pipeline, `text` for a terminal. Applies to the web server's loggers too. |
 
-Secrets, tokens, header values and tool arguments are never written to the
-log at any level.
+Secrets, tokens, header values and tool arguments are never written to the log at any level.
 
 ## Runtime settings
 
-These are stored in Postgres, propagated to every replica, and editable from
-**Settings** in the UI or through `GET/PUT/DELETE /api/v1/config/{key}`.
-Deleting a key resets it to its default. Values are type-checked: a boolean
-key rejects `1`, an integer key rejects `"3"`.
+These are stored in Postgres, propagated to every replica, and editable from **Settings** in the UI or through
+`GET/PUT/DELETE /api/v1/config/{key}`. Deleting a key resets it to its default. Values are type-checked: a boolean key
+rejects `1`, an integer key rejects `"3"`.
 
 | Key | Default | Meaning |
 |---|---|---|

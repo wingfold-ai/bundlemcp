@@ -1,12 +1,10 @@
 # Pydantic Models, Not Dataclasses
 
-Every structured value in this repo is a Pydantic model. `dataclasses` is not
-used — there are zero `@dataclass` decorators in `packages/bundlemcp/`, and new
-code must not reintroduce them.
+Every structured value in this repo is a Pydantic model. `dataclasses` is not used — there are zero `@dataclass`
+decorators in `packages/bundlemcp/`, and new code must not reintroduce them.
 
-This file covers choosing a base class and configuring it. For declaring the
-fields themselves — descriptions, constraints, defaults — see
-[pydantic-fields.md](pydantic-fields.md).
+This file covers choosing a base class and configuring it. For declaring the fields themselves — descriptions,
+constraints, defaults — see [pydantic-fields.md](pydantic-fields.md).
 
 ## Which base to use
 
@@ -34,8 +32,8 @@ class MeterContext(BaseModel):
     model_config = ConfigDict(frozen=True)
 ```
 
-**Holds a runtime object** — an engine, a Valkey client, an `asyncio.Event`, a
-SQLModel instance, anything Pydantic has no validator for:
+**Holds a runtime object** — an engine, a Valkey client, an `asyncio.Event`, a SQLModel instance, anything Pydantic has
+no validator for:
 
 ```python
 class CallHandle(BaseModel):
@@ -48,9 +46,8 @@ Note `Field(default_factory=...)`, not `dataclasses.field`.
 
 ## Protocol-typed fields
 
-Pydantic builds an `isinstance` validator for unknown types, and a bare
-`typing.Protocol` cannot be used with `isinstance`. The model then fails to
-build **at class-definition time**:
+Pydantic builds an `isinstance` validator for unknown types, and a bare `typing.Protocol` cannot be used with
+`isinstance`. The model then fails to build **at class-definition time**:
 
 ```
 SchemaError: 'cls' must be valid as the first argument to 'isinstance'
@@ -64,33 +61,28 @@ class MeteringHook(Protocol):
     async def pre_call(self, ctx: MeterContext) -> MeterDecision: ...
 ```
 
-This is a capability granted to the protocol object; it adds **no requirement
-to implementers**, so it is safe for published protocols that outside code
-implements structurally. It checks method *names*, not signatures — enough to
+This is a capability granted to the protocol object; it adds **no requirement to implementers**, so it is safe for
+published protocols that outside code implements structurally. It checks method *names*, not signatures — enough to
 reject a half-implemented hook at startup rather than at first call.
 
-Do not reach for `SkipValidation` to get around this. It produces a model whose
-most important fields accept anything, which is uniformity as a costume.
+Do not reach for `SkipValidation` to get around this. It produces a model whose most important fields accept anything,
+which is uniformity as a costume.
 
 ## Optionality must be honest
 
-Write `X | None` only when `None` is a real, reachable state. A field the
-composition root always supplies is **required**, even if that means a longer
-constructor call.
+Write `X | None` only when `None` is a real, reachable state. A field the composition root always supplies is
+**required**, even if that means a longer constructor call.
 
-The MCP edge's wiring object previously defaulted nine fields to `None` that
-were never `None` in practice. The cost was not theoretical: consumers carried
-eight defensive guards against impossible states, and new code copied the
-pattern because the type demanded it. Making them required deleted every one
-of those guards and made a half-wired runtime unconstructable. `AppContainer`
-and `McpEdgeAssembly` follow the same rule today: the two fields that are
-`X | None` (`upstream_tokens`, `oidc_provider`) name real deployment states.
+The MCP edge's wiring object previously defaulted nine fields to `None` that were never `None` in practice. The cost was
+not theoretical: consumers carried eight defensive guards against impossible states, and new code copied the pattern
+because the type demanded it. Making them required deleted every one of those guards and made a half-wired runtime
+unconstructable. `AppContainer` and `McpEdgeAssembly` follow the same rule today: the two fields that are `X | None`
+(`upstream_tokens`, `oidc_provider`) name real deployment states.
 
 ## Data that crosses a boundary
 
-Anything stored in Valkey, read from an external service, or handed to an
-outside implementer round-trips through Pydantic — never `json.dumps` over a
-hand-built dict:
+Anything stored in Valkey, read from an external service, or handed to an outside implementer round-trips through
+Pydantic — never `json.dumps` over a hand-built dict:
 
 ```python
 await redis.set(key, session.model_dump_json(), ex=ttl)
@@ -102,13 +94,12 @@ except ValidationError:
     return None
 ```
 
-Handle `ValidationError` explicitly at these boundaries. A stored record whose
-shape has drifted should degrade predictably, not raise mid-request.
+Handle `ValidationError` explicitly at these boundaries. A stored record whose shape has drifted should degrade
+predictably, not raise mid-request.
 
 ## Why this over dataclasses
 
-Uniformity is the stated goal, but the migration paid for itself immediately:
-converting the edge's wiring object surfaced a field annotated `str` that every caller
-had been passing an `AnyHttpUrl` to. The dataclass had hidden it behind a
-`str()` call in `__post_init__` for the life of the class. Validation at the
-construction site is the point — not serialization, and not speed.
+Uniformity is the stated goal, but the migration paid for itself immediately: converting the edge's wiring object
+surfaced a field annotated `str` that every caller had been passing an `AnyHttpUrl` to. The dataclass had hidden it
+behind a `str()` call in `__post_init__` for the life of the class. Validation at the construction site is the point —
+not serialization, and not speed.
