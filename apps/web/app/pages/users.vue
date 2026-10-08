@@ -77,92 +77,94 @@ async function revokeConsent(userId: string, consentId: string) {
 
     <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
 
-    <table class="wf-table" data-testid="users-table">
-      <thead>
-        <tr>
-          <th>Email</th>
-          <th>Display name</th>
-          <th>Admin</th>
-          <th>Active</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <template v-for="u in users" :key="u.id">
-          <tr :data-testid="`user-${u.email}`">
-            <td>{{ u.email }}</td>
-            <td>{{ u.display_name }}</td>
-            <td>
-              <UBadge :color="u.is_admin ? 'primary' : 'neutral'" variant="subtle">
-                {{ u.is_admin ? "admin" : "user" }}
-              </UBadge>
-            </td>
-            <td>
-              <UBadge :color="u.is_active ? 'success' : 'neutral'" variant="subtle">
-                {{ u.is_active ? "active" : "inactive" }}
-              </UBadge>
-            </td>
-            <td class="space-x-2">
-              <UButton
-                size="xs"
-                variant="outline"
-                :data-testid="`consents-${u.email}`"
-                @click="toggleConsents(u.id)"
-              >
-                {{ expanded.has(u.id) ? "Hide consents" : "Consents" }}
-              </UButton>
-              <UButton
-                size="xs"
-                color="error"
-                variant="outline"
-                :data-testid="`deactivate-user-${u.email}`"
-                :disabled="!u.is_active"
-                @click="deactivateUser(u.id)"
-              >
-                Deactivate
-              </UButton>
-            </td>
+    <div class="overflow-x-auto">
+      <table class="wf-table" data-testid="users-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Display name</th>
+            <th>Admin</th>
+            <th>Active</th>
+            <th>Actions</th>
           </tr>
-          <tr v-if="expanded.has(u.id)">
-            <td colspan="5">
-              <p
-                v-if="(consentsByUser[u.id] ?? []).length === 0"
-                class="text-sm text-muted"
-              >
-                No consents.
-              </p>
-              <table v-else class="wf-table">
-                <thead>
-                  <tr>
-                    <th>Client</th>
-                    <th>Endpoint</th>
-                    <th>Granted at</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="c in consentsByUser[u.id]" :key="c.id">
-                    <td>{{ c.client_id }}</td>
-                    <td>{{ c.endpoint_id }}</td>
-                    <td>{{ c.granted_at }}</td>
-                    <td>
-                      <UButton
-                        size="xs"
-                        color="error"
-                        variant="outline"
-                        :data-testid="`revoke-consent-${c.id}`"
-                        @click="revokeConsent(u.id, c.id)"
-                      >
-                        Revoke
-                      </UButton>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </template>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <template v-for="u in users" :key="u.id">
+            <tr :data-testid="`user-${u.email}`">
+              <td>{{ u.email }}</td>
+              <td>{{ u.display_name }}</td>
+              <td>
+                <UBadge :color="u.is_admin ? 'primary' : 'neutral'" variant="subtle">
+                  {{ u.is_admin ? "admin" : "user" }}
+                </UBadge>
+              </td>
+              <td>
+                <UBadge :color="u.is_active ? 'success' : 'neutral'" variant="subtle">
+                  {{ u.is_active ? "active" : "inactive" }}
+                </UBadge>
+              </td>
+              <td class="space-x-2">
+                <UButton
+                  size="xs"
+                  variant="outline"
+                  :data-testid="`consents-${u.email}`"
+                  @click="toggleConsents(u.id)"
+                >
+                  {{ expanded.has(u.id) ? "Hide consents" : "Consents" }}
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="error"
+                  variant="outline"
+                  :data-testid="`deactivate-user-${u.email}`"
+                  :disabled="!u.is_active"
+                  @click="deactivateUser(u.id)"
+                >
+                  Deactivate
+                </UButton>
+              </td>
+            </tr>
+            <tr v-if="expanded.has(u.id)">
+              <td colspan="5">
+                <p
+                  v-if="(consentsByUser[u.id] ?? []).length === 0"
+                  class="text-sm text-muted"
+                >
+                  No consents.
+                </p>
+                <table v-else class="wf-table">
+                  <thead>
+                    <tr>
+                      <th>Client</th>
+                      <th>Endpoint</th>
+                      <th>Granted at</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="c in consentsByUser[u.id]" :key="c.id">
+                      <td>{{ c.client_id }}</td>
+                      <td>{{ c.endpoint_id }}</td>
+                      <td><TimestampText :value="c.granted_at" /></td>
+                      <td>
+                        <UButton
+                          size="xs"
+                          color="error"
+                          variant="outline"
+                          :data-testid="`revoke-consent-${c.id}`"
+                          @click="revokeConsent(u.id, c.id)"
+                        >
+                          Revoke
+                        </UButton>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>

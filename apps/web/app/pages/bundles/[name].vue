@@ -325,64 +325,66 @@ onMounted(async () => {
       <!-- Members -->
       <div class="wf-card space-y-3">
         <h2 class="text-sm font-semibold">Member servers</h2>
-        <table class="wf-table" data-testid="members-table">
-          <thead>
-            <tr>
-              <th>Server</th>
-              <th>URL</th>
-              <th>Health</th>
-              <th>Enabled</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="m in members"
-              :key="m.server_name"
-              :data-testid="`member-${m.server_name}`"
-            >
-              <td>
-                <NuxtLink
-                  :to="`/servers/${m.server_name}`"
-                  class="inline-flex items-center gap-1.5 underline"
-                  ><UIcon name="i-lucide-server" class="size-4 text-muted" />{{
-                    m.server_name
-                  }}</NuxtLink
-                >
-              </td>
-              <td>{{ m.server_url }}</td>
-              <td>
-                <UBadge
-                  :icon="HEALTH_ICON[m.health_status]"
-                  :color="healthColor(m.health_status)"
-                  variant="subtle"
-                  >{{ m.health_status }}</UBadge
-                >
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  :checked="m.enabled"
-                  :data-testid="`member-toggle-${m.server_name}`"
-                  @change="toggleMember(m, $event)"
-                />
-              </td>
-              <td>
-                <UButton
-                  size="xs"
-                  color="error"
-                  variant="soft"
-                  :data-testid="`member-remove-${m.server_name}`"
-                  @click="removeMember(m.server_name)"
-                  >Remove</UButton
-                >
-              </td>
-            </tr>
-            <tr v-if="members.length === 0">
-              <td colspan="5" class="text-muted">No member servers.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="overflow-x-auto">
+          <table class="wf-table" data-testid="members-table">
+            <thead>
+              <tr>
+                <th>Server</th>
+                <th>URL</th>
+                <th>Health</th>
+                <th>Enabled</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="m in members"
+                :key="m.server_name"
+                :data-testid="`member-${m.server_name}`"
+              >
+                <td>
+                  <NuxtLink
+                    :to="`/servers/${m.server_name}`"
+                    class="inline-flex items-center gap-1.5 underline"
+                    ><UIcon name="i-lucide-server" class="size-4 text-muted" />{{
+                      m.server_name
+                    }}</NuxtLink
+                  >
+                </td>
+                <td>{{ m.server_url }}</td>
+                <td>
+                  <UBadge
+                    :icon="HEALTH_ICON[m.health_status]"
+                    :color="healthColor(m.health_status)"
+                    variant="subtle"
+                    >{{ m.health_status }}</UBadge
+                  >
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    :checked="m.enabled"
+                    :data-testid="`member-toggle-${m.server_name}`"
+                    @change="toggleMember(m, $event)"
+                  />
+                </td>
+                <td>
+                  <UButton
+                    size="xs"
+                    color="error"
+                    variant="soft"
+                    :data-testid="`member-remove-${m.server_name}`"
+                    @click="removeMember(m.server_name)"
+                    >Remove</UButton
+                  >
+                </td>
+              </tr>
+              <tr v-if="members.length === 0">
+                <td colspan="5" class="text-muted">No member servers.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <div class="flex items-center gap-2">
           <select v-model="selectedServer" class="wf-input max-w-xs" data-testid="member-select">
             <option value="" disabled>Select server…</option>
@@ -399,84 +401,86 @@ onMounted(async () => {
       <!-- Tool curation -->
       <div class="wf-card space-y-3">
         <h2 class="text-sm font-semibold">Tool curation</h2>
-        <table class="wf-table" data-testid="curation-table">
-          <thead>
-            <tr>
-              <th>Server</th>
-              <th>Upstream name</th>
-              <th>Presented name</th>
-              <th>Enabled</th>
-              <th>Override name</th>
-              <th>Override title</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="t in tools"
-              :key="t.tool_id"
-              :data-testid="`curation-${t.server_name}__${t.name}`"
-              :data-tool-id="t.tool_id"
-            >
-              <td>
-                {{ t.server_name }}
-                <UBadge
-                  v-if="!t.member_enabled"
-                  icon="i-lucide-eye-off"
-                  color="neutral"
-                  variant="subtle"
-                  >member disabled</UBadge
-                >
-                <UBadge
-                  v-else-if="t.override_name || t.override_title || t.override_description"
-                  icon="i-lucide-pencil"
-                  color="primary"
-                  variant="subtle"
-                  title="Presented differently in this bundle than the upstream reports it"
-                  >overridden</UBadge
-                >
-              </td>
-              <td>{{ t.name }}</td>
-              <td :data-testid="`presented-${t.tool_id}`">{{ t.presented_name }}</td>
-              <td>
-                <input
-                  v-if="curation[t.tool_id]"
-                  v-model="curation[t.tool_id]!.enabled"
-                  type="checkbox"
-                  :data-testid="`curation-toggle-${t.tool_id}`"
-                />
-              </td>
-              <td>
-                <input
-                  v-if="curation[t.tool_id]"
-                  v-model="curation[t.tool_id]!.override_name"
-                  class="wf-input"
-                  :data-testid="`override-name-${t.tool_id}`"
-                />
-              </td>
-              <td>
-                <input
-                  v-if="curation[t.tool_id]"
-                  v-model="curation[t.tool_id]!.override_title"
-                  class="wf-input"
-                  :data-testid="`override-title-${t.tool_id}`"
-                />
-              </td>
-              <td>
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  :data-testid="`curation-save-${t.tool_id}`"
-                  @click="saveCuration(t.tool_id)"
-                  >Save</UButton
-                >
-              </td>
-            </tr>
-            <tr v-if="tools.length === 0">
-              <td colspan="7" class="text-muted">No tools in this bundle.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="overflow-x-auto">
+          <table class="wf-table" data-testid="curation-table">
+            <thead>
+              <tr>
+                <th>Server</th>
+                <th>Upstream name</th>
+                <th>Presented name</th>
+                <th>Enabled</th>
+                <th>Override name</th>
+                <th>Override title</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="t in tools"
+                :key="t.tool_id"
+                :data-testid="`curation-${t.server_name}__${t.name}`"
+                :data-tool-id="t.tool_id"
+              >
+                <td>
+                  {{ t.server_name }}
+                  <UBadge
+                    v-if="!t.member_enabled"
+                    icon="i-lucide-eye-off"
+                    color="neutral"
+                    variant="subtle"
+                    >member disabled</UBadge
+                  >
+                  <UBadge
+                    v-else-if="t.override_name || t.override_title || t.override_description"
+                    icon="i-lucide-pencil"
+                    color="primary"
+                    variant="subtle"
+                    title="Presented differently in this bundle than the upstream reports it"
+                    >overridden</UBadge
+                  >
+                </td>
+                <td>{{ t.name }}</td>
+                <td :data-testid="`presented-${t.tool_id}`">{{ t.presented_name }}</td>
+                <td>
+                  <input
+                    v-if="curation[t.tool_id]"
+                    v-model="curation[t.tool_id]!.enabled"
+                    type="checkbox"
+                    :data-testid="`curation-toggle-${t.tool_id}`"
+                  />
+                </td>
+                <td>
+                  <input
+                    v-if="curation[t.tool_id]"
+                    v-model="curation[t.tool_id]!.override_name"
+                    class="wf-input"
+                    :data-testid="`override-name-${t.tool_id}`"
+                  />
+                </td>
+                <td>
+                  <input
+                    v-if="curation[t.tool_id]"
+                    v-model="curation[t.tool_id]!.override_title"
+                    class="wf-input"
+                    :data-testid="`override-title-${t.tool_id}`"
+                  />
+                </td>
+                <td>
+                  <UButton
+                    size="xs"
+                    variant="soft"
+                    :data-testid="`curation-save-${t.tool_id}`"
+                    @click="saveCuration(t.tool_id)"
+                    >Save</UButton
+                  >
+                </td>
+              </tr>
+              <tr v-if="tools.length === 0">
+                <td colspan="7" class="text-muted">No tools in this bundle.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Endpoints -->
@@ -489,59 +493,61 @@ onMounted(async () => {
             tools for claude.ai or ChatGPT.
           </p>
         </div>
-        <table class="wf-table" data-testid="bundle-endpoints-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Profile</th>
-              <th>Auth modes</th>
-              <th>Enabled</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="e in bundleEndpoints" :key="e.name">
-              <td class="whitespace-nowrap">
-                <NuxtLink
-                  :to="`/endpoints/${e.name}`"
-                  class="inline-flex items-center gap-1.5 underline"
-                  :data-testid="`bundle-endpoint-${e.name}`"
-                  ><UIcon name="i-lucide-plug-zap" class="size-4 text-muted" />{{ e.name }}</NuxtLink
-                >
-              </td>
-              <td class="whitespace-nowrap">
-                <UBadge
-                  :icon="PROFILE_ICON[e.profile]"
-                  :color="e.profile === 'default' ? 'neutral' : 'primary'"
-                  variant="subtle"
-                  :title="PROFILE_HELP[e.profile]"
-                  >{{ e.profile }}</UBadge
-                >
-              </td>
-              <td class="whitespace-nowrap space-x-1">
-                <UBadge
-                  v-for="mode in e.auth_modes"
-                  :key="mode"
-                  :icon="ENDPOINT_AUTH_ICON[mode]"
-                  :color="mode === 'none' ? 'warning' : 'neutral'"
-                  variant="subtle"
-                  :title="ENDPOINT_AUTH_HELP[mode]"
-                  >{{ mode }}</UBadge
-                >
-              </td>
-              <td>
-                <UBadge
-                  :icon="e.enabled ? 'i-lucide-circle-check' : 'i-lucide-circle-pause'"
-                  :color="e.enabled ? 'success' : 'neutral'"
-                  variant="subtle"
-                  >{{ e.enabled ? "enabled" : "disabled" }}</UBadge
-                >
-              </td>
-            </tr>
-            <tr v-if="bundleEndpoints.length === 0">
-              <td colspan="4" class="text-muted">No endpoints yet; this bundle is not reachable.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="overflow-x-auto">
+          <table class="wf-table" data-testid="bundle-endpoints-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Profile</th>
+                <th>Auth modes</th>
+                <th>Enabled</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="e in bundleEndpoints" :key="e.name">
+                <td class="whitespace-nowrap">
+                  <NuxtLink
+                    :to="`/endpoints/${e.name}`"
+                    class="inline-flex items-center gap-1.5 underline"
+                    :data-testid="`bundle-endpoint-${e.name}`"
+                    ><UIcon name="i-lucide-plug-zap" class="size-4 text-muted" />{{ e.name }}</NuxtLink
+                  >
+                </td>
+                <td class="whitespace-nowrap">
+                  <UBadge
+                    :icon="PROFILE_ICON[e.profile]"
+                    :color="e.profile === 'default' ? 'neutral' : 'primary'"
+                    variant="subtle"
+                    :title="PROFILE_HELP[e.profile]"
+                    >{{ e.profile }}</UBadge
+                  >
+                </td>
+                <td class="whitespace-nowrap space-x-1">
+                  <UBadge
+                    v-for="mode in e.auth_modes"
+                    :key="mode"
+                    :icon="ENDPOINT_AUTH_ICON[mode]"
+                    :color="mode === 'none' ? 'warning' : 'neutral'"
+                    variant="subtle"
+                    :title="ENDPOINT_AUTH_HELP[mode]"
+                    >{{ mode }}</UBadge
+                  >
+                </td>
+                <td>
+                  <UBadge
+                    :icon="e.enabled ? 'i-lucide-circle-check' : 'i-lucide-circle-pause'"
+                    :color="e.enabled ? 'success' : 'neutral'"
+                    variant="subtle"
+                    >{{ e.enabled ? "enabled" : "disabled" }}</UBadge
+                  >
+                </td>
+              </tr>
+              <tr v-if="bundleEndpoints.length === 0">
+                <td colspan="4" class="text-muted">No endpoints yet; this bundle is not reachable.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <form class="space-y-3 max-w-xl border-t border-muted pt-4" @submit.prevent="createEndpoint">
           <h3 class="text-sm font-medium">Create endpoint</h3>

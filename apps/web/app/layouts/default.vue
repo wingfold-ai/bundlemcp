@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { me } = useMe();
+const route = useRoute();
 
 const nav = [
   { to: "/servers", label: "Servers", testid: "nav-servers", icon: "i-lucide-server" },
@@ -15,6 +16,11 @@ const nav = [
   // what a signed-in non-admin sees; useful to check before handing out a URL
   { to: "/catalogue", label: "Catalogue", testid: "nav-catalogue", icon: "i-lucide-layout-grid" },
 ];
+
+/** A section stays highlighted on its detail pages too (/servers/SEO under Servers). */
+function isActive(to: string): boolean {
+  return route.path === to || route.path.startsWith(`${to}/`);
+}
 
 async function logout() {
   await fetch(`${apiBase()}/logout`, { method: "POST", credentials: "include" });
@@ -34,9 +40,13 @@ async function logout() {
         :key="item.to"
         :to="item.to"
         :data-testid="item.testid"
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-default hover:bg-elevated"
-        :class="item.sub ? 'ml-5 text-xs text-muted' : ''"
-        active-class="bg-primary/10 text-primary font-medium hover:bg-primary/15"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5"
+        :class="[
+          item.sub ? 'ml-5 text-xs' : 'text-sm',
+          isActive(item.to)
+            ? 'bg-primary/10 text-primary font-medium hover:bg-primary/15'
+            : [item.sub ? 'text-muted' : 'text-default', 'hover:bg-elevated'],
+        ]"
       >
         <UIcon :name="item.icon" :class="item.sub ? 'size-3.5' : 'size-4'" class="shrink-0" />
         {{ item.label }}
@@ -48,7 +58,7 @@ async function logout() {
         </button>
       </div>
     </aside>
-    <main class="grow p-6 max-w-5xl">
+    <main class="grow min-w-0 p-6 max-w-5xl">
       <slot />
     </main>
   </div>
