@@ -11,6 +11,9 @@ class SqlAlchemyOAuthClientRepository(SqlAlchemyRepository[OAuthClient, OAuthCli
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, OAuthClient, OAuthClientRow, key=lambda client: client.client_id)
 
+    async def count_never_used(self) -> int:
+        return await self.count(OAuthClientRow.last_used_at.is_(None))  # type: ignore[union-attr]
+
     async def purge_never_used(self, *, created_before: datetime) -> int:
         return await self.delete_where(
             OAuthClientRow.last_used_at.is_(None),  # type: ignore[union-attr]

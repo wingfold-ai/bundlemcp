@@ -34,6 +34,7 @@ from bundlemcp.application.oauth_server import (
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
+from bundlemcp.domain.oauth.registration_policy import RegistrationPolicy
 from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.shared.secret_generator import SecretGenerator
 from bundlemcp.domain.shared.secret_hasher import SecretHasher
@@ -116,6 +117,9 @@ class AppContainer(BaseModel):
     )
     client_sources: tuple[ClientSourceFactory, ...] = Field(
         description="The ways an OAuth client may identify itself, asked per request in this order"
+    )
+    registration_policy: RegistrationPolicy = Field(
+        description="Accepted redirect URIs and the limits dynamic client registration runs under"
     )
     invalidation: InvalidationSubscriber = Field(
         description="This replica's subscription to configuration changes"

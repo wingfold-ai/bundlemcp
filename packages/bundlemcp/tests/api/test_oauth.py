@@ -896,12 +896,11 @@ async def test_locked_out_client_gets_no_exchange(oauth_env):
 
 async def test_registration_rate_limit_keys_on_the_forwarded_client_ip(engine, redis):
     """OAS-12: behind a trusted proxy the limit is per original client, not per proxy."""
-    from bundlemcp.api.oauth.controllers.registration_controller import REGISTRATION_RATE_LIMIT
-
     settings = hermetic_settings(public_url=PUBLIC_URL, trusted_proxies=["127.0.0.0/8"])
+    assert (settings.dcr_rate_limit, settings.dcr_rate_window) == (10, 3600)
     body = {"redirect_uris": ["https://client.example/cb"], "client_name": "C"}
     async with serving(engine, redis, settings=settings, base_url=PUBLIC_URL) as (http, _app):
-        for _ in range(REGISTRATION_RATE_LIMIT):
+        for _ in range(settings.dcr_rate_limit):
             ok = await http.post(
                 "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.7"}
             )
@@ -910,7 +909,126 @@ async def test_registration_rate_limit_keys_on_the_forwarded_client_ip(engine, r
             "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.7"}
         )
         assert exhausted.status_code == 429
+        assert exhausted.json()["error"] == "too_many_requests"
         other = await http.post(
             "/oauth/register", json=body, headers={"X-Forwarded-For": "203.0.113.8"}
         )
         assert other.status_code == 201
+
+
+ALLOWED_REDIRECTS = ["https://claude.ai/api/mcp/auth_callback", "https://*.client.example/cb"]
+
+
+async def test_registration_allow_list_refuses_unlisted_redirect_uris(engine, redis):
+    """OAS-2: with an allow-list configured, an unlisted redirect URI is invalid_redirect_uri."""
+    settings = hermetic_settings(public_url=PUBLIC_URL, dcr_allowed_redirect_uris=ALLOWED_REDIRECTS)
+    async with serving(engine, redis, settings=settings, base_url=PUBLIC_URL) as (http, _app):
+        for listed in ("https://claude.ai/api/mcp/auth_callback", "https://app.client.example/cb"):
+            ok = await http.post("/oauth/register", json={"redirect_uris": [listed]})
+            assert ok.status_code == 201, (listed, ok.text)
+        for unlisted in (
+            "https://evil.example/cb",
+            "https://a.b.client.example/cb",
+            "https://claude.ai/api/mcp/auth_callback/x",
+        ):
+            refused = await http.post(
+                "/oauth/register",
+                json={"redirect_uris": ["https://claude.ai/api/mcp/auth_callback", unlisted]},
+            )
+            assert refused.status_code == 400, unlisted
+            assert refused.json()["error"] == "invalid_redirect_uri"
+
+
+async def test_registration_without_allow_list_accepts_any_https_redirect_uri(engine, redis):
+    """OAS-2: the default empty allow-list keeps every https redirect URI acceptable."""
+    async with serving(engine, redis, settings=hermetic_settings(public_url=PUBLIC_URL)) as (
+        http,
+        _app,
+    ):
+        resp = await http.post("/oauth/register", json={"redirect_uris": ["https://evil.example/cb"]})
+        assert resp.status_code == 201
+
+
+async def test_registration_rate_limit_and_window_are_configurable(engine, redis):
+    """OAS-12: the per-IP registration limit and its window come from settings."""
+    settings = hermetic_settings(public_url=PUBLIC_URL, dcr_rate_limit=2, dcr_rate_window=60)
+    body = {"redirect_uris": ["https://client.example/cb"]}
+    async with serving(engine, redis, settings=settings, base_url=PUBLIC_URL) as (http, _app):
+        assert [(await http.post("/oauth/register", json=body)).status_code for _ in range(3)] == [
+            201,
+            201,
+            429,
+        ]
+        redis.advance(60)  # the next window opens a fresh budget
+        assert (await http.post("/oauth/register", json=body)).status_code == 201
+
+
+async def test_allow_listed_registrations_skip_the_per_ip_limit_not_the_global_quota(
+    engine, redis
+):
+    """OAS-12/SEC-8: allow-listed redirect URIs bypass the per-IP budget; the global quota holds."""
+    settings = hermetic_settings(
+        public_url=PUBLIC_URL,
+        dcr_allowed_redirect_uris=ALLOWED_REDIRECTS,
+        dcr_rate_limit=1,
+        dcr_max_unused_clients=3,
+    )
+    body = {"redirect_uris": ["https://claude.ai/api/mcp/auth_callback"]}
+    async with serving(engine, redis, settings=settings, base_url=PUBLIC_URL) as (http, _app):
+        for _ in range(3):  # three from one IP, past its budget of one
+            assert (await http.post("/oauth/register", json=body)).status_code == 201
+        quota = await http.post("/oauth/register", json=body)
+        assert quota.status_code == 429
+        assert quota.json()["error"] == "too_many_requests"
+        assert "not been used" in quota.json()["error_description"]
+
+
+async def test_global_quota_counts_only_clients_that_never_obtained_a_token(engine, redis):
+    """SEC-8: a client that obtained a token no longer counts against the unused-client quota."""
+    from bundlemcp.infrastructure.postgres.rows.oauth_client_row import OAuthClientRow
+
+    settings = hermetic_settings(public_url=PUBLIC_URL, dcr_max_unused_clients=1)
+    body = {"redirect_uris": ["https://client.example/cb"]}
+    async with serving(engine, redis, settings=settings, base_url=PUBLIC_URL) as (http, app):
+        first = await http.post("/oauth/register", json=body)
+        assert first.status_code == 201
+        assert (await http.post("/oauth/register", json=body)).status_code == 429
+        async with app.state.container.session_factory() as db:
+            row = await db.get(OAuthClientRow, first.json()["client_id"])
+            row.last_used_at = utcnow()
+            await db.commit()
+        assert (await http.post("/oauth/register", json=body)).status_code == 201
+
+
+async def test_metadata_document_redirect_uris_must_be_on_the_allow_list(engine, redis):
+    """OAS-13: a metadata document declaring an unlisted redirect URI is refused at authorize."""
+    _, challenge = make_pkce()
+    params = {
+        "client_id": CIMD_CLIENT_ID,
+        "redirect_uri": "https://client.example/cb",
+        "response_type": "code",
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "resource": f"{PUBLIC_URL}/ep1/mcp",
+    }
+    for allowed, status in ((["https://claude.ai/cb"], 400), (["https://client.example/cb"], 302)):
+        settings = hermetic_settings(public_url=PUBLIC_URL, dcr_allowed_redirect_uris=allowed)
+        async with serving(
+            engine,
+            redis,
+            settings=settings,
+            base_url=PUBLIC_URL,
+            follow_redirects=False,
+            client_metadata_fetcher=FakeClientMetadataFetcher(),
+        ) as (http, _app):
+            resp = await http.get("/oauth/authorize", params=params)
+            assert resp.status_code == status, (allowed, resp.text)
+
+
+def test_malformed_allow_list_entries_are_refused_at_startup():
+    """OAS-2: a pattern that is not an exact URI or a leading-label wildcard fails settings."""
+    from pydantic import ValidationError
+
+    for bad in ("claude.ai/cb", "https://*.com/cb", "https://a.*.example.com/cb", "https://x/*"):
+        with pytest.raises(ValidationError):
+            hermetic_settings(dcr_allowed_redirect_uris=[bad])

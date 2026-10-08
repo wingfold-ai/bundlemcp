@@ -12,7 +12,8 @@ class ClientRegistrationRequest(BaseModel):
     redirect_uris: list[str] = Field(
         min_length=1,
         description="URIs the authorization response may be sent to. Each must be https, or "
-        "http on localhost for a native or development client",
+        "http on localhost for a native or development client, and on the operator's "
+        "redirect-URI allow-list when one is configured",
     )
     client_name: str | None = Field(
         default=None, description="Name shown to the user on the consent screen"

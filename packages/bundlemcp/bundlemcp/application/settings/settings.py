@@ -1,8 +1,9 @@
 """The deploy-time configuration model."""
 
-from pydantic import AnyHttpUrl, BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 
 from bundlemcp.domain.access.identity_subject import IdentitySubject
+from bundlemcp.domain.oauth.redirect_uri_allow_list import RedirectUriAllowList
 
 
 class Settings(BaseModel):
@@ -118,6 +119,40 @@ class Settings(BaseModel):
         description="Seconds the auth-failure count is retained before the lockout lifts",
     )
 
+    # Client registration with the gateway's OAuth server (spec 20, SEC-8)
+    dcr_allowed_redirect_uris: list[str] = Field(  # OAS-2, OAS-13
+        default_factory=list,
+        description="Redirect URIs OAuth clients may register or declare in a client metadata "
+        "document. Each entry is an exact URI, compared character for character, or a URI "
+        "whose leftmost host label is '*' (e.g. 'https://*.example.com/oauth/callback'), "
+        "which matches exactly one DNS label in that position with the same scheme, port, "
+        "path and query. Empty accepts any https URI, or http on localhost. Registrations "
+        "whose redirect URIs are all listed are exempt from the per-IP registration limit",
+    )
+    dcr_rate_limit: int = Field(  # OAS-12
+        default=10,
+        ge=1,
+        le=100_000,
+        description="Dynamic client registrations one client IP may make per window. Behind a "
+        "shared egress, such as a hosted AI client registering from its own servers, every "
+        "user of that client shares this budget",
+    )
+    dcr_rate_window: int = Field(  # OAS-12
+        default=3600,
+        ge=1,
+        le=86_400,
+        description="Seconds in the per-IP registration window",
+    )
+    dcr_max_unused_clients: int = Field(  # SEC-8
+        default=1000,
+        ge=1,
+        le=1_000_000,
+        description="Maximum number of registered OAuth clients that have not yet obtained a "
+        "token, across all IPs. Once reached, further registrations are refused with HTTP 429 "
+        "until clients are used or the periodic purge removes those unused for seven days. "
+        "Applies to every registration, allow-listed or not",
+    )
+
     # Bootstrap (spec 41)
     bootstrap_file: str | None = Field(
         default=None,
@@ -159,6 +194,12 @@ class Settings(BaseModel):
         description="Log line format for every logger in the process, the web server's "
         "included: 'json' for a log pipeline, 'text' for a terminal",
     )
+
+    @field_validator("dcr_allowed_redirect_uris")
+    @classmethod
+    def _parse_redirect_uri_patterns(cls, value: list[str]) -> list[str]:
+        RedirectUriAllowList.of(value)  # refuses a malformed entry at startup, naming it
+        return value
 
     @property
     def public_base(self) -> str:

@@ -18,12 +18,19 @@ and provides introspection so upstreams and the application layer can resolve a 
   ([EP-3](14-endpoints.md)).
 - **OAS-2 Dynamic Client Registration** (RFC 7591): `POST /oauth/register`, open registration, public clients
   (`token_endpoint_auth_method: none`) by default, redirect URIs validated (https or localhost); an `application_type`
-  sent by the client is accepted and stored. A registration the server cannot honour is refused with HTTP 400 and the
+  sent by the client is accepted and stored. An operator MAY narrow the accepted redirect URIs with an allow-list
+  (`BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS`); empty (the default) accepts every URI the rule above accepts. Each entry is
+  either an exact URI, matched by simple string comparison, or a URI whose leftmost host label is `*`
+  (`https://*.example.com/oauth/callback`), which matches exactly one DNS label in that position with scheme, port, path
+  and query unchanged (`a.example.com` matches; `example.com` and `a.b.example.com` do not). `*` is valid nowhere else
+  and needs at least two host labels after it; a malformed entry refuses startup. The allow-list narrows the
+  https-or-localhost rule and never widens it. A registration the server cannot honour is refused with HTTP 400 and the
   RFC 7591 error code, never the framework's validation shape: an unsupported grant type, response type, auth method or
   application type, or a body that is not valid JSON, is `invalid_client_metadata`; a redirect URI that fails the rule
-  above is `invalid_redirect_uri`. The implicit and password grants stay unsupported: OAuth 2.1 removed them, and MCP
-  clients use the authorization code grant with PKCE. MCP 2026-07-28 deprecates DCR in favour of Client ID Metadata
-  Documents (OAS-13); it stays supported for clients that have not moved (ChatGPT, Claude as of 2026-09).
+  above, or is missing from a configured allow-list, is `invalid_redirect_uri`. The implicit and password grants stay
+  unsupported: OAuth 2.1 removed them, and MCP clients use the authorization code grant with PKCE. MCP 2026-07-28
+  deprecates DCR in favour of Client ID Metadata Documents (OAS-13); it stays supported for clients that have not moved
+  (ChatGPT, Claude as of 2026-09).
 - **OAS-3 Authorization code + PKCE**: `GET /oauth/authorize` requires an authenticated browser session — if absent,
   redirect into the OIDC login and return to complete the flow. S256 PKCE REQUIRED for public clients. Codes are
   single-use, 10-minute expiry by default (`authorization_code_lifetime`), bound to client + redirect URI + challenge.
@@ -68,11 +75,16 @@ and provides introspection so upstreams and the application layer can resolve a 
   persisted per `(user, client, endpoint)` (`OAuthConsent`) and skipped while unrevoked; users/admins can revoke consent
   (UI + management API), which also revokes tokens issued under it. Consent pages carry the [SEC-6](70-security.md)
   hardening headers.
-- **OAS-12** Dynamic client registration abuse controls per
-  [SEC-8](70-security.md).
+- **OAS-12** Dynamic client registration abuse controls per [SEC-8](70-security.md). The per-IP limit is configurable
+  (`BUNDLEMCP_DCR_RATE_LIMIT` registrations per `BUNDLEMCP_DCR_RATE_WINDOW` seconds, default 10 per 3600). A
+  registration whose redirect URIs are all on a configured allow-list (OAS-2) is exempt from the per-IP limit — a
+  hosted client such as claude.ai registers from its own servers, so every user of a public deployment would otherwise
+  share one IP's budget — but never from the global quota. Checks run cheapest first: redirect URIs in memory, the
+  per-IP counter in the RESP store, the quota in Postgres. Either limit is answered HTTP 429 `too_many_requests`.
 - **OAS-13 Client ID Metadata Documents:** a `client_id` that is an `https://` URL identifies a client by its metadata
   document. The authorize endpoint fetches the document (through the egress policy, [SEC-1](70-security.md)), requires
-  its `client_id` to echo the URL, validates `redirect_uris` against it, and caches it for its `Cache-Control` lifetime
+  its `client_id` to echo the URL, validates `redirect_uris` against it (the OAS-2 rule, including a configured
+  allow-list), and caches it for its `Cache-Control` lifetime
   (bounded, default 1 h) in the RESP store. Such clients need no registration: the document is mirrored into the client
   table when a signed-in user authorizes, so codes, tokens and consent bind to it; the pre-login check of the request
   writes nothing. Consent (OAS-11) shows the document's `client_name`. Advertised via
