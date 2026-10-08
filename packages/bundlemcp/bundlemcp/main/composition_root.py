@@ -8,7 +8,6 @@ downstream receives what it needs rather than reaching for it.
 
 from contextlib import AsyncExitStack
 
-import structlog
 from fastapi import FastAPI
 
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
@@ -70,8 +69,6 @@ from bundlemcp.infrastructure.valkey.valkey_single_use_state import ValkeySingle
 from bundlemcp.main.composition_overrides import CompositionOverrides
 from bundlemcp.main.container import AppContainer
 from bundlemcp.main.mcp_gateway_assembly import McpGatewayAssembly
-
-log = structlog.get_logger(__name__)
 
 # Where the gateway publishes its own client metadata document for upstreams (UPO-1).
 UPSTREAM_CLIENT_DOCUMENT_PATH = "/oauth/upstream/client.json"
@@ -268,7 +265,7 @@ class CompositionRoot:
                 ttl_seconds=BROWSER_STATE_TTL,
                 model=UpstreamConnectState,
             ),
-            oidc_provider=await self._build_oidc_provider(),
+            oidc_provider=self._start_oidc_provider(),
             invalidation=subscriber,
             mcp_router=mcp_router,
             client_metadata=client_metadata,
@@ -328,15 +325,20 @@ class CompositionRoot:
                 self._settings.initial_service_key
             )
 
-    async def _build_oidc_provider(self) -> OidcProvider | None:
-        """The configured identity provider, ready to build authorize URLs."""
+    def _start_oidc_provider(self) -> OidcProvider | None:
+        """The configured identity provider, discovering its issuer in the background.
+
+        Startup does not wait for the issuer: an installer that creates the realm
+        only once the gateway is ready would otherwise never see it ready.
+        """
+        # ADM-7: discovery is retried in the background, never awaited here
         if self._overrides.oidc_provider is not None:
             return self._overrides.oidc_provider
-        try:
-            return await build_provider(self._settings)
-        except Exception:
-            log.warning("oidc.discovery_failed", exc_info=True)
-            return None
+        provider = build_provider(self._settings)
+        if provider is not None:
+            provider.start()
+            self._stack.callback(provider.stop)
+        return provider
 
     @staticmethod
     def _config_flush(runtime_config: RuntimeConfig):

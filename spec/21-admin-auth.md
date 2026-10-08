@@ -37,6 +37,13 @@ first login. This deletes the entire class of auth code that caused pain in meta
   dependency.
 - **ADM-5** Logout invalidates the bundlemcp session; single-logout from the IdP is best-effort (front-channel), not
   required.
+- **ADM-7** The gateway does not depend on the IdP being reachable when it starts, and readiness never depends on the
+  IdP: an installer may create the realm only once the gateway is ready. A failed discovery fetch is never kept. A login
+  retries it, at most once per 5 s, and a background loop retries with exponential backoff capped at 60 s until it
+  succeeds. Until then `/login` answers `503` with `Retry-After`. Once fetched, the discovery document is refreshed
+  hourly, and a failed refresh keeps the document already held. The signing keys are fetched on every code exchange.
+  Every fetch passes the egress policy ([SEC-1](70-security.md)). Tokens the gateway issued, API keys and the OAuth
+  metadata keep working while the IdP is down.
 
 ## Out of scope
 

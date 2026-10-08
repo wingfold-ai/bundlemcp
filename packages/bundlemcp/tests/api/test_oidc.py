@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.domain.access.oidc_claims import OidcClaims
+from bundlemcp.domain.access.oidc_unavailable import OidcUnavailable
 from bundlemcp.domain.oauth.pkce import pkce_challenge
 from bundlemcp.infrastructure.postgres.rows.user_row import UserRow
 from fakeredis.aioredis import FakeRedis
@@ -33,7 +34,7 @@ class FakeOidcProvider:
         self.last_challenge: str | None = None
         self.last_verifier: str | None = None
 
-    def authorize_url(self, *, state, nonce, redirect_uri, code_challenge) -> str:
+    async def authorize_url(self, *, state, nonce, redirect_uri, code_challenge) -> str:
         self.last_state = state
         self.last_nonce = nonce
         self.last_challenge = code_challenge
@@ -180,3 +181,29 @@ async def test_deactivation_logs_out_and_revokes(env):
     # session now fails is_active re-check
     follow = await http.get("/api/v1/servers")
     assert follow.status_code == 401
+
+
+class UnreachableOidcProvider(FakeOidcProvider):
+    """An IdP the gateway has not reached yet."""
+
+    async def authorize_url(self, *, state, nonce, redirect_uri, code_challenge) -> str:
+        raise OidcUnavailable("identity provider not reachable yet", retry_after=5)
+
+
+async def test_login_while_idp_unreachable_answers_503_with_retry_after(engine, redis):
+    """ADM-7 (#86): no 'no provider configured' for the process's life; a 503 to retry."""
+    settings = hermetic_settings(public_url=PUBLIC_URL)
+    async with serving(
+        engine,
+        redis,
+        settings=settings,
+        base_url=PUBLIC_URL,
+        follow_redirects=False,
+        oidc_provider=UnreachableOidcProvider(),
+    ) as (http, app):
+        resp = await http.get("/login")
+        assert resp.status_code == 503
+        assert resp.headers["Retry-After"] == "5"
+        # Readiness and the OAuth metadata do not depend on the IdP.
+        assert (await http.get("/readyz")).status_code == 200
+        assert (await http.get("/.well-known/oauth-authorization-server")).status_code == 200
