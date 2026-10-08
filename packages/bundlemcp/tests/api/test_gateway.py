@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 import pytest
 from bundlemcp.application.metering.meter_context import MeterContext
 from bundlemcp.application.metering.meter_decision import MeterDecision
+from bundlemcp.application.metering.meter_outcome import MeterOutcome
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
 from bundlemcp.domain.shared.secrets import (
@@ -91,7 +92,7 @@ class RecordingHook:
 
     def __init__(self):
         self.pre_calls: list[MeterContext] = []
-        self.post_calls: list[tuple[MeterContext, str, int]] = []
+        self.post_calls: list[tuple[MeterContext, MeterOutcome, int]] = []
         self.deny_reason: str | None = None
 
     async def pre_call(self, ctx: MeterContext) -> MeterDecision:
@@ -100,8 +101,8 @@ class RecordingHook:
             return MeterDecision(allowed=False, reason=self.deny_reason)
         return MeterDecision(allowed=True)
 
-    async def post_call(self, ctx: MeterContext, status: str, duration_ms: int) -> None:
-        self.post_calls.append((ctx, status, duration_ms))
+    async def post_call(self, ctx: MeterContext, outcome: MeterOutcome, duration_ms: int) -> None:
+        self.post_calls.append((ctx, outcome, duration_ms))
 
 
 async def _seed(engine: AsyncEngine) -> None:
@@ -377,11 +378,11 @@ async def test_call_routes_by_prefix(gateway):
     ctx = hook.pre_calls[0]
     assert (ctx.bundle, ctx.server, ctx.tool) == ("main", "echo", "say")
     assert ctx.sub.startswith("api_key:")
-    assert hook.post_calls[0][1] == "success"
+    assert hook.post_calls[0][1] == "result"
 
 
-async def test_upstream_iserror_maps_to_error_status(gateway):
-    """MID-3: isError:true result -> post_call status=error (refund trigger)."""
+async def test_upstream_iserror_maps_to_tool_error_outcome(gateway):
+    """MID-3: an isError:true result -> post_call outcome tool_error (the tool did run)."""
     http, app, hook = gateway
     session = await _initialize(http)
 
@@ -389,7 +390,7 @@ async def test_upstream_iserror_maps_to_error_status(gateway):
         http, "main", session, "tools/call", {"name": "echo__fail", "arguments": {"text": "x"}}
     )
     assert resp.json()["result"]["isError"] is True
-    assert hook.post_calls[-1][1] == "error"
+    assert hook.post_calls[-1][1] == "tool_error"
 
 
 async def test_metering_deny_blocks_upstream(gateway):
@@ -408,18 +409,24 @@ async def test_metering_deny_blocks_upstream(gateway):
 class BoomHook:
     """MID-3 hook double whose pre_call is unavailable."""
 
+    def __init__(self) -> None:
+        self.keys: list[str] = []
+        self.post_calls: list[tuple[str, MeterOutcome, int]] = []
+
     async def pre_call(self, ctx: MeterContext) -> MeterDecision:
+        self.keys.append(ctx.idempotency_key)
         raise RuntimeError("metering down")
 
-    async def post_call(self, ctx: MeterContext, status: str, duration_ms: int) -> None:
-        pass
+    async def post_call(self, ctx: MeterContext, outcome: MeterOutcome, duration_ms: int) -> None:
+        self.post_calls.append((ctx.idempotency_key, outcome, duration_ms))
 
 
 @pytest.mark.parametrize("fail_open", [True, False])
 async def test_metering_unavailable_follows_gateway_policy(engine, redis, fail_open):
     """MID-3: an unavailable hook is allowed or denied by settings, not by the hook object."""
     settings = hermetic_settings(metering_hook_fail_open=fail_open)
-    async with _running(engine, redis, settings=settings, metering_hook=BoomHook()) as (
+    hook = BoomHook()
+    async with _running(engine, redis, settings=settings, metering_hook=hook) as (
         http,
         _app,
     ):
@@ -428,10 +435,14 @@ async def test_metering_unavailable_follows_gateway_policy(engine, redis, fail_o
             http, "main", session, "tools/call", {"name": "echo__say", "arguments": {"text": "x"}}
         )
         body = resp.json()
+    (key,) = hook.keys
     if fail_open:
         assert body["result"]["content"][0]["text"] == "echo:x"
+        assert [o for _, o, _ in hook.post_calls] == [MeterOutcome.RESULT]
     else:
         assert body["error"]["message"] == "metering_unavailable"
+        # MID-3 (#89): the refused call is reported as no_result under the same key
+        assert hook.post_calls == [(key, MeterOutcome.NO_RESULT, 0)]
 
 
 async def test_unknown_session_404(gateway):

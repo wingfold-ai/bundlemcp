@@ -64,7 +64,7 @@ class RecordingHook:
         self.contexts.append(ctx)
         return MeterDecision(allowed=True)
 
-    async def post_call(self, ctx: MeterContext, status: str, duration_ms: int) -> None:
+    async def post_call(self, ctx: MeterContext, outcome: str, duration_ms: int) -> None:
         pass
 
 

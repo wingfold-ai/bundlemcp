@@ -2,7 +2,9 @@
 
 The hook is the supported place for an application layer to plug in billing,
 quotas or entitlement checks without forking the gateway. It is a small,
-versioned Python protocol.
+versioned Python protocol. It can run in the gateway's process or out of
+process, as a separate service the gateway calls [over HTTP](#over-http), for
+deployments that run the published image unchanged.
 
 Every `tools/call` runs this chain, and the order matters to you because it
 decides which calls you are asked about at all:
@@ -20,18 +22,18 @@ decides which calls you are asked about at all:
 ## The contract
 
 ```python
-from typing import Literal, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-from bundlemcp.application.metering import MeterContext, MeterDecision
+from bundlemcp.application.metering import MeterContext, MeterDecision, MeterOutcome
 
-METERING_PROTOCOL_VERSION = 1
+METERING_PROTOCOL_VERSION = 2
 
 @runtime_checkable
 class MeteringHook(Protocol):
     async def pre_call(self, ctx: MeterContext) -> MeterDecision: ...
 
     async def post_call(
-        self, ctx: MeterContext, status: Literal["success", "error"], duration_ms: int
+        self, ctx: MeterContext, outcome: MeterOutcome, duration_ms: int
     ) -> None: ...
 ```
 
@@ -54,18 +56,31 @@ identity provider's subject, key on `(oidc_issuer, oidc_sub)` instead: it is the
 survives a rebuild or restore of the gateway, and is known for users who have not yet signed in through the gateway.
 Never key on `email`, which can change and be reused.
 
-`MeterDecision` has `allowed: bool` and an optional machine-readable `reason` such as `insufficient_credits`.
+`MeterDecision` has `allowed: bool`, an optional machine-readable `reason` such as `insufficient_credits`, and an
+optional `user_message`: text for the person behind the client, such as "Your credits are used up. Top up at
+https://example.com/account", at most 2000 characters.
+
+`MeterOutcome` is a string enum:
+
+| Outcome | When |
+|---|---|
+| `result` | The upstream returned a tool result. |
+| `tool_error` | The upstream returned a tool result with `isError: true`. The tool ran and reported a failure. |
+| `no_result` | No tool result: the upstream was unreachable or timed out, answered a JSON-RPC error, the gateway refused the call after `pre_call` allowed it, or `pre_call` itself gave no answer. |
+| `cancelled` | The client cancelled the call or closed its stream before a result arrived. |
 
 ## Semantics
 
-**Pre-call decides.** Returning `allowed=False` produces an MCP error carrying
-your `reason` to the client, an audit record with `status=denied`, and no
-upstream call.
+**Pre-call decides.** Returning `allowed=False` writes an audit record with
+`status=denied` and makes no upstream call. With a `user_message`, the client
+receives a tool result with `isError: true` whose only content is your text,
+verbatim, so the model tells the person. Without one, it receives an MCP error
+carrying your `reason`.
 
 **Post-call reports the outcome.** For an invocation that runs to completion,
-one `post_call` is delivered with the final `status` and the upstream duration.
-An MCP result with `isError: true` is `error`, as is a cancelled call. A failed
-call after a successful debit is your refund trigger.
+one `post_call` is delivered with the final `outcome` and the upstream duration.
+The gateway does not decide what an outcome costs: whether `tool_error` (the
+tool ran) is charged like `result` or refunded like `no_result` is your call.
 
 `duration_ms` is the upstream call only — not your hook, not gateway overhead —
 so it is safe to bill on.
@@ -93,19 +108,19 @@ the *upstream* tool name; if you need the name the client saw, read
 
 | Situation | What the gateway does |
 |---|---|
-| `pre_call` raises | Denies the call (or allows it with `BUNDLEMCP_METERING_HOOK_FAIL_OPEN=true`), with `reason` `metering_unavailable`; logged as `metering.pre_call_failed`. That is a business decision, not a safety one. |
-| `pre_call` hangs | **Nothing — there is no timeout.** The tool call waits as long as your hook does. |
+| `pre_call` raises | Denies the call (or allows it with `BUNDLEMCP_METERING_HOOK_FAIL_OPEN=true`), with `reason` `metering_unavailable`; logged as `metering.pre_call_failed`. That is a business decision, not a safety one. A denied call is then reported to `post_call` as `no_result` with `duration_ms` 0 under the same `idempotency_key`, in case your hook debited before it failed. |
+| `pre_call` hangs | **Nothing — there is no timeout** for an in-process hook. The tool call waits as long as your hook does. The HTTP hook times out after `BUNDLEMCP_METERING_HTTP_TIMEOUT`. |
 | `post_call` raises or hangs | Logged as `metering.post_call_failed`. The call's own result is unaffected and the audit record is still written, so your refund simply never happens. |
-| `pre_call` returns `allowed=False` | JSON-RPC error `-32000` whose `message` is your `reason` verbatim; audit `status: denied`, `denied_reason` = your `reason`; no upstream call. |
+| `pre_call` returns `allowed=False` | With a `user_message`: a tool result with `isError: true` carrying it. Without: JSON-RPC error `-32000` whose `message` is your `reason` verbatim. Either way audit `status: denied`, `denied_reason` = your `reason`, and no upstream call. |
 
 **Set your own timeout.** The gateway's call timeouts govern the *upstream*
 call, not your hook, and it will not impose one for you. A hook that talks to a
 network service and does not time out is a way to hang every tool call on the
 gateway.
 
-Note also that the denial the client sees is a free-text message, not a
-structured code — `-32000` with your `reason` as the message and no `data`
-field. A client cannot branch on `insufficient_credits` except by string
+Note also that a denial without a `user_message` reaches the client as a
+free-text message, not a structured code — `-32000` with your `reason` as the
+message and no `data` field. A client cannot branch on `insufficient_credits` except by string
 comparison; the audit log is the reliable discriminator. See
 [Error responses](/integrate/errors).
 
@@ -116,7 +131,7 @@ Write a class that satisfies the protocol and expose an instance:
 ```python
 # acme_billing/hook.py
 import httpx
-from bundlemcp.application.metering import MeterContext, MeterDecision
+from bundlemcp.application.metering import MeterContext, MeterDecision, MeterOutcome
 
 class LedgerHook:
     def __init__(self) -> None:
@@ -130,12 +145,16 @@ class LedgerHook:
             "idempotency_key": ctx.idempotency_key,
         })
         if r.status_code == 402:
-            return MeterDecision(allowed=False, reason="insufficient_credits")
+            return MeterDecision(
+                allowed=False,
+                reason="insufficient_credits",
+                user_message="Your credits are used up. Top up at https://acme.example/account",
+            )
         r.raise_for_status()
         return MeterDecision(allowed=True)
 
-    async def post_call(self, ctx: MeterContext, status, duration_ms: int) -> None:
-        if status == "error":
+    async def post_call(self, ctx: MeterContext, outcome: MeterOutcome, duration_ms: int) -> None:
+        if outcome in (MeterOutcome.NO_RESULT, MeterOutcome.CANCELLED):
             await self._http.post("/refund", json={"idempotency_key": ctx.idempotency_key})
 
 hook = LedgerHook()
@@ -155,6 +174,60 @@ the usual way to inject configuration.
 The gateway checks at startup that the object has both methods and refuses
 to boot otherwise, so a typo surfaces immediately rather than on the first
 call.
+
+## Over HTTP
+
+When the hook runs as its own service, there is no need to install Python into
+the gateway image. Point the gateway at the service instead:
+
+```
+BUNDLEMCP_METERING_HTTP_URL=http://metering:8000/hook
+BUNDLEMCP_METERING_HTTP_TOKEN=<secret>
+BUNDLEMCP_METERING_HTTP_TIMEOUT=2
+```
+
+`BUNDLEMCP_METERING_HTTP_URL` and `BUNDLEMCP_METERING_HOOK` are exclusive; the
+gateway refuses to start with both. Every event is a `POST` of JSON to that one
+URL, with `Authorization: Bearer <token>` when a token is set.
+
+**Pre-call.** The body is the context above under `context`:
+
+```json
+{
+  "protocol_version": 2,
+  "event": "pre_call",
+  "context": {
+    "sub": "api_key:3f…", "email": null, "oidc_issuer": null, "oidc_sub": null,
+    "endpoint": "main", "bundle": "main", "server": "echo", "tool": "say",
+    "idempotency_key": "9c1e…"
+  }
+}
+```
+
+Answer `2xx` with a decision. `reason` and `user_message` are optional:
+
+```json
+{"allowed": false, "reason": "insufficient_credits", "user_message": "Your credits are used up."}
+```
+
+A pre-call that is not answered within the timeout, cannot be sent, gets a
+non-2xx status, or gets a body that is not a decision (`"allowed": "yes"` is
+not one) counts as unanswered: the call is denied unless
+`BUNDLEMCP_METERING_HOOK_FAIL_OPEN=true`, and a `no_result` post-call follows
+for the same key.
+
+**Post-call.** The same `context`, plus `outcome` and `duration_ms`:
+
+```json
+{"protocol_version": 2, "event": "post_call", "context": {…}, "outcome": "no_result", "duration_ms": 0}
+```
+
+Any `2xx` acknowledges it. Post-calls are sent in the background, so a tool
+result never waits for your service. A transport error, a timeout, a `429` or a
+`5xx` is retried, five tries within about a minute, after which the gateway
+logs `metering.post_call_failed` with the `idempotency_key`. Any other status is
+taken as your answer and not retried. Because a post-call can arrive more than
+once, make it idempotent on `idempotency_key` too.
 
 ## Crash reconciliation
 
@@ -178,10 +251,16 @@ longer than your reconciliation window — noting that
 
 ## Versioning
 
-`METERING_PROTOCOL_VERSION` is `1`. A change to the context, the decision or
+`METERING_PROTOCOL_VERSION` is `2`. A change to the context, the decision or
 the call pattern bumps it and is a breaking change in the gateway's release
-notes. The hook is not consulted for `tools/list`; entitlement-based tool
-hiding is not part of version 1.
+notes. The HTTP bodies carry the version as `protocol_version`. The hook is not
+consulted for `tools/list`; entitlement-based tool hiding is not part of
+version 2.
+
+Version 2 replaced the `status` argument of `post_call` (`success` or `error`)
+with `outcome`. To port a version 1 hook, treat `result` as `success` and every
+other outcome as `error`, then decide whether `tool_error` should really be
+refunded.
 
 ## Next steps
 

@@ -5,12 +5,26 @@ import importlib
 import structlog
 
 from bundlemcp.application.metering.metering_hook import MeteringHook
+from bundlemcp.application.settings.settings import Settings
 from bundlemcp.infrastructure.memory.noop_metering_hook import NoopMeteringHook
+from bundlemcp.infrastructure.metering.http_metering_hook import HttpMeteringHook
 
 log = structlog.get_logger("bundlemcp.infrastructure.metering")
 
 
-def load_metering_hook(import_path: str | None) -> MeteringHook:
+def load_metering_hook(settings: Settings) -> MeteringHook:
+    """The hook over HTTP, an in-process hook, or a no-op when neither is set."""
+    if settings.metering_http_url:  # MID-6
+        log.info("metering.http_hook")  # the URL may carry credentials; not logged
+        return HttpMeteringHook(
+            settings.metering_http_url,
+            token=settings.metering_http_token,
+            timeout=settings.metering_http_timeout,
+        )
+    return _import_hook(settings.metering_hook)
+
+
+def _import_hook(import_path: str | None) -> MeteringHook:
     """Load from BUNDLEMCP_METERING_HOOK='package.module:attribute' (instance or factory)."""
     if not import_path:
         return NoopMeteringHook()

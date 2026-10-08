@@ -88,6 +88,9 @@ claude.ai only.
 |---|---|---|
 | `BUNDLEMCP_METERING_HOOK` | unset | Import path `module:attribute` of a [metering hook](/integrate/metering-hook). Unset installs a no-op. |
 | `BUNDLEMCP_METERING_HOOK_FAIL_OPEN` | `false` | Whether a tool call proceeds when the hook itself fails. `false` denies the call. |
+| `BUNDLEMCP_METERING_HTTP_URL` | unset | URL of a [metering hook that runs out of process](/integrate/metering-hook#over-http), called over HTTP instead of an in-process hook. Cannot be combined with `BUNDLEMCP_METERING_HOOK`. |
+| `BUNDLEMCP_METERING_HTTP_TOKEN` | unset | Bearer token sent to that hook service. Keep it in a secret; it is never logged. |
+| `BUNDLEMCP_METERING_HTTP_TIMEOUT` | `2` | Seconds the hook service has to answer a pre-call before the call counts as unanswered. |
 
 ### Upstream identity
 
