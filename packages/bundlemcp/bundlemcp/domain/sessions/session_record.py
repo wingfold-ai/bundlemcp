@@ -39,3 +39,11 @@ class SessionRecord(BaseModel):
         default_factory=dict,
         description="Attachments to upstream sessions, keyed by server name",
     )
+
+    def is_owned_by(self, caller: CallerIdentity) -> bool:
+        """Whether ``caller`` opened this session: the same user, else the same API key.
+
+        A session id is a bearer reference, so a caller that obtains another's id must not be
+        able to use or end that session.
+        """
+        return self.identity.sub == caller.sub
