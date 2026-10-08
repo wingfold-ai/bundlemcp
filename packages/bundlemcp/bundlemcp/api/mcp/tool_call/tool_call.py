@@ -10,7 +10,7 @@ import structlog
 from fastapi import Response
 
 from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
-from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
+from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error, rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.relay import (
@@ -41,6 +41,7 @@ from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.metering.idempotency_key import new_idempotency_key
 from bundlemcp.application.metering.meter_context import MeterContext
 from bundlemcp.application.metering.meter_decision import MeterDecision
+from bundlemcp.application.metering.meter_outcome import MeterOutcome
 from bundlemcp.application.serving.call_handle import CallHandle
 from bundlemcp.domain.audit.audit_status import AuditStatus
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
@@ -141,8 +142,7 @@ class ToolCall:
 
         decision = await self._meter_pre_call()
         if not decision.allowed:
-            self._record(AuditStatus.DENIED, denied_reason=decision.reason or "denied")
-            return rpc_error(self.rpc_id, UPSTREAM_FAILURE, decision.reason or "call denied")
+            return self._deny(decision)
 
         self._timeouts = await self._support.runtime_config.call_timeouts()
         if self.rpc_id is not None:
@@ -183,10 +183,29 @@ class ToolCall:
             return await self._support.metering.pre_call(self._meter)
         except Exception:
             log.error("metering.pre_call_failed", exc_info=True)
-            # MID-3: fail-open is the gateway's policy, not the hook's property.
-            return MeterDecision(
-                allowed=self._support.metering_fail_open, reason="metering_unavailable"
-            )
+        # MID-3: fail-open is the gateway's policy, not the hook's property.
+        if self._support.metering_fail_open:
+            return MeterDecision(allowed=True, reason="metering_unavailable")
+        # MID-3: the hook may have debited before it failed to answer, so it is
+        # told, under the same key, that the refused call produced no result.
+        await self._post_call(MeterOutcome.NO_RESULT, 0)
+        return MeterDecision(allowed=False, reason="metering_unavailable")
+
+    def _deny(self, decision: MeterDecision) -> Response:
+        """Refuse the call the hook denied, in words the person behind the client can read."""
+        self._record(AuditStatus.DENIED, denied_reason=decision.reason or "denied")
+        if decision.user_message:
+            # MID-3: a tool error result, so the model relays the text verbatim
+            content = [{"type": "text", "text": decision.user_message}]
+            return rpc_result(self.rpc_id, self.shape({"content": content, "isError": True}))
+        return rpc_error(self.rpc_id, UPSTREAM_FAILURE, decision.reason or "call denied")
+
+    async def _post_call(self, outcome: MeterOutcome, duration_ms: int) -> None:
+        assert self._meter is not None  # built by _meter_pre_call
+        try:
+            await self._support.metering.post_call(self._meter, outcome, duration_ms)
+        except Exception:
+            log.error("metering.post_call_failed", exc_info=True)
 
     # UPO-4, UPO-10, MID-3
     async def execute(
@@ -365,12 +384,7 @@ class ToolCall:
         self._release()
         duration_ms = int((time.monotonic() - started) * 1000)
         if self._meter is not None:
-            try:
-                await self._support.metering.post_call(
-                    self._meter, outcome.status.value, duration_ms
-                )  # refund trigger
-            except Exception:
-                log.error("metering.post_call_failed", exc_info=True)
+            await self._post_call(outcome.meter_outcome, duration_ms)  # refund trigger
         status = AuditStatus.SUCCESS if outcome.status is CallStatus.SUCCESS else AuditStatus.ERROR
         self._record(status, error_message=outcome.error_message, duration_ms=duration_ms)
 

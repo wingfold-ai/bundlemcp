@@ -47,6 +47,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0039](../adr/0039-server-inspection-and-connection-state.md) | Inspect upstreams and classify refusals from HTTP evidence below the MCP client | accepted | Registration asks one question; operators see why a server fails and how to fix it |
 | [0040](../adr/0040-upstream-client-identification.md) | Pre-registered → client metadata document → DCR; resource indicators, PKCE and issuer checks, step-up, client credentials | accepted | Conforms to MCP authorization 2026-07-28; CIMD needs an https gateway |
 | [0041](../adr/0041-delegated-upstream-tokens.md) | Gateway-issued, audience-bound delegated tokens instead of token passthrough | accepted | Upstreams verify callers without holding their credential; one Valkey write per call |
+| [0042](../adr/0042-http-metering-hook-and-outcome-kinds.md) | Out-of-process metering hook over HTTP; post-call reports outcome kinds | accepted | An out-of-process hook needs no custom image; hook contract v2 is breaking for in-process hooks |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

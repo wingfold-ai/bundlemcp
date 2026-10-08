@@ -62,7 +62,8 @@ event rather than the response body.
 
 ### `-32000` carries no discriminator
 
-The message is free text: your own `reason` verbatim from a metering denial, or
+The message is free text: your own `reason` verbatim from a metering denial that carries no
+`user_message` (one that does is answered as a tool result with `isError: true` instead), or
 a connect hint naming the URL when a `per_user` upstream is not connected.
 There is no `data` field and no machine-readable code, so a client that must
 distinguish these cases matches on the message. Two facts make that more
