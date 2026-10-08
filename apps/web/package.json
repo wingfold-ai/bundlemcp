@@ -29,6 +29,9 @@
   },
   "overrides": {
     "simple-git": "^4.0.2",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }
