@@ -1,6 +1,7 @@
 # ADR-0016: Protocol-relay design — per-replica registries + Redis signaling
 
-**Status:** accepted · **Date:** 2026-07-02
+**Status:** accepted · **Date:** 2026-07-02 · **Amended by:** [ADR-0027](0027-mcp-edge-method-handlers.md),
+[ADR-0029](0029-dialects-and-dual-era-edge.md)
 
 ## Context
 

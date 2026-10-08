@@ -20,8 +20,8 @@ view: index — "bundlemcp — System Context"
 ## Technical context
 
 All external interfaces are HTTPS (TLS at the operator's reverse proxy, [DEP-1/2](../../spec/71-deployment.md)): MCP
-Streamable HTTP on `/{endpoint}/mcp`, OAuth/`.well-known` routes, REST `/api/v1`, and probes
-`/healthz`/`/readyz`/`/metrics` ([ARC-11](../../spec/01-architecture.md)).
+Streamable HTTP on `/{endpoint}/mcp`, OAuth/`.well-known` routes, REST `/api/v1`, and probes `/healthz` and `/readyz`
+([ARC-11](../../spec/01-architecture.md)); the `/metrics` route ARC-11 reserves is not built yet (§11).
 
 ## Out of scope
 

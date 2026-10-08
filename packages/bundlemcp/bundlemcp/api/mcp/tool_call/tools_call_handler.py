@@ -62,10 +62,11 @@ class ToolsCallHandler:
                 return await self._retry(ctx, message, tool)
         return await ToolCall(self._support, ctx, message, tool).run()
 
+    # UPO-3
     def _connect_account(
         self, ctx: RequestContext, message: JsonRpcMessage, tool: ConnectAccountTool
     ) -> Response:
-        """UPO-3: answer with the connect link; no upstream is reached and nothing is metered."""
+        """Answer with the connect link; no upstream is reached and nothing is metered."""
         audit = AuditContext.for_request(ctx, tool.presented_name).model_copy(
             update={"server_name": tool.server.name, "tool_name": CONNECT_ACCOUNT_TOOL}
         )
@@ -75,7 +76,8 @@ class ToolsCallHandler:
         return rpc_result(message.id, ctx.shape(result))
 
     async def _retry(self, ctx: RequestContext, message: JsonRpcMessage, tool) -> Response:
-        """PROT-18: the client is answering an earlier input_required result."""
+        # PROT-18
+        """The client is answering an earlier input_required result."""
         cipher = self._support.state_cipher
         if cipher is None:
             return rpc_error(message.id, UPSTREAM_FAILURE, NO_CIPHER)

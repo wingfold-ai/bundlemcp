@@ -1,7 +1,8 @@
 # ADR-0003: SQLModel / Pydantic-first typing end to end
 
-**Status:** accepted (amended by [ADR-0033](0033-clean-architecture-layers.md),
-[ADR-0034](0034-pydantic-entities-and-row-classes.md)) · **Date:** 2026-07-02
+**Status:** accepted · **Date:** 2026-07-02 · **Amended by:** [ADR-0024](0024-value-objects-and-rich-entities.md),
+[ADR-0033](0033-clean-architecture-layers.md), [ADR-0034](0034-pydantic-entities-and-row-classes.md) (entities are no
+longer SQLModel classes)
 
 ## Context
 

@@ -47,13 +47,14 @@ class BufferedCallResponse:
 
 
 class StreamedCallResponse:
+    # PROT-18: an input-required call outlives its own response stream
     """Stream the call's notifications as SSE events, then the final JSON-RPC message.
 
     Progress events are sent only when the client supplied a progress token; log
     messages whenever the upstream emits one the client asked for. The client
     closing the stream before the final event cancels the call, unless the call
     has asked the client for input, in which case it lives on until the client
-    retries (PROT-18).
+    retries.
     """
 
     def __init__(self, progress_token: Any) -> None:

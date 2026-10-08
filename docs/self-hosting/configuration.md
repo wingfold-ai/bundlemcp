@@ -37,8 +37,8 @@ A second, smaller set of **runtime settings** is editable while the gateway runs
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BUNDLEMCP_EGRESS_ALLOW_CIDRS` | `[]` | CIDRs upstream servers may resolve to. Empty allows anything not denied. |
-| `BUNDLEMCP_EGRESS_DENY_CIDRS` | `[]` | CIDRs upstream servers may never resolve to. Metadata ranges are blocked regardless. |
+| `BUNDLEMCP_EGRESS_ALLOW_CIDRS` | `[]` | CIDRs outbound requests may resolve to. Checked first and wins over every other rule, including the built-in loopback and cloud-metadata blocks — keep it narrow. Empty allows anything not denied. |
+| `BUNDLEMCP_EGRESS_DENY_CIDRS` | `[]` | CIDRs outbound requests may never resolve to, unless an allow entry covers them. |
 | `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` | `[]` | Fernet keys for stored upstream OAuth tokens. The first encrypts, all decrypt. Required before any server can use upstream OAuth. |
 | `BUNDLEMCP_AUTH_FAILURE_LIMIT` | `20` | Failed authentication attempts from one IP before it is locked out. |
 | `BUNDLEMCP_AUTH_FAILURE_WINDOW` | `300` | Seconds the failure count is retained. |
@@ -89,7 +89,7 @@ rejects `1`, an integer key rejects `"3"`.
 | `session_lifetime` | `86400` | Idle lifetime in seconds of a handshake-era session record. `0` disables idle expiry. |
 | `list_cache_ttl_ms` | `300000` | Milliseconds a modern-era client may cache a tools, prompts or resources list. |
 | `server_error_attempts` | `3` | Consecutive connection failures before a server is marked `error`. |
-| `audit_retention_days` | `90` | Age after which audit records are purged. |
+| `audit_retention_days` | `90` | Intended age after which audit records should be purged. **Advisory only — no purge job reads it yet**; see [Audit retention](/self-hosting/operations#audit-retention). |
 | `authorization_code_lifetime` | `600` | Seconds a client has to redeem an authorization code from the gateway's OAuth server. |
 | `access_token_lifetime` | `3600` | Seconds an access token issued by the gateway's OAuth server stays valid. |
 | `refresh_token_lifetime` | `604800` | Seconds a refresh token issued by the gateway's OAuth server may be exchanged. |

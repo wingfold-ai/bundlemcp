@@ -105,8 +105,15 @@ async def render(
 The function's docstring becomes the tool's own description, so it carries the *when and why*; the field descriptions
 carry the *what* of each argument.
 
-## Applying this
+## Maintaining this
 
-This repo currently declares fields with `Field()` in over a hundred places and sets `description` in none of them, so
-`/api/v1/docs` and the generated TypeScript client both ship bare field names. Closing that gap is worth doing
-per-module as each is touched, starting with `schemas/` and `Settings` — the two that are already published.
+The gap this rule was written to close is closed. Every `Field()` in `application/schemas/` carries a `description`, as
+does every `Settings` field, and `/api/v1/docs` plus the generated TypeScript types both ship them.
+
+So the rule is no longer aspirational, which changes what it asks of you:
+
+- A new or changed DTO field without a `description` is a **regression**, not a gap to fill later.
+- A changed `description` on a `schemas/` DTO changes published API surface. Re-run `cd apps/web && npm run openapi` in
+  the same commit — CI fails on a stale `apps/web/openapi.json` or `apps/web/types/api.d.ts`.
+- Internal models (results, contexts, wiring) are held to the same rule, with a lower bar for polish: the audience is
+  the next maintainer, not an API consumer.

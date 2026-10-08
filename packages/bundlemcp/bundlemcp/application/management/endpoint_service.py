@@ -1,5 +1,7 @@
 """Endpoint business logic: CRUD, auth-mode/profile rules, rate-limit config."""
 
+import uuid
+
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import ConflictError, NotFoundError
 from bundlemcp.application.management.named_resource_service import NamedResourceService
@@ -64,6 +66,28 @@ class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
                     profile=endpoint.profile,
                     bundle_name=bundle.name if bundle else "",
                     bundle_description=bundle.description if bundle else None,
+                    bundle_overview=bundle.overview if bundle else None,  # BND-11
                 )
             )
         return sorted(entries, key=lambda e: e.name)
+
+    async def reachable_bundle_id(self, bundle_name: str) -> uuid.UUID:
+        """The bundle's id, when a signed-in person could connect a client to it.
+
+        Reachable means the same thing as in available(): some enabled endpoint on
+        the bundle accepts OAuth, so a person can reach it with their own identity.
+        A bundle that has none is reported as not found rather than forbidden — a
+        caller with no way in should not learn that it exists.
+        """
+        bundle = await self._uow.bundles.by_name(bundle_name)
+        if bundle is None:
+            raise NotFoundError("bundle not found")
+        _total, endpoints = await self._repo.page(offset=0, limit=500)
+        for endpoint in endpoints:
+            if (
+                endpoint.bundle_id == bundle.id
+                and endpoint.enabled
+                and endpoint.accepts(EndpointAuthMode.OAUTH)
+            ):
+                return bundle.id
+        raise NotFoundError("bundle not found")

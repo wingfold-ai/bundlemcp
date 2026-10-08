@@ -23,9 +23,20 @@ Two credentials are accepted on every route:
 - the **admin session cookie** a browser holds after logging in. Cookie calls from a browser must come from an origin in
   `BUNDLEMCP_WEB_ORIGINS`.
 
-`GET /api/v1/me` reports which one authenticated the call. It and `GET /api/v1/me/endpoints` are the two routes that
-answer a signed-in **non-admin** user too, which is all the web app needs to show them the catalogue. Everything else
-answers 401 without a credential and 403 for a non-admin user.
+`GET /api/v1/me` reports which one authenticated the call. It and the other `/api/v1/me/…` routes answer a signed-in
+**non-admin** user too, which is all the web app needs to show them the catalogue.
+
+Everything else requires an administrator, and the status codes are worth reading carefully because they are not the
+obvious split:
+
+| Status | When |
+|---|---|
+| `401` | No credential, an invalid credential, **or a signed-in user who is not an administrator** |
+| `403` | An endpoint-kind API key, or a cookie-authenticated mutation from a disallowed origin |
+
+A non-administrator therefore gets `401`, not `403`. If you are building a UI, do not treat `401` on `/api/v1` as
+"session expired" — call `GET /api/v1/me`, which answers for any signed-in user, to tell "not logged in" from "logged
+in, not an administrator". [Error responses](/integrate/errors) has the full table.
 
 Endpoint-kind API keys are refused here; only `service` keys manage the gateway.
 
@@ -42,13 +53,41 @@ schemas.
 **Renames are explicit actions.** Changing a name changes tool prefixes or public URLs, so it is a
 `POST …:rename?new_name=…` that refuses unless `force=true` acknowledges the consequence.
 
-**Lists are paginated.** `offset` and `limit` query parameters, default 50, maximum 500. Responses have the shape
-`{"items": [...], "total": n, "offset": o, "limit": l}`, ordered by creation time then id, so paging is stable while
-resources are added.
+**Top-level collections are paginated; nested ones are not.** `offset` and `limit` query parameters, default 50, maximum
+500, with the shape `{"items": [...], "total": n, "offset": o, "limit": l}`, ordered by creation time then id, so paging
+is stable while resources are added. That covers `/servers`, `/servers/{name}/tools`, `/bundles`, `/endpoints`,
+`/api-keys`, `/users` and `/audit-records`.
 
-**Errors are structured.** Validation failures answer 422 with the field path and message; domain-rule violations (a
-reserved endpoint name, a profile that forbids the given auth modes, a `per_user` server behind an open endpoint) answer
-4xx with a message that names the rule.
+These return a **bare JSON array** with no envelope, so a client that unwraps `.items` unconditionally breaks on them:
+
+| Route | Returns |
+|---|---|
+| `GET /bundles/{name}/servers` | `[BundleMemberRead]` |
+| `GET /bundles/{name}/tools` | `[BundleToolRead]` |
+| `GET /endpoints/profiles` | `[EndpointProfileRead]` |
+| `GET /users/{id}/consents` | `[ConsentRead]` |
+| `GET /me/endpoints` | `[AvailableEndpointRead]` |
+| `GET /me/bundles/{name}/tools` | `[CatalogueToolRead]` |
+
+`GET /config` is a third shape again: a flat object of key → value.
+
+**Errors are structured**, in four different shapes depending on what failed. [Error responses](/integrate/errors) is
+the catalogue; the short version is that a domain-rule violation answers `{"detail": "<message>"}` naming the rule,
+while request validation answers `422` with `detail` as a *list* of field errors.
+
+## Stability
+
+Within `/api/v1`:
+
+- Routes and response fields are never removed or renamed. New optional request fields and new response fields may
+  appear in any release, so treat unknown response fields as ignorable rather than erroring on them.
+- A breaking change means a new prefix (`/api/v2`), not a change here.
+- `METERING_PROTOCOL_VERSION` ([metering hook](/integrate/metering-hook)) moves independently of the gateway's own
+  version.
+
+There is no published release cadence or deprecation window yet — the gateway has no versioned releases at all (see
+[Production deployment](/self-hosting/deploy#get-the-images)), so pin the commit or image digest you deployed and read
+`git log` between upgrades.
 
 **Secrets are write-only.** Static header values, upstream OAuth client secrets and API key values are accepted on write
 and never returned; key values appear once, in the creation response.
@@ -107,8 +146,9 @@ and never returned; key values appear once, in the creation response.
 | `POST` | `/users/{id}:deactivate` | Revoke everything the user holds. |
 | `GET` | `/users/{id}/consents` | The user's OAuth consents. |
 | `DELETE` | `/users/{id}/consents/{consent_id}` | Revoke a consent and its tokens. |
-| `GET` | `/me` | Who is calling. |
-| `GET` | `/me/endpoints` | The catalogue: enabled endpoints accepting OAuth, with their URLs. Answers for any signed-in user, admin or not. |
+| `GET` | `/me` | Who is calling. Answers for any signed-in user, admin or not. |
+| `GET` | `/me/endpoints` | The catalogue: enabled endpoints accepting OAuth, with their URLs. Any signed-in user. |
+| `GET` | `/me/bundles/{name}/tools` | The tools one catalogue bundle serves. Any signed-in user; 404 rather than 403 when no endpoint would let this caller reach the bundle. |
 
 ### Operations
 

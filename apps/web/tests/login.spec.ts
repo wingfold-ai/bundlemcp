@@ -15,12 +15,19 @@ test(testTitle("E2E-01"), async ({ page, steps }) => {
         await expect(page.getByTestId(`row-${name}`)).toBeVisible();
       }
     }),
+    then("each server shows the MCP revision it negotiated, or a dash when unprobed", { req: "SRV-10" }, async () => {
+      // echo is the only seeded upstream the core stack actually runs, so it is
+      // the only one that has completed a probe.
+      await expect(page.getByTestId("protocol-echo")).toContainText(/^\d{4}-\d{2}-\d{2}$/);
+      await expect(page.getByTestId("protocol-seo-psi")).toContainText("—");
+    }),
   ]);
 });
 
 test(testTitle("E2E-02"), async ({ page, steps }) => {
   const stops: Array<[string, string, string]> = [
     ["nav-bundles", "row-seo", "Bundles"],
+    ["nav-matrix", "matrix-table", "Composition"],
     ["nav-endpoints", "row-seo", "Endpoints"],
     ["nav-api-keys", "key-create", "API keys"],
     ["nav-users", "user-admin@example.com", "Users"],

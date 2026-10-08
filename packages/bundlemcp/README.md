@@ -67,9 +67,9 @@ bundlemcp/
 │   Every surface keeps its route classes in controllers/; anything outside
 │   such a folder is not a route.
 └── main/            The composition root: create_app, CompositionRoot,
-                     AppContainer, CompositionOverrides, McpEdgeAssembly, and
-                     the OpenAPI export script. The only package that names an
-                     adapter beside a use case.
+                     AppContainer, CompositionOverrides, McpGatewayAssembly,
+                     and the OpenAPI export script. The only package that names
+                     an adapter beside a use case.
 ```
 
 ## Two kinds of configuration
@@ -108,6 +108,6 @@ non-event for in-flight client sessions. The only replica-local objects are open
 
 - `spec/` — the source of truth: atomic specs with testable requirement IDs (`SRV-1`, `EP-3`, `OAS-5`, …). These READMEs
   cite those IDs.
-- `docs/arc42/` — architecture narrative. `docs/adr/` — decision records (ADR-0019/0020 explain the service/DTO layering
-  used above).
+- `docs/arc42/` — architecture narrative. `docs/adr/` — decision records (ADR-0033 explains the four layers and the
+  contracts; ADR-0034 the entity/row split used above).
 - `deploy/TESTING.md` — how to run the full compose stack and the test suites.

@@ -59,12 +59,14 @@ class Settings(BaseModel):
 
     egress_allow_cidrs: list[str] = Field(  # SEC-2
         default=[],
-        description="CIDRs upstream servers may resolve to; empty allows anything not denied",
+        description="CIDRs outbound requests may resolve to; empty allows anything not denied. "
+        "Checked first and overrides every other rule, including the built-in loopback and "
+        "cloud-metadata blocks, so keep it as narrow as the host you mean to reach",
     )
     egress_deny_cidrs: list[str] = Field(  # SEC-2
         default=[],
-        description="CIDRs upstream servers may never resolve to, evaluated after the allow "
-        "list. Cloud metadata ranges are blocked in code regardless of this setting",
+        description="CIDRs outbound requests may never resolve to, evaluated after the allow "
+        "list, so an allow entry covering the same address wins",
     )
 
     discovery_refresh_interval: int = Field(  # DISC-7
@@ -129,9 +131,10 @@ class Settings(BaseModel):
 
     legacy_protocol_enabled: bool = Field(  # PROT-13
         default=True,
-        description="Whether MCP revisions before 2026-07-28 (the initialize handshake and "
-        "sessions) are still served. Switch off once every client speaks the stateless "
-        "revisions; modern-era requests are unaffected",
+        description="Whether the session-era MCP revisions (2025-03-26 through 2025-11-25, "
+        "which open with an initialize handshake and hold a session) are still served. Switch "
+        "off once every client speaks the stateless 2026-07-28 revision, which is unaffected "
+        "either way; a session-era client then fails at initialize",
     )
 
     log_level: str = Field(

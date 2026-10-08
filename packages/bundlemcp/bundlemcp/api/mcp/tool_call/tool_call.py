@@ -187,16 +187,17 @@ class ToolCall:
                 allowed=self._support.metering_fail_open, reason="metering_unavailable"
             )
 
+    # UPO-4, UPO-10, MID-3
     async def execute(
         self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
     ) -> CallOutcome:
         """Drive the upstream once; act on what an upstream refusal says.
 
         A 401 from an upstream-OAuth server forces a token refresh and one
-        retry (UPO-4); a 403 insufficient_scope records the scopes the next
-        connect must request and asks the caller to reconnect (UPO-10). The
+        retry; a 403 insufficient_scope records the scopes the next
+        connect must request and asks the caller to reconnect. The
         same metering context is reused — an internal retry does NOT re-fire
-        pre_call (MID-3).
+        pre_call.
         """
         attempt = self._upstream_call(self._headers, on_progress, on_notification)
         outcome = await attempt.run()
@@ -224,8 +225,9 @@ class ToolCall:
             {**self._headers, **refreshed}, on_progress, on_notification
         ).run()
 
+    # UPO-10
     async def _step_up(self, outcome: CallOutcome, scopes: list[str]) -> CallOutcome:
-        """Remember the demanded scopes and tell the caller to reconnect (UPO-10)."""
+        """Remember the demanded scopes and tell the caller to reconnect."""
         server = self._tool.server
         await self._support.credentials.request_step_up(server, scopes)
         needed = f" ({' '.join(scopes)})" if scopes else ""
@@ -242,10 +244,11 @@ class ToolCall:
         on_notification: NotificationSink | None,
         started: float,
     ) -> None:
+        # PROT-18: the detached runner is what lets a parked call survive its response
         """Execute, account, and tell the streaming client how it ended.
 
         Runs detached from the response so that a call which asked the client
-        for input keeps going after that response has been sent (PROT-18).
+        for input keeps going after that response has been sent.
         """
         assert self._events is not None  # attached by the streamed renderer
         outcome = await self.execute(on_progress, on_notification)
@@ -277,15 +280,17 @@ class ToolCall:
         await self._events.emit("result", outcome.body(self.shape))
 
     def disconnected(self) -> None:
+        # PROT-19: a disconnect is accounted for as a cancellation
         """The client closed the response stream mid-call: end the upstream call.
 
-        The detached runner then accounts for the call as cancelled (PROT-19).
+        The detached runner then accounts for the call as cancelled.
         """
         if self._handle is not None:
             self._handle.cancel_event.set()
 
     def _channel(self) -> InputChannel | None:
-        """How an upstream's request for input reaches this client (PROT-18)."""
+        # PROT-18: which relay strategy serves a mid-request tool response
+        """How an upstream's request for input reaches this client."""
         if self._ctx.era is ProtocolEra.SESSION:
             return None  # PROT-4: the GET stream relay
         if self._preanswered is not None:

@@ -92,10 +92,11 @@ def _metadata(data: dict[str, Any], resource_scopes: list[str], resource: str) -
     )
 
 
+# UPO-13
 def _acceptable(data: dict[str, Any] | None, issuer: str) -> dict[str, Any] | None:
     """Authorization server metadata the connect can use, or None to try the next location.
 
-    UPO-13: the document must name the issuer it was fetched for and offer
+    The document must name the issuer it was fetched for and offer
     PKCE with S256; one that does not is refused rather than followed.
     """
     if data is None or "authorization_endpoint" not in data or "token_endpoint" not in data:

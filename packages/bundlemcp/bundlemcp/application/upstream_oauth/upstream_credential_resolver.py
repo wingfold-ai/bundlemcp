@@ -83,8 +83,9 @@ class UpstreamCredentialResolver:
             return False
         return not await self._tokens.is_connected(server.id, user)
 
+    # UPO-10
     async def request_step_up(self, server: McpServer, scopes: list[str]) -> None:
-        """Have the server's next connect request scopes it demanded (UPO-10)."""
+        """Have the server's next connect request scopes it demanded."""
         if self._tokens is not None and scopes:
             await self._tokens.request_step_up(server, scopes)
 

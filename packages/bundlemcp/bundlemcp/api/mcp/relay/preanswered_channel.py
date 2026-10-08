@@ -1,4 +1,6 @@
-"""Answer an upstream's requests from the answers a retry already carries (PROT-18 re-run)."""
+"""Answer an upstream's requests from the answers a retry already carries."""
+
+# PROT-18: the re-run half of park and resume.
 
 from typing import Any
 

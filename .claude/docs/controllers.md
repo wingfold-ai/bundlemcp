@@ -35,8 +35,8 @@ Handlers are ordinary bound methods; FastAPI reads their signatures for paramete
 response model. A handler does HTTP work only: it checks a path-versus-body mismatch, calls **one** service method, and
 returns the DTO. Anything it would otherwise compute belongs in the service.
 
-The composition root mounts controllers (`ServerController().mount(app, prefix=API_PREFIX)`); nothing else calls
-`include_router`.
+`create_app` in `main/app.py` mounts every controller (`ServerController().mount(app, prefix=API_PREFIX)`);
+`include_router` is called in exactly one place, `Controller.mount` itself, and nowhere else.
 
 ## Policy is declared once, on the base
 
@@ -73,13 +73,42 @@ only contracts from `application/`, never an adapter from `infrastructure/`.
 4. A `get_<resource>_service` provider in `api/http/service_providers.py`.
 5. A controller in `api/management/controllers/`, registered in `main/app.py`.
 
-## The MCP edge: one class per method
+6. `cd apps/web && npm run openapi` — the generated OpenAPI document and
+   TypeScript types are a CI gate, so a new DTO that is not regenerated fails
+   the build.
 
-`McpEdge` admits the request (endpoint lookup, authentication, then the client's dialect: per-request `_meta` for a
-modern-era client, the session record for a handshake-era one) and hands a `RequestContext` plus a parsed
-`JsonRpcMessage` to `MethodRegistry.dispatch`. A handler returns results through `ctx.shape(...)`, so the
-revision-specific fields are added in one place (`api/mcp/dialect/`). The registry maps method names to handler
-instances:
+## The MCP gateway: front controller, two adapters, one class per method
+
+The MCP edge is a Front Controller with Protocol Adapters (ADR-0035). Four collaborators, in the order a request meets
+them:
+
+| Step | Class | Job |
+|---|---|---|
+| 1 | `McpGatewayRouter` (`api/mcp/routing/gateway_router.py`) | Size gate, then parse, then admit, then pick the era adapter |
+| 2 | `AdmissionGate` (`api/mcp/routing/admission_gate.py`) | `parse_envelope` (pure CPU), then `admit_caller` (one short `UnitOfWork`: endpoint lookup + authentication) |
+| 3 | `StatelessMcpAdapter` / `SessionMcpAdapter` (`api/mcp/routing/adapters/`) | Establish the protocol facts their era carries, then call the registry |
+| 4 | `MethodRegistry` (`api/mcp/dispatch/method_registry.py`) | Route the method to its handler |
+
+The router chooses the adapter from the message, not from a header:
+
+```python
+# api/mcp/routing/gateway_router.py
+if message.has_modern_meta:
+    return await self._stateless.handle_post(ctx, message, endpoint_name)
+return await self._session.handle_post(ctx, message, endpoint_name)
+```
+
+The ordering is the point, not an accident: the size gate costs nothing, the parse is pure CPU, and only an
+already-parsed request is allowed to take a database connection. Do not move admission earlier — see
+[design-principles.md](design-principles.md) §3.
+
+The two adapters exist because the eras have genuinely different transport capabilities: `ProtocolEra.STATELESS` is
+POST-only and carries its protocol facts in each request's `params._meta`; `ProtocolEra.SESSION` also serves GET-SSE and
+DELETE, and reads the same facts from a session record in Valkey. Both hand the registry a `RequestContext`, so **a
+handler never knows which era it is serving.**
+
+A handler returns results through `ctx.shape(...)`, which adds the revision-specific fields in one place
+(`api/mcp/protocol/dialect/`):
 
 ```python
 class PingHandler:
@@ -88,8 +117,8 @@ class PingHandler:
 ```
 
 A handler declares its collaborators in its constructor and nothing else. To add a method, write the class and register
-it in `McpEdgeAssembly.build()`; the dispatcher does not change. Rate limiting is the `RateLimited` decorator handler,
-applied at registration to the methods that count.
+it in `McpGatewayAssembly.build()` (`main/mcp_gateway_assembly.py`); the dispatcher does not change. Rate limiting is
+the `RateLimited` decorator handler, applied at registration to the methods that count.
 
 `ToolsCallHandler` is the exception in size, not in shape: it resolves the presented tool and hands off to a `ToolCall`
 object that carries the call's state through credentials, metering, the upstream call and audit.

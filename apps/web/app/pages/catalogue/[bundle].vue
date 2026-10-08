@@ -2,6 +2,7 @@
 import type { components } from "~~/types/api";
 
 type AvailableEndpointRead = components["schemas"]["AvailableEndpointRead"];
+type CatalogueToolRead = components["schemas"]["CatalogueToolRead"];
 
 // One bundle of the catalogue: its endpoints with the URL to paste into an
 // MCP client and the steps for the client each endpoint is shaped for.
@@ -14,20 +15,45 @@ const layout = computed(() => (me.value?.is_admin ? "default" : "user"));
 const bundleName = computed(() => String(route.params.bundle));
 
 const endpoints = ref<AvailableEndpointRead[]>([]);
+const tools = ref<CatalogueToolRead[]>([]);
 const errorMsg = ref("");
 const copied = ref("");
 
 async function load() {
-  const { data, error } = await api.GET("/api/v1/me/endpoints");
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
+  // Both requests are started before either is awaited, so they overlap.
+  const endpointRequest = api.GET("/api/v1/me/endpoints");
+  const toolRequest = api.GET("/api/v1/me/bundles/{bundle_name}/tools", {
+    params: { path: { bundle_name: bundleName.value } },
+  });
+  const { data: endpointData, error: endpointError } = await endpointRequest;
+  // A bundle with no endpoint this person can use answers 404 here; the empty
+  // endpoint list already says so, so the tool list simply stays empty.
+  const { data: toolData } = await toolRequest;
+  if (endpointError) {
+    errorMsg.value = apiErrorMessage(endpointError);
     return;
   }
-  endpoints.value = (data ?? []).filter((ep) => ep.bundle_name === bundleName.value);
+  endpoints.value = (endpointData ?? []).filter((ep) => ep.bundle_name === bundleName.value);
+  tools.value = toolData ?? [];
 }
 await load();
 
 const description = computed(() => endpoints.value[0]?.bundle_description ?? null);
+const overview = computed(() => endpoints.value[0]?.bundle_overview ?? null);
+/** Paragraphs of the overview, split on blank lines so the text keeps its shape. */
+const overviewParagraphs = computed(() =>
+  (overview.value ?? "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+);
+/** Tools grouped by the server that provides them, in the order the API returned. */
+const toolsByServer = computed(() => {
+  const grouped = new Map<string, CatalogueToolRead[]>();
+  for (const tool of tools.value) {
+    const existing = grouped.get(tool.server_name);
+    if (existing) existing.push(tool);
+    else grouped.set(tool.server_name, [tool]);
+  }
+  return [...grouped.entries()];
+});
 
 async function copyUrl(ep: AvailableEndpointRead) {
   await navigator.clipboard.writeText(ep.url);
@@ -69,14 +95,61 @@ function steps(ep: AvailableEndpointRead): string[] {
   <NuxtLayout :name="layout">
     <div class="space-y-6">
       <div>
-        <NuxtLink to="/catalogue" class="text-xs text-muted underline">← All bundles</NuxtLink>
-        <h1 class="text-lg font-semibold inline-flex items-center gap-2 mt-1">
+        <!-- The heading is a block, so the link above it keeps its own line;
+             an inline-flex heading would sit beside the link. -->
+        <NuxtLink
+          to="/catalogue"
+          class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-default mb-2"
+          data-testid="back-to-catalogue"
+        >
+          <UIcon name="i-lucide-arrow-left" class="size-4" />All bundles
+        </NuxtLink>
+        <h1 class="text-lg font-semibold flex items-center gap-2">
           <UIcon name="i-lucide-package" class="size-5 text-muted" />{{ bundleName }}
         </h1>
         <p v-if="description" class="text-sm text-toned">{{ description }}</p>
       </div>
 
       <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+
+      <div v-if="overviewParagraphs.length" class="wf-card space-y-2" data-testid="catalogue-overview">
+        <h2 class="text-sm font-semibold">About this bundle</h2>
+        <p v-for="(paragraph, i) in overviewParagraphs" :key="i" class="text-sm text-toned">
+          {{ paragraph }}
+        </p>
+      </div>
+
+      <div v-if="tools.length" class="space-y-3" data-testid="catalogue-tools">
+        <div>
+          <h2 class="text-sm font-semibold">
+            Tools <span class="text-muted font-normal">({{ tools.length }})</span>
+          </h2>
+          <p class="text-xs text-muted">
+            What a client connected to this bundle can call, and what each tool does.
+          </p>
+        </div>
+        <div v-for="[server, serverTools] in toolsByServer" :key="server" class="wf-card space-y-2">
+          <h3 class="inline-flex items-center gap-1.5 text-sm font-medium">
+            <UIcon name="i-lucide-server" class="size-4 text-muted" />{{ server }}
+          </h3>
+          <ul class="divide-y divide-default">
+            <li
+              v-for="tool in serverTools"
+              :key="tool.name"
+              class="py-2 first:pt-0 last:pb-0"
+              :data-testid="`catalogue-tool-${tool.name}`"
+            >
+              <!-- The title is what this reader needs; the prefixed wire name is
+                   how the model addresses the tool, so it stays on hover unless
+                   the server published no title and it is all we have. -->
+              <p v-if="tool.title" class="text-sm" :title="tool.name">{{ tool.title }}</p>
+              <code v-else class="rounded bg-elevated px-1.5 py-0.5 text-xs">{{ tool.name }}</code>
+              <p v-if="tool.description" class="mt-1 text-xs text-toned">{{ tool.description }}</p>
+              <p v-else class="mt-1 text-xs text-muted italic">No description published.</p>
+            </li>
+          </ul>
+        </div>
+      </div>
 
       <div v-if="endpoints.length === 0" class="wf-card text-sm text-muted" data-testid="catalogue-empty">
         This bundle has no endpoint you can connect to.

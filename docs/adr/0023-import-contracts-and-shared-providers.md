@@ -1,7 +1,7 @@
 # ADR-0023: Enforce layer direction with import contracts; every library-level module is a package
 
-**Status:** accepted (amended by [ADR-0033](0033-clean-architecture-layers.md)) · **Date:** 2026-09-03 · **Amends:**
-[ADR-0020](0020-library-level-service-layer.md)
+**Status:** accepted · **Date:** 2026-09-03 · **Amended by:** [ADR-0025](0025-repository-unit-of-work-and-container.md),
+[ADR-0033](0033-clean-architecture-layers.md) · **Amends:** [ADR-0020](0020-library-level-service-layer.md)
 
 ## Context
 

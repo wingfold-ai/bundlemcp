@@ -1,4 +1,6 @@
-"""The opaque state a modern client echoes back when it retries with input (PROT-18)."""
+"""The opaque state a stateless client echoes back when it retries with input."""
+
+# PROT-18: sealed so any replica can resume the call the state describes.
 
 import hashlib
 import json

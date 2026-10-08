@@ -106,8 +106,9 @@ class UpstreamOAuthConfigService:
             **registration,
         )
 
+    # UPO-11
     async def connect_client(self, name: str) -> UpstreamOAuthStatusRead:
-        """Run the client-credentials grant now, so the shared connection exists (UPO-11)."""
+        """Run the client-credentials grant now, so the shared connection exists."""
         server = await self._server(name)
         try:
             await self._connections.connect_as_client(server)

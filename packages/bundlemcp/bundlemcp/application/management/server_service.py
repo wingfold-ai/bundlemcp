@@ -21,12 +21,13 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         self._discovery = discovery
         self._policy = PerUserUpstreamCheck(uow)
 
+    # SRV-13
     async def upsert(self, body: ServerUpsert) -> ServerRead:
         """Config-only upsert by natural key; idempotent; never blocks on probing.
 
         Fields a caller leaves out keep their stored value on update and take
         their default on create; the send_identity_header default depends on
-        whether the server is on the gateway's own network (SRV-13).
+        whether the server is on the gateway's own network.
         """
         server = await self._by_name(body.name)
         created = server is None

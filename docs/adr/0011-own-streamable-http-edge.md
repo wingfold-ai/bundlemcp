@@ -1,6 +1,9 @@
 # ADR-0011: Own the Streamable-HTTP endpoint edge; use FastMCP for the upstream side only
 
-**Status:** accepted · **Date:** 2026-07-02
+**Status:** accepted · **Date:** 2026-07-02 · **Amended by:** [ADR-0027](0027-mcp-edge-method-handlers.md),
+[ADR-0029](0029-dialects-and-dual-era-edge.md),
+[ADR-0035](0035-front-controller-protocol-adapters-and-admission-pipeline.md) (the edge is now a front controller over
+two protocol adapters)
 
 ## Context
 

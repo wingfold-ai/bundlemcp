@@ -11,11 +11,18 @@ English-only, light/dark theme.
 ## Requirements
 
 - **UI-1 Pages**:
-  - **Servers** — list w/ health and connection-state badges; detail: config, secret header editing (write-only),
-    forward-headers, upstream OAuth connect status ([UPO-5](23-upstream-oauth.md)), discovered tools, refresh/prune,
-    probe.
+  - **Servers** — list w/ health and connection-state badges and the MCP revision negotiated at the last successful
+    probe ([SRV-10](10-server-registry.md)); detail: config, secret header editing (write-only), forward-headers,
+    upstream OAuth connect status ([UPO-5](23-upstream-oauth.md)), discovered tools, refresh/prune, probe.
   - **Bundles** — list; detail: member servers (add/remove/enable), tool curation table (enable toggles, inline
-    overrides, stale/overridden badges — [TM-5](13-tool-management.md)), endpoints of this bundle.
+    overrides, stale/overridden badges — [TM-5](13-tool-management.md)), endpoints of this bundle, and the catalogue
+    overview shown to users ([BND-11](12-bundles.md)).
+  - **Catalogue** — what a signed-in non-admin sees: the bundles they can connect to, each with its overview and the
+    tools it serves ([BND-11](12-bundles.md)), and per endpoint the copy-paste URL and setup steps for the client it is
+    shaped for.
+  - **Composition** — one grid of bundles against registered servers, marking each membership and whether it is enabled
+    ([BND-4](12-bundles.md)). It answers what spans bundles: which bundles a server is used by, and which servers are
+    registered but in no bundle, so unreachable through any endpoint.
   - **Endpoints** — list; detail: bundle, profile (with chatgpt-profile warning [PROF-3](15-endpoint-profiles.md)), auth
     modes, rate limits, connection card (copy-paste URL + per-client setup instructions — [EP-7](14-endpoints.md)).
   - **API keys** — create (one-time value display), scope, kind, activate/deactivate ([22-api-keys.md](22-api-keys.md)).

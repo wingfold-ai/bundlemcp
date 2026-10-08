@@ -42,6 +42,14 @@ collision-free; calls are routed back to the owning upstream by parsing the pref
 - **BND-10** Bundle `name` is the natural key for export/bootstrap upserts ([EXP-3](42-export-import.md),
   [BOOT-2](41-bootstrap.md)) — the UI/API MUST warn on rename that external automation keyed on the old name will treat
   it as a new bundle.
+- **BND-11** A bundle also has an `overview`: a long-form, admin-managed description written for the person browsing the
+  catalogue, separate from `description` because that one is sent to a model as the MCP `instructions` (BND-1) and must
+  stay short. The catalogue shows the overview together with the tools the bundle serves, after curation
+  ([TM-3](13-tool-management.md)), so a user can see what they are connecting before they connect it. Each tool is shown
+  by its title and description, the two fields written for a reader; the prefixed name (BND-2) is how a model addresses
+  the tool, so it is not shown unless the tool has no title and nothing else identifies it. Both are readable only
+  through an endpoint the caller could actually use; a bundle with no OAuth endpoint is reported as not found rather
+  than forbidden.
 
 ## Out of scope
 

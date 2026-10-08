@@ -17,6 +17,21 @@ Name components after their **inherent architectural mechanism**, **protocol cap
 - ❌ `NewAuthService` ➔ ✅ `OidcSessionService`
 - ❌ `ImprovedCallHandler` ➔ ✅ `StreamedCallHandler`
 
+### In this repo
+`ProtocolEra` (`api/mcp/protocol/dialect/era.py`) is the worked example, and
+ADR-0035 made the rename. Two things about its current state are deliberate, and
+knowing which is which saves you a pointless refactor:
+
+- **`modern_versions`, `has_modern_meta`, `MODERN_PROTOCOL_VERSIONS`** mirror the
+  MCP SDK's own vocabulary. Matching an external API's names beats internal
+  purity; renaming them would make the gateway harder to read against the SDK.
+- **`BUNDLEMCP_LEGACY_PROTOCOL_ENABLED`** is a genuine violation, and the one
+  outstanding item. It is operator-facing configuration, so renaming it breaks
+  deployments; it changes with a deprecation, not in passing.
+
+The `ModernDialect` / `HandshakeDialect` class names sit in the first category —
+they name the revision family the SDK names that way.
+
 ## 2. Concrete Domain Roles Over Vague Jargon
 
 Avoid ambiguous networking or framework buzzwords like `Edge`, `Core`, `Base`, `Handler` (when generic), or `Service`
@@ -39,9 +54,29 @@ Request handling pipelines must always sequence validation in order of **strictl
 ```
 
 ### The Rule
-- **Never open a database connection or Unit of Work** before verifying that the incoming payload is well-formed JSON,
-  has the correct `Content-Type`, and respects body size limits (`Content-Length` < 4MB).
+- **Never open a database connection or Unit of Work** before verifying that the incoming payload respects the body size
+  limit and is well-formed JSON.
 - Exhausting database connection pools with malformed or unvalidated garbage payloads is a severe availability hazard.
+
+### In this repo
+`McpGatewayRouter.post` (`api/mcp/routing/gateway_router.py`) is the sequence,
+and `AdmissionGate` is stages 2 and 3:
+
+| Stage | Where | Cost |
+|---|---|---|
+| `_is_oversized` — `Content-Length` vs `MAX_PAYLOAD_BYTES` (4 MiB) → `413` | `gateway_router.py` | One header read |
+| `parse_envelope` — `await request.json()` into `JsonRpcMessage` | `admission_gate.py` | Pure CPU |
+| `admit_caller` — endpoint lookup and authentication in one `UnitOfWork` | `admission_gate.py` | A pooled DB connection |
+
+This ordering is what ADR-0035 bought: before it, `_admit()` queried five tables
+*before* checking that the body was valid JSON. Two honest caveats about the
+current implementation, so nobody documents them as done:
+
+- **There is no `Content-Type` check.** The size gate and the JSON parse are the
+  whole of stage 1.
+- **The size gate needs a declared `Content-Length`.** A chunked body reaches
+  `request.json()` unbounded, so the microsecond rejection holds only for
+  length-declared requests.
 
 ## 4. Honest Pattern Modeling Over Flat Conditionals
 
@@ -55,3 +90,14 @@ design patterns:
    Pre-metering ➔ Execution ➔ Settlement ➔ Audit).
 3. **State Machines:** Use when operations depend strictly on protocol lifecycle stages (e.g., Handshake session
    transitions: `Uninitialized` ➔ `Active` ➔ `Closed`).
+
+### In this repo
+
+| Pattern | Implementation |
+|---|---|
+| Front Controller + Protocol Adapters | `McpGatewayRouter` over `StatelessMcpAdapter` / `SessionMcpAdapter` (`api/mcp/routing/`), ADR-0035 |
+| Registry instead of a dispatch conditional | `MethodRegistry` (`api/mcp/dispatch/`), ADR-0027 — see [controllers.md](controllers.md) |
+| Pipes & Filters | `ToolCall` (`api/mcp/tool_call/tool_call.py`): credentials ➔ metering ➔ upstream ➔ settlement ➔ audit, with `RateLimited` as a decorator filter at registration |
+
+The shape to avoid is the one all three replaced: a single coordinator branching
+on protocol version, method name and auth mode in the same function body.

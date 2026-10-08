@@ -8,7 +8,8 @@
       "title": "Signed-in admin sees the seeded servers",
       "requirements": [
         "UI-2",
-        "UI-1"
+        "UI-1",
+        "SRV-10"
       ]
     },
     {
@@ -150,6 +151,26 @@
         "UI-2",
         "API-1",
         "ADM-3"
+      ]
+    },
+    {
+      "id": "E2E-15",
+      "testFile": "bundle-flow.spec.ts",
+      "slug": "bundle-server-composition-grid",
+      "title": "The composition grid shows which bundles hold which servers",
+      "requirements": [
+        "BND-4",
+        "UI-1"
+      ]
+    },
+    {
+      "id": "E2E-16",
+      "testFile": "bundle-flow.spec.ts",
+      "slug": "bundle-catalogue-overview-and-tools",
+      "title": "A bundle's catalogue overview and tool list are written by an admin and read by a user",
+      "requirements": [
+        "BND-11",
+        "BND-6"
       ]
     }
   ]

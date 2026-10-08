@@ -1,7 +1,9 @@
 # ADR-0027: The MCP edge dispatches through a method registry; a tool call is an object
 
-**Status:** accepted · **Date:** 2026-09-03 · **Amends:** [ADR-0011](0011-own-streamable-http-edge.md),
-[ADR-0016](0016-relay-design.md), [ADR-0026](0026-controllers.md)
+**Status:** accepted · **Date:** 2026-09-03 · **Amended by:** [ADR-0029](0029-dialects-and-dual-era-edge.md),
+[ADR-0035](0035-front-controller-protocol-adapters-and-admission-pipeline.md) (dispatch moved from the edge class into
+the protocol adapters) · **Amends:** [ADR-0011](0011-own-streamable-http-edge.md), [ADR-0016](0016-relay-design.md),
+[ADR-0026](0026-controllers.md)
 
 ## Context
 

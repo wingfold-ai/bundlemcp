@@ -397,6 +397,18 @@
             "title": "Bundle Name",
             "type": "string"
           },
+          "bundle_overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The administrator's long-form description of the bundle, for the catalogue page; absent when none was written",
+            "title": "Bundle Overview"
+          },
           "name": {
             "description": "Endpoint name, the last path segment before /mcp",
             "title": "Name",
@@ -417,7 +429,8 @@
           "url",
           "profile",
           "bundle_name",
-          "bundle_description"
+          "bundle_description",
+          "bundle_overview"
         ],
         "title": "AvailableEndpointRead",
         "type": "object"
@@ -520,6 +533,18 @@
             "title": "Name",
             "type": "string"
           },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Long-form description of the bundle for people browsing the catalogue: what it is for, what the tools can do, and anything a user must set up first. Plain text, paragraphs separated by blank lines. Unlike 'description' this is never sent to a model, so it can be as long as it needs to be",
+            "title": "Overview"
+          },
           "updated_at": {
             "description": "When the bundle was last changed",
             "format": "date-time",
@@ -531,6 +556,7 @@
           "id",
           "name",
           "description",
+          "overview",
           "created_at",
           "updated_at"
         ],
@@ -744,12 +770,71 @@
             "pattern": "^[a-zA-Z0-9_-]+$",
             "title": "Name",
             "type": "string"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Long-form description of the bundle for people browsing the catalogue: what it is for, what the tools can do, and anything a user must set up first. Plain text, paragraphs separated by blank lines. Unlike 'description' this is never sent to a model, so it can be as long as it needs to be",
+            "title": "Overview"
           }
         },
         "required": [
           "name"
         ],
         "title": "BundleUpsert",
+        "type": "object"
+      },
+      "CatalogueToolRead": {
+        "description": "A tool as a client will see it, for someone deciding whether to connect a bundle.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the tool does, as the model calling it is told; absent when the server published none",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Name the client sees and calls, already prefixed with its server and with any per-bundle rename applied",
+            "title": "Name",
+            "type": "string"
+          },
+          "server_name": {
+            "description": "Upstream server that provides the tool",
+            "title": "Server Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable title for the tool, when the server or the administrator provided one",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "description",
+          "server_name"
+        ],
+        "title": "CatalogueToolRead",
         "type": "object"
       },
       "ClientIdentification": {
@@ -3881,6 +3966,53 @@
           }
         },
         "summary": "Whoami",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/bundles/{bundle_name}/tools": {
+      "get": {
+        "description": "The tools a bundle serves, for a signed-in person reading its catalogue entry.",
+        "operationId": "bundle_tools_api_v1_me_bundles__bundle_name__tools_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle_name",
+            "required": true,
+            "schema": {
+              "title": "Bundle Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogueToolRead"
+                  },
+                  "title": "Response Bundle Tools Api V1 Me Bundles  Bundle Name  Tools Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bundle Tools",
         "tags": [
           "me"
         ]

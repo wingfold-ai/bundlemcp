@@ -1,7 +1,7 @@
 # ADR-0019: Thin routers + service layer in the management API
 
-**Status:** accepted (amended by [ADR-0020](0020-library-level-service-layer.md) — the service + DTO layer moved from
-`api/` to the library level) · **Date:** 2026-07-03
+**Status:** accepted · **Date:** 2026-07-03 · **Amended by:** [ADR-0020](0020-library-level-service-layer.md) (the
+service + DTO layer moved from `api/` to the library level), [ADR-0026](0026-controllers.md)
 
 ## Context
 

@@ -42,9 +42,9 @@ Users whose email appears in `BUNDLEMCP_ADMIN_EMAILS` get admin rights. The list
 removing an address demotes that person at their next login and adding one promotes them the same way.
 
 Everyone else can still log in, as a **user**: they see the catalogue of bundles and endpoints, authorise MCP clients
-for those endpoints, and connect their own accounts on per-user upstream servers. They see no management pages and the
-management API answers 403. See
-[Roles and identity](/guide/roles-and-identity).
+for those endpoints, and connect their own accounts on per-user upstream servers. They see no management pages, and
+the management API answers 401 to them outside the `/api/v1/me/…` routes
+([status codes](/integrate/management-api#authentication)). See [Roles and identity](/guide/roles-and-identity).
 
 ## Sessions
 
@@ -71,9 +71,14 @@ The compose stack ships Keycloak with a pre-imported realm named `bundlemcp`:
 | Client | `bundlemcp-gateway`, secret `dev-gateway-secret`, redirect URI `http://localhost:8000/login/callback` |
 | User | `admin` / `admin`, email `admin@example.com` (listed as admin in the compose file) |
 
-The gateway reaches Keycloak at `http://keycloak:8080` inside the compose network and sends your browser to the same
-hostname, which is why `keycloak` must resolve to `127.0.0.1` on the host. Add users in the Keycloak console to try the
-non-admin experience.
+The gateway reaches Keycloak at `http://keycloak:8080` over the compose
+network, but the compose file pins `KC_HOSTNAME: http://localhost:8080` so the
+URLs Keycloak advertises to your *browser* use a name the host can resolve.
+Nothing needs adding to `/etc/hosts`. If a login ever does send you to
+`http://keycloak:8080`, that pin is missing — see
+[Troubleshooting](/self-hosting/troubleshooting).
+
+Add users in the Keycloak console to try the non-admin experience.
 
 Replace it before exposing the gateway to anyone: the realm has `sslRequired: none` and a well-known password.
 

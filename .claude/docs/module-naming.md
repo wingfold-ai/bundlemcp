@@ -20,7 +20,7 @@ Prefer a concretely named module over a shared bin, even for a single definition
 
 ```
 domain/servers/tool_schema_hash.py            one function
-application/serving/idempotency_key.py        one function
+application/metering/idempotency_key.py       one function
 infrastructure/valkey/publish_invalidation.py one function
 ```
 
@@ -36,8 +36,8 @@ file at all:
 |---|---|
 | `RATE_KEY` | `rate_limiter.py` — it is that limiter's key layout |
 | `SESSION_RECORD_VERSION` | `session_record.py` — it is that record's schema version |
-| `PREFIX_SEP` | `presented_tool.py` — it separates the parts of that name |
-| `REFRESH_LOCK_KEY` | `upstream_token_store.py` — it guards that store's refresh |
+| `SESSION_HEADER` | `session_header.py` — it is that header's name, and nothing else's |
+| `REFRESH_LOCK_KEY` | `upstream_token_refresher.py` — it guards that refresher's lock |
 
 Same for factories: a function that builds one class belongs beside that class (`token_cipher` next to `TokenCipher`,
 `get_settings` next to `Settings`), not in a separate module of loose functions.

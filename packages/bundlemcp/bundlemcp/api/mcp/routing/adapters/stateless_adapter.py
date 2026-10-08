@@ -59,7 +59,8 @@ class StatelessMcpAdapter:
         return await self._methods.dispatch(request_ctx, message)
 
     def _admit_stateless(self, ctx: EndpointContext, message: JsonRpcMessage) -> RequestContext:
-        """Validate the per-request envelope and mirrored headers (PROT-13, PROT-15)."""
+        # PROT-13 (era from the envelope), PROT-15 (headers mirror the body)
+        """Validate the per-request envelope and mirrored headers."""
         route = classify_inbound_request(
             message.body(),
             headers=_lowercase(ctx.request.headers),
