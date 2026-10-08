@@ -1,6 +1,7 @@
 """Bootstrap tests (spec 41: BOOT-2 idempotent upserts)."""
 
 from bundlemcp.application.bootstrap import BootstrapDocument, BootstrapRunner
+from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
@@ -9,6 +10,14 @@ from bundlemcp.infrastructure.postgres.rows.endpoint_row import EndpointRow
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from bundlemcp.infrastructure.postgres.sqlalchemy_unit_of_work import SqlAlchemyUnitOfWorkFactory
 from sqlmodel import select
+
+
+class InlineDiscovery(DiscoveryService):
+    """Runs a scheduled probe to completion before returning, so a test can assert on it."""
+
+    async def schedule_probe(self, server_id, *, announce: bool = False) -> None:
+        await self.discover(server_id, announce=announce)
+
 
 DOC = {
     "servers": [{"name": "echo", "url": "http://echo:9000/mcp"}],
@@ -75,3 +84,40 @@ def test_document_version_is_checked():
     assert parse_document("").version == 1
     with pytest.raises(ValidationError):
         parse_document('{"version": 2}')
+
+
+async def test_fresh_bootstrap_serves_discovered_tools(engine, redis):
+    """BOOT-7/DISC-1: after a bootstrap the upstream's tools are cached without a manual refresh."""
+    from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
+    from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
+
+    from tests.infrastructure.test_discovery import factory_for, make_upstream
+
+    factory = session_factory(engine)
+    units = SqlAlchemyUnitOfWorkFactory(factory, redis)
+    probe = FastMcpUpstreamProbe(factory_for(make_upstream(["ping"])))
+    await BootstrapRunner(units, InlineDiscovery(units, probe)).apply(BootstrapDocument(**DOC))
+
+    async with factory() as db:
+        assert [t.name for t in (await db.execute(select(ToolRow))).scalars()] == ["ping"]
+
+
+async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis):
+    """BOOT-7/BOOT-4: an unreachable upstream is recorded on the server; startup goes on."""
+    import json
+
+    from bundlemcp.domain.servers.connection_state import ConnectionState
+    from bundlemcp.infrastructure.config.settings import EnvSettings
+    from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
+
+    from tests.infrastructure.test_discovery import failing_factory
+
+    factory = session_factory(engine)
+    units = SqlAlchemyUnitOfWorkFactory(factory, redis)
+    discovery = InlineDiscovery(units, FastMcpUpstreamProbe(failing_factory))
+    settings = EnvSettings(_env_file=None, bootstrap=json.dumps(DOC), bootstrap_strict=True)
+    await BootstrapRunner(units, discovery).run(settings)
+
+    async with factory() as db:
+        server = (await db.execute(select(McpServerRow))).scalar_one()
+    assert server.connection_state != ConnectionState.READY

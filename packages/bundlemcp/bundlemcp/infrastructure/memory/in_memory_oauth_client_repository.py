@@ -8,6 +8,9 @@ class InMemoryOAuthClientRepository(InMemoryRepository[OAuthClient]):
     def __init__(self) -> None:
         super().__init__(key=lambda client: client.client_id)
 
+    async def count_never_used(self) -> int:
+        return len(self.where(lambda c: c.last_used_at is None))
+
     async def purge_never_used(self, *, created_before: datetime) -> int:
         stale = self.where(lambda c: c.last_used_at is None and c.created_at < created_before)
         for client in stale:

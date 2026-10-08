@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from bundlemcp.domain.oauth.application_type import ApplicationType
 from bundlemcp.domain.oauth.grant_type import GrantType
+from bundlemcp.domain.oauth.redirect_uri_allow_list import RedirectUriAllowList
 from bundlemcp.domain.oauth.redirect_uri_rule import InvalidRedirectUri, check_redirect_uri
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 
@@ -54,12 +55,13 @@ class ClientIdMetadataDocument(BaseModel):
         supported = {grant.value for grant in GrantType}
         return [grant for grant in value if grant in supported]  # OAS-13
 
-    def check(self, fetched_from: str) -> None:
+    def check(self, fetched_from: str, allowed: RedirectUriAllowList) -> None:
         """Refuse a document that may not describe a client of this gateway.
 
         It must name the URL it was fetched from as its client_id, describe a
-        public client, and register only redirect URIs the gateway accepts.
-        Raises InvalidClientMetadataDocument with the reason.
+        public client, and register only redirect URIs the gateway accepts:
+        https or loopback http, and on the operator's allow-list when one is
+        configured. Raises InvalidClientMetadataDocument with the reason.
         """
         if self.client_id != fetched_from:
             raise InvalidClientMetadataDocument(
@@ -74,3 +76,7 @@ class ClientIdMetadataDocument(BaseModel):
                 check_redirect_uri(uri)
             except InvalidRedirectUri as exc:
                 raise InvalidClientMetadataDocument(str(exc)) from None
+            if not allowed.permits(uri):  # OAS-13
+                raise InvalidClientMetadataDocument(
+                    f"invalid_redirect_uri: {uri} is not a redirect URI this gateway accepts"
+                )

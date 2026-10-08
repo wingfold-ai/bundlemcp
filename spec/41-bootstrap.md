@@ -26,6 +26,11 @@ layer, CI, or any operator can stand up a fully configured gateway from config a
   API).
 - **BOOT-6** The dev compose stack ships a demo bootstrap file ([DOC-3](61-docs-and-onboarding.md)) so a fresh install
   starts non-empty.
+- **BOOT-7** Every server the document creates or updates is discovered ([DISC-1](11-tool-discovery.md)) through the
+  same best-effort background probe as a management-API create, scheduled only after the document's transaction commits
+  — a probe runs in its own transaction and would not see an uncommitted server. A fresh start therefore serves the
+  servers' tools without a manual refresh. A failed probe is recorded on the server ([SRV-4](10-server-registry.md)) and
+  never fails the bootstrap, strict or not; a document that does not land probes nothing.
 
 ## Out of scope
 

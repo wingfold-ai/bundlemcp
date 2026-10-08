@@ -54,7 +54,9 @@ abuse, and secret handling. Individual specs reference these controls instead of
   **response** size cap (default 16 MiB) so one tool result can't exhaust replica memory. Violations → 413 / structured
   MCP error.
 - **SEC-8** Dynamic client registration ([OAS-2](20-oauth-server.md)) is rate-limited per IP (Redis, shares
-  [RATE-5](16-rate-limiting.md) machinery) and capped by a global unapproved-client quota; stale never-used
+  [RATE-5](16-rate-limiting.md) machinery; limits and allow-list exemption per [OAS-12](20-oauth-server.md)) and capped
+  by a global unapproved-client quota: once `BUNDLEMCP_DCR_MAX_UNUSED_CLIENTS` (default 1000) registered clients have
+  never obtained a token, further registrations are refused until some are used or purged; stale never-used
   registrations are purged with the OAS-8 job.
 - **SEC-9** Auth-failure rate limiting per [RATE-5](16-rate-limiting.md); lockout events are visible in metrics
   ([OBS-2](51-observability.md)).

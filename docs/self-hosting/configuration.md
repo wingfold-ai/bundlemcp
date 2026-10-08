@@ -43,6 +43,30 @@ A second, smaller set of **runtime settings** is editable while the gateway runs
 | `BUNDLEMCP_AUTH_FAILURE_LIMIT` | `20` | Failed authentication attempts from one IP before it is locked out. |
 | `BUNDLEMCP_AUTH_FAILURE_WINDOW` | `300` | Seconds the failure count is retained. |
 
+### Client registration
+
+How OAuth clients such as claude.ai and ChatGPT may register with the gateway's own authorization server.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS` | `[]` | Redirect URIs clients may register, or declare in a client metadata document. Empty accepts any https URI (or http on localhost). Syntax below. |
+| `BUNDLEMCP_DCR_RATE_LIMIT` | `10` | Dynamic registrations one client IP may make per window. Registrations whose redirect URIs are all allow-listed are exempt. |
+| `BUNDLEMCP_DCR_RATE_WINDOW` | `3600` | Seconds in the per-IP registration window. |
+| `BUNDLEMCP_DCR_MAX_UNUSED_CLIENTS` | `1000` | Registered clients that have not yet obtained a token, across all IPs. Further registrations are refused with `429` until some are used or purged after seven days unused. Applies to allow-listed registrations too. |
+
+Each entry of `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS` is one of:
+
+- **An exact URI**, compared character for character: `https://claude.ai/api/mcp/auth_callback`.
+- **A URI whose leftmost host label is `*`**: `https://*.example.com/oauth/callback` matches
+  `https://app.example.com/oauth/callback`, but not `https://example.com/oauth/callback` or
+  `https://a.b.example.com/oauth/callback`. The `*` stands for exactly one DNS label; scheme, port, path and query must
+  be identical. `*` is allowed nowhere else, and at least two labels must follow it.
+
+A malformed entry stops the gateway at startup. The list only narrows the built-in rule: an http redirect URI to
+anything but localhost is refused even if listed. Set it as a JSON array, for example
+`BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS='["https://claude.ai/api/mcp/auth_callback"]'` for a deployment that serves
+claude.ai only.
+
 ### Upstream discovery
 
 | Variable | Default | Meaning |

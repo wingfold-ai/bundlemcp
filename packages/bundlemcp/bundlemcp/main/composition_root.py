@@ -37,6 +37,8 @@ from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
+from bundlemcp.domain.oauth.redirect_uri_allow_list import RedirectUriAllowList
+from bundlemcp.domain.oauth.registration_policy import RegistrationPolicy
 from bundlemcp.domain.shared.os_secret_generator import OsSecretGenerator
 from bundlemcp.domain.shared.secret_generator import SecretGenerator
 from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
@@ -225,6 +227,7 @@ class CompositionRoot:
         client_metadata = overrides.client_metadata_fetcher or HttpxClientMetadataFetcher(
             settings, redis
         )
+        registration_policy = self._registration_policy()
 
         return AppContainer(
             settings=settings,
@@ -273,8 +276,25 @@ class CompositionRoot:
             token_grants=(AuthorizationCodeGrant, RefreshTokenGrant),
             client_sources=(
                 lambda uow: RegisteredClientSource(uow.oauth_clients),
-                lambda uow: MetadataDocumentClientSource(uow.oauth_clients, client_metadata),
+                lambda uow: MetadataDocumentClientSource(
+                    uow.oauth_clients,
+                    client_metadata,
+                    allowed_redirect_uris=registration_policy.allowed_redirect_uris,
+                ),
             ),
+            registration_policy=registration_policy,
+        )
+
+    # OAS-2 / OAS-12 / SEC-8
+    def _registration_policy(self) -> RegistrationPolicy:
+        """The redirect URIs and registration limits the operator configured."""
+        return RegistrationPolicy(
+            allowed_redirect_uris=RedirectUriAllowList.of(
+                self._settings.dcr_allowed_redirect_uris
+            ),
+            per_ip_limit=self._settings.dcr_rate_limit,
+            per_ip_window=self._settings.dcr_rate_window,
+            max_unused_clients=self._settings.dcr_max_unused_clients,
         )
 
     # UPO-1

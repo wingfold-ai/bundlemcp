@@ -55,7 +55,7 @@ For anyone debugging the flow, the gateway serves:
 |---|---|
 | `GET /.well-known/oauth-protected-resource/assistant/mcp` | Names the authorization server for this endpoint. Also referenced by the 401 challenge on the endpoint. |
 | `GET /.well-known/oauth-authorization-server` | RFC 8414 metadata: authorize, token, registration, introspection and revocation endpoints, PKCE methods, and the `client_id_metadata_document_supported` flag. |
-| `POST /oauth/register` | Dynamic client registration for clients that still use it. |
+| `POST /oauth/register` | Dynamic client registration for clients that still use it. A public deployment serving only claude.ai can restrict it to Claude's callback with `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS`, see [Client registration](/self-hosting/configuration#client-registration). |
 | `GET /oauth/authorize` | Requires a browser session; federates to the identity provider, then consent. |
 | `POST /oauth/token` | `authorization_code` and `refresh_token` grants. Access tokens live one hour by default, refresh tokens seven days and rotate on every use. |
 
