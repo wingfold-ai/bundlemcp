@@ -13,7 +13,7 @@ log = structlog.get_logger("bundlemcp.infrastructure.metering")
 
 
 def load_metering_hook(settings: Settings) -> MeteringHook:
-    """The billing service over HTTP, an in-process hook, or a no-op when neither is set."""
+    """The hook over HTTP, an in-process hook, or a no-op when neither is set."""
     if settings.metering_http_url:  # MID-6
         log.info("metering.http_hook")  # the URL may carry credentials; not logged
         return HttpMeteringHook(

@@ -1,4 +1,4 @@
-"""The bodies the gateway POSTs to a billing service that meters over HTTP."""
+"""The bodies the gateway POSTs to a metering hook that runs out of process."""
 
 from typing import Literal
 

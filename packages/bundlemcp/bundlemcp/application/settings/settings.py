@@ -100,22 +100,23 @@ class Settings(BaseModel):
     metering_http_url: str | None = Field(  # MID-6
         default=None,
         pattern=r"^https?://",
-        description="URL of a billing service that is consulted around every tool call over "
-        "HTTP instead of an in-process hook, e.g. 'http://billing:8000/meter'. The gateway "
-        "POSTs a pre-call and a post-call event there; see the metering hook documentation "
-        "for the bodies. Cannot be combined with an in-process metering hook",
+        description="URL of a metering hook that runs out of process, consulted over HTTP "
+        "around every tool call instead of an in-process hook, e.g. "
+        "'http://metering:8000/hook'. The gateway POSTs a pre-call and a post-call event "
+        "there; see the metering hook documentation for the bodies. Cannot be combined with "
+        "an in-process metering hook",
     )
     metering_http_token: str | None = Field(
         default=None,
-        description="Bearer token the gateway sends to the billing service URL. Keep it in a "
-        "secret store; it is never logged",
+        description="Bearer token the gateway sends to the out-of-process metering hook. Keep "
+        "it in a secret store; it is never logged",
     )
     metering_http_timeout: float = Field(
         default=2.0,
         gt=0,
         le=30,
-        description="Seconds the billing service has to answer a pre-call before the call is "
-        "treated as unanswered and, by default, denied",
+        description="Seconds the out-of-process metering hook has to answer a pre-call before "
+        "the call is treated as unanswered and, by default, denied",
     )
 
     identity_subject: IdentitySubject = Field(  # FWD-3

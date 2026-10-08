@@ -57,10 +57,10 @@ billing in **without forking bundlemcp**.
   it is a major version. Version 2 replaced the post-call `status` (`success`/`error`) with the `outcome` kind.
 - **MID-5** Middleware MUST NOT swallow errors silently; every deny/error path produces a structured MCP error to the
   client and an audit record.
-- **MID-6 HTTP metering hook.** A built-in hook reaches a billing service over HTTP, so a deployment running a pinned
-  image needs no Python plugin: `BUNDLEMCP_METERING_HTTP_URL`, a bearer token from `BUNDLEMCP_METERING_HTTP_TOKEN`
-  (never logged), and `BUNDLEMCP_METERING_HTTP_TIMEOUT` (default 2 s). It cannot be combined with
-  `BUNDLEMCP_METERING_HOOK`; startup refuses both.
+- **MID-6 Out-of-process metering hook.** The hook can also run out of process, as a service the gateway reaches over
+  HTTP, so a deployment running a pinned image needs no Python plugin: `BUNDLEMCP_METERING_HTTP_URL`, a bearer token
+  from `BUNDLEMCP_METERING_HTTP_TOKEN` (never logged), and `BUNDLEMCP_METERING_HTTP_TIMEOUT` (default 2 s). It cannot be
+  combined with `BUNDLEMCP_METERING_HOOK`; startup refuses both.
   - Every event is a JSON `POST` to that URL: `{protocol_version, event: "pre_call", context}` and
     `{protocol_version, event: "post_call", context, outcome, duration_ms}`, where `context` is the MID-3 context.
   - A pre-call answer is a 2xx JSON decision `{allowed, reason?, user_message?}`. A timeout, a transport error, a

@@ -1,6 +1,6 @@
-"""A billing service as the metering hook, over HTTP, end to end through the gateway (MID-6).
+"""A metering hook running out of process, over HTTP, end to end through the gateway (MID-6).
 
-The billing service is an httpx MockTransport stub; the gateway, its upstreams
+The hook service is an httpx MockTransport stub; the gateway, its upstreams
 and its sessions are the same hermetic stack test_gateway.py runs.
 """
 
@@ -14,11 +14,11 @@ from bundlemcp.infrastructure.metering.http_metering_hook import HttpMeteringHoo
 from tests.api.test_gateway import _initialize, _rpc, _running, upstream_factory
 from tests.conftest import hermetic_settings
 
-BILLING_URL = "http://billing.test/meter"
+HOOK_URL = "http://metering.test/hook"
 SAY = {"name": "echo__say", "arguments": {"text": "x"}}
 
 
-class BillingStub:
+class HookServiceStub:
     """Answers pre-calls as told and records every event it receives."""
 
     def __init__(self) -> None:
@@ -53,7 +53,7 @@ class BillingStub:
                     json={
                         "allowed": False,
                         "reason": "insufficient_credits",
-                        "user_message": "Your credits are used up. Top up at https://x.test/b",
+                        "user_message": "Your credits are used up. Top up at https://x.test/account",
                     },
                 )
             case "timeout":
@@ -82,11 +82,11 @@ async def _no_wait(_seconds: float) -> None:
 
 
 @pytest.fixture
-async def billing(engine, redis):
-    stub = BillingStub()
+async def remote_hook(engine, redis):
+    stub = HookServiceStub()
     hook = HttpMeteringHook(
-        BILLING_URL,
-        token="billing-token",
+        HOOK_URL,
+        token="hook-token",
         timeout=0.2,
         client=httpx.AsyncClient(transport=httpx.MockTransport(stub.handler)),
         sleep=_no_wait,
@@ -107,9 +107,9 @@ async def _settled(hook: HttpMeteringHook) -> None:
             await asyncio.sleep(0.01)
 
 
-async def test_one_pre_call_per_tools_call_and_none_for_listing(billing):
+async def test_one_pre_call_per_tools_call_and_none_for_listing(remote_hook):
     """MID-6 (#89): initialize and tools/list are not metered; tools/call is, once."""
-    http, stub, upstreams, hook = billing
+    http, stub, upstreams, hook = remote_hook
     session = await _initialize(http)
     await _rpc(http, "main", session, "tools/list")
     assert stub.events == []
@@ -125,12 +125,12 @@ async def test_one_pre_call_per_tools_call_and_none_for_listing(billing):
     assert {"oidc_issuer", "oidc_sub", "server", "idempotency_key"} <= pre["context"].keys()
     assert post["outcome"] == "result"
     assert post["context"]["idempotency_key"] == pre["context"]["idempotency_key"]
-    assert set(stub.authorization) == {"Bearer billing-token"}
+    assert set(stub.authorization) == {"Bearer hook-token"}
 
 
-async def test_deny_message_reaches_the_client_verbatim(billing):
+async def test_deny_message_reaches_the_client_verbatim(remote_hook):
     """MID-3 (#89): the hook's user_message is the tool's error result; nothing runs upstream."""
-    http, stub, upstreams, hook = billing
+    http, stub, upstreams, hook = remote_hook
     stub.pre_answer = "deny"
     session = await _initialize(http)
 
@@ -138,7 +138,7 @@ async def test_deny_message_reaches_the_client_verbatim(billing):
 
     assert result["isError"] is True
     assert result["content"] == [
-        {"type": "text", "text": "Your credits are used up. Top up at https://x.test/b"}
+        {"type": "text", "text": "Your credits are used up. Top up at https://x.test/account"}
     ]
     assert upstreams.calls == 0
     await _settled(hook)
@@ -146,10 +146,10 @@ async def test_deny_message_reaches_the_client_verbatim(billing):
 
 
 @pytest.mark.parametrize("answer", ["timeout", "500", "unreachable", "garbage"])
-async def test_unanswered_pre_call_denies_and_compensates(billing, answer):
+async def test_unanswered_pre_call_denies_and_compensates(remote_hook, answer):
     """MID-6 (#89): no usable answer denies the call without the upstream, posts no_result
     under the same key, and leaves the session working."""
-    http, stub, upstreams, hook = billing
+    http, stub, upstreams, hook = remote_hook
     stub.pre_answer = answer
     session = await _initialize(http)
 
@@ -165,9 +165,9 @@ async def test_unanswered_pre_call_denies_and_compensates(billing, answer):
     assert (await _rpc(http, "main", session, "ping")).status_code == 200
 
 
-async def test_post_call_is_retried_until_acknowledged(billing):
-    """MID-6 (#89): a post-call the billing service fails to take is delivered again."""
-    http, stub, upstreams, hook = billing
+async def test_post_call_is_retried_until_acknowledged(remote_hook):
+    """MID-6 (#89): a post-call the hook service fails to take is delivered again."""
+    http, stub, upstreams, hook = remote_hook
     stub.post_failures = 3
     session = await _initialize(http)
 
@@ -181,4 +181,4 @@ async def test_post_call_is_retried_until_acknowledged(billing):
 async def test_http_hook_and_in_process_hook_are_exclusive():
     """MID-6: one metering hook per deployment."""
     with pytest.raises(ValueError, match="not both"):
-        hermetic_settings(metering_hook="x:y", metering_http_url=BILLING_URL)
+        hermetic_settings(metering_hook="x:y", metering_http_url=HOOK_URL)

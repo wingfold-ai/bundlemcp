@@ -15,6 +15,6 @@ class MeterDecision(BaseModel):
         default=None,
         max_length=2000,
         description="Text for the person behind the client, e.g. 'Your credits are used up. "
-        "Top up at https://example.com/billing'. On a denial it is returned verbatim as the "
+        "Top up at https://example.com/account'. On a denial it is returned verbatim as the "
         "tool's error result, so the model relays it; ignored when the call is allowed",
     )

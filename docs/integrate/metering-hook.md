@@ -2,9 +2,9 @@
 
 The hook is the supported place for an application layer to plug in billing,
 quotas or entitlement checks without forking the gateway. It is a small,
-versioned Python protocol, and the gateway ships one implementation of it that
-calls a separate billing service [over HTTP](#over-http), for deployments that
-run the published image unchanged.
+versioned Python protocol. It can run in the gateway's process or out of
+process, as a separate service the gateway calls [over HTTP](#over-http), for
+deployments that run the published image unchanged.
 
 Every `tools/call` runs this chain, and the order matters to you because it
 decides which calls you are asked about at all:
@@ -58,7 +58,7 @@ Never key on `email`, which can change and be reused.
 
 `MeterDecision` has `allowed: bool`, an optional machine-readable `reason` such as `insufficient_credits`, and an
 optional `user_message`: text for the person behind the client, such as "Your credits are used up. Top up at
-https://example.com/billing", at most 2000 characters.
+https://example.com/account", at most 2000 characters.
 
 `MeterOutcome` is a string enum:
 
@@ -148,7 +148,7 @@ class LedgerHook:
             return MeterDecision(
                 allowed=False,
                 reason="insufficient_credits",
-                user_message="Your credits are used up. Top up at https://acme.example/billing",
+                user_message="Your credits are used up. Top up at https://acme.example/account",
             )
         r.raise_for_status()
         return MeterDecision(allowed=True)
@@ -177,11 +177,11 @@ call.
 
 ## Over HTTP
 
-When the billing logic is its own service, there is no need to install Python
-into the gateway image. Point the gateway at the service instead:
+When the hook runs as its own service, there is no need to install Python into
+the gateway image. Point the gateway at the service instead:
 
 ```
-BUNDLEMCP_METERING_HTTP_URL=http://billing:8000/meter
+BUNDLEMCP_METERING_HTTP_URL=http://metering:8000/hook
 BUNDLEMCP_METERING_HTTP_TOKEN=<secret>
 BUNDLEMCP_METERING_HTTP_TIMEOUT=2
 ```

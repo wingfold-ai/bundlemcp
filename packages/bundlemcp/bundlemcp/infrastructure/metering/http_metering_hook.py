@@ -1,4 +1,4 @@
-"""A metering hook that is a separate billing service, reached over HTTP."""
+"""A metering hook that runs out of process, reached over HTTP."""
 
 import asyncio
 from collections.abc import Awaitable, Callable
@@ -24,7 +24,7 @@ DRAIN_SECONDS = 5.0
 
 
 class MeteringServiceError(Exception):
-    """The billing service gave no answer the gateway can act on."""
+    """The hook service gave no answer the gateway can act on."""
 
 
 class HttpMeteringHook:
@@ -33,7 +33,7 @@ class HttpMeteringHook:
     A pre-call that times out, cannot be sent, is answered with a non-2xx
     status or with a body that is not a decision raises, so the gateway's
     failure policy decides the call. A post-call is delivered in the
-    background, so the tool result never waits for billing, and retried with
+    background, so the tool result never waits for the hook, and retried with
     backoff on a transport error, a 429 or a 5xx; any other answer is final.
     """
 
@@ -57,13 +57,13 @@ class HttpMeteringHook:
         try:
             response = await self._post(PreCallEvent(context=ctx).model_dump_json())
         except (httpx.HTTPError, TimeoutError) as exc:
-            raise MeteringServiceError("billing service did not answer the pre-call") from exc
+            raise MeteringServiceError("metering hook did not answer the pre-call") from exc
         if not response.is_success:
-            raise MeteringServiceError(f"billing service answered {response.status_code}")
+            raise MeteringServiceError(f"metering hook answered {response.status_code}")
         try:
             return MeterDecision.model_validate_json(response.content, strict=True)
         except ValidationError as exc:
-            raise MeteringServiceError("billing service answered with no decision") from exc
+            raise MeteringServiceError("metering hook answered with no decision") from exc
 
     async def post_call(self, ctx: MeterContext, outcome: MeterOutcome, duration_ms: int) -> None:
         event = PostCallEvent(context=ctx, outcome=outcome, duration_ms=duration_ms)
@@ -97,7 +97,7 @@ class HttpMeteringHook:
                 break
             log.warning("metering.post_call_retry", attempt=attempt, status=status)
             await self._sleep(delay)
-        # The key is what the billing service reconciles on; it is not a secret.
+        # The key is what the hook service reconciles on; it is not a secret.
         log.error(
             "metering.post_call_failed", idempotency_key=key, outcome=event.outcome, status=status
         )

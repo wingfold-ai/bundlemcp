@@ -34,7 +34,7 @@ def _hook(answer: httpx.Response | Exception, waits: list[float]) -> tuple[HttpM
         waits.append(seconds)
 
     hook = HttpMeteringHook(
-        "http://billing.test/meter",
+        "http://metering.test/hook",
         token=None,
         timeout=1,
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
@@ -44,7 +44,7 @@ def _hook(answer: httpx.Response | Exception, waits: list[float]) -> tuple[HttpM
 
 
 async def test_post_call_gives_up_after_five_tries():
-    """MID-6: a billing service that never takes the post-call is tried five times, then
+    """MID-6: a hook service that never takes the post-call is tried five times, then
     the failure is logged with the key to reconcile on."""
     waits: list[float] = []
     hook, sent = _hook(httpx.ConnectError("refused"), waits)
@@ -65,7 +65,7 @@ async def test_post_call_rejected_by_the_service_is_not_retried():
 
 
 async def test_post_call_does_not_wait_for_delivery():
-    """MID-6: the tool result never waits for billing; shutdown drains what is in flight."""
+    """MID-6: the tool result never waits for the hook; shutdown drains what is in flight."""
     waits: list[float] = []
     hook, sent = _hook(httpx.Response(204), waits)
     await hook.post_call(CTX, MeterOutcome.TOOL_ERROR, 5)

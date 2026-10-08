@@ -4,7 +4,7 @@ from enum import StrEnum
 class MeterOutcome(StrEnum):
     """How a metered tool call ended, as the metering hook is told after the call.
 
-    The hook decides what each kind means for billing: an upstream that answered
+    The hook decides what each kind means: an upstream that answered
     with an error result did run, unlike a call that produced no result at all.
     """
 
