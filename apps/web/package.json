@@ -24,11 +24,14 @@
     "@iconify-json/lucide": "^1.2.131",
     "@playwright/test": "^1.55.0",
     "openapi-typescript": "^7.9.0",
-    "typescript": "^5.9.0",
+    "typescript": "^6.0.3",
     "vue-tsc": "^3.3.11"
   },
   "overrides": {
     "simple-git": "^4.0.2",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }
