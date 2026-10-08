@@ -22,12 +22,15 @@ from joserfc.jwk import KeySet, RSAKey
 ISSUER = "http://10.9.8.7/realms/test"
 CLIENT_ID = "bundlemcp-gateway"
 REDIRECT_URI = "http://gw/login/callback"
+VERIFIER = "v" * 43
+CHALLENGE = "c" * 43
 
 
 class FakeIdp:
     """The three IdP documents the provider reads, served from memory."""
 
-    def __init__(self) -> None:
+    def __init__(self, **discovery: object) -> None:
+        self.discovery = discovery
         self.key = RSAKey.generate_key(2048, parameters={"kid": "k1"})
         self.id_token: str = ""
         self.token_status = 200
@@ -57,6 +60,7 @@ class FakeIdp:
                     "authorization_endpoint": f"{ISSUER}/auth",
                     "token_endpoint": f"{ISSUER}/token",
                     "jwks_uri": f"{ISSUER}/certs",
+                    **self.discovery,
                 },
             )
         if path.endswith("/token"):
@@ -86,7 +90,9 @@ async def _provider(idp: FakeIdp) -> JoseOidcProvider:
 
 
 async def _exchange(provider: JoseOidcProvider, nonce: str = "n0nce"):
-    return await provider.exchange(code="c0de", redirect_uri=REDIRECT_URI, nonce=nonce)
+    return await provider.exchange(
+        code="c0de", redirect_uri=REDIRECT_URI, nonce=nonce, code_verifier=VERIFIER
+    )
 
 
 async def test_id_token_decoded_and_claims_validated():
@@ -108,9 +114,50 @@ async def test_id_token_decoded_and_claims_validated():
 async def test_authorize_url_carries_state_and_nonce():
     idp = FakeIdp()
     provider = await _provider(idp)
-    url = provider.authorize_url(state="st", nonce="nn", redirect_uri=REDIRECT_URI)
+    url = provider.authorize_url(
+        state="st", nonce="nn", redirect_uri=REDIRECT_URI, code_challenge=CHALLENGE
+    )
     assert url.startswith(f"{ISSUER}/auth?")
     assert "state=st" in url and "nonce=nn" in url and f"client_id={CLIENT_ID}" in url
+
+
+@pytest.mark.parametrize("methods", [None, ["S256"], ["plain", "S256"]])
+async def test_login_sends_pkce_s256(methods):
+    """ADM-1: the authorize request carries an S256 challenge and the exchange its verifier,
+    whether the issuer lists S256 or lists no challenge methods at all."""
+    idp = FakeIdp(**({} if methods is None else {"code_challenge_methods_supported": methods}))
+    idp.id_token = idp.sign()
+    provider = await _provider(idp)
+
+    params = httpx.URL(
+        provider.authorize_url(
+            state="st", nonce="n0nce", redirect_uri=REDIRECT_URI, code_challenge=CHALLENGE
+        )
+    ).params
+    await _exchange(provider)
+
+    assert params["code_challenge"] == CHALLENGE
+    assert params["code_challenge_method"] == "S256"
+    assert idp.token_requests[0]["code_verifier"] == VERIFIER
+
+
+async def test_login_omits_pkce_for_an_issuer_without_s256():
+    """ADM-1: an issuer that lists challenge methods without S256 is sent no PKCE at all, since
+    it would refuse the challenge; the login still works."""
+    idp = FakeIdp(code_challenge_methods_supported=["plain"])
+    idp.id_token = idp.sign()
+    provider = await _provider(idp)
+
+    params = httpx.URL(
+        provider.authorize_url(
+            state="st", nonce="n0nce", redirect_uri=REDIRECT_URI, code_challenge=CHALLENGE
+        )
+    ).params
+    claims = await _exchange(provider)
+
+    assert "code_challenge" not in params and "code_challenge_method" not in params
+    assert "code_verifier" not in idp.token_requests[0]
+    assert claims.sub == "alice"
 
 
 async def test_id_token_wrong_audience_rejected():

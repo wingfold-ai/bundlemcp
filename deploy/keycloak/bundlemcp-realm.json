@@ -11,6 +11,9 @@
       "publicClient": false,
       "secret": "dev-gateway-secret",
       "standardFlowEnabled": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
       "redirectUris": [
         "http://localhost:8000/login/callback"
       ],

@@ -5,6 +5,7 @@ from typing import Any, Self
 from urllib.parse import urlencode
 
 import httpx
+import structlog
 from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import KeySet
@@ -12,12 +13,15 @@ from joserfc.jwk import KeySet
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.access.oidc_claims import OidcClaims
 from bundlemcp.domain.access.oidc_error import OidcError
+from bundlemcp.domain.oauth.code_challenge_method import CodeChallengeMethod
 from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, check_url_allowed
 
 HTTP_TIMEOUT = 10
 ID_TOKEN_ALGORITHMS = ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "PS256"]
 
 ClientFactory = Callable[[], httpx.AsyncClient]
+
+log = structlog.get_logger(__name__)
 
 
 def _default_client() -> httpx.AsyncClient:
@@ -30,6 +34,10 @@ class JoseOidcProvider:
     Every URL it reaches — the discovery document, the token endpoint and the
     JWKS — passes the egress policy, so an issuer that resolves to a blocked
     range is refused rather than fetched.
+
+    Logins carry a PKCE S256 challenge, which an issuer that does not enforce
+    PKCE ignores. Only an issuer whose discovery document lists challenge
+    methods without S256 is sent none, since it would refuse the request.
     """
 
     def __init__(
@@ -42,6 +50,13 @@ class JoseOidcProvider:
         self._settings = settings
         self._metadata = metadata
         self._client_factory = client_factory
+        self._sends_pkce = _accepts_s256(metadata)
+        if not self._sends_pkce:
+            log.warning(
+                "oidc.pkce_unsupported",
+                issuer=metadata.get("issuer"),
+                code_challenge_methods_supported=metadata.get("code_challenge_methods_supported"),
+            )
 
     @classmethod
     async def discover(
@@ -62,7 +77,9 @@ class JoseOidcProvider:
             raise OidcError("OIDC discovery document names no issuer")
         return cls(settings, metadata, client_factory=client_factory)
 
-    def authorize_url(self, *, state: str, nonce: str, redirect_uri: str) -> str:
+    def authorize_url(
+        self, *, state: str, nonce: str, redirect_uri: str, code_challenge: str
+    ) -> str:
         params = {
             "response_type": "code",
             "client_id": self._settings.oidc_client_id,
@@ -71,25 +88,30 @@ class JoseOidcProvider:
             "state": state,
             "nonce": nonce,
         }
+        if self._sends_pkce:  # ADM-1
+            params["code_challenge"] = code_challenge
+            params["code_challenge_method"] = CodeChallengeMethod.S256
         return f"{self._metadata['authorization_endpoint']}?{urlencode(params)}"
 
-    async def exchange(self, *, code: str, redirect_uri: str, nonce: str) -> OidcClaims:
+    async def exchange(
+        self, *, code: str, redirect_uri: str, nonce: str, code_verifier: str
+    ) -> OidcClaims:
         token_endpoint = self._metadata["token_endpoint"]
         jwks_uri = self._metadata["jwks_uri"]
         _check_egress(token_endpoint, self._settings)
         _check_egress(jwks_uri, self._settings)
+        form = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "client_id": self._settings.oidc_client_id,
+            "client_secret": self._settings.oidc_client_secret,
+        }
+        if self._sends_pkce:  # ADM-1
+            form["code_verifier"] = code_verifier
         try:
             async with self._client_factory() as client:
-                token_response = await client.post(
-                    token_endpoint,
-                    data={
-                        "grant_type": "authorization_code",
-                        "code": code,
-                        "redirect_uri": redirect_uri,
-                        "client_id": self._settings.oidc_client_id,
-                        "client_secret": self._settings.oidc_client_secret,
-                    },
-                )
+                token_response = await client.post(token_endpoint, data=form)
                 token_response.raise_for_status()
                 id_token = token_response.json()["id_token"]
                 jwks_response = await client.get(jwks_uri)
@@ -127,6 +149,12 @@ class JoseOidcProvider:
         except (JoseError, ValueError) as exc:
             raise OidcError("ID token rejected") from exc
         return token.claims
+
+
+def _accepts_s256(metadata: dict[str, Any]) -> bool:
+    """Whether the issuer takes an S256 challenge; one that lists no methods is assumed to."""
+    methods = metadata.get("code_challenge_methods_supported")
+    return methods is None or CodeChallengeMethod.S256 in methods
 
 
 def _check_egress(url: str, settings: Settings) -> None:

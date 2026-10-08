@@ -2,9 +2,10 @@
 
 Drives: DCR -> authorize (Keycloak login form + gateway consent) -> code ->
 token -> MCP initialize/list/call -> refresh -> introspect, including the IdP
-subject (oidc_iss / oidc_sub). Requires an oauth-profile endpoint; the demo seed
-ships an api_key endpoint, so this test provisions an oauth endpoint via the
-management API first.
+subject (oidc_iss / oidc_sub). The realm's gateway client enforces PKCE S256, so
+the gateway's own login to Keycloak (ADM-1) is exercised with PKCE too. Requires
+an oauth-profile endpoint; the demo seed ships an api_key endpoint, so this test
+provisions an oauth endpoint via the management API first.
 """
 
 import base64
@@ -20,6 +21,10 @@ from helpers import initialize, mcp_call, wait_ready
 
 KEYCLOAK_USER = "admin"
 KEYCLOAK_PASSWORD = "admin"
+KEYCLOAK_TOKEN_URL = "http://localhost:8080/realms/bundlemcp/protocol/openid-connect/token"
+GATEWAY_OIDC_CLIENT_ID = "bundlemcp-gateway"
+GATEWAY_OIDC_CLIENT_SECRET = "dev-gateway-secret"
+LOGIN_CALLBACK = f"{GATEWAY_URL}/login/callback"
 
 
 def _send_localhost_secure_cookies(client: httpx.Client) -> None:
@@ -143,6 +148,48 @@ def test_full_oauth_happy_path():
         assert body["oidc_iss"].endswith("/realms/bundlemcp")
         assert str(uuid.UUID(body["oidc_sub"])) == body["oidc_sub"]
         assert body["oidc_sub"] != body["sub"]
+
+
+def test_idp_refuses_the_login_code_without_its_verifier():
+    """ADM-1: the gateway's login carries an S256 challenge, so a code taken from its callback
+    is useless to anyone without the verifier the gateway kept."""
+    wait_ready(GATEWAY_URL)
+    with httpx.Client(follow_redirects=False, timeout=30) as client:
+        _send_localhost_secure_cookies(client)
+        for verifier in ("wrong-" + secrets.token_urlsafe(40), None):
+            code = _intercept_login_code(client)
+            data = {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": LOGIN_CALLBACK,
+                "client_id": GATEWAY_OIDC_CLIENT_ID,
+                "client_secret": GATEWAY_OIDC_CLIENT_SECRET,
+            }
+            if verifier is not None:
+                data["code_verifier"] = verifier
+            replay = client.post(KEYCLOAK_TOKEN_URL, data=data)
+            assert replay.status_code == 400, replay.text
+            assert replay.json()["error"] == "invalid_grant"
+
+
+def _intercept_login_code(client: httpx.Client) -> str:
+    """Start a gateway login and take Keycloak's code before it reaches the gateway callback."""
+    start = client.get(f"{GATEWAY_URL}/login")
+    assert start.status_code == 302, start.text
+    authorize = httpx.URL(start.headers["location"])
+    assert authorize.params["code_challenge_method"] == "S256"
+    assert authorize.params["code_challenge"]
+    resp = client.get(authorize)
+    if resp.status_code == 200:  # no Keycloak session yet: submit the login form
+        form_action = re.search(r'action="([^"]+)"', resp.text).group(1).replace("&amp;", "&")
+        resp = client.post(
+            form_action,
+            data={"username": KEYCLOAK_USER, "password": KEYCLOAK_PASSWORD},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+    location = resp.headers.get("location", "")
+    assert location.startswith(LOGIN_CALLBACK), f"{resp.status_code} {location}"
+    return parse_qs(urlparse(location).query)["code"][0]
 
 
 def _follow(client: httpx.Client, resp: httpx.Response) -> httpx.Response:

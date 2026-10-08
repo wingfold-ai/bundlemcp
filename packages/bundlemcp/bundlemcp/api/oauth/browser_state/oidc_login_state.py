@@ -7,4 +7,7 @@ class OidcLoginState(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     nonce: str = Field(description="Nonce the returned identity token must echo")
+    code_verifier: str = Field(  # ADM-1
+        repr=False, description="PKCE verifier the code exchange must present"
+    )
     next_url: str = Field(description="Where the browser goes once signed in")
