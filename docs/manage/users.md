@@ -12,8 +12,10 @@ to reach the admin UI or to authorise a connector such as claude.ai. One human i
 | `is_active` | Whether the user may authenticate at all. |
 
 The user's id is the `sub` that upstream servers see in `X-MCP-User`, that the metering hook receives, and that the
-introspection route reports. It is stable for the lifetime of the deployment, which makes it the right key for per-user
-state and billing.
+introspection route reports. It is stable for the lifetime of the gateway's database. The identity provider's issuer and
+subject are stable beyond it, across a rebuild or restore, so they are reported too: as `oidc_issuer` / `oidc_sub` to
+the metering hook, as `oidc_iss` / `oidc_sub` by introspection, and in `X-MCP-User` when
+`BUNDLEMCP_IDENTITY_SUBJECT=oidc`.
 
 `GET /api/v1/users` lists users; the UI page is **Users**.
 

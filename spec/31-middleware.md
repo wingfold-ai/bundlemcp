@@ -12,9 +12,10 @@ billing in **without forking bundlemcp**.
 
 ## Requirements
 
-- **MID-1** Context object available to every middleware: resolved caller identity (`sub` / api-key id, auth method),
-  endpoint, bundle, profile, session id, origin server + original tool name (for calls), request headers (read-only),
-  and a scratch dict for cross-middleware data.
+- **MID-1** Context object available to every middleware: resolved caller identity (`sub` / api-key id, auth method, and
+  for an OAuth user the IdP's `oidc_issuer` and `oidc_sub` — `None` for API-key and anonymous callers), endpoint,
+  bundle, profile, session id, origin server + original tool name (for calls), request headers (read-only), and a
+  scratch dict for cross-middleware data.
 - **MID-2** Built-in chain order (list and call variants):
   1. tool filter — drops disabled tools / rejects disabled calls
      ([TM-2](13-tool-management.md))
@@ -25,8 +26,10 @@ billing in **without forking bundlemcp**.
   Built on FastMCP v3's middleware mechanism where it fits; the chain and ordering are bundlemcp's contract regardless
   of the underlying library.
 - **MID-3 Metering hook contract** (mirrors the first consumer's existing billing API):
-  - **pre-call**: hook receives `{sub, email, endpoint, bundle, server, tool, idempotency_key}` (`email` nullable — the
-    resolved caller's email, which the consumer's ledger uses to attach users). It may **allow** or **deny** (deny →
+  - **pre-call**: hook receives `{sub, email, oidc_issuer, oidc_sub, endpoint, bundle, server, tool, idempotency_key}`
+    (`email` nullable — the resolved caller's email, which the consumer's ledger uses to attach users; `oidc_issuer` /
+    `oidc_sub` nullable — the IdP subject of an OAuth user, the same for every login of that user, for a consumer that
+    keys its users on it; `sub` keeps its meaning). It may **allow** or **deny** (deny →
     structured MCP error with the hook's reason, e.g. `insufficient_credits`; the upstream call never happens).
   - **post-call**: hook receives the same identifiers + `status` (success/error) + `duration_ms`. A failed upstream call
     after a successful pre-call debit is the hook's refund trigger. An MCP tool result with `isError: true` maps to

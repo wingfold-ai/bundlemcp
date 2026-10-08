@@ -45,6 +45,8 @@ class TokenIntrospectionService:
                     exp=int(delegated.expires_at.timestamp()),
                     aud=delegated.audience,
                     email=delegated.email,
+                    oidc_iss=delegated.oidc_issuer,
+                    oidc_sub=delegated.oidc_sub,
                     token_use="delegated",
                     act={"sub": delegated.actor} if delegated.actor else None,
                 )
@@ -78,4 +80,6 @@ class TokenIntrospectionService:
             exp=int(row.expires_at.timestamp()),
             aud=audience,
             email=user.email,
+            oidc_iss=user.oidc_issuer,
+            oidc_sub=user.oidc_sub,
         )

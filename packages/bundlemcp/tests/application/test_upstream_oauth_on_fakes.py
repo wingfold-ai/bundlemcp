@@ -11,6 +11,7 @@ from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
 )
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
 from bundlemcp.domain.access.caller_identity import CallerIdentity
+from bundlemcp.domain.access.user import User
 from bundlemcp.domain.bundles.bundle import Bundle
 from bundlemcp.domain.bundles.bundle_server import BundleServer
 from bundlemcp.domain.bundles.bundle_view import BundleView
@@ -147,7 +148,7 @@ async def test_per_user_server_is_probed_with_a_connected_users_token(uow):
     """DISC-1/BND-7: a user's token lists the tools, and the server's bundles re-list."""
     server, bundle = seed_member(uow)
     tokens = token_service(uow)
-    user = CallerIdentity.oauth_user(uuid.uuid4(), "u@x").user_uuid
+    user = CallerIdentity.oauth_user(User(oidc_issuer="i", oidc_sub="u", email="u@x")).user_uuid
     await tokens.save(server.id, user, UpstreamTokens(access_token="user-token", expires_in=3600))
     probe = RecordingProbe()
     service = discovery(uow, tokens, probe)
@@ -286,7 +287,7 @@ async def test_connect_tool_is_offered_until_the_caller_connects(uow):
     tokens = token_service(uow)
     prompts = AccountConnectPrompts(UpstreamCredentialResolver(tokens, PUBLIC_BASE))
     view = view_of(server, bundle)
-    user = CallerIdentity.oauth_user(uuid.uuid4(), "u@x")
+    user = CallerIdentity.oauth_user(User(oidc_issuer="i", oidc_sub="u", email="u@x"))
 
     pending = await prompts.pending(view, user)
     assert [t.presented_name for t in pending] == ["seo__connect_account"]
