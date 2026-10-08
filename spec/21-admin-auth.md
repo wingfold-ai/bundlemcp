@@ -13,8 +13,12 @@ first login. This deletes the entire class of auth code that caused pain in meta
 
 - **ADM-1** Config (`BUNDLEMCP_OIDC_*`): discovery URL, client id, client secret. The gateway performs the standard OIDC
   authorization-code flow and establishes its own session (signed httpOnly cookie; session record in Redis with
-  configurable lifetime). Cookie `Domain`/`Secure`/`SameSite` derive from the public URL and CSRF policy
-  ([DEP-1](71-deployment.md), [SEC-4](70-security.md)).
+  configurable lifetime). Every login uses PKCE with `S256` (RFC 9700 §2.1.1), as a confidential client too: a fresh
+  verifier is kept with the login's `state` and `nonce`, its challenge goes on the authorize request and the verifier on
+  the code exchange, so an IdP client that enforces PKCE accepts the login. Only an IdP whose discovery document lists
+  `code_challenge_methods_supported` without `S256` is sent no PKCE, with a warning logged at startup. Cookie
+  `Domain`/`Secure`/`SameSite` derive from the public URL and CSRF policy ([DEP-1](71-deployment.md),
+  [SEC-4](70-security.md)).
 - **ADM-2** First login auto-provisions a `User` from `(issuer, sub)` with email/display name from claims
   ([02-domain-model.md](02-domain-model.md)). The same user store backs OAuth-server logins
   ([OAS-3](20-oauth-server.md)) — one identity per human, whether they arrive via the admin UI or a connector authorize

@@ -20,6 +20,7 @@ Register a **confidential** OpenID Connect client with your provider:
 | Setting | Value |
 |---|---|
 | Flow | Authorization code |
+| PKCE | `S256` (may be enforced) |
 | Redirect URI | `<BUNDLEMCP_PUBLIC_URL>/login/callback` |
 | Scopes | `openid`, `email`, `profile` |
 
@@ -31,6 +32,11 @@ BUNDLEMCP_OIDC_CLIENT_ID=bundlemcp-gateway
 BUNDLEMCP_OIDC_CLIENT_SECRET=<secret>
 BUNDLEMCP_ADMIN_EMAILS=["ops@example.com"]
 ```
+
+Every login carries a PKCE `S256` challenge, so a client that enforces PKCE (in Keycloak, *Proof Key for Code Exchange
+Code Challenge Method* set to `S256`) works without further configuration. A provider that does not enforce PKCE ignores
+the challenge. Only a provider whose discovery document lists `code_challenge_methods_supported` without `S256` is sent
+no challenge, and the gateway logs `oidc.pkce_unsupported` at startup.
 
 The discovery URL and every endpoint it names go through the gateway's egress policy. A provider on the gateway's own
 loopback address needs an entry in `BUNDLEMCP_EGRESS_ALLOW_CIDRS`; a provider on a private network or on the public
@@ -68,7 +74,8 @@ The compose stack ships Keycloak with a pre-imported realm named `bundlemcp`:
 | | |
 |---|---|
 | Console | <http://localhost:8080>, `admin` / `admin` |
-| Client | `bundlemcp-gateway`, secret `dev-gateway-secret`, redirect URI `http://localhost:8000/login/callback` |
+| Client | `bundlemcp-gateway`, secret `dev-gateway-secret`, PKCE `S256` enforced |
+| Redirect URI | `http://localhost:8000/login/callback` |
 | User | `admin` / `admin`, email `admin@example.com` (listed as admin in the compose file) |
 
 The gateway reaches Keycloak at `http://keycloak:8080` over the compose
