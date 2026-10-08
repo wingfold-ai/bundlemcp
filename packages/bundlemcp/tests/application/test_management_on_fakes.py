@@ -10,6 +10,7 @@ from bundlemcp.application.management.server_service import ServerService
 from bundlemcp.application.schemas import (
     BundleServerUpdate,
     BundleUpsert,
+    DiscoveryResult,
     EndpointUpsert,
     ServerUpsert,
 )
@@ -87,6 +88,50 @@ async def test_anonymous_endpoint_cannot_expose_a_per_user_upstream(uow):
 async def test_endpoint_for_unknown_bundle_is_not_found(uow):
     with pytest.raises(NotFoundError):
         await EndpointService(uow).upsert(EndpointUpsert(name="ep", bundle_name="missing"))
+
+
+class CommitAwareDiscovery:
+    """Records each probe request with how many commits the unit of work had seen by then."""
+
+    def __init__(self, uow: InMemoryUnitOfWork) -> None:
+        self._uow = uow
+        self.probes: list[tuple[str, int]] = []
+
+    async def schedule_probe(self, server_id) -> None:
+        server = await self._uow.servers.get(server_id)
+        self.probes.append((server.name, self._uow.committed))
+
+    async def discover(self, server_id) -> DiscoveryResult:
+        return DiscoveryResult(error="not used here")
+
+
+async def test_bootstrap_discovers_its_servers_after_the_commit(uow):
+    """BOOT-7/DISC-1: every bootstrapped server is probed, and only once it is committed."""
+    document = BootstrapDocument.model_validate(
+        {
+            "servers": [
+                {"name": "echo", "url": "http://echo/mcp"},
+                {"name": "weather", "url": "http://weather/mcp"},
+            ]
+        }
+    )
+    discovery = CommitAwareDiscovery(uow)
+    await BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery).apply(document)
+    assert discovery.probes == [("echo", 1), ("weather", 1)]
+
+
+async def test_failed_bootstrap_probes_nothing(uow):
+    """BOOT-7: a document that does not land schedules no discovery."""
+    document = BootstrapDocument.model_validate(
+        {
+            "servers": [{"name": "echo", "url": "http://echo/mcp"}],
+            "endpoints": [{"name": "ep", "bundle_name": "missing"}],
+        }
+    )
+    discovery = CommitAwareDiscovery(uow)
+    with pytest.raises(NotFoundError):
+        await BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery).apply(document)
+    assert discovery.probes == []
 
 
 async def test_bootstrap_document_lands_in_one_commit(uow):

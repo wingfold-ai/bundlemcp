@@ -21,7 +21,6 @@ from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamCon
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.live_state.admin_session_store import AdminSessionStore
-from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
 from bundlemcp.application.contracts.live_state.single_use_state import SingleUseState
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.oauth_server import (
@@ -52,10 +51,6 @@ def get_upstream_tokens(request: Request) -> UpstreamTokenService | None:
 
 def get_auth_failure_guard(request: Request) -> AuthFailureGuard:
     return request.app.state.container.auth_failure_guard
-
-
-def get_rate_limiter(request: Request) -> RateLimiter:
-    return request.app.state.container.rate_limiter
 
 
 def get_oidc_provider(request: Request) -> OidcProvider | None:
@@ -147,6 +142,8 @@ def get_client_registration_service(
         public_base=settings.public_base,
         generator=container.secret_generator,
         hasher=container.secret_hasher,
+        policy=container.registration_policy,
+        rate_limiter=container.rate_limiter,
     )
 
 
@@ -159,7 +156,6 @@ def get_user_provisioning_service(
 AdminSessionsProvider = Annotated[AdminSessionStore, Depends(get_admin_sessions)]
 UpstreamTokensProvider = Annotated[UpstreamTokenService | None, Depends(get_upstream_tokens)]
 AuthFailureGuardProvider = Annotated[AuthFailureGuard, Depends(get_auth_failure_guard)]
-RateLimiterProvider = Annotated[RateLimiter, Depends(get_rate_limiter)]
 OidcProviderProvider = Annotated[OidcProvider | None, Depends(get_oidc_provider)]
 CurrentSessionUserProvider = Annotated[User | None, Depends(get_current_session_user)]
 PendingAuthorizationsProvider = Annotated[

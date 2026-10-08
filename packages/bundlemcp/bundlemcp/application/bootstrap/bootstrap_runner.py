@@ -4,6 +4,7 @@ import structlog
 
 from bundlemcp.application.bootstrap.bootstrap_document import BootstrapDocument
 from bundlemcp.application.bootstrap.document_loader import load_document, parse_document
+from bundlemcp.application.bootstrap.probes_after_commit import ProbesAfterCommit
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.contracts.upstream.tool_discovery import ToolDiscovery
 from bundlemcp.application.management.bundle_service import BundleService
@@ -21,6 +22,10 @@ class BootstrapRunner:
     The document goes through the same services the management API uses, so
     every domain invariant holds identically, and through one unit of work, so
     a document lands entirely or not at all. Applying it twice changes nothing.
+    Every server it upserts is then probed for its tools in the background,
+    as after a create through the API, so a fresh gateway serves them without
+    a manual refresh; a probe that fails is recorded on the server and never
+    fails the bootstrap.
     """
 
     def __init__(self, units: UnitOfWorkFactory, discovery: ToolDiscovery) -> None:
@@ -28,8 +33,9 @@ class BootstrapRunner:
         self._discovery = discovery
 
     async def apply(self, doc: BootstrapDocument) -> None:
+        probes = ProbesAfterCommit(self._discovery)
         async with self._units.open() as uow, uow.atomic():
-            servers = ServerService(uow, discovery=self._discovery)
+            servers = ServerService(uow, discovery=probes)
             bundles = BundleService(uow)
             endpoints = EndpointService(uow)
             for server in doc.servers:
@@ -40,6 +46,9 @@ class BootstrapRunner:
                     await bundles.set_member(bundle.name, server_name, BundleServerUpdate())
             for endpoint in doc.endpoints:
                 await endpoints.upsert(endpoint)
+        # DISC-1 / BOOT-7: a probe opens its own unit of work, so it must not
+        # start before the document's transaction has committed the servers.
+        await probes.release()
 
     async def run(self, settings: Settings) -> None:
         """Apply the configured file, then the inline document.

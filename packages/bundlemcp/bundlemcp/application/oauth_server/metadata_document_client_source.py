@@ -6,6 +6,7 @@ from bundlemcp.application.errors import InvalidInputError
 from bundlemcp.application.oauth_server.registered_client_source import METADATA_DOCUMENT_SCHEME
 from bundlemcp.domain.oauth.client_id_metadata_document import InvalidClientMetadataDocument
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
+from bundlemcp.domain.oauth.redirect_uri_allow_list import RedirectUriAllowList
 from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthMethod
 
 
@@ -19,9 +20,16 @@ class MetadataDocumentClientSource:
     when the client is actually used, so a look-up on its own writes nothing.
     """
 
-    def __init__(self, clients: OAuthClientRepository, fetcher: ClientMetadataFetcher) -> None:
+    def __init__(
+        self,
+        clients: OAuthClientRepository,
+        fetcher: ClientMetadataFetcher,
+        *,
+        allowed_redirect_uris: RedirectUriAllowList,
+    ) -> None:
         self._clients = clients
         self._fetcher = fetcher
+        self._allowed_redirect_uris = allowed_redirect_uris
 
     def handles(self, client_id: str) -> bool:
         return client_id.startswith(METADATA_DOCUMENT_SCHEME)
@@ -30,7 +38,7 @@ class MetadataDocumentClientSource:
         # OAS-13
         document = await self._fetcher.fetch(client_id)
         try:
-            document.check(fetched_from=client_id)
+            document.check(fetched_from=client_id, allowed=self._allowed_redirect_uris)
         except InvalidClientMetadataDocument as exc:
             raise InvalidInputError(str(exc)) from None
         client = await self._clients.get(client_id)
