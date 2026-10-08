@@ -42,21 +42,31 @@ function authorizeUrl(clientId: string, state: string): string {
   return `${GATEWAY_URL}/oauth/authorize?${params}`;
 }
 
-test(testTitle("E2E-17"), async ({ page, request, steps }) => {
+test(testTitle("E2E-17"), async ({ page, steps }) => {
   let clientId = "";
   let landed: URL;
 
   await steps.play([
     given("an OAuth endpoint and a client registered with a redirect URI on another origin", { req: "OAS-2" }, async () => {
-      const endpoint = await request.put(`${GATEWAY_URL}/api/v1/endpoints/${ENDPOINT}`, {
-        headers: { Authorization: `Bearer ${SERVICE_KEY}` },
-        data: { name: ENDPOINT, bundle_name: "demo", profile: "claude", auth_modes: ["oauth"] },
+      // Plain fetch, not the `request` fixture: that one carries the stored admin
+      // cookie, and a cookie-authenticated write must pass the CSRF check.
+      const endpoint = await fetch(`${GATEWAY_URL}/api/v1/endpoints/${ENDPOINT}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: ENDPOINT,
+          bundle_name: "demo",
+          profile: "claude",
+          auth_modes: ["oauth"],
+        }),
       });
-      expect(endpoint.ok()).toBeTruthy();
-      const registered = await request.post(`${GATEWAY_URL}/oauth/register`, {
-        data: { redirect_uris: [redirectUri], client_name: "E2E consent client" },
+      expect(endpoint.status, await endpoint.text()).toBe(200);
+      const registered = await fetch(`${GATEWAY_URL}/oauth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ redirect_uris: [redirectUri], client_name: "E2E consent client" }),
       });
-      expect(registered.status()).toBe(201);
+      expect(registered.status).toBe(201);
       clientId = (await registered.json()).client_id;
     }),
     when("the signed-in user denies the consent screen", { req: "OAS-11" }, async () => {
