@@ -45,8 +45,16 @@ abuse, and secret handling. Individual specs reference these controls instead of
 - **SEC-5** MCP endpoints (`/{endpoint}/mcp`): permissive CORS (`Access-Control-Allow-Origin` reflecting the request
   origin, no credentials — auth is header-based) so browser-based MCP clients work; `Mcp-Session-Id` and
   `WWW-Authenticate` exposed via `Access-Control-Expose-Headers`.
-- **SEC-6** OAuth browser pages (authorize, consent, upstream connect) carry standard hardening headers (CSP,
-  `X-Frame-Options: DENY` / `frame-ancestors 'none'` against clickjacked consent).
+- **SEC-6** OAuth browser pages (authorize, consent, upstream connect) carry standard hardening headers: a CSP of
+  `default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; form-action 'self'`, `X-Frame-Options: DENY`
+  against clickjacked consent, and `Cache-Control: no-store`. `form-action` is widened on one page only, the consent
+  page, and only by the redirect URI of the authorization it decides, already validated against the client's
+  registration (OAS-2, OAS-13): browsers apply `form-action` to the redirect that answers a form post, so without it
+  Approve and Deny could never reach a client on another origin. The source expression is that URI's scheme, host,
+  port and path, never a wildcard, a bare scheme or another client's URI; because CSP disregards the path of a
+  redirected request, what it admits in practice is that redirect URI's origin. A redirect URI that cannot be written
+  as a source expression leaves `form-action 'self'` in place, and the consent answer is a same-origin page linking to
+  the client instead of a redirect.
 
 ### Abuse resistance & limits
 

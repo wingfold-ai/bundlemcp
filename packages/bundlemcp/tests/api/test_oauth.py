@@ -10,6 +10,7 @@ import secrets
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+from bundlemcp.api.oauth.pages.page_headers import PAGE_HEADERS
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.application.errors import InvalidInputError
 from bundlemcp.application.oauth_server import ClientIdMetadataDocument
@@ -1032,3 +1033,114 @@ def test_malformed_allow_list_entries_are_refused_at_startup():
     for bad in ("claude.ai/cb", "https://*.com/cb", "https://a.*.example.com/cb", "https://x/*"):
         with pytest.raises(ValidationError):
             hermetic_settings(dcr_allowed_redirect_uris=[bad])
+
+
+# Consent page CSP (SEC-6): browsers apply form-action to the redirect that answers a form
+# post, so the consent page admits its own authorization's redirect URI and nothing else.
+
+SAME_ORIGIN_POLICY = (
+    "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; form-action 'self'"
+)
+
+
+async def _register_redirect(http, redirect_uri: str, name: str = "TestClient") -> str:
+    resp = await http.post(
+        "/oauth/register", json={"redirect_uris": [redirect_uri], "client_name": name}
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()["client_id"]
+
+
+async def _consent_page(http, client_id: str, redirect_uri: str):
+    _, challenge = make_pkce()
+    page = await http.get(
+        "/oauth/authorize",
+        params={
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "state": "st4te",
+            "resource": f"{PUBLIC_URL}/ep1/mcp",
+        },
+    )
+    assert page.status_code == 200, page.text
+    token = page.text.split('name="token" value="')[1].split('"')[0]
+    return page, token
+
+
+async def test_consent_page_form_action_admits_only_its_redirect_uri(oauth_env):
+    """SEC-6: form-action is 'self' plus exactly this authorization's redirect URI."""
+    http, _, _ = oauth_env
+    client_id = await _register_redirect(http, "https://client.example/api/mcp/auth_callback")
+    await _register_redirect(http, "https://other.example/cb", name="Other")
+
+    page, _ = await _consent_page(http, client_id, "https://client.example/api/mcp/auth_callback")
+
+    csp = page.headers["content-security-policy"]
+    assert csp == f"{SAME_ORIGIN_POLICY} https://client.example/api/mcp/auth_callback"
+    assert "other.example" not in csp
+    assert page.headers["x-frame-options"] == "DENY"
+
+
+async def test_consent_page_source_drops_the_redirect_query(oauth_env):
+    """SEC-6: the source expression names the callback without its query, which still
+    reaches the client merged with the code."""
+    http, _, _ = oauth_env
+    redirect_uri = "https://client.example/cb?tenant=a"
+    client_id = await _register_redirect(http, redirect_uri)
+
+    page, token = await _consent_page(http, client_id, redirect_uri)
+    approved = await http.post("/oauth/consent", data={"token": token, "action": "approve"})
+
+    csp = page.headers["content-security-policy"]
+    assert csp == f"{SAME_ORIGIN_POLICY} https://client.example/cb"
+    assert approved.status_code == 302
+    query = parse_qs(urlparse(approved.headers["location"]).query)
+    assert query["tenant"] == ["a"] and query["state"] == ["st4te"] and query["code"]
+
+
+async def test_consent_deny_redirects_access_denied(oauth_env):
+    """OAS-11: Deny reaches the client's redirect URI as error=access_denied."""
+    http, _, _ = oauth_env
+    client_id = await _register_redirect(http, "https://client.example/cb")
+    _, token = await _consent_page(http, client_id, "https://client.example/cb")
+
+    denied = await http.post("/oauth/consent", data={"token": token, "action": "deny"})
+
+    assert denied.status_code == 302
+    location = urlparse(denied.headers["location"])
+    assert f"{location.scheme}://{location.netloc}{location.path}" == "https://client.example/cb"
+    query = parse_qs(location.query)
+    assert query["error"] == ["access_denied"] and query["state"] == ["st4te"]
+    assert query["iss"] == [PUBLIC_URL]
+
+
+@pytest.mark.parametrize("action, expected", [("approve", "code"), ("deny", "error")])
+async def test_unexpressible_redirect_uri_keeps_page_same_origin(oauth_env, action, expected):
+    """SEC-6: a redirect URI that cannot be a source expression leaves form-action 'self',
+    and the consent answer is a same-origin page linking to the client."""
+    http, _, _ = oauth_env
+    redirect_uri = "https://client.example/cb;v=1"
+    client_id = await _register_redirect(http, redirect_uri)
+
+    page, token = await _consent_page(http, client_id, redirect_uri)
+    answer = await http.post("/oauth/consent", data={"token": token, "action": action})
+
+    assert page.headers["content-security-policy"] == SAME_ORIGIN_POLICY
+    assert answer.status_code == 200
+    assert answer.headers["content-security-policy"] == SAME_ORIGIN_POLICY
+    link = answer.text.split('class="continue" href="')[1].split('"')[0].replace("&amp;", "&")
+    assert link.startswith(redirect_uri)
+    query = parse_qs(urlparse(link).query)
+    assert query[expected] and query["state"] == ["st4te"]
+
+
+def test_other_auth_pages_stay_same_origin():
+    """SEC-6: pages that never redirect off-origin keep form-action 'self' alone."""
+    assert PAGE_HEADERS == {
+        "Content-Security-Policy": SAME_ORIGIN_POLICY,
+        "X-Frame-Options": "DENY",
+        "Cache-Control": "no-store",
+    }

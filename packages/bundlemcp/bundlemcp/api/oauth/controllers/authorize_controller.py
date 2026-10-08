@@ -11,7 +11,9 @@ from fastmcp.server.auth.redirect_validation import build_client_redirect
 from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.route import route
-from bundlemcp.api.oauth.pages.page_headers import PAGE_HEADERS
+from bundlemcp.api.oauth.oauth_error_response import authorization_error_location
+from bundlemcp.api.oauth.pages.form_action_source import form_action_source
+from bundlemcp.api.oauth.pages.page_headers import PAGE_HEADERS, page_headers
 from bundlemcp.api.oauth.pages.page_templates import PAGE_TEMPLATES
 from bundlemcp.api.oauth.providers import (
     AuthorizationServiceProvider,
@@ -33,15 +35,28 @@ class AuthorizeController(Controller):
     include_in_schema = False
 
     @staticmethod
-    def _code_redirect(pending: PendingAuthorization, code: str, issuer: str) -> RedirectResponse:
+    def _code_location(pending: PendingAuthorization, code: str, issuer: str) -> str:
         params = {"code": code}
         if pending.state:
             params["state"] = pending.state
         # A registered redirect URI may carry its own query; the parameters are
         # merged into it, and iss (OAS-14, RFC 9207) is set exactly once.
-        return RedirectResponse(
-            build_client_redirect(pending.redirect_uri, params, iss=issuer), status_code=302
+        return build_client_redirect(pending.redirect_uri, params, iss=issuer)
+
+    @staticmethod
+    def _answer_consent(pending: PendingAuthorization, location: str, heading: str) -> Response:
+        """Send the browser on to the client once the consent form is answered.
+
+        The consent page's form-action admits the client's redirect URI, so a
+        redirect is followed. When that URI could not be admitted, the browser
+        would refuse the redirect, so a same-origin page links to it instead.
+        """
+        if form_action_source(pending.redirect_uri) is not None:
+            return RedirectResponse(location, status_code=302)
+        html = PAGE_TEMPLATES.get_template("return_to_client.html").render(
+            client_name=pending.client_name, heading=heading, location=location
         )
+        return HTMLResponse(html, headers=PAGE_HEADERS)
 
     @route.get("/authorize")
     async def authorize(
@@ -71,9 +86,10 @@ class AuthorizeController(Controller):
         except AuthorizationRedirectError:
             raise
         if await service.has_consent(pending):
-            return self._code_redirect(
+            location = self._code_location(
                 pending, await service.issue_code(pending), settings.public_base
             )
+            return RedirectResponse(location, status_code=302)
 
         token = await pending_authorizations.put(pending)  # single-use => CSRF-safe form
         html = PAGE_TEMPLATES.get_template("consent.html").render(
@@ -85,7 +101,9 @@ class AuthorizeController(Controller):
             consent_action="/oauth/consent",
             user_email=user.email or str(user.id),
         )
-        return HTMLResponse(html, headers=PAGE_HEADERS)
+        # SEC-6: Approve and Deny are answered with a redirect to this client
+        headers = page_headers(form_redirect_source=form_action_source(pending.redirect_uri))
+        return HTMLResponse(html, headers=headers)
 
     @route.post("/consent")
     async def consent(
@@ -103,12 +121,18 @@ class AuthorizeController(Controller):
         if user is None or user.id != pending.user_id:
             raise HTTPException(403, "session mismatch")
         if action != "approve":
-            raise AuthorizationRedirectError(
+            denied = AuthorizationRedirectError(
                 pending.redirect_uri,
                 pending.state,
                 OAuthErrorCode.ACCESS_DENIED,
                 issuer=settings.public_base,
             )
+            return self._answer_consent(
+                pending, authorization_error_location(denied), "Access denied"
+            )
         await service.grant_consent(pending)
         log.info("oauth.consent_granted", client_id=pending.client_id)
-        return self._code_redirect(pending, await service.issue_code(pending), settings.public_base)
+        location = self._code_location(
+            pending, await service.issue_code(pending), settings.public_base
+        )
+        return self._answer_consent(pending, location, "Access granted")

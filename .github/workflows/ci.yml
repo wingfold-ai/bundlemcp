@@ -154,6 +154,19 @@ jobs:
         env:
           BUNDLEMCP_INTEGRATION: "1"
         run: uv run pytest tests/integration -q -m "not fleet"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Browser-driven OAuth consent (Chromium)
+        # HTTP clients ignore CSP, so only a browser proves that Approve and Deny
+        # reach a client redirect URI on another origin (SEC-6, OAS-11).
+        working-directory: apps/web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test oauth-consent.spec.ts
       - name: Logs on failure
         if: failure()
         run: docker compose -f deploy/docker-compose.yml logs --tail=200

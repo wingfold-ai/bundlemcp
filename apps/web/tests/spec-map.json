@@ -172,6 +172,17 @@
         "BND-11",
         "BND-6"
       ]
+    },
+    {
+      "id": "E2E-17",
+      "testFile": "oauth-consent.spec.ts",
+      "slug": "oauth-consent-reaches-client-redirect",
+      "title": "Approving or denying consent in a browser reaches the client's redirect URI on another origin",
+      "requirements": [
+        "SEC-6",
+        "OAS-11",
+        "OAS-2"
+      ]
     }
   ]
 }
