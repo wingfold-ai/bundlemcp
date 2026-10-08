@@ -145,33 +145,35 @@ function exportCsv() {
       </div>
     </div>
 
-    <table class="wf-table" data-testid="audit-table">
-      <thead>
-        <tr>
-          <th>Created at</th>
-          <th>Endpoint</th>
-          <th>Bundle</th>
-          <th>Server</th>
-          <th>Tool (presented)</th>
-          <th>Status</th>
-          <th>Duration (ms)</th>
-          <th>Reason / error</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(r, index) in records" :key="r.id" :data-testid="`audit-row-${index}`">
-          <td>{{ r.created_at }}</td>
-          <td>{{ r.endpoint_name }}</td>
-          <td>{{ r.bundle_name }}</td>
-          <td>{{ r.server_name }}</td>
-          <td>{{ r.presented_tool_name }}</td>
-          <td>
-            <UBadge :color="statusColor(r.status)" variant="subtle">{{ r.status }}</UBadge>
-          </td>
-          <td>{{ r.duration_ms }}</td>
-          <td>{{ r.denied_reason ?? r.error_message }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="wf-table" data-testid="audit-table">
+        <thead>
+          <tr>
+            <th>Created at</th>
+            <th>Endpoint</th>
+            <th>Bundle</th>
+            <th>Server</th>
+            <th>Tool (presented)</th>
+            <th>Status</th>
+            <th>Duration (ms)</th>
+            <th>Reason / error</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(r, index) in records" :key="r.id" :data-testid="`audit-row-${index}`">
+            <td><TimestampText :value="r.created_at" /></td>
+            <td class="whitespace-nowrap">{{ r.endpoint_name }}</td>
+            <td class="whitespace-nowrap">{{ r.bundle_name }}</td>
+            <td class="whitespace-nowrap">{{ r.server_name }}</td>
+            <td class="break-all">{{ r.presented_tool_name }}</td>
+            <td>
+              <UBadge :color="statusColor(r.status)" variant="subtle">{{ r.status }}</UBadge>
+            </td>
+            <td class="tabular-nums">{{ r.duration_ms }}</td>
+            <td>{{ r.denied_reason ?? r.error_message }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>

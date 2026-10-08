@@ -98,51 +98,53 @@ async function deleteKey(row: ApiKeyRead) {
       </div>
     </div>
 
-    <table class="wf-table" data-testid="keys-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Prefix</th>
-          <th>Kind</th>
-          <th>Active</th>
-          <th>Last used</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="k in keys" :key="k.id" :data-testid="`key-${k.name}`">
-          <td>{{ k.name }}</td>
-          <td><code>{{ k.key_prefix }}</code></td>
-          <td>{{ k.kind }}</td>
-          <td>
-            <UBadge :color="k.is_active ? 'success' : 'neutral'" variant="subtle">
-              {{ k.is_active ? "active" : "inactive" }}
-            </UBadge>
-          </td>
-          <td>{{ k.last_used_at ?? "never" }}</td>
-          <td class="space-x-2">
-            <UButton
-              size="xs"
-              variant="outline"
-              :data-testid="`deactivate-${k.name}`"
-              :disabled="!k.is_active"
-              @click="deactivateKey(k.id)"
-            >
-              Deactivate
-            </UButton>
-            <UButton
-              size="xs"
-              color="error"
-              variant="outline"
-              :data-testid="`delete-${k.name}`"
-              @click="deleteKey(k)"
-            >
-              Delete
-            </UButton>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="wf-table" data-testid="keys-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Prefix</th>
+            <th>Kind</th>
+            <th>Active</th>
+            <th>Last used</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="k in keys" :key="k.id" :data-testid="`key-${k.name}`">
+            <td>{{ k.name }}</td>
+            <td><code>{{ k.key_prefix }}</code></td>
+            <td>{{ k.kind }}</td>
+            <td>
+              <UBadge :color="k.is_active ? 'success' : 'neutral'" variant="subtle">
+                {{ k.is_active ? "active" : "inactive" }}
+              </UBadge>
+            </td>
+            <td><TimestampText :value="k.last_used_at" empty="never" /></td>
+            <td class="space-x-2">
+              <UButton
+                size="xs"
+                variant="outline"
+                :data-testid="`deactivate-${k.name}`"
+                :disabled="!k.is_active"
+                @click="deactivateKey(k.id)"
+              >
+                Deactivate
+              </UButton>
+              <UButton
+                size="xs"
+                color="error"
+                variant="outline"
+                :data-testid="`delete-${k.name}`"
+                @click="deleteKey(k)"
+              >
+                Delete
+              </UButton>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <div class="wf-card space-y-3">
       <h2 class="font-medium">Create API key</h2>
