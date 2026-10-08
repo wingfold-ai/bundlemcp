@@ -28,6 +28,7 @@ from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
 )
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
 from bundlemcp.domain.access.caller_identity import CallerIdentity
+from bundlemcp.domain.access.user import User
 from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.mcp_server import McpServer
@@ -546,7 +547,9 @@ async def test_fwd6_a_delegated_server_gets_a_token_bound_to_it():
         name="gsc", url="http://seo-gsc:8000/mcp", auth_mode=ServerAuthMode.DELEGATED_TOKEN
     )
     resolver = UpstreamCredentialResolver(None, PUBLIC_BASE, delegated=issuer)
-    user = CallerIdentity.oauth_user(uuid_of("u1"), "u@example.com")
+    user = CallerIdentity.oauth_user(
+        User(id=uuid_of("u1"), oidc_issuer="http://idp", oidc_sub="u1", email="u@example.com")
+    )
     headers = await resolver.headers_for(server, user, endpoint="main")
     token = headers["Authorization"].removeprefix("Bearer ")
     assert token.startswith("bmcp_dt_")

@@ -18,6 +18,17 @@ class IntrospectionResponse(BaseModel):
         "upstream server's URL for a delegated token",
     )
     email: str | None = Field(default=None, description="Email of the user, when known")
+    oidc_iss: str | None = Field(  # OAS-5
+        default=None,
+        description="Issuer of the identity provider that authenticated the user. Present for "
+        "a user's token and for a token delegated on a user's behalf; absent for an API key",
+    )
+    oidc_sub: str | None = Field(  # OAS-5
+        default=None,
+        description="The user's subject at that identity provider: stable across logins and "
+        "across a rebuild of the gateway's database, unlike 'sub'. Present and absent as "
+        "'oidc_iss' is",
+    )
     token_use: str | None = Field(
         default=None,
         description="'api_key' when the presented value was a gateway API key, 'delegated' "

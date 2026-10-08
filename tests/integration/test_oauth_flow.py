@@ -1,15 +1,17 @@
 """OAS-9 end-to-end OAuth happy path against the compose stack + real Keycloak.
 
 Drives: DCR -> authorize (Keycloak login form + gateway consent) -> code ->
-token -> MCP initialize/list/call -> refresh -> introspect. Requires an
-oauth-profile endpoint; the demo seed ships an api_key endpoint, so this test
-provisions an oauth endpoint via the management API first.
+token -> MCP initialize/list/call -> refresh -> introspect, including the IdP
+subject (oidc_iss / oidc_sub). Requires an oauth-profile endpoint; the demo seed
+ships an api_key endpoint, so this test provisions an oauth endpoint via the
+management API first.
 """
 
 import base64
 import hashlib
 import re
 import secrets
+import uuid
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -133,8 +135,14 @@ def test_full_oauth_happy_path():
             headers={"Authorization": f"Bearer {SERVICE_KEY}"},
         )
         introspect.raise_for_status()
-        assert introspect.json()["active"] is True
-        assert introspect.json()["aud"] == resource
+        body = introspect.json()
+        assert body["active"] is True
+        assert body["aud"] == resource
+        # OAS-5 / MID-1: the Keycloak subject travels beside the gateway's own user id.
+        # Keycloak's `sub` is the user's id in the realm, a UUID that is not the gateway's.
+        assert body["oidc_iss"].endswith("/realms/bundlemcp")
+        assert str(uuid.UUID(body["oidc_sub"])) == body["oidc_sub"]
+        assert body["oidc_sub"] != body["sub"]
 
 
 def _follow(client: httpx.Client, resp: httpx.Response) -> httpx.Response:

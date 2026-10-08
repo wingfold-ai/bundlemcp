@@ -20,7 +20,10 @@ on.
   extended).
 - **FWD-3** Per-server flag `send_identity_header` (default on): inject `X-MCP-User: <sub>` (resolved caller — user id
   or `api_key:<id>`), and strip any client-supplied `X-MCP-User` unconditionally so it can never be spoofed. When the
-  caller is anonymous (`none`-auth endpoint) the header is omitted.
+  caller is anonymous (`none`-auth endpoint) the header is omitted. The deployment-wide setting
+  `BUNDLEMCP_IDENTITY_SUBJECT` chooses how a user is named: `internal` (default) sends the bundlemcp user id, `oidc`
+  sends the user's IdP subject (`oidc_sub`, see [02-domain-model.md](02-domain-model.md) `User`). API-key callers are
+  `api_key:<id>` under either value. The default keeps the value existing upstreams key per-user data on.
 - **FWD-4** Upstreams that need to verify the forwarded bearer can call `POST /oauth/introspect`
   ([OAS-5](20-oauth-server.md)) — the sequence the first consumer's servers use today against metamcp.
 - **FWD-5** Sessions serving requests with forwarded per-request headers MUST bind those headers to the upstream session
@@ -37,9 +40,10 @@ on.
   the gateway. The token is sent as `Authorization: Bearer`, is minted afresh for every upstream request (only its hash
   is kept, never the value), is valid for five minutes, and lives in Valkey only (a restart of any replica does not
   invalidate it). Introspection ([OAS-5](20-oauth-server.md)) reports it `active` with the caller's `sub` (user id or
-  `api_key:<id>`), `aud` = the server's URL, `client_id` = the gateway's own delegation client, `token_use` =
-  `delegated`, and `act.sub` = the endpoint the caller came through. An anonymous caller gets no token. Tool discovery
-  has no caller; it sends the server's static headers as for any other server.
+  `api_key:<id>`; a user's token also carries `oidc_iss` and `oidc_sub`), `aud` = the server's URL, `client_id` = the
+  gateway's own delegation client, `token_use` = `delegated`, and `act.sub` = the endpoint the caller came through. An
+  anonymous caller gets no token. Tool discovery has no caller; it sends the server's static headers as for any other
+  server.
 - **FWD-7 Passthrough is labelled, not hidden.** A `forward_headers` entry that forwards `authorization` passes the
   caller's gateway token to the upstream — token passthrough, which the MCP authorization spec forbids an MCP server to
   accept. It remains supported for trusted internal upstreams that introspect it (FWD-4), but the API reports it as

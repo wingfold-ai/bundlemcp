@@ -10,7 +10,6 @@ import structlog
 from fastapi import Response
 
 from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
-from bundlemcp.api.mcp.protocol.forwarded_headers import forwarded_headers
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
@@ -159,8 +158,8 @@ class ToolCall:
         return await BufferedCallResponse().render(self)
 
     async def _resolve_headers(self) -> dict[str, str]:
-        headers = forwarded_headers(
-            self._ctx.request.headers, self._tool.server, self._ctx.identity.sub
+        headers = self._support.header_forwarding.headers_for(
+            self._ctx.request.headers, self._tool.server, self._ctx.identity
         )
         upstream = await self._support.credentials.headers_for(
             self._tool.server, self._ctx.identity, endpoint=self._ctx.view.endpoint.name
@@ -172,6 +171,8 @@ class ToolCall:
         self._meter = MeterContext(
             sub=self._ctx.identity.sub,
             email=self._ctx.identity.user_email,
+            oidc_issuer=self._ctx.identity.oidc_issuer,
+            oidc_sub=self._ctx.identity.oidc_sub,
             endpoint=self._ctx.view.endpoint.name,
             bundle=self._ctx.view.bundle.name,
             server=self._tool.server.name,

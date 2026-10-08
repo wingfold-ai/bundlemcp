@@ -65,6 +65,12 @@ A second, smaller set of **runtime settings** is editable while the gateway runs
 | `BUNDLEMCP_METERING_HOOK` | unset | Import path `module:attribute` of a [metering hook](/integrate/metering-hook). Unset installs a no-op. |
 | `BUNDLEMCP_METERING_HOOK_FAIL_OPEN` | `false` | Whether a tool call proceeds when the hook itself fails. `false` denies the call. |
 
+### Upstream identity
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `BUNDLEMCP_IDENTITY_SUBJECT` | `internal` | What [`X-MCP-User`](/integrate/upstream-identity) names a signed-in user by: `internal` for the gateway's user id, `oidc` for the identity provider's subject. API-key callers are `api_key:<id>` either way. Switching changes the key upstream servers see for every existing user. |
+
 ### Protocol and logging
 
 | Variable | Default | Meaning |

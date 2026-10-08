@@ -20,6 +20,13 @@ class DelegatedToken(BaseModel):
 
     sub: str = Field(description="The caller: a user id or 'api_key:<id>'")
     email: str | None = Field(default=None, description="The caller's email, when known")
+    # Defaults keep records written before these fields existed readable (DEP-6).
+    oidc_issuer: str | None = Field(
+        default=None, description="Identity provider that authenticated the caller, for a user"
+    )
+    oidc_sub: str | None = Field(
+        default=None, description="The caller's subject at that identity provider, for a user"
+    )
     server_id: uuid.UUID = Field(description="The upstream server the token is valid for")
     audience: str = Field(description="The upstream server's URL, reported as 'aud'")
     endpoint: str | None = Field(

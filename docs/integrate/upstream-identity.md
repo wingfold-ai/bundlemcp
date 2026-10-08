@@ -19,6 +19,11 @@ where `sub` is the user's id for OAuth callers and `api_key:<id>` for API-key ca
 `X-MCP-User` a client sent, so the header can only come from the gateway. On an open (`none`) endpoint the header is
 omitted.
 
+With `BUNDLEMCP_IDENTITY_SUBJECT=oidc` an OAuth caller is named by the identity provider's subject instead (the Keycloak
+`sub`, for example), which survives a rebuild of the gateway's database and matches what an application layer keyed on
+the identity provider already uses. API-key callers stay `api_key:<id>`. The default, `internal`, keeps the user id;
+switching changes the key your server sees for every existing user, so migrate per-user state first.
+
 This is a plain header, not a signed assertion. It is safe exactly when the server is only reachable through the
 gateway, which is the case on a compose or cluster network. Do not trust it on a server that is also reachable from the
 internet.
@@ -42,13 +47,16 @@ sends `Authorization: Bearer bmcp_dt_…`, a token it issued for this caller tha
   "act": { "sub": "endpoint:main" },
   "client_id": "bundlemcp-delegation",
   "email": "…",
+  "oidc_iss": "https://idp.example.com/realms/main",
+  "oidc_sub": "…",
   "exp": 1757340300
 }
 ```
 
 Check that `aud` is your own URL; `sub` is the caller (a user id or `api_key:<id>`), `act.sub` the endpoint the call
-came through. This is token exchange: the caller's token never leaves the gateway, so a compromised or curious upstream
-holds nothing that would open the caller's endpoint. Anonymous callers (open endpoints) get no token.
+came through. For a user, `oidc_iss` and `oidc_sub` name them at the identity provider; an API-key caller has neither.
+This is token exchange: the caller's token never leaves the gateway, so a compromised or curious upstream holds nothing
+that would open the caller's endpoint. Anonymous callers (open endpoints) get no token.
 
 ## Forwarded bearer plus introspection: legacy
 
@@ -75,7 +83,9 @@ The service key is accepted as the RFC 7662 client secret in HTTP Basic authenti
 that was itself an **API key** introspects as active with `sub` `api_key:<id>`, so a server written for introspection
 serves API-key callers without a second code path.
 
-`sub` is stable per user for the deployment's lifetime; use it as your per-user key. The `seo-gsc` server in the
+`sub` is stable per user for the deployment's lifetime; use it as your per-user key. A user's token also introspects
+with `oidc_iss` and `oidc_sub`, the identity provider's issuer and subject, which outlive the gateway's database; key on
+those when your data must survive a gateway rebuild. The `seo-gsc` server in the
 reference stack works this way and stores per-user Google tokens keyed by `sub`.
 
 ## Tool discovery of an introspecting server

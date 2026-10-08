@@ -53,8 +53,13 @@ deviates from the default (enabled, no overrides).
 
 ### User — [20-oauth-server.md](20-oauth-server.md) / [21-admin-auth.md](21-admin-auth.md)
 Provisioned on first OIDC login (admin UI or OAuth authorize flow). `id`, `oidc_issuer`, `oidc_sub` (unique together),
-`email`, `display_name`, `is_admin`, `created_at`. The `id` is the stable `sub` reported by token introspection — the
-key the application layer bills against.
+`email`, `display_name`, `is_admin`, `created_at`. The `id` is the `sub` reported by token introspection, stable within
+one gateway database. The IdP subject (`oidc_issuer`, `oidc_sub`) is stable beyond it — across a database rebuild or
+restore, and for users who exist in the IdP but have not yet signed in through the gateway — so it is exposed alongside
+`sub`, never instead of it: to the metering hook ([MID-1](31-middleware.md)), in introspection
+([OAS-5](20-oauth-server.md)), and optionally as `X-MCP-User` ([FWD-3](24-identity-forwarding.md)). An application
+layer that keys its users on the IdP subject attributes calls with it and needs no lookup in the gateway's user
+table.
 
 ### OAuthClient / OAuthAuthorizationCode / OAuthAccessToken — [20-oauth-server.md](20-oauth-server.md)
 bundlemcp's own OAuth 2.1 server state (dynamically registered clients, 10-minute single-use PKCE codes, opaque access

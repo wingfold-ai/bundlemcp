@@ -7,7 +7,7 @@ import structlog
 from fastmcp import Client
 
 from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
-from bundlemcp.api.mcp.protocol.forwarded_headers import forwarded_headers
+from bundlemcp.api.mcp.protocol.header_forwarding import HeaderForwarding
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.relay.client_relay import ClientRelay
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
@@ -41,12 +41,14 @@ class MemberFanout:
         self,
         client_factory: UpstreamClientFactory,
         credentials: UpstreamCredentialResolver,
+        header_forwarding: HeaderForwarding,
         registry: StreamRegistry,
         signals: SignalBus,
         runtime_config: RuntimeConfig,
     ) -> None:
         self._client_factory = client_factory
         self._credentials = credentials
+        self._header_forwarding = header_forwarding
         self._registry = registry
         self._signals = signals
         self._runtime_config = runtime_config
@@ -57,7 +59,7 @@ class MemberFanout:
 
     async def client_for(self, ctx: RequestContext, server: McpServer) -> Client:
         """A client for one member, with forwarded headers and its upstream bearer attached."""
-        headers = forwarded_headers(ctx.request.headers, server, ctx.identity.sub)
+        headers = self._header_forwarding.headers_for(ctx.request.headers, server, ctx.identity)
         headers.update(
             await self._credentials.headers_for(
                 server, ctx.identity, endpoint=ctx.view.endpoint.name

@@ -7,8 +7,9 @@ degradation matrix for outages ([SES-14](../../spec/30-session-management.md)).
 
 ## Identity
 One `User` per human, provisioned from OIDC `(issuer, sub)` regardless of entry path (admin UI or connector authorize
-flow). The bundlemcp user id is the stable `sub` everywhere: introspection, metering, audit, `X-MCP-User`. Machine
-callers are API keys (`endpoint` vs `service` kind).
+flow). The bundlemcp user id is the `sub` everywhere: introspection, metering, audit, `X-MCP-User`. The IdP subject
+travels beside it — to the metering hook and in introspection — and can replace it in `X-MCP-User`, for an application
+layer keyed on the IdP. Machine callers are API keys (`endpoint` vs `service` kind).
 
 ## Typing
 Pydantic v2 everywhere: plain Pydantic entities, SQLModel row classes in the persistence adapter

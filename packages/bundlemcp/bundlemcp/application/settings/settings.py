@@ -2,6 +2,8 @@
 
 from pydantic import AnyHttpUrl, BaseModel, Field
 
+from bundlemcp.domain.access.identity_subject import IdentitySubject
+
 
 class Settings(BaseModel):
     """Deploy-time configuration, as every layer reads it; the loader that fills it from the
@@ -93,6 +95,15 @@ class Settings(BaseModel):
         default=False,
         description="Whether a tool call proceeds when the metering hook itself fails. "
         "False denies the call, which is the safe default for a paid deployment",
+    )
+
+    identity_subject: IdentitySubject = Field(  # FWD-3
+        default=IdentitySubject.INTERNAL,
+        description="Which identifier the X-MCP-User header names a signed-in user by: "
+        "'internal' sends the gateway's own user id, stable only within this gateway's "
+        "database; 'oidc' sends the identity provider's subject, stable across logins and "
+        "database rebuilds. API-key callers are sent as 'api_key:<id>' either way. Changing "
+        "it changes the key upstream servers see for every existing user",
     )
 
     # Auth-failure limiter (RATE-5): gateway-wide, per client IP.

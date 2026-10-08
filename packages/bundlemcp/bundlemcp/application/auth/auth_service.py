@@ -77,4 +77,4 @@ class AuthService:
         user = await self._users.get(row.user_id)
         if user is None or not user.is_active:
             return None
-        return CallerIdentity.oauth_user(user.id, user.email)
+        return CallerIdentity.oauth_user(user)

@@ -160,7 +160,8 @@ is independent of how the caller authenticated. Three mechanisms, and they can b
 ### `X-MCP-User` — trusted on the internal network
 
 When a server's `send_identity_header` is on (default), every upstream call carries `X-MCP-User: <sub>` — the user id
-for OAuth callers, `api_key:<id>` for key callers, omitted for anonymous. The gateway
+for OAuth callers (or their identity provider subject with `BUNDLEMCP_IDENTITY_SUBJECT=oidc`), `api_key:<id>` for key
+callers, omitted for anonymous. The gateway
 **strips any client-supplied `X-MCP-User`**, so the header can only come from the gateway.
 
 This is a plain header, not a signed assertion. Trust it only when the server is reachable *only* through the gateway (a

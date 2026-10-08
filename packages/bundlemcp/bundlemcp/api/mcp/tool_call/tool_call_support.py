@@ -2,6 +2,7 @@ import asyncio
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from bundlemcp.api.mcp.protocol.header_forwarding import HeaderForwarding
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
@@ -27,6 +28,9 @@ class ToolCallSupport(BaseModel):
     )
     client_factory: UpstreamClientFactory = Field(
         description="Builds the MCP client for the upstream"
+    )
+    header_forwarding: HeaderForwarding = Field(
+        description="Client headers passed through and the identity header the gateway adds"
     )
     sessions: SessionStore = Field(description="Records the upstream binding on the session")
     registry: StreamRegistry = Field(
