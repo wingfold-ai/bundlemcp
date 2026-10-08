@@ -1,6 +1,6 @@
 """Gateway MCP-serving tests: the full endpoint flow against in-process upstreams.
 
-Covers EP-3 auth, SES-1/2/3/4 sessions, BND-2/3 prefix routing, TM-2/3
+Covers EP-3 auth, SES-1/2/3/3a/4 sessions, BND-2/3 prefix routing, TM-2/3
 curation, PROF-3 chatgpt re-annotation, MID-2/3 metering, AUD-1/2 audit,
 FWD-2/3 identity forwarding.
 """
@@ -159,6 +159,22 @@ async def gateway(engine: AsyncEngine, redis: FakeRedis):
     hook = RecordingHook()
     async with _running(engine, redis, metering_hook=hook) as (http, app):
         yield http, app, hook
+
+
+async def _add_endpoint_key(app) -> str:
+    """A second endpoint API key, so a test can act as a different caller."""
+    key = generate_token(API_KEY_PREFIX)
+    async with app.state.container.session_factory() as db:
+        db.add(
+            ApiKeyRow(
+                name="k2",
+                key_hash=hash_token(key),
+                key_prefix=display_prefix(key),
+                kind=ApiKeyKind.ENDPOINT,
+            )
+        )
+        await db.commit()
+    return key
 
 
 async def _initialize(http, endpoint="main") -> str:
@@ -449,6 +465,77 @@ async def test_delete_terminates_session(gateway):
     assert resp.status_code == 404
 
 
+async def _still_alive(http, session: str) -> bool:
+    return (await _rpc(http, "main", session, "ping")).status_code == 200
+
+
+async def test_delete_requires_endpoint_credential(gateway):
+    """SES-3a (#41): an unauthenticated DELETE is challenged and ends nothing."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await http.request(
+        "DELETE", "/main/mcp", headers={"Mcp-Session-Id": session, "Authorization": ""}
+    )
+    assert resp.status_code == 401
+    assert "resource_metadata" in resp.headers["WWW-Authenticate"]
+    assert await _still_alive(http, session)
+
+
+async def test_delete_on_other_endpoint_is_not_found(gateway):
+    """SES-3a: a session opened on one endpoint cannot be ended through another."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await http.request("DELETE", "/gpt/mcp", headers={"Mcp-Session-Id": session})
+    assert resp.status_code == 404
+    assert await _still_alive(http, session)
+
+
+async def test_delete_on_unknown_endpoint_is_not_found(gateway):
+    """SES-3a: the endpoint is resolved before the session is looked at."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+    resp = await http.request("DELETE", "/nope/mcp", headers={"Mcp-Session-Id": session})
+    assert resp.status_code == 404
+    assert resp.json() == {"error": "not found"}
+    assert await _still_alive(http, session)
+
+
+async def test_delete_by_other_caller_is_not_found(gateway):
+    """SES-3a: another authenticated caller holding the id cannot end the session."""
+    http, app, hook = gateway
+    other_key = await _add_endpoint_key(app)
+    session = await _initialize(http)
+    resp = await http.request(
+        "DELETE",
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session, "Authorization": f"Bearer {other_key}"},
+    )
+    assert resp.status_code == 404
+    assert resp.json() == {"error": "session not found"}
+    assert await _still_alive(http, session)
+
+
+async def test_session_not_usable_by_other_caller(gateway):
+    """SES-3a: another authenticated caller holding the id cannot use the session."""
+    http, app, hook = gateway
+    other_key = await _add_endpoint_key(app)
+    session = await _initialize(http)
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session, "Authorization": f"Bearer {other_key}"},
+        json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+    )
+    assert resp.status_code == 404
+    assert resp.json() == {"error": "session not found"}
+
+
+async def test_delete_unknown_session_is_not_found(gateway):
+    """SES-3: ending a session the gateway does not hold is a 404, not a silent 204."""
+    http, app, hook = gateway
+    resp = await http.request("DELETE", "/main/mcp", headers={"Mcp-Session-Id": "does-not-exist"})
+    assert resp.status_code == 404
+
+
 async def test_disabled_tool_hidden_and_blocked(gateway):
     """TM-2 in list AND call."""
     http, app, hook = gateway
@@ -563,17 +650,7 @@ async def test_per_client_limit_isolates_callers(gateway):
     http, app, hook = gateway
     await _set_rate_limit(app, {"per_client": {"limit": 1, "window_seconds": 100}})
 
-    other_key = generate_token(API_KEY_PREFIX)
-    async with app.state.container.session_factory() as db:
-        db.add(
-            ApiKeyRow(
-                name="k2",
-                key_hash=hash_token(other_key),
-                key_prefix=display_prefix(other_key),
-                kind=ApiKeyKind.ENDPOINT,
-            )
-        )
-        await db.commit()
+    other_key = await _add_endpoint_key(app)
 
     session = await _initialize(http)
     call = {"name": "echo__say", "arguments": {"text": "x"}}

@@ -51,7 +51,11 @@ class McpGatewayRouter:
         """Explicit session termination (session era only)."""
         if not request.headers.get(SESSION_HEADER):
             return _method_not_allowed()
-        return await self._session.close_session(request, endpoint_name)
+        try:
+            ctx = await self._admission.admit_caller(request, endpoint_name)  # SES-3a
+        except RequestRejected as rejected:
+            return rejected.response
+        return await self._session.close_session(ctx, endpoint_name)
 
     async def open_stream(self, request: Request, endpoint_name: str) -> Response:
         """The server->client event stream of a session connection (SSE)."""

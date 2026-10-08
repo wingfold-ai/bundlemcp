@@ -9,7 +9,7 @@ needs no path-based routing.
 |---|---|---|
 | `POST` | `/{endpoint}/mcp` | JSON-RPC over Streamable HTTP for every supported MCP revision. |
 | `GET` | `/{endpoint}/mcp` | Server-to-client event stream for handshake-era sessions. Requires `Mcp-Session-Id`; 405 without one. |
-| `DELETE` | `/{endpoint}/mcp` | Ends a handshake-era session. Requires `Mcp-Session-Id`; 405 without one. |
+| `DELETE` | `/{endpoint}/mcp` | Ends a handshake-era session. Requires `Mcp-Session-Id` (405 without one) and the endpoint's credential. |
 
 Responses:
 
@@ -20,7 +20,7 @@ Responses:
 | `204` | `DELETE` ended the session. |
 | `400` | A JSON-RPC error, including a malformed envelope. See [Request envelope](#request-envelope). |
 | `401` | Missing or invalid credentials, with a `WWW-Authenticate` challenge. |
-| `404` | An unknown or disabled endpoint, or a session id the gateway does not hold. |
+| `404` | An unknown or disabled endpoint, or a session id the gateway does not hold for this endpoint and caller. |
 | `405` | `GET` or `DELETE` without `Mcp-Session-Id`, with `Allow: POST`. |
 | `413` | A request body over 4 MiB, as plain text. |
 | `429` | A rate limit, with `Retry-After`. |

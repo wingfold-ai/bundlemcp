@@ -34,8 +34,14 @@ never creates, reads or requires a session record.
 - **SES-3** Unknown/expired session id → the Streamable-HTTP-prescribed 404, prompting the client to re-initialize. This
   MUST happen only for genuinely expired/invalid sessions — never because a different replica answered or the gateway
   restarted ([ARC-10](01-architecture.md)).
-- **SES-4** Explicit `DELETE …/mcp` terminates the session and releases its upstream bindings. A `DELETE` (or `GET`)
-  without an `Mcp-Session-Id` is answered 405 ([EP-1](14-endpoints.md)).
+- **SES-3a** A session belongs to the endpoint and the caller that opened it. A `POST`, `GET` or `DELETE` naming a
+  session is admitted like any other request first: an unknown endpoint is 404 and a missing or invalid credential gets
+  the 401 challenge, both before the session is looked at. It is then served only when the session was opened on the
+  endpoint in the path **and** the authenticated caller has the same identity subject as the one that opened it (the
+  same user, else the same API key). Otherwise it is answered exactly like an unknown session (SES-3) — never 403, so a
+  session id cannot be probed for existence or used by anyone it leaks to.
+- **SES-4** Explicit `DELETE …/mcp` terminates the session and releases its upstream bindings, subject to SES-3a. A
+  `DELETE` (or `GET`) without an `Mcp-Session-Id` is answered 405 ([EP-1](14-endpoints.md)).
 
 ### Stateless requests (modern-era clients ↔ bundlemcp)
 
