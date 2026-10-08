@@ -77,7 +77,7 @@ class JoseOidcProvider:
             raise OidcError("OIDC discovery document names no issuer")
         return cls(settings, metadata, client_factory=client_factory)
 
-    def authorize_url(
+    async def authorize_url(
         self, *, state: str, nonce: str, redirect_uri: str, code_challenge: str
     ) -> str:
         params = {

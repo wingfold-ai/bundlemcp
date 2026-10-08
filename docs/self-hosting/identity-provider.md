@@ -42,6 +42,11 @@ The discovery URL and every endpoint it names go through the gateway's egress po
 loopback address needs an entry in `BUNDLEMCP_EGRESS_ALLOW_CIDRS`; a provider on a private network or on the public
 internet works out of the box.
 
+The gateway starts without waiting for the provider, and `/readyz` does not depend on it. While the discovery document
+cannot be fetched, `/login` answers `503` with `Retry-After` and the log shows `oidc.discovery_failed`. The gateway
+keeps retrying in the background, backing off up to once a minute, so a provider or realm that comes up later is picked
+up without a restart (`oidc.discovered`). The document is refreshed hourly; signing keys are fetched on every login.
+
 ## Who is an admin
 
 Users whose email appears in `BUNDLEMCP_ADMIN_EMAILS` get admin rights. The list is re-evaluated **on every login**, so

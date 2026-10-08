@@ -22,6 +22,7 @@ from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE, session_cookie_kw
 from bundlemcp.application.oauth_server import VerifiedClaims
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.access.oidc_error import OidcError
+from bundlemcp.domain.access.oidc_unavailable import OidcUnavailable
 from bundlemcp.domain.oauth.pkce import PkcePair
 from bundlemcp.domain.sessions.admin_session import AdminSession
 
@@ -55,12 +56,15 @@ class LoginController(Controller):
                 next_url=clamp_post_login_redirect(next, settings),
             )
         )
-        url = provider.authorize_url(
-            state=state,
-            nonce=nonce,
-            redirect_uri=self._redirect_uri(settings),
-            code_challenge=pkce.challenge,
-        )
+        try:
+            url = await provider.authorize_url(
+                state=state,
+                nonce=nonce,
+                redirect_uri=self._redirect_uri(settings),
+                code_challenge=pkce.challenge,
+            )
+        except OidcUnavailable as exc:
+            raise _unavailable(exc) from None
         return RedirectResponse(url, status_code=302)
 
     @route.get("/login/callback")
@@ -90,6 +94,8 @@ class LoginController(Controller):
                 nonce=login_state.nonce,
                 code_verifier=login_state.code_verifier,
             )
+        except OidcUnavailable as exc:
+            raise _unavailable(exc) from None
         except OidcError as exc:
             raise HTTPException(400, str(exc)) from None
         user = await provisioning.provision(VerifiedClaims.model_validate(claims.model_dump()))
@@ -116,3 +122,9 @@ class LoginController(Controller):
         response = RedirectResponse("/", status_code=302)
         response.delete_cookie(SESSION_COOKIE, path="/")
         return response
+
+
+def _unavailable(exc: OidcUnavailable) -> HTTPException:
+    # ADM-7: the IdP is not reachable yet; the gateway keeps retrying discovery.
+    log.warning("admin.login_unavailable", retry_after=exc.retry_after)
+    return HTTPException(503, str(exc), headers={"Retry-After": str(exc.retry_after)})

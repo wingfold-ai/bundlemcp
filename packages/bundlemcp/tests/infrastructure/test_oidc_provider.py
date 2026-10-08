@@ -114,7 +114,7 @@ async def test_id_token_decoded_and_claims_validated():
 async def test_authorize_url_carries_state_and_nonce():
     idp = FakeIdp()
     provider = await _provider(idp)
-    url = provider.authorize_url(
+    url = await provider.authorize_url(
         state="st", nonce="nn", redirect_uri=REDIRECT_URI, code_challenge=CHALLENGE
     )
     assert url.startswith(f"{ISSUER}/auth?")
@@ -130,7 +130,7 @@ async def test_login_sends_pkce_s256(methods):
     provider = await _provider(idp)
 
     params = httpx.URL(
-        provider.authorize_url(
+        await provider.authorize_url(
             state="st", nonce="n0nce", redirect_uri=REDIRECT_URI, code_challenge=CHALLENGE
         )
     ).params
@@ -149,7 +149,7 @@ async def test_login_omits_pkce_for_an_issuer_without_s256():
     provider = await _provider(idp)
 
     params = httpx.URL(
-        provider.authorize_url(
+        await provider.authorize_url(
             state="st", nonce="n0nce", redirect_uri=REDIRECT_URI, code_challenge=CHALLENGE
         )
     ).params
