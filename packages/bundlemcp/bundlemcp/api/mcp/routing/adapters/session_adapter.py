@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import Request, Response
+from fastapi import Response
 from fastapi.responses import JSONResponse
 from mcp.types import INVALID_PARAMS
 
@@ -19,10 +19,6 @@ from bundlemcp.api.mcp.routing.session_stream import SessionStream
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.domain.sessions.session_record import SessionRecord
-
-
-def _method_not_allowed() -> Response:
-    return Response(status_code=405, headers={"Allow": "POST"})
 
 
 class SessionMcpAdapter:
@@ -71,12 +67,14 @@ class SessionMcpAdapter:
         request_ctx = await self._admit_session(ctx, endpoint_name)
         return self._stream.open(request_ctx)
 
-    async def close_session(self, request: Request, endpoint_name: str) -> Response:
-        """Explicit session termination (handshake era only)."""
-        session_id = request.headers.get(SESSION_HEADER, "")
-        if not session_id:
-            return _method_not_allowed()
-        await self._sessions.delete(session_id)
+    async def close_session(self, ctx: EndpointContext, endpoint_name: str) -> Response:
+        """Explicit session termination (handshake era only), by the caller that opened it."""
+        try:
+            request_ctx = await self._admit_session(ctx, endpoint_name)
+        except RequestRejected as rejected:
+            return rejected.response
+        assert request_ctx.session is not None
+        await self._sessions.delete(request_ctx.session.session_id)  # SES-4
         return Response(status_code=204)
 
     async def _admit_session(self, ctx: EndpointContext, endpoint_name: str) -> RequestContext:
@@ -99,7 +97,12 @@ class SessionMcpAdapter:
         # SES-2/SES-3: everything but initialize requires a live session record
         record = await self._sessions.load(session_id)
         dialect = self._dialects.handshake(record.protocol_version) if record else None
-        if record is None or dialect is None or record.endpoint_name != endpoint_name:
+        if (
+            record is None
+            or dialect is None
+            or record.endpoint_name != endpoint_name
+            or not record.is_owned_by(ctx.identity)  # SES-3a: indistinguishable from unknown
+        ):
             raise RequestRejected(JSONResponse({"error": "session not found"}, status_code=404))
         return self._session_context(ctx, record, dialect)
 
