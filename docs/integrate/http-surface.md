@@ -116,7 +116,13 @@ Every authorization response, including error redirects, carries `iss=<issuer>` 
 | `GET` | `/oauth/upstream/{server}/connect` | Starts the upstream OAuth flow for a server. Admins establish the shared connection; `?as=me` connects the signed-in user's own account on a `per_user` server. |
 | `GET` | `/oauth/upstream/callback` | The redirect URI to register with upstream OAuth providers: `<public url>/oauth/upstream/callback`. |
 
-These pages carry hardening headers (CSP, `frame-ancestors 'none'`).
+These pages, and the consent page `GET /oauth/authorize` renders, carry hardening headers: a CSP with
+`default-src 'none'`, `frame-ancestors 'none'` and `form-action 'self'`, plus `X-Frame-Options: DENY` and
+`Cache-Control: no-store`. The consent page's `form-action` also names the redirect URI of the authorization it decides
+(scheme, host, port and path), because browsers apply `form-action` to the redirect that delivers the code or
+`access_denied` to the client. A redirect URI that cannot be written into a CSP (for example one whose path holds `;`
+or `,`) keeps the page same-origin, and Approve or Deny then answers with a page linking to the client instead of a
+redirect.
 
 ## Management API
 

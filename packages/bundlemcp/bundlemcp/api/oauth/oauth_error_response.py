@@ -23,10 +23,8 @@ async def oauth_error_handler(request: Request, exc: OAuthError) -> Response:
     return oauth_error_response(exc.code, exc.description, status=exc.status)
 
 
-async def authorization_redirect_handler(
-    request: Request, exc: AuthorizationRedirectError
-) -> Response:
-    """Deliver an authorization failure to the client's verified redirect URI."""
+def authorization_error_location(exc: AuthorizationRedirectError) -> str:
+    """The client's verified redirect URI, carrying the failure as RFC 6749 parameters."""
     params = {"error": exc.code.value}
     if exc.description:
         params["error_description"] = exc.description
@@ -34,6 +32,11 @@ async def authorization_redirect_handler(
         params["state"] = exc.state
     # Merged into a redirect URI that may carry its own query; iss is set
     # exactly once on error responses too (OAS-14).
-    return RedirectResponse(
-        build_client_redirect(exc.redirect_uri, params, iss=exc.issuer), status_code=302
-    )
+    return build_client_redirect(exc.redirect_uri, params, iss=exc.issuer)
+
+
+async def authorization_redirect_handler(
+    request: Request, exc: AuthorizationRedirectError
+) -> Response:
+    """Deliver an authorization failure to the client's verified redirect URI."""
+    return RedirectResponse(authorization_error_location(exc), status_code=302)
