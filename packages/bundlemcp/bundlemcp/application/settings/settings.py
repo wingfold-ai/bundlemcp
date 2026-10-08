@@ -5,6 +5,8 @@ from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 from bundlemcp.domain.access.identity_subject import IdentitySubject
 from bundlemcp.domain.oauth.redirect_uri_allow_list import RedirectUriAllowList
 
+from bundlemcp.domain.access.identity_subject import IdentitySubject
+
 
 class Settings(BaseModel):
     """Deploy-time configuration, as every layer reads it; the loader that fills it from the
