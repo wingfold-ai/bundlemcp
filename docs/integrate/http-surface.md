@@ -24,6 +24,7 @@ Responses:
 | `405` | `GET` or `DELETE` without `Mcp-Session-Id`, with `Allow: POST`. |
 | `413` | A request body over 4 MiB, as plain text. |
 | `429` | A rate limit, with `Retry-After`. |
+| `503` | The live-state store (Valkey) is unreachable, with `Retry-After`. The session is kept; retry it. |
 
 CORS on these routes is the same app-wide policy as `/api/v1`: origins are allow-listed from `BUNDLEMCP_WEB_ORIGINS`,
 credentials are permitted, and `Mcp-Session-Id` is the one exposed response header. A browser MCP client on an origin

@@ -95,6 +95,7 @@ never creates, reads or requires a session record.
   | Failure | Behavior |
   |---|---|
   | **Redis down** | Session-dependent MCP requests → 503 + `Retry-After` (no false 404s); after recovery, records with intact TTLs resume, otherwise clients re-`initialize`. Rate limits per [RATE-6](16-rate-limiting.md). Admin UI logins unavailable; `readyz` false. |
+  | **Redis restarted** | Pooled connections that died with the old instance are replaced inside the request (bounded retry with backoff; idle connections are health-checked before reuse), so no request fails only because its connection is stale. A session the restart lost answers the ordinary `404` re-initialize signal, never a `500`. If the store is still unreachable after the retries, the Redis-down row applies. |
   | **Postgres down** | Existing sessions keep serving from cached config/tool data where possible; token/key validation fails closed (401/503); config mutations and audit writes fail (audit queue buffers per [AUD-3](50-audit-log.md)); `readyz` false. |
   | **Single replica dies** | Its pinned streams drop; clients retry/reconnect and any replica serves them (SES-2); in-flight calls on that replica surface as retryable errors. |
 
