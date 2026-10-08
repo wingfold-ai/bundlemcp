@@ -1,6 +1,7 @@
 """Smoke + restart-under-load against the compose stack (SES-12)."""
 
 import subprocess
+import time
 
 import httpx
 import pytest
@@ -87,3 +88,35 @@ def test_valkey_restart_costs_one_reinitialize_and_no_500():
 
     session = initialize(GATEWAY_URL, "demo", api_key=SERVICE_KEY)
     assert mcp_call(GATEWAY_URL, "demo", session, "tools/list", api_key=SERVICE_KEY)["result"]
+
+
+@pytest.mark.skipif(
+    subprocess.run(["which", "docker"], capture_output=True).returncode != 0,
+    reason="docker CLI required to stop the IdP and restart the gateway",
+)
+def test_gateway_started_without_idp_picks_it_up_without_restart():
+    """ADM-7 (#86): login recovers once the IdP is up; nothing else waits on it."""
+    compose = ["docker", "compose", "-f", "deploy/docker-compose.yml"]
+    subprocess.run([*compose, "stop", "keycloak"], check=True)
+    try:
+        subprocess.run([*compose, "restart", "gateway"], check=True)
+        wait_ready(GATEWAY_URL)  # readiness does not depend on the IdP
+
+        login = httpx.get(f"{GATEWAY_URL}/login", timeout=30)
+        assert login.status_code == 503, login.text
+        assert int(login.headers["Retry-After"]) > 0
+
+        # An existing credential keeps working on MCP endpoints while the IdP is down.
+        session = initialize(GATEWAY_URL, "demo", api_key=SERVICE_KEY)
+        assert mcp_call(GATEWAY_URL, "demo", session, "tools/list", api_key=SERVICE_KEY)["result"]
+    finally:
+        subprocess.run([*compose, "up", "-d", "--wait", "keycloak"], check=True)
+
+    deadline = time.time() + 90
+    while True:
+        login = httpx.get(f"{GATEWAY_URL}/login", timeout=30)
+        if login.status_code == 302 or time.time() > deadline:
+            break
+        time.sleep(2)
+    assert login.status_code == 302, login.text
+    assert "/realms/bundlemcp/protocol/openid-connect/auth" in login.headers["location"]
