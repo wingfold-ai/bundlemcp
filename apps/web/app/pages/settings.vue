@@ -61,41 +61,43 @@ async function resetKey(key: string) {
 
     <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
 
-    <table class="wf-table" data-testid="config-table">
-      <thead>
-        <tr>
-          <th>Key</th>
-          <th>Value</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="key in keys" :key="key" :data-testid="`config-row-${key}`">
-          <td><code>{{ key }}</code></td>
-          <td>
-            <input v-model="values[key]" class="wf-input" :data-testid="`config-${key}`" />
-          </td>
-          <td class="space-x-2 whitespace-nowrap">
-            <UButton
-              size="xs"
-              variant="outline"
-              :data-testid="`config-save-${key}`"
-              @click="saveKey(key)"
-            >
-              Save
-            </UButton>
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              :data-testid="`config-reset-${key}`"
-              @click="resetKey(key)"
-            >
-              Reset
-            </UButton>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="wf-table wf-table-controls" data-testid="config-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="key in keys" :key="key" :data-testid="`config-row-${key}`">
+            <td><code>{{ key }}</code></td>
+            <td>
+              <input v-model="values[key]" class="wf-input" :data-testid="`config-${key}`" />
+            </td>
+            <td class="space-x-2 whitespace-nowrap">
+              <UButton
+                size="xs"
+                variant="outline"
+                :data-testid="`config-save-${key}`"
+                @click="saveKey(key)"
+              >
+                Save
+              </UButton>
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                :data-testid="`config-reset-${key}`"
+                @click="resetKey(key)"
+              >
+                Reset
+              </UButton>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>

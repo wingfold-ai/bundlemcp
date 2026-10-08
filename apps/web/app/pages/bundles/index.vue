@@ -58,32 +58,34 @@ async function createBundle() {
 
     <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
 
-    <table class="wf-table" data-testid="bundles-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Description</th>
-          <th>Updated</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="b in bundles" :key="b.name" :data-testid="`row-${b.name}`">
-          <td>
-            <NuxtLink
-              :to="`/bundles/${b.name}`"
-              class="inline-flex items-center gap-1.5 underline"
-              :data-testid="`open-${b.name}`"
-              ><UIcon name="i-lucide-package" class="size-4 text-muted" />{{ b.name }}</NuxtLink
-            >
-          </td>
-          <td>{{ b.description }}</td>
-          <td>{{ b.updated_at }}</td>
-        </tr>
-        <tr v-if="bundles.length === 0">
-          <td colspan="3" class="text-muted">No bundles yet.</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="wf-table" data-testid="bundles-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="b in bundles" :key="b.name" :data-testid="`row-${b.name}`">
+            <td>
+              <NuxtLink
+                :to="`/bundles/${b.name}`"
+                class="inline-flex items-center gap-1.5 underline"
+                :data-testid="`open-${b.name}`"
+                ><UIcon name="i-lucide-package" class="size-4 text-muted" />{{ b.name }}</NuxtLink
+              >
+            </td>
+            <td>{{ b.description }}</td>
+            <td><TimestampText :value="b.updated_at" /></td>
+          </tr>
+          <tr v-if="bundles.length === 0">
+            <td colspan="3" class="text-muted">No bundles yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <form class="wf-card space-y-3 max-w-xl" @submit.prevent="createBundle">
       <h2 class="text-sm font-semibold">Create bundle</h2>

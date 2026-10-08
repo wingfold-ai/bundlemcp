@@ -17,6 +17,12 @@
   --color-brand-950: #0f2d30;
 }
 
+/* Tool names, header names and setting keys. Without a named face the stack
+   falls through to Courier on Linux; @nuxt/fonts self-hosts the one named. */
+@theme {
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 /* Surfaces follow the documentation site: a soft gray page with white cards
    in light mode, the docs' dark gray with slightly lighter cards in dark mode. */
 :root {
@@ -48,6 +54,10 @@
 }
 .wf-table td {
   @apply border-b border-muted px-3 py-2 align-top;
+}
+/* Rows of inputs and buttons: centre the label on the control beside it */
+.wf-table.wf-table-controls td {
+  @apply align-middle;
 }
 .wf-label {
   @apply block text-xs font-medium text-muted mb-1;
