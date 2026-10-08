@@ -41,11 +41,18 @@ class MeteringHook(Protocol):
 |---|---|
 | `sub` | Caller identity: a user id, `api_key:<id>`, or `None` on an open endpoint. |
 | `email` | The caller's email when the identity provider supplied one, else `None`. |
+| `oidc_issuer` | Issuer of the identity provider that authenticated the user; `None` for an API key or an open endpoint. |
+| `oidc_sub` | The user's subject at that identity provider, e.g. the Keycloak `sub`; `None` when `oidc_issuer` is. |
 | `endpoint` | Endpoint name the call arrived on. |
 | `bundle` | Bundle the endpoint exposes. |
 | `server` | Upstream server the call routes to. |
 | `tool` | Upstream tool name, without the bundle prefix or override. |
 | `idempotency_key` | Stable key for one client invocation. |
+
+`sub` is the gateway's own user id, stable only within this gateway's database. If your ledger keys users on the
+identity provider's subject, key on `(oidc_issuer, oidc_sub)` instead: it is the same for every login of a user,
+survives a rebuild or restore of the gateway, and is known for users who have not yet signed in through the gateway.
+Never key on `email`, which can change and be reused.
 
 `MeterDecision` has `allowed: bool` and an optional machine-readable `reason` such as `insufficient_credits`.
 
@@ -118,7 +125,7 @@ class LedgerHook:
 
     async def pre_call(self, ctx: MeterContext) -> MeterDecision:
         r = await self._http.post("/check-and-debit", json={
-            "sub": ctx.sub, "email": ctx.email,
+            "sub": ctx.sub, "email": ctx.email, "oidc_sub": ctx.oidc_sub,
             "bundle_slug": ctx.bundle, "server_name": ctx.server, "tool_name": ctx.tool,
             "idempotency_key": ctx.idempotency_key,
         })

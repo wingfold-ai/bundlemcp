@@ -213,7 +213,8 @@ Two separate mechanisms carry the caller to the upstream:
 
 - **`auth_mode: delegated_token`** gives the upstream a token of its own on every call: short-lived (five minutes),
   issued by the gateway for the caller, with the server's URL as its audience. The upstream verifies it at the gateway's
-  introspection route and learns `sub`, `email`, `aud` and the endpoint the call came through (`act.sub`). This is the
+  introspection route and learns `sub`, `email`, `aud`, the endpoint the call came through (`act.sub`) and, for a
+  user, their identity provider subject (`oidc_iss`, `oidc_sub`). This is the
   token-exchange pattern, and the recommended way for your own servers to learn who is calling.
 - **`forward_headers`** passes selected client headers through. `{"authorization": "authorization"}` forwards the
   caller's own gateway token, which the upstream can also introspect — but that token was issued for the gateway
@@ -221,7 +222,8 @@ Two separate mechanisms carry the caller to the upstream:
   keeps working for trusted internal servers; the API reports it as `forwards_caller_token` and the UI marks it. Prefer
   `delegated_token`. `host`, `cookie`, `content-length`, `x-api-key`, `mcp-session-id` and anything `sec-*` or `proxy-*`
   can never be forwarded, and are rejected when the server is saved.
-- **`send_identity_header`** injects `X-MCP-User: <sub>`, where `sub` is the user id or `api_key:<id>`. A client-sent
+- **`send_identity_header`** injects `X-MCP-User: <sub>`, where `sub` is the user id (or the identity provider subject
+  with `BUNDLEMCP_IDENTITY_SUBJECT=oidc`) or `api_key:<id>`. A client-sent
   `X-MCP-User` is always stripped. On a `none` endpoint the header is omitted.
 
 Details for the server side are in

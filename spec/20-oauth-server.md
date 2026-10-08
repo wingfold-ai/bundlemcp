@@ -36,15 +36,18 @@ and provides introspection so upstreams and the application layer can resolve a 
   client registered (OAS-2) or its metadata document declares (OAS-13) are honoured: a grant outside that list is
   refused with `unauthorized_client`, and so is an authorization request from a client that did not register
   `authorization_code`.
-- **OAS-5 Introspection** (RFC 7662): `POST /oauth/introspect` returns `active`, `sub` (bundlemcp user id — the stable
-  billing key, see [02-domain-model.md](02-domain-model.md) `User`), `client_id`, `exp`, `scope`. Callable by upstream
-  services; protected against anonymous fishing (requires a valid API key, service token, or client credentials — a
-  service key supplied as the RFC 7662 HTTP-Basic client secret counts). Gateway **API keys** presented as the
-  introspected token are reported as `active` with `sub` `api_key:<id>` ([FWD-3](24-identity-forwarding.md) identity
-  format), so introspecting upstreams ([FWD-4](24-identity-forwarding.md)) can serve api_key-authenticated callers and
-  tool discovery of such upstreams can authenticate via a static `authorization` header. A **delegated token**
+- **OAS-5 Introspection** (RFC 7662): `POST /oauth/introspect` returns `active`, `sub` (bundlemcp user id, see
+  [02-domain-model.md](02-domain-model.md) `User`), `client_id`, `exp`, `scope`, and for a user's token the RFC 7662
+  §2.2 extension members `oidc_iss` and `oidc_sub` — the issuer and subject of the IdP that authenticated the user,
+  which stay stable where the gateway's user id does not. Callable by upstream services; protected against anonymous
+  fishing (requires a valid API key, service token, or client credentials — a service key supplied as the RFC 7662
+  HTTP-Basic client secret counts). Gateway **API keys** presented as the introspected token are reported as `active`
+  with `sub` `api_key:<id>` ([FWD-3](24-identity-forwarding.md) identity format) and neither `oidc_iss` nor `oidc_sub`,
+  so introspecting upstreams ([FWD-4](24-identity-forwarding.md)) can serve api_key-authenticated callers and tool
+  discovery of such upstreams can authenticate via a static `authorization` header. A **delegated token**
   ([FWD-6](24-identity-forwarding.md)) is reported `active` with its audience server's URL as `aud`, `token_use`
-  `delegated`, and the endpoint it was issued through as `act.sub`.
+  `delegated`, and the endpoint it was issued through as `act.sub`; one issued for a user also carries that user's
+  `oidc_iss` and `oidc_sub`.
 - **OAS-6 Revocation** (RFC 7009): `POST /oauth/revoke` for access and refresh tokens. The client authenticates as at
   the token endpoint (a public client by `client_id` alone) and may revoke only tokens issued to it; a token that is
   unknown or another client's is answered 200 and left alone. Authentication failures count toward the

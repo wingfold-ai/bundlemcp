@@ -25,6 +25,7 @@ from bundlemcp.api.mcp.dispatch.rate_limit_gate import RateLimitGate
 from bundlemcp.api.mcp.dispatch.rate_limited import RateLimited
 from bundlemcp.api.mcp.protocol.cache_hints import CacheHints
 from bundlemcp.api.mcp.protocol.dialect import DialectRegistry
+from bundlemcp.api.mcp.protocol.header_forwarding import HeaderForwarding
 from bundlemcp.api.mcp.routing.adapters import SessionMcpAdapter, StatelessMcpAdapter
 from bundlemcp.api.mcp.routing.admission_gate import AdmissionGate
 from bundlemcp.api.mcp.routing.authentication import EndpointAuthentication
@@ -99,14 +100,21 @@ class McpGatewayAssembly(BaseModel):
             self.upstream_tokens, self.settings.public_base, delegated=self.delegated_tokens
         )
         connect_prompts = AccountConnectPrompts(credentials)  # UPO-3
+        header_forwarding = HeaderForwarding(self.settings.identity_subject)  # FWD-3
         fanout = MemberFanout(
-            self.client_factory, credentials, self.registry, self.signals, self.runtime_config
+            self.client_factory,
+            credentials,
+            header_forwarding,
+            self.registry,
+            self.signals,
+            self.runtime_config,
         )
         tool_calls = ToolsCallHandler(
             ToolCallSupport(
                 metering=self.metering,
                 audit=self.audit,
                 credentials=credentials,
+                header_forwarding=header_forwarding,
                 client_factory=self.client_factory,
                 sessions=self.sessions,
                 registry=self.registry,

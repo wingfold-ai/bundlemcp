@@ -49,6 +49,8 @@ class DelegatedTokenIssuer:
         record = DelegatedToken(
             sub=sub,
             email=identity.user_email,
+            oidc_issuer=identity.oidc_issuer,
+            oidc_sub=identity.oidc_sub,
             server_id=server.id,
             audience=server.url,
             endpoint=endpoint,

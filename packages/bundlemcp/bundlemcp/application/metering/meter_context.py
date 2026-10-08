@@ -10,6 +10,14 @@ class MeterContext(BaseModel):
         description="Caller identity: a user id, 'api_key:<id>', or None when anonymous"
     )
     email: str | None = Field(description="Caller email when the identity provider supplied one")
+    oidc_issuer: str | None = Field(  # MID-1
+        description="Identity provider that authenticated the caller; None for an API key "
+        "or an anonymous caller"
+    )
+    oidc_sub: str | None = Field(  # MID-1
+        description="The caller's subject at that identity provider, stable across logins and "
+        "independent of this gateway's database; None for an API key or an anonymous caller"
+    )
     endpoint: str = Field(description="Endpoint the call arrived on")
     bundle: str = Field(description="Bundle the endpoint exposes")
     server: str = Field(description="Upstream server the call is routed to")
