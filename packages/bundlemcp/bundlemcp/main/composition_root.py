@@ -51,6 +51,7 @@ from bundlemcp.infrastructure.inprocess.counters import InProcessCounters
 from bundlemcp.infrastructure.inprocess.stream_registry import InProcessStreamRegistry
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.metering.hook_loader import load_metering_hook
+from bundlemcp.infrastructure.metering.http_metering_hook import HttpMeteringHook
 from bundlemcp.infrastructure.oidc.build_provider import build_provider
 from bundlemcp.infrastructure.postgres.audit_writer import QueuedAuditWriter
 from bundlemcp.infrastructure.postgres.engine import create_engine, session_factory
@@ -179,13 +180,16 @@ class CompositionRoot:
         )
         auth_failure_guard = AuthFailureGuard(auth_failure_limiter, settings)
         rate_limiter = overrides.rate_limiter or ValkeyRateLimiter(redis, counters)
+        metering = overrides.metering_hook or load_metering_hook(settings)
+        if isinstance(metering, HttpMeteringHook):
+            self._stack.push_async_callback(metering.aclose)
         mcp_router = McpGatewayAssembly(
             settings=settings,
             unit_of_work_factory=units,
             sessions=session_store,
             registry=registry,
             signals=signals,
-            metering=overrides.metering_hook or load_metering_hook(settings.metering_hook),
+            metering=metering,
             audit=audit,
             client_factory=client_factory,
             runtime_config=runtime_config,

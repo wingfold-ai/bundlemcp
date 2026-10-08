@@ -1,6 +1,6 @@
 """The deploy-time configuration model."""
 
-from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
+from pydantic import AnyHttpUrl, BaseModel, Field, field_validator, model_validator
 
 from bundlemcp.domain.access.identity_subject import IdentitySubject
 from bundlemcp.domain.oauth.redirect_uri_allow_list import RedirectUriAllowList
@@ -96,6 +96,26 @@ class Settings(BaseModel):
         default=False,
         description="Whether a tool call proceeds when the metering hook itself fails. "
         "False denies the call, which is the safe default for a paid deployment",
+    )
+    metering_http_url: str | None = Field(  # MID-6
+        default=None,
+        pattern=r"^https?://",
+        description="URL of a billing service that is consulted around every tool call over "
+        "HTTP instead of an in-process hook, e.g. 'http://billing:8000/meter'. The gateway "
+        "POSTs a pre-call and a post-call event there; see the metering hook documentation "
+        "for the bodies. Cannot be combined with an in-process metering hook",
+    )
+    metering_http_token: str | None = Field(
+        default=None,
+        description="Bearer token the gateway sends to the billing service URL. Keep it in a "
+        "secret store; it is never logged",
+    )
+    metering_http_timeout: float = Field(
+        default=2.0,
+        gt=0,
+        le=30,
+        description="Seconds the billing service has to answer a pre-call before the call is "
+        "treated as unanswered and, by default, denied",
     )
 
     identity_subject: IdentitySubject = Field(  # FWD-3
@@ -205,3 +225,12 @@ class Settings(BaseModel):
     def public_base(self) -> str:
         """The public URL as a bare origin-plus-path string, without a trailing slash."""
         return str(self.public_url).rstrip("/")
+
+    @model_validator(mode="after")
+    def _one_metering_hook(self) -> "Settings":
+        # MID-6: one hook per deployment, in-process or over HTTP
+        if self.metering_hook and self.metering_http_url:
+            raise ValueError(
+                "set BUNDLEMCP_METERING_HOOK or BUNDLEMCP_METERING_HTTP_URL, not both"
+            )
+        return self

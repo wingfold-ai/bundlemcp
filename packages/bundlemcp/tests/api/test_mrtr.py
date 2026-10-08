@@ -119,8 +119,8 @@ class RecordingHook:
         self.pre.append(ctx.idempotency_key)
         return MeterDecision(allowed=True)
 
-    async def post_call(self, ctx, status, duration_ms) -> None:
-        self.post.append(status)
+    async def post_call(self, ctx, outcome, duration_ms) -> None:
+        self.post.append(outcome)
 
 
 async def seed(engine: AsyncEngine) -> dict[str, str]:
@@ -240,7 +240,7 @@ async def test_passthrough_forwards_the_upstreams_input_required(env):
     assert final["result"]["resultType"] == "complete"
     # MID-3: both legs are one invocation to the hook; post_call only when it ended
     assert len(hook.pre) == 2 and hook.pre[0] == hook.pre[1]
-    assert hook.post == ["success"]
+    assert hook.post == ["result"]
     assert await _audit_statuses(app) == ["input_required", "success"]
 
 
@@ -266,7 +266,7 @@ async def test_parked_call_resumes_on_another_replica(env, engine, redis):
                 requestState=first["result"]["requestState"],
             )
     assert final["result"]["content"][0]["text"] == "hello Grace"
-    assert len(hook.pre) == 1 and hook.post == ["success"]  # one invocation, charged once
+    assert len(hook.pre) == 1 and hook.post == ["result"]  # one invocation, charged once
     assert await _audit_statuses(app_a) == ["success"]
 
 
@@ -350,7 +350,7 @@ async def test_lost_park_falls_back_to_a_rerun(env):
         http, "legacyup__ask_name", inputResponses={"input-1": _accept("Linus")}, requestState=state
     )
     assert final["result"]["content"][0]["text"] == "hello Linus"
-    assert hook.pre == ["carried-over"] and hook.post == ["success"]
+    assert hook.pre == ["carried-over"] and hook.post == ["result"]
 
 
 async def test_input_required_is_unavailable_without_encryption_keys(engine, redis):

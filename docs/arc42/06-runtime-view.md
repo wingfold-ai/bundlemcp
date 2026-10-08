@@ -25,7 +25,8 @@ Three load-bearing scenarios (normative details in the linked specs).
 4. Upstream call runs with progress-aware timeouts; `notifications/progress` relayed to the client
    ([PROT-1/2](../../spec/32-protocol-passthrough.md)). A client cancel reaching another replica is routed via pub/sub
    ([PROT-3](../../spec/32-protocol-passthrough.md), SES-13).
-5. Result (incl. `isError`) → **metering post-call** (refund trigger on error) → audit record
+5. Result → **metering post-call** with the outcome (`result`, `tool_error`, `no_result` or `cancelled`; the hook
+   decides what each costs) → audit record
    ([AUD-1/7](../../spec/50-audit-log.md)).
 
 ## 6.3 Gateway restart under load (the metamcp fix)

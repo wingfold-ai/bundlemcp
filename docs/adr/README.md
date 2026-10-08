@@ -57,3 +57,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0039](0039-server-inspection-and-connection-state.md) | Upstreams are inspected, and their refusals classified, below the MCP client | accepted |
 | [0040](0040-upstream-client-identification.md) | The gateway identifies itself upstream in the MCP spec's order | accepted |
 | [0041](0041-delegated-upstream-tokens.md) | Delegated tokens replace token passthrough for identity-aware upstreams | accepted |
+| [0042](0042-http-metering-hook-and-outcome-kinds.md) | The metering hook reaches billing over HTTP and reports outcome kinds | accepted |
