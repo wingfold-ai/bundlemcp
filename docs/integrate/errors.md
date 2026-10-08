@@ -35,7 +35,7 @@ with a plain-text body and no JSON at all.
 | `409` | The write conflicts with an existing resource, such as a name already in use. |
 | `422` | Request validation, including a body `name` that differs from the path `name`. |
 | `429` | An auth-failure lockout, with `Retry-After`. |
-| `503` | A dependency the operation needs is unavailable. |
+| `503` | A dependency the operation needs is unavailable, with `Retry-After` when it is the live-state store. |
 
 A non-administrator who is signed in receives `401`, not `403`. This is worth
 designing for explicitly: a browser client cannot distinguish "session

@@ -51,3 +51,39 @@ def test_session_survives_gateway_restart():
     # same session id, no re-initialize -> must still resolve (no 404 storm)
     tools = mcp_call(GATEWAY_URL, "demo", session, "tools/list", api_key=SERVICE_KEY)
     assert tools["result"]["tools"]  # served from the Redis-backed session record
+
+
+@pytest.mark.skipif(
+    subprocess.run(["which", "docker"], capture_output=True).returncode != 0,
+    reason="docker CLI required to restart Valkey",
+)
+def test_valkey_restart_costs_one_reinitialize_and_no_500():
+    """SES-14 (#85): after a Valkey restart the gateway reconnects on its own.
+
+    The first request after the restart is not a 500: a fresh initialize works,
+    and a session from before gets exactly the 404 re-initialize signal.
+    """
+    wait_ready(GATEWAY_URL)
+    session = initialize(GATEWAY_URL, "demo", api_key=SERVICE_KEY)
+    assert mcp_call(GATEWAY_URL, "demo", session, "tools/list", api_key=SERVICE_KEY)["result"]
+
+    compose = ["docker", "compose", "-f", "deploy/docker-compose.yml"]
+    # Empty the store first, so a snapshot written on shutdown cannot bring the
+    # session back and the outcome does not depend on Valkey's persistence.
+    subprocess.run([*compose, "exec", "-T", "valkey", "valkey-cli", "FLUSHALL"], check=True)
+    subprocess.run([*compose, "restart", "valkey"], check=True)
+    subprocess.run([*compose, "up", "-d", "--wait", "valkey"], check=True)
+
+    fresh = initialize(GATEWAY_URL, "demo", api_key=SERVICE_KEY)
+    assert fresh
+
+    stale = httpx.post(
+        f"{GATEWAY_URL}/demo/mcp",
+        headers={"Mcp-Session-Id": session, "Authorization": f"Bearer {SERVICE_KEY}"},
+        json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+        timeout=30,
+    )
+    assert stale.status_code == 404, stale.text
+
+    session = initialize(GATEWAY_URL, "demo", api_key=SERVICE_KEY)
+    assert mcp_call(GATEWAY_URL, "demo", session, "tools/list", api_key=SERVICE_KEY)["result"]

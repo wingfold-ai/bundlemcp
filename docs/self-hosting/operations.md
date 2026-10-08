@@ -50,7 +50,7 @@ survive.
 | Dependency down | Effect |
 |---|---|
 | Postgres | The gateway cannot serve: configuration, key validation and token validation all need it. `/readyz` reports not ready. |
-| Valkey | Handshake-era sessions are lost and clients re-initialise. Traffic rate limits fail open with a warning unless an endpoint set `fail_closed: true`. The auth-failure limiter also fails open. |
+| Valkey | Requests that need a session answer `503` with `Retry-After` while it is unreachable. The gateway reconnects on its own once Valkey is back; handshake-era sessions the restart lost answer `404` and clients re-initialise. Traffic rate limits fail open with a warning unless an endpoint set `fail_closed: true`. The auth-failure limiter also fails open. |
 | An upstream server | Its tools are still listed from the cache; calls fail with a structured MCP error. Other members of the bundle are unaffected. |
 | The identity provider | Existing sessions and tokens keep working until they expire; new logins and new connector authorisations fail. |
 | The metering hook | Calls are denied by default. `BUNDLEMCP_METERING_HOOK_FAIL_OPEN=true` lets them through with a log line. |
