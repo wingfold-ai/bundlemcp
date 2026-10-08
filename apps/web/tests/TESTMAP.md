@@ -22,6 +22,7 @@ Playwright test title, the recording filename, and this table.
 | E2E-14 | A signed-in non-admin sees only the endpoint catalogue | `tests/catalogue.spec.ts` | [`60-admin-ui.md`](../../../spec/60-admin-ui.md) | UI-2, API-1, ADM-3 | `E2E-14__60-admin-ui__catalogue-non-admin-sees-endpoints.webm` |
 | E2E-15 | The composition grid shows which bundles hold which servers | `tests/bundle-flow.spec.ts` | [`12-bundles.md`](../../../spec/12-bundles.md) | BND-4, UI-1 | `E2E-15__12-bundles__bundle-server-composition-grid.webm` |
 | E2E-16 | A bundle's catalogue overview and tool list are written by an admin and read by a user | `tests/bundle-flow.spec.ts` | [`12-bundles.md`](../../../spec/12-bundles.md) | BND-11, BND-6 | `E2E-16__12-bundles__bundle-catalogue-overview-and-tools.webm` |
+| E2E-17 | Approving or denying consent in a browser reaches the client's redirect URI on another origin | `tests/oauth-consent.spec.ts` | [`70-security.md`](../../../spec/70-security.md) | SEC-6, OAS-11, OAS-2 | `E2E-17__70-security__oauth-consent-reaches-client-redirect.webm` |
 
 ## Requirements referenced
 
@@ -33,7 +34,7 @@ Playwright test title, the recording filename, and this table.
 | SRV-11 | `10-server-registry.md` | POST /servers:inspect takes a url and optional candidate headers, stores nothing, and reports what the upstream is: its connection_state (SRV-12), negotiated… |
 | UI-6 | `60-admin-ui.md` | Registering a server starts from its URL (or a pasted registry server.json, SRV-15): the UI runs inspection (SRV-11), shows what was detected, and asks only … |
 | SRV-2 | `10-server-registry.md` | Create/update/delete/list/get MUST be available in the management API (40-management-api.md) and the UI. Create and update MUST validate the config by connec… |
-| DISC-1 | `11-tool-discovery.md` | Discovery MUST run on server create/update (SRV-2), on explicit "refresh tools" from UI/API, on the periodic refresh (DISC-7), and after an upstream OAuth co… |
+| DISC-1 | `11-tool-discovery.md` | Discovery MUST run on server create/update (SRV-2), including a bootstrap upsert once its document has committed (BOOT-7), on explicit "refresh tools" from U… |
 | UI-4 | `60-admin-ui.md` | Form validation mirrors backend rules (generated from the OpenAPI constraints where possible) so users see slug/uniqueness errors before submitting. |
 | BND-6 | `12-bundles.md` | Bundle CRUD + membership management MUST be available in the management API and UI. |
 | BND-4 | `12-bundles.md` | BundleServer.enabled=false removes all of a server's tools from the bundle's tools/list and blocks calls to them, without deleting the membership or its Bund… |
@@ -56,3 +57,5 @@ Playwright test title, the recording filename, and this table.
 | UPO-1 | `23-upstream-oauth.md` | A server with auth_mode=upstream_oauth (SRV-1) needs a client identity at the upstream authorization server. The gateway uses the MCP authorization spec's pr… |
 | ADM-3 | `21-admin-auth.md` | Admin role: users listed in BUNDLEMCP_ADMIN_EMAILS (or matching a configured claim, e.g. a group/role claim) get is_admin=true. The role is re-evaluated on e… |
 | BND-11 | `12-bundles.md` | A bundle also has an overview: a long-form, admin-managed description written for the person browsing the catalogue, separate from description because that o… |
+| SEC-6 | `70-security.md` | OAuth browser pages (authorize, consent, upstream connect) carry standard hardening headers: a CSP of default-src 'none'; style-src 'unsafe-inline'; frame-an… |
+| OAS-2 | `20-oauth-server.md` | (RFC 7591): POST /oauth/register, open registration, public clients (token_endpoint_auth_method: none) by default, redirect URIs validated (https or localhos… |
