@@ -28,9 +28,12 @@ Redis holds all live state. Pydantic models are the single source of truth from 
 
 ## Pydantic-first data flow
 
-- **ARC-3** Domain entities MUST be defined **once** as SQLModel classes (Pydantic models that are also DB tables). API
-  request/response DTOs MUST be Pydantic models (SQLModel table classes or derived read/create/update models) — no
-  hand-written duplicate shapes.
+- **ARC-3** Every structured value MUST be a Pydantic model; no `dataclasses`. Domain entities are plain `BaseModel`
+  classes in `domain/` with no ORM import; their tables are SQLModel row classes in `infrastructure/postgres/rows/`,
+  mapped by the repositories; API request/response DTOs are `BaseModel` classes in `application/schemas/`. A persisted
+  field is therefore declared twice — once on the entity, once on the row — and the repository is the only place the two
+  meet ([ADR-0034](../docs/adr/0034-pydantic-entities-and-row-classes.md), which replaced the single-SQLModel-class rule
+  this requirement previously stated).
 - **ARC-4** The gateway MUST publish its OpenAPI schema, and the web app MUST generate its TypeScript client types from
   it (openapi-typescript or hey-api) as a build step. Frontend DTOs are **generated, never hand-written**.
 - **ARC-5** All tool/endpoint/server inputs MUST be validated by Pydantic at the API boundary; validation errors return
@@ -45,27 +48,26 @@ applications) convention used by the application layer:
 bundlemcp/
 ├── packages/
 │   └── bundlemcp/            # the library: all gateway code
-│       ├── models/           # SQLModel entities (02-domain-model)
-│       ├── gateway/          # FastMCP bundle serving, sessions, middleware
-│       ├── oauth/            # OAuth 2.1 server + upstream OAuth client
-│       ├── api/              # management API controllers + composition root
-│       ├── http/             # Controller base shared by every HTTP surface
-│       ├── providers/        # FastAPI providers for shared collaborators
-│       ├── services/         # framework-free business logic (any layer consumes)
-│       ├── schemas/          # Pydantic DTOs (shared contracts)
-│       ├── store/            # Repository + UnitOfWork (Postgres), Redis accessors
-│       └── ...
+│       └── bundlemcp/
+│           ├── domain/           # entities, value objects, rules; no I/O
+│           ├── application/      # use cases, contracts/, schemas/, settings/
+│           ├── infrastructure/   # one adapter per contract, by technology
+│           ├── api/              # FastAPI controllers, OAuth and the MCP edge
+│           └── main/             # the composition root
 ├── apps/
-│   ├── gateway/              # main.py composition root + Dockerfile
+│   ├── gateway/              # thin entrypoint + Dockerfile
 │   └── web/                  # Nuxt 4 admin UI + its Dockerfile
 ├── deploy/
-│   ├── docker-compose.yml    # gateway, web, postgres, redis, dev IdP
+│   ├── docker-compose.yml    # gateway, web, Postgres, Valkey, dev IdP
 │   └── ...
 └── spec/                     # these documents
 ```
 
 - **ARC-6** All gateway logic lives in `packages/bundlemcp`; `apps/gateway` is a thin entrypoint. The web app is
-  self-contained in `apps/web`.
+  self-contained in `apps/web`. The library is four clean-architecture layers plus a composition root, with dependencies
+  pointing inward only, enforced by `lint-imports` ([ADR-0033](../docs/adr/0033-clean-architecture-layers.md)). The
+  authoritative description of each package is [`packages/bundlemcp/README.md`](../packages/bundlemcp/README.md) — this
+  spec fixes the layer *names* and the dependency rule, not the contents.
 
 ## State model (the core architectural rule)
 
@@ -114,8 +116,10 @@ requirements above.
   [71-deployment.md](71-deployment.md).
 - Multi-region or geo-distribution concerns.
 
-## Open questions
+## Resolved questions
 
-- Whether SQLModel's current release covers all needed SQLAlchemy 2.0 async patterns or a thin escape hatch to raw
-  SQLAlchemy models is needed for advanced queries (SQLModel classes are SQLAlchemy models, so this is a per-case
-  decision, not an architecture change).
+- *Whether SQLModel needs a thin escape hatch to raw SQLAlchemy for advanced queries.* Answered by
+  [ADR-0034](../docs/adr/0034-pydantic-entities-and-row-classes.md): the row classes in `infrastructure/postgres/rows/`
+  **are** that hatch. They are SQLAlchemy models, so any query SQLAlchemy supports is available without the domain layer
+  knowing. The residual cost — duplicated field lists — is recorded as accepted debt in
+  [arc42 §11](../docs/arc42/11-risks-and-technical-debt.md).

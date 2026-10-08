@@ -10,10 +10,3 @@ class ProtocolEra(StrEnum):
 
     STATELESS = "stateless"
     SESSION = "session"
-
-    # Backward-compatible aliases for transition
-    MODERN = "stateless"
-    HANDSHAKE = "session"
-
-
-Era = ProtocolEra

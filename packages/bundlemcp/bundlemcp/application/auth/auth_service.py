@@ -35,7 +35,8 @@ class AuthService:
         return None
 
     async def resolve_api_key(self, raw_key: str | None) -> ApiKey | None:
-        """Look up an active key by hash and refresh its coarse last_used_at (KEY-4)."""
+        # KEY-4: last_used_at is coarsened, so a busy key is not a write per call
+        """Look up an active key by hash and refresh its coarse last_used_at."""
         if raw_key is None:
             return None
         key = await self._keys.by_hash(self._hasher.digest(raw_key))

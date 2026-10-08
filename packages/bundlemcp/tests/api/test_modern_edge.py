@@ -311,3 +311,58 @@ async def test_payload_too_large_rejected_with_413(http):
     )
     assert resp.status_code == 413
 
+
+
+async def test_documented_envelope_is_accepted_verbatim(http):
+    """The envelope docs/integrate/http-surface.md publishes works as written.
+
+    Built from literal strings rather than the `_envelope` helper on purpose: the
+    documented `_meta` keys and mirrored header names are a published contract, so
+    this test fails if either the docs' spelling or the edge's expectation drifts.
+    """
+    version = "2026-07-28"
+    resp = await http.post(
+        "/main/mcp",
+        headers={"MCP-Protocol-Version": version, "Mcp-Method": "tools/list"},
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list",
+            "params": {
+                "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": version,
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                }
+            },
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert [t["name"] for t in resp.json()["result"]["tools"]] == ["echo__run_query", "echo__say"]
+
+
+async def test_documented_tools_call_envelope_is_accepted_verbatim(http):
+    """The tools/call form of the documented envelope, including the Mcp-Name mirror."""
+    version = "2026-07-28"
+    resp = await http.post(
+        "/main/mcp",
+        headers={
+            "MCP-Protocol-Version": version,
+            "Mcp-Method": "tools/call",
+            "Mcp-Name": "echo__say",
+        },
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "echo__say",
+                "arguments": {"text": "hi"},
+                "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": version,
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                },
+            },
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert _message(resp)["result"]["content"][0]["text"] == "echo:hi"

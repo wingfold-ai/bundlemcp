@@ -76,8 +76,15 @@ Write `X | None` only when `None` is a real, reachable state. A field the compos
 The MCP edge's wiring object previously defaulted nine fields to `None` that were never `None` in practice. The cost was
 not theoretical: consumers carried eight defensive guards against impossible states, and new code copied the pattern
 because the type demanded it. Making them required deleted every one of those guards and made a half-wired runtime
-unconstructable. `AppContainer` and `McpEdgeAssembly` follow the same rule today: the two fields that are `X | None`
-(`upstream_tokens`, `oidc_provider`) name real deployment states.
+unconstructable. `AppContainer` and `McpGatewayAssembly` follow the same rule today, and every optional field on them
+names a deployment state:
+
+| Model | `X \| None` fields | The deployment state each names |
+|---|---|---|
+| `AppContainer` | `token_cipher`, `upstream_tokens`, `oidc_provider` | No token encryption keys configured; no upstream OAuth; no OIDC provider configured |
+| `McpGatewayAssembly` | `upstream_tokens`, `state_cipher` | No token encryption keys configured |
+
+That is the test to apply to a new field: if you cannot name the deployment in which it is `None`, it is required.
 
 ## Data that crosses a boundary
 

@@ -1,7 +1,8 @@
 # ADR-0014: Gateway-rendered auth pages, authlib as OIDC RP, direct-DB token validation
 
-**Status:** accepted · **Date:** 2026-07-02 · **Amended by:** [ADR-0031](0031-joserfc-id-token-validation.md) (joserfc
-replaces authlib for token verification)
+**Status:** accepted · **Date:** 2026-07-02 · **Amended by:** [ADR-0028](0028-oauth-server-as-services.md),
+[ADR-0031](0031-joserfc-id-token-validation.md) (joserfc replaces authlib, which is no longer a dependency),
+[ADR-0036](0036-oauth-slice-decomposition-and-shared-contracts.md)
 
 ## Context
 

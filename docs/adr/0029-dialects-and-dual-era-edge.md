@@ -1,8 +1,9 @@
 # ADR-0029: Protocol dialects and a dual-era MCP edge
 
-**Status:** accepted · **Date:** 2026-09-05 · **Amends:** [ADR-0011](0011-own-streamable-http-edge.md),
-[ADR-0016](0016-relay-design.md), [ADR-0021](0021-mcp-surface-completion.md),
-[ADR-0027](0027-mcp-edge-method-handlers.md)
+**Status:** accepted · **Date:** 2026-09-05 · **Amended by:**
+[ADR-0035](0035-front-controller-protocol-adapters-and-admission-pipeline.md) · **Amends:**
+[ADR-0011](0011-own-streamable-http-edge.md), [ADR-0016](0016-relay-design.md),
+[ADR-0021](0021-mcp-surface-completion.md), [ADR-0027](0027-mcp-edge-method-handlers.md)
 
 ## Context
 

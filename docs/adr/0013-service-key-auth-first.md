@@ -1,6 +1,6 @@
 # ADR-0013: Service-key auth first; admin OIDC sessions land with the UI phase
 
-**Status:** accepted · **Date:** 2026-07-02
+**Status:** accepted (OIDC sessions have since shipped) · **Date:** 2026-07-02
 
 > **Update (2026-07-02, milestone 2):** admin OIDC sessions shipped earlier than this ADR anticipated — the OAuth server
 > milestone pulled in the OIDC login flow, so the management API now accepts an admin session cookie **or** a service

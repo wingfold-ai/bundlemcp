@@ -19,6 +19,7 @@ from bundlemcp.application.schemas import (
     BundleToolRead,
     BundleToolUpdate,
     BundleUpsert,
+    CatalogueToolRead,
     ToolCurationRead,
 )
 from bundlemcp.domain.bundles.bundle import Bundle
@@ -46,6 +47,7 @@ class BundleService(NamedResourceService[Bundle, BundleRead]):
         if bundle is None:
             bundle = Bundle(name=body.name)
         bundle.description = body.description
+        bundle.overview = body.overview
         return await self._save(bundle, name=body.name, created=created)
 
     async def _members(self, bundle: Bundle) -> list[tuple[McpServer, BundleServer]]:
@@ -85,6 +87,28 @@ class BundleService(NamedResourceService[Bundle, BundleRead]):
         ]
         out.sort(key=lambda t: (t.server_name, t.name))
         return out
+
+    async def catalogue_tools(self, bundle_id: uuid.UUID) -> list[CatalogueToolRead]:
+        """The tools this bundle actually serves, named and described as a client sees them.
+
+        The curation view (list_tools) shows everything a member provides so an
+        administrator can toggle it; this shows only what survives curation, with
+        the overrides already applied, because that is what someone deciding
+        whether to connect the bundle needs to read.
+        """
+        bundle = await self._repo.get(bundle_id)
+        if bundle is None:
+            raise NotFoundError("bundle not found")
+        served = [t for t in await self.list_tools(bundle.name) if t.enabled and t.member_enabled]
+        return [
+            CatalogueToolRead(
+                name=tool.presented_name,
+                title=tool.override_title or tool.title,
+                description=tool.override_description or tool.description,
+                server_name=tool.server_name,
+            )
+            for tool in served
+        ]
 
     @staticmethod
     def _tool_read(

@@ -15,12 +15,31 @@ AUTH="Authorization: Bearer $SERVICE_KEY"
 ```bash
 curl -s -X PUT $API/bundles/assistant -H "$AUTH" -H "Content-Type: application/json" -d '{
   "name": "assistant",
-  "description": "Weather, notes and calendar for the personal assistant"
+  "description": "Weather, notes and calendar for the personal assistant",
+  "overview": "Everything the assistant needs for day-to-day planning.\n\nForecasts come from the weather server, notes and calendar from your own Nextcloud. Connecting this bundle does not give it access to anything you have not connected yourself."
 }'
 ```
 
-The `description` is served to clients as the MCP `instructions` field of the virtual server, so write it for the model
-that will read it: what the bundle is for and how the tools relate.
+A bundle carries **two** descriptions, and they have different readers. Getting
+them the wrong way round is the common mistake:
+
+| Field | Written for | Where it appears |
+|---|---|---|
+| `description` | The **model** | The MCP `instructions` field of the virtual server. Keep it short and functional: what the bundle is for and how its tools relate. |
+| `overview` | A **person** | The catalogue entry a user reads before connecting. Long-form plain text, paragraphs separated by blank lines. |
+
+Write `description` for the model that will read it on every session, and
+`overview` for the human deciding whether to connect at all. Neither is
+required.
+
+The catalogue shows the overview alongside the tools the bundle serves after
+curation, so a user can see what they are connecting before they connect it.
+Tools are listed by title and description — the two fields written for a reader
+— rather than by their prefixed name, which is how a model addresses them.
+
+A bundle is only readable this way through an endpoint the reader could actually
+use: a bundle with no OAuth endpoint answers **not found** rather than
+forbidden, so a user cannot learn that a bundle exists if they have no way in.
 
 ## Members
 

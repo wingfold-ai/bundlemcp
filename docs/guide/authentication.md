@@ -56,14 +56,21 @@ gateway: verify the ID token, provision or update a User from (issuer, sub),
 
 What to take from this:
 
-- The **human** is authenticated by the identity provider, not by bundlemcp. bundlemcp trusts the provider's ID token
-  and creates a local `User` row the first time it sees that `(issuer, sub)` pair.
-- A **session** is two things: a signed cookie held by the browser, and a record in Valkey so any replica can serve it.
-  It has a maximum age that forces a periodic re-login.
-- **Administrator vs user** is one property, `is_admin`, re-evaluated on *every* login from `BUNDLEMCP_ADMIN_EMAILS`. A
-  non-admin can still log in, but only sees the catalogue; the management API answers 403.
-- A **service API key** can also call the management API, which is how automation configures the gateway without a
-  browser. That is the only place API keys and sessions overlap; the cookie wins when both are present.
+- The **human** is authenticated by the identity provider, not by bundlemcp.
+  bundlemcp trusts the provider's ID token and creates a local `User` row the
+  first time it sees that `(issuer, sub)` pair.
+- A **session** is two things: a signed cookie held by the browser, and a
+  record in Valkey so any replica can serve it. It has a maximum age that
+  forces a periodic re-login.
+- **Administrator vs user** is one property, `is_admin`, re-evaluated at
+  every login from `BUNDLEMCP_ADMIN_EMAILS`. A non-admin can still log in, but
+  only sees the catalogue: the management API answers 401 to them on every
+  route except `/api/v1/me/…`. See
+  [status codes](/integrate/management-api#authentication) — 401, not 403, is
+  deliberate but easy to misread.
+- A **service API key** can also call the management API, which is how
+  automation configures the gateway without a browser. That is the only place
+  API keys and sessions overlap; the cookie wins when both are present.
 
 Details: [Identity provider](/self-hosting/identity-provider),
 [Roles and identity](/guide/roles-and-identity).

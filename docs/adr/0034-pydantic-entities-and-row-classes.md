@@ -65,8 +65,8 @@ classes.
 
 ### Positive
 
-- `domain/` imports only the standard library and Pydantic; all four import contracts hold with no indirect-import
-  exception.
+- `domain/` imports only the standard library and Pydantic; the remaining three import contracts hold with no
+  indirect-import exception, the ORM ban having folded into "Domain and application are driver-free".
 - Entities validate on construction.
 - Repositories return detached plain objects, so nothing outside `infrastructure/postgres/` can trigger a lazy load or a
   flush.

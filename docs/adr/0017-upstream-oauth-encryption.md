@@ -1,6 +1,7 @@
 # ADR-0017: Upstream OAuth client + token encryption at rest
 
-**Status:** accepted · **Date:** 2026-07-03
+**Status:** accepted · **Date:** 2026-07-03 · **Amended by:** [ADR-0028](0028-oauth-server-as-services.md),
+[ADR-0037](0037-connect-account-tool.md), [ADR-0040](0040-upstream-client-identification.md)
 
 ## Context
 

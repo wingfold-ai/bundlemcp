@@ -1,7 +1,8 @@
 # Contributing to bundlemcp
 
-Thanks for taking the time to contribute. This guide explains how to report problems, propose changes and get a pull
-request merged.
+Thanks for taking the time to contribute. This guide explains how to report problems, find your way around the
+documentation, and get a change merged: the order to read things in, the checklist a change has to pass, and how to
+open a pull request. Coding conventions are in [CLAUDE.md](CLAUDE.md) and the rule files it points at.
 
 ## Ways to contribute
 
@@ -12,34 +13,109 @@ request merged.
 - **Fix an issue.** Issues labelled `good first issue` are a good place to start; `help wanted` marks work the
   maintainers would like help with.
 
-Security problems are the exception: never open a public issue for them. Follow
-[SECURITY.md](SECURITY.md).
+Security problems are the exception: never open a public issue for them. Follow [SECURITY.md](SECURITY.md).
+
+## Read these, in this order
+
+You do not need all of it before your first change. The first four are the orientation; the rest are read when you
+touch the thing they describe.
+
+1. [`README.md`](README.md) — what this is and where things are.
+2. [`spec/00-overview.md`](spec/00-overview.md) — the product in one file, and [`spec/README.md`](spec/README.md)'s
+   decision log, which records what was deliberately left out. Read the log before proposing a feature.
+3. [`packages/bundlemcp/README.md`](packages/bundlemcp/README.md) — the layer map. This is the most useful single
+   document for finding your way around, and it is the authoritative description of what each package holds.
+4. [`docs/arc42/04-solution-strategy.md`](docs/arc42/04-solution-strategy.md) and
+   [`06-runtime-view.md`](docs/arc42/06-runtime-view.md) — why the architecture is shaped this way, and four scenarios
+   traced end to end. Twelve lines and four scenarios, and between them they explain most of the design.
+5. [ADR-0033](docs/adr/0033-clean-architecture-layers.md) and
+   [ADR-0034](docs/adr/0034-pydantic-entities-and-row-classes.md) — the layer rule and the entity/row split, which
+   together explain most "why is this file here" questions.
+6. The rule file for the layer you are touching, from [`.claude/docs/`](.claude/docs/): `controllers.md` for an HTTP
+   surface or an MCP method, `pydantic-models.md` and `pydantic-fields.md` for any model, `module-naming.md` before
+   creating a file, `design-principles.md` for naming and pattern choices.
+7. [`packages/bundlemcp/bundlemcp/api/mcp/README.md`](packages/bundlemcp/bundlemcp/api/mcp/README.md) — only if you
+   are working on the MCP gateway itself, where it is the deep dive. Parts of its lower half still describe the
+   pre-ADR-0033 layout; trust
+   [ADR-0035](docs/adr/0035-front-controller-protocol-adapters-and-admission-pipeline.md) where they disagree.
+
+The four corpora and what each is for:
+
+| Where | Question it answers | Rule |
+|---|---|---|
+| `spec/` | **What** must be true, with testable requirement IDs | Normative. New behaviour starts here |
+| `docs/arc42/` | **Why** it is built this way, current state | Rationale, not requirements |
+| `docs/adr/` | **When and why not** — one decision each, with alternatives | Append-only |
+| `.claude/docs/` | **How to write it** — conventions | Loaded into every AI session, so keep it true |
+| `docs/{guide,self-hosting,manage,connect,integrate}/` | The published site, for users and operators | Describes shipped behaviour only |
 
 ## Development setup
 
-```sh
+```bash
 git clone https://github.com/mhoegger/bundlemcp.git
 cd bundlemcp
 uv sync --all-packages     # Python >= 3.13 workspace (gateway + library)
-uv run pytest -q           # hermetic tests, no Docker or network
-uv run ruff check .        # lint
-uv run lint-imports        # clean-architecture import contracts
-uv run rumdl check .       # Markdown line length 120; `uv run rumdl fmt .` rewraps
 ```
 
-The full stack (gateway, web UI, Postgres, Valkey, a dev OIDC provider) runs with
-`docker compose -f deploy/docker-compose.yml up`; [deploy/TESTING.md](deploy/TESTING.md) covers the integration suite.
-The web UI lives in `apps/web` (`npm ci && npm run build`).
+The full stack (gateway, web UI, Postgres, Valkey, a dev OIDC provider), when you need the real thing:
 
-New behaviour starts with a spec change in [`spec/`](spec/README.md): each file holds requirement IDs (`SRV-1`, `EP-3`,
-…) that tests reference. Architectural decisions land with an ADR in `docs/adr/` in the same pull request.
+```bash
+cp deploy/.env.example deploy/.env
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
+```
+
+For everyday work, run the infrastructure in compose and the gateway on the host, so a change does not mean an image
+rebuild:
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d postgres valkey keycloak
+uv run uvicorn --factory apps.gateway.main:app_factory --reload
+```
+
+The admin UI:
+
+```bash
+cd apps/web && npm ci && npm run dev
+```
 
 ## Making a change
 
-1. Fork the repository and create a branch from `main`.
+1. Fork the repository and create a branch from `main`; never commit to `main` directly.
 2. Keep the change focused. One pull request should do one thing.
 3. Add or update tests for the behaviour you change.
-4. Run the tests and the linter locally before you push.
+4. Run the checklist below locally before you push.
+
+### The checklist
+
+Every item is already enforced somewhere — CI, a hook, or review. Running them locally is faster than finding out from
+CI.
+
+```bash
+uv run pytest -q                        # must pass
+uv run ruff check .                     # must be clean
+uv run lint-imports                     # 3 contracts, 0 exceptions
+uv run rumdl check .                    # Markdown line length 120; `uv run rumdl fmt .` rewraps
+cd apps/web && npm run openapi          # regenerates openapi.json + types/api.d.ts
+python3 tools/check_docs_links.py       # relative links and heading anchors
+python3 tools/check_docs_symbols.py     # the living docs name no dead symbols
+python3 tools/check_docs_settings.py    # env vars and requirement IDs are real
+python3 tools/check_adr_graph.py        # ADR statuses and indexes agree
+```
+
+And in the pull request:
+
+- [ ] **Spec first** if behaviour changes: update [`spec/`](spec/README.md) in the same PR and keep requirement IDs
+      (`SRV-1`, `EP-3`, …) stable.
+- [ ] **An ADR in the same PR** if the change makes or reverses an architectural decision (`spec/62` ADOC-5). Use
+      [ADR-0034](docs/adr/0034-pydantic-entities-and-row-classes.md) as the template — real alternatives with real
+      reasons, and honest trade-offs.
+- [ ] **A rename ADR also updates the docs that name the symbol**, including `.claude/docs/` and `docs/arc42/`. This is
+      the step that has been missed before, which is what `tools/check_docs_symbols.py` now catches.
+- [ ] **Update the LikeC4 model** if the structure changed (`npx likec4 validate docs/likec4`).
+- [ ] **Docs in the same PR** as the behaviour they describe (`spec/61` DOC-5).
+- [ ] Tests reference the requirement ID they verify, in the name or docstring.
+- [ ] No `Co-Authored-By: Claude` trailer and no AI attribution line — see
+      [`.claude/docs/git-attribution.md`](.claude/docs/git-attribution.md).
 
 ### Commit and pull request titles
 
@@ -55,6 +131,73 @@ docs: explain the retry setting
 Use `feat` for new behaviour, `fix` for bug fixes, and `docs`, `test`, `refactor`, `chore`, `ci` or `build` for the
 rest. Mark a breaking change with `!` (`feat!: drop Node 18`) and describe the migration in the pull request body.
 
+## Tests
+
+Four hermetic tiers under `packages/bundlemcp/tests/`, plus integration tests at the root. `testpaths` points at the
+hermetic ones, so bare `pytest` runs them.
+
+| Tier | Path | Runs on | Run just it |
+|---|---|---|---|
+| Domain | `packages/bundlemcp/tests/domain` | Pure objects | `uv run pytest packages/bundlemcp/tests/domain` |
+| Application | `packages/bundlemcp/tests/application` | `infrastructure/memory` fakes | `… tests/application` |
+| Infrastructure | `packages/bundlemcp/tests/infrastructure` | SQLite and fakeredis | `… tests/infrastructure` |
+| API | `packages/bundlemcp/tests/api` | The ASGI app, no network | `… tests/api` |
+| Integration | `tests/integration` | The compose stack | `BUNDLEMCP_INTEGRATION=1 uv run pytest tests/integration -q -m "not fleet"` |
+
+Note the paths: `uv run pytest tests/domain` collects nothing, because the hermetic tiers live under
+`packages/bundlemcp/`. [deploy/TESTING.md](deploy/TESTING.md) covers the integration suite.
+
+Writing one: copy the nearest existing test in the tier. Application tests build their collaborators from
+`infrastructure/memory`; API tests go through the ASGI app with the fixtures in `packages/bundlemcp/tests/conftest.py`.
+The `fleet` marker means an integration test needs private images and is skipped in CI.
+
+Browser tests are Playwright, in `apps/web/tests/`, with `npm run test:ui`. `apps/web/tests/TESTMAP.md` maps them to
+requirement IDs and is regenerated with `npm run test:map`.
+
+## Adding a database column
+
+The column is declared **twice** — once on the entity, once on the row class — and the repository maps between them
+(ADR-0034). Then:
+
+```bash
+# 1. add the field to the entity in domain/<context>/ and to the row in
+#    infrastructure/postgres/rows/, and map it in the repository
+# 2. autogenerate the migration
+cd packages/bundlemcp
+uv run alembic revision --autogenerate -m "bundle overview"
+# 3. read the generated file before committing it
+```
+
+Autogenerate sees the table because `infrastructure/postgres/migrations/env.py` imports the whole `rows` package; a row
+class that nothing imports is invisible to it.
+
+Migrations must be **backward compatible one release back** (`spec/71` DEP-4/5), because a rolling deploy runs old and
+new replicas against the same schema. In practice: add nullable columns or columns with defaults, and split a rename
+into add–backfill–drop across two releases. Every replica runs `alembic upgrade head` on boot, guarded by a Postgres
+advisory lock, so concurrent starts are safe.
+
+## Working on `apps/web`
+
+The admin UI is a client of the same API you can script against. The part that catches backend contributors out:
+
+**A DTO change is a frontend change.** `apps/web/openapi.json` and `apps/web/types/api.d.ts` are generated, never
+hand-written, and CI fails on a stale copy of either. `npm run typecheck` passes while that gate fails, so run
+`npm run openapi` after touching anything in `application/schemas/` or a route signature, and commit both generated
+files.
+
+## Debugging
+
+- **Logs** are structured JSON carrying a request id, the endpoint and the caller, and never secrets. Pipe them through
+  `jq` locally.
+- **`/api/v1/docs`** is a live OpenAPI UI against your running gateway — the fastest way to check a route's real shape.
+- **Live state** is in Valkey under `bmcp:*`: `docker compose exec valkey valkey-cli --scan --pattern 'bmcp:*'`.
+- **Two replicas**, to reproduce a cross-replica bug: start a second gateway on another port against the same Postgres
+  and Valkey. Everything except an open stream must work identically on either.
+- **`lint-imports` failures** name the contract they broke. The usual fixes, in order of preference: move the symbol
+  to the layer it belongs in, inject it through a contract instead of importing it, or introduce a contract. Never
+  `ignore_imports`. Delete `.import_linter_cache` after moving modules — a stale cache reports contracts as kept when
+  they are broken.
+
 ## Opening a pull request
 
 - Fill in the pull request template and link the issue it resolves.
@@ -63,6 +206,12 @@ rest. Mark a breaking change with `!` (`feat!: drop Node 18`) and describe the m
   takes longer.
 - Review comments are about the code, not about you. Push follow-up commits rather than force-pushing, so reviewers can
   see what changed.
+
+## Where to ask
+
+Open an issue. If it is about a decision rather than a defect, check the [spec decision log](spec/README.md) and the
+[ADR index](docs/adr/README.md) first — a surprising number of "why not X" questions are answered there, with the
+reason.
 
 ## Licensing of contributions
 

@@ -4,6 +4,7 @@ from bundlemcp.application.schemas.bundles.bundle_read import BundleRead
 from bundlemcp.application.schemas.bundles.bundle_server_update import BundleServerUpdate
 from bundlemcp.application.schemas.bundles.bundle_tool_read import BundleToolRead
 from bundlemcp.application.schemas.bundles.bundle_upsert import BundleUpsert
+from bundlemcp.application.schemas.bundles.catalogue_tool_read import CatalogueToolRead
 from bundlemcp.application.schemas.bundles.tool_curation_read import ToolCurationRead
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "BundleServerUpdate",
     "BundleToolRead",
     "BundleUpsert",
+    "CatalogueToolRead",
     "ToolCurationRead",
 ]

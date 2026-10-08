@@ -84,9 +84,10 @@ class McpServer(BaseModel):
     def uses_delegated_token(self) -> bool:
         return self.auth_mode == ServerAuthMode.DELEGATED_TOKEN
 
+    # FWD-7
     @property
     def forwards_caller_token(self) -> bool:
-        """The caller's own bearer is passed through to the upstream unchanged (FWD-7)."""
+        """The caller's own bearer is passed through to the upstream unchanged."""
         return any(header.lower() == CALLER_TOKEN_HEADER for header in self.forward_headers)
 
     @property

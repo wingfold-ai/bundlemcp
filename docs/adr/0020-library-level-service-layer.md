@@ -1,6 +1,7 @@
 # ADR-0020: Service + DTO layer at the library level; `apps/` for deployables
 
-**Status:** accepted (amended by [ADR-0033](0033-clean-architecture-layers.md)) · **Date:** 2026-07-04 · **Amends:**
+**Status:** accepted · **Date:** 2026-07-04 · **Amended by:** [ADR-0023](0023-import-contracts-and-shared-providers.md),
+[ADR-0025](0025-repository-unit-of-work-and-container.md), [ADR-0033](0033-clean-architecture-layers.md) · **Amends:**
 [ADR-0019](0019-api-service-layer.md)
 
 ## Context

@@ -14,13 +14,12 @@ OIDC provider.
 
 ## Quickstart
 
-Prerequisites: Docker with the compose plugin, and `127.0.0.1 keycloak` in `/etc/hosts` (the gateway hands the browser
-Keycloak URLs under the compose hostname):
+Prerequisites: Docker with the compose plugin, and ports 8000, 3000 and 8080 free.
 
 ```bash
-echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
 cp deploy/.env.example deploy/.env
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env \
+  up -d --build --wait --wait-timeout 300
 ```
 
 Then:
@@ -28,17 +27,26 @@ Then:
 1. Open the admin UI at <http://localhost:3000> and sign in through the bundled dev identity provider with `admin` /
    `admin`.
 2. The seed (`deploy/seed.yaml`) has already registered the `echo` example server, bundled it as `demo`, and exposed it
-   at the `demo` endpoint with API-key access. Call it with the dev service key:
+   at the `demo` endpoint with API-key access. Call it with the dev service key — a hand-built request carries the
+   stateless-era envelope, which an SDK would supply for you
+   ([request envelope](docs/integrate/http-surface.md#request-envelope)):
 
    ```bash
+   KEY=bmcp_sk_devservicekey000000000000000000000000
+   V=2026-07-28
    curl -s http://localhost:8000/demo/mcp \
-     -H "Authorization: Bearer bmcp_sk_devservicekey000000000000000000000000" \
-     -H "Content-Type: application/json" \
-     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+     -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+     -H "MCP-Protocol-Version: $V" -H "Mcp-Method: tools/list" \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{
+           "io.modelcontextprotocol/protocolVersion":"'"$V"'",
+           "io.modelcontextprotocol/clientCapabilities":{}}}}'
    ```
 
+   The seed also registers four private fleet servers the default stack does not start; they show as
+   `health_status: error` until you remove them.
 3. Create an endpoint with the `claude` profile and connect it in claude.ai; the gateway runs the OAuth authorization
-   server and the consent screen itself.
+   server and the consent screen itself. claude.ai needs a public HTTPS URL, so this step wants a real deployment or a
+   tunnel.
 
 The user guides (deployment, connecting clients, the management API) live in [docs/](docs/README.md); run
 `pnpm docs:install && pnpm docs:dev` to browse them. The management API is documented at
@@ -67,17 +75,28 @@ uv run pytest -q          # hermetic unit tests: in-memory SQLite + fakeredis
 uv run ruff check .
 uv run lint-imports       # the layer contract
 uv run rumdl check .      # Markdown, 120 columns (`rumdl fmt .` rewraps)
-cd apps/web && npm ci && npm run typecheck
+cd apps/web && npm ci && npm run openapi && npm run typecheck
 ```
 
-Integration and browser tests run against the compose stack; see [deploy/TESTING.md](deploy/TESTING.md). Contributor
-conventions are in
-[CLAUDE.md](CLAUDE.md).
+`npm run openapi` regenerates `apps/web/openapi.json` and `apps/web/types/api.d.ts`, which are a CI gate — run it after
+any change to a DTO or a route. `npm run typecheck` passes while that gate fails.
+
+Documentation consistency is checked too, over the files the VitePress build does not see:
+
+```bash
+python3 tools/check_docs_links.py     # relative links and heading anchors
+python3 tools/check_docs_symbols.py   # the living docs name no dead symbols
+python3 tools/check_docs_settings.py  # env vars and requirement IDs are real
+python3 tools/check_adr_graph.py      # ADR statuses and both indexes agree
+```
+
+Integration and browser tests run against the compose stack; see [deploy/TESTING.md](deploy/TESTING.md).
 
 ## Contributing
 
-Contributions are welcome — read [CONTRIBUTING.md](CONTRIBUTING.md) first. Report security problems privately as
-described in [SECURITY.md](SECURITY.md). Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. **Start here:** [CONTRIBUTING.md](CONTRIBUTING.md) — the read order, the change checklist,
+how to add a migration and how to debug. Conventions are in [CLAUDE.md](CLAUDE.md). Report security problems privately
+as described in [SECURITY.md](SECURITY.md). Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

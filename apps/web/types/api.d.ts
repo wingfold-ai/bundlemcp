@@ -303,6 +303,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/bundles/{bundle_name}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bundle Tools
+         * @description The tools a bundle serves, for a signed-in person reading its catalogue entry.
+         */
+        get: operations["bundle_tools_api_v1_me_bundles__bundle_name__tools_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/endpoints": {
         parameters: {
             query?: never;
@@ -801,6 +821,11 @@ export interface components {
              */
             bundle_name: string;
             /**
+             * Bundle Overview
+             * @description The administrator's long-form description of the bundle, for the catalogue page; absent when none was written
+             */
+            bundle_overview: string | null;
+            /**
              * Name
              * @description Endpoint name, the last path segment before /mcp
              */
@@ -890,6 +915,11 @@ export interface components {
              * @description Unique bundle name
              */
             name: string;
+            /**
+             * Overview
+             * @description Long-form description of the bundle for people browsing the catalogue: what it is for, what the tools can do, and anything a user must set up first. Plain text, paragraphs separated by blank lines. Unlike 'description' this is never sent to a model, so it can be as long as it needs to be
+             */
+            overview: string | null;
             /**
              * Updated At
              * Format: date-time
@@ -1020,6 +1050,37 @@ export interface components {
              * @description Unique bundle name: letters, digits, underscores and hyphens
              */
             name: string;
+            /**
+             * Overview
+             * @description Long-form description of the bundle for people browsing the catalogue: what it is for, what the tools can do, and anything a user must set up first. Plain text, paragraphs separated by blank lines. Unlike 'description' this is never sent to a model, so it can be as long as it needs to be
+             */
+            overview?: string | null;
+        };
+        /**
+         * CatalogueToolRead
+         * @description A tool as a client will see it, for someone deciding whether to connect a bundle.
+         */
+        CatalogueToolRead: {
+            /**
+             * Description
+             * @description What the tool does, as the model calling it is told; absent when the server published none
+             */
+            description: string | null;
+            /**
+             * Name
+             * @description Name the client sees and calls, already prefixed with its server and with any per-bundle rename applied
+             */
+            name: string;
+            /**
+             * Server Name
+             * @description Upstream server that provides the tool
+             */
+            server_name: string;
+            /**
+             * Title
+             * @description Human-readable title for the tool, when the server or the administrator provided one
+             */
+            title: string | null;
         };
         /**
          * ClientIdentification
@@ -2924,6 +2985,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeRead"];
+                };
+            };
+        };
+    };
+    bundle_tools_api_v1_me_bundles__bundle_name__tools_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogueToolRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

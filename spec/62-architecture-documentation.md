@@ -16,8 +16,12 @@ system must do; `docs/arc42` explains *how and why* it is built that way. Both a
 - **ADOC-2 ADRs:** `docs/adr/` holds Architecture Decision Records in MADR style — `NNNN-title.md` with
   **Status / Context / Decision drivers / Decision / Alternatives considered / Consequences** (Consequences split into
   Positive and Trade-offs; a section whose content was not recorded at the time says so in one line) — indexed from
-  arc42 §9 (Architecture Decisions). ADRs are append-only: superseding a decision adds a new ADR and flips the old one's
-  status to `superseded by NNNN`.
+  arc42 §9 (Architecture Decisions). ADRs are append-only: a later decision MUST NOT edit an earlier record's Context,
+  Decision or Consequences, only its status line. Two states express the relationship, and both MUST be recorded on the
+  **earlier** record, because that is the one a reader arrives at: `superseded by NNNN` when the decision is wholly
+  replaced and MUST NOT be followed, and `accepted` with `Amended by: NNNN` when it was partly revised and both records
+  still apply. Every `Amends:` MUST have a matching `Amended by:` on each ADR it names, and the arc42 §9 index MUST
+  agree with the files.
 - **ADOC-3 LikeC4:** `docs/likec4/` holds the LikeC4 model (`*.c4`): one model of actors/systems/containers and named
   views for **context**, **container**, and **deployment**. This model is the *single source* for structural diagrams —
   arc42 §3 (context), §5 (building blocks), §7 (deployment) and the user docs ([DOC-4](61-docs-and-onboarding.md)) embed

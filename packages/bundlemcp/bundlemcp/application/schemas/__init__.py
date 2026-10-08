@@ -14,6 +14,7 @@ from bundlemcp.application.schemas.bundles import (
     BundleServerUpdate,
     BundleToolRead,
     BundleUpsert,
+    CatalogueToolRead,
     ToolCurationRead,
 )
 from bundlemcp.application.schemas.common import EntityRead, Page
@@ -69,6 +70,7 @@ __all__ = [
     "BundleToolRead",
     "BundleToolUpdate",
     "BundleUpsert",
+    "CatalogueToolRead",
     "ClientRegistrationRequest",
     "ClientRegistrationResponse",
     "ConfigEntryRead",

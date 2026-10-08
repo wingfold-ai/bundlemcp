@@ -3,8 +3,8 @@
 ## Prerequisites
 
 - Docker Engine + compose plugin.
-- `127.0.0.1 keycloak` in `/etc/hosts` — the gateway hands browsers Keycloak URLs under the compose-internal hostname,
-  so the host must resolve it: `echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts`.
+- No `/etc/hosts` entry: the compose file pins `KC_HOSTNAME` so Keycloak advertises `http://localhost:8080` to the
+  browser while the gateway keeps reaching it at `http://keycloak:8080` over the compose network.
 - `deploy/.env` copied from `deploy/.env.example`. For the seo-gsc flow fill in `GSC_GOOGLE_CLIENT_ID/SECRET` (Google
   Cloud OAuth "Web application" client with the Search Console scope and redirect URI
   `http://localhost:8001/google/callback`), `GSC_TOKEN_ENCRYPTION_KEY` (Fernet key) and `GSC_SIGNING_KEY`

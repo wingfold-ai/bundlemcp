@@ -62,7 +62,8 @@ class ValkeySessionStore:
     async def _update(
         self, session_id: str, mutate: Callable[[SessionRecord], None]
     ) -> SessionRecord | None:
-        """Apply one change to a record under WATCH-based check-and-set (SES-1a).
+        # SES-1a: concurrent binding updates must not lose one another
+        """Apply one change to a record under WATCH-based check-and-set.
 
         ``Redis.transaction`` owns the WATCH, MULTI, EXEC and the retry when the
         key changed underneath the read; the callable only reads, mutates and

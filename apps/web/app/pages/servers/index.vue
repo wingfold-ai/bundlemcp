@@ -42,6 +42,7 @@ async function onCreated(name: string) {
             <th>Name</th>
             <th>URL</th>
             <th>Connection</th>
+            <th>Protocol</th>
             <th>Auth</th>
             <th>State</th>
             <th>Health</th>
@@ -77,6 +78,26 @@ async function onCreated(name: string) {
                 </UBadge>
                 <UBadge color="neutral" variant="outline">
                   {{ connectionKind(s.url).scheme }}
+                </UBadge>
+              </div>
+            </td>
+            <td class="whitespace-nowrap" :data-testid="`protocol-${s.name}`">
+              <div class="flex items-center gap-1">
+                <UBadge
+                  icon="i-lucide-file-badge"
+                  :color="protocolLabel(s.protocol_version, s.protocol_mode).known ? 'primary' : 'neutral'"
+                  variant="subtle"
+                  :title="protocolLabel(s.protocol_version, s.protocol_mode).help"
+                >
+                  {{ protocolLabel(s.protocol_version, s.protocol_mode).text }}
+                </UBadge>
+                <UBadge
+                  v-if="protocolLabel(s.protocol_version, s.protocol_mode).mode"
+                  color="neutral"
+                  variant="outline"
+                  title="The negotiation rule configured for this server, rather than the default probe-then-handshake"
+                >
+                  {{ protocolLabel(s.protocol_version, s.protocol_mode).mode }}
                 </UBadge>
               </div>
             </td>
@@ -122,13 +143,15 @@ async function onCreated(name: string) {
             <td class="text-muted"><TimestampText :value="s.updated_at" /></td>
           </tr>
           <tr v-if="servers.length === 0">
-            <td colspan="7" class="text-muted">No servers registered.</td>
+            <td colspan="8" class="text-muted">No servers registered.</td>
           </tr>
         </tbody>
       </table>
     </div>
     <p class="wf-help">
-      Every server is reached over Streamable HTTP. <strong>local</strong> means a host on the
+      <strong>Protocol</strong> is the MCP revision the gateway negotiated with the server at its
+      last successful probe; a dash means it has not been reached yet. Every server is reached over
+      Streamable HTTP. <strong>local</strong> means a host on the
       gateway's own network, such as a compose service name; <strong>external</strong> means a
       public host. A stdio-only MCP server runs behind a small HTTP sidecar on the local network
       and is registered by the sidecar's URL.

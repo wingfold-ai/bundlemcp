@@ -19,10 +19,13 @@ state and billing.
 
 ## Admins and everyone else
 
-Admins configure the gateway. Everyone else is a **user**: after signing in they see the catalogue, the bundles with
-endpoints they can connect an MCP client to, and nothing else. They authorise connectors, connect their own accounts on
-per-user servers, and that is the extent of it; the management API answers 403 to them. The division of responsibilities
-is spelled out on
+Admins configure the gateway. Everyone else is a **user**: after signing in
+they see the catalogue, the bundles with endpoints they can connect an MCP
+client to, and nothing else. They authorise connectors, connect their own
+accounts on per-user servers, and that is the extent of it; the management
+API answers 401 to them outside the `/api/v1/me/…` routes
+([status codes](/integrate/management-api#authentication)). The division of
+responsibilities is spelled out on
 [Roles and identity](/guide/roles-and-identity).
 
 Admin status is re-evaluated at every login from the email list. To promote or demote someone, edit

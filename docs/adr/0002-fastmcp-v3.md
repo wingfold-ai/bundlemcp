@@ -1,6 +1,12 @@
 # ADR-0002: FastMCP v3 as the MCP framework
 
-**Status:** accepted · **Date:** 2026-07-02
+**Status:** superseded by [ADR-0030](0030-fastmcp-4.md) · **Date:** 2026-07-02
+
+> **Do not follow this record.** The framework is FastMCP 4 on MCP SDK v2
+> (`fastmcp>=4.0.3`), decided in [ADR-0030](0030-fastmcp-4.md). The version
+> pin below is historical. What survives is the *shape* of the choice — a
+> high-level framework for upstream clients, the low-level SDK where
+> externalized session state demands it — which ADR-0030 kept.
 
 ## Context
 

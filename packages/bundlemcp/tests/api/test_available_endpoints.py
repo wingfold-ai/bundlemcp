@@ -45,7 +45,9 @@ async def test_catalogue_lists_enabled_oauth_endpoints_for_non_admins(env):
     web = {"Origin": WEB_ORIGIN}
     await _login(http, provider, sub="a", email="admin@example.com")
     created = await http.put(
-        "/api/v1/bundles/b1", json={"name": "b1", "description": "Tools"}, headers=web
+        "/api/v1/bundles/b1",
+        json={"name": "b1", "description": "Tools", "overview": "Everything about b1."},
+        headers=web,
     )
     assert created.status_code == 200, created.text
     for name, body in {
@@ -73,6 +75,7 @@ async def test_catalogue_lists_enabled_oauth_endpoints_for_non_admins(env):
             "profile": "claude",
             "bundle_name": "b1",
             "bundle_description": "Tools",
+            "bundle_overview": "Everything about b1.",  # BND-11
         }
     ]
 
@@ -80,3 +83,43 @@ async def test_catalogue_lists_enabled_oauth_endpoints_for_non_admins(env):
 async def test_catalogue_requires_a_signed_in_caller(env):
     http, _provider = env
     assert (await http.get("/api/v1/me/endpoints")).status_code == 401
+
+
+async def test_catalogue_tools_are_refused_for_a_bundle_with_no_oauth_endpoint(env):
+    """BND-11: a bundle nobody can connect to is not readable, and is not distinguished
+    from one that does not exist."""
+    http, provider = env
+    web = {"Origin": WEB_ORIGIN}
+    await _login(http, provider, sub="a", email="admin@example.com")
+    for name in ("keyed", "open"):
+        assert (
+            await http.put(f"/api/v1/bundles/{name}", json={"name": name}, headers=web)
+        ).status_code == 200
+    assert (
+        await http.put(
+            "/api/v1/endpoints/keyed-ep",
+            json={"name": "keyed-ep", "bundle_name": "keyed", "auth_modes": ["api_key"]},
+            headers=web,
+        )
+    ).status_code == 200
+    assert (
+        await http.put(
+            "/api/v1/endpoints/open-ep",
+            json={"name": "open-ep", "bundle_name": "open", "auth_modes": ["oauth"]},
+            headers=web,
+        )
+    ).status_code == 200
+
+    await _login(http, provider, sub="u2", email="user@example.com")
+    # reachable over OAuth: readable, and empty because the bundle has no members
+    reachable = await http.get("/api/v1/me/bundles/open/tools")
+    assert reachable.status_code == 200
+    assert reachable.json() == []
+    # api_key only, and unknown, are both "not found": neither reveals the bundle
+    assert (await http.get("/api/v1/me/bundles/keyed/tools")).status_code == 404
+    assert (await http.get("/api/v1/me/bundles/nope/tools")).status_code == 404
+
+
+async def test_catalogue_tools_require_a_signed_in_caller(env):
+    http, _provider = env
+    assert (await http.get("/api/v1/me/bundles/b1/tools")).status_code == 401

@@ -5,6 +5,8 @@ const route = useRoute();
 const nav = [
   { to: "/servers", label: "Servers", testid: "nav-servers", icon: "i-lucide-server" },
   { to: "/bundles", label: "Bundles", testid: "nav-bundles", icon: "i-lucide-package" },
+  // which bundle holds which server, as one grid across every bundle
+  { to: "/bundles/matrix", label: "Composition", testid: "nav-matrix", icon: "i-lucide-grid-3x3", sub: true },
   // endpoints belong to bundles; the overview lists all of them across bundles
   { to: "/endpoints", label: "All endpoints", testid: "nav-endpoints", icon: "i-lucide-plug-zap", sub: true },
   { to: "/api-keys", label: "API keys", testid: "nav-api-keys", icon: "i-lucide-key-round" },

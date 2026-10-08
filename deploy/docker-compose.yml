@@ -47,6 +47,13 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Keycloak derives the URLs it advertises from the request's Host, so a
+      # discovery fetch over the compose network would hand the browser
+      # http://keycloak:8080/... — a name only the containers can resolve.
+      # Pin the frontend URL to the one the browser uses, and let the
+      # backchannel (token, JWKS) keep resolving to whatever host called it.
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
     ports:

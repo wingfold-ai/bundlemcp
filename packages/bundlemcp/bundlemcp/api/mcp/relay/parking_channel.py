@@ -1,4 +1,6 @@
-"""Park the upstream call until the modern client retries with its answers (PROT-18)."""
+"""Park the upstream call until the stateless client retries with its answers."""
+
+# PROT-18: park and resume, the stateless era's answer to a mid-request tool response.
 
 import asyncio
 from collections.abc import Callable
