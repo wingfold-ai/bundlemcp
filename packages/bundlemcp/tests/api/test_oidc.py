@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.domain.access.oidc_claims import OidcClaims
+from bundlemcp.domain.oauth.pkce import pkce_challenge
 from bundlemcp.infrastructure.postgres.rows.user_row import UserRow
 from fakeredis.aioredis import FakeRedis
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -29,13 +30,17 @@ class FakeOidcProvider:
         self.claims_by_code: dict[str, OidcClaims] = {}
         self.last_state: str | None = None
         self.last_nonce: str | None = None
+        self.last_challenge: str | None = None
+        self.last_verifier: str | None = None
 
-    def authorize_url(self, *, state, nonce, redirect_uri) -> str:
+    def authorize_url(self, *, state, nonce, redirect_uri, code_challenge) -> str:
         self.last_state = state
         self.last_nonce = nonce
+        self.last_challenge = code_challenge
         return f"{redirect_uri}?code=fake-code&state={state}"
 
-    async def exchange(self, *, code, redirect_uri, nonce) -> OidcClaims:
+    async def exchange(self, *, code, redirect_uri, nonce, code_verifier) -> OidcClaims:
+        self.last_verifier = code_verifier
         return self.claims_by_code[code]
 
 
@@ -66,6 +71,14 @@ async def _login(http, provider, claims: OidcClaims) -> None:
     )
     assert callback.status_code == 302, callback.text
     # httpx stores the Set-Cookie automatically
+
+
+async def test_login_proves_pkce_to_the_issuer(env):
+    """ADM-1: the exchange presents the verifier the authorize challenge commits to."""
+    http, _, provider = env
+    await _login(http, provider, OidcClaims(issuer="http://idp", sub="u1", email="u1@example.com"))
+    assert provider.last_verifier is not None
+    assert provider.last_challenge == pkce_challenge(provider.last_verifier)
 
 
 async def test_login_provisions_user_and_sets_admin(env):

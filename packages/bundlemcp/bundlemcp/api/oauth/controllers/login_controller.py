@@ -22,6 +22,7 @@ from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE, session_cookie_kw
 from bundlemcp.application.oauth_server import VerifiedClaims
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.access.oidc_error import OidcError
+from bundlemcp.domain.oauth.pkce import PkcePair
 from bundlemcp.domain.sessions.admin_session import AdminSession
 
 log = structlog.get_logger(__name__)
@@ -46,11 +47,19 @@ class LoginController(Controller):
         if provider is None:
             raise HTTPException(503, "no OIDC provider configured")
         nonce = secrets.token_urlsafe(24)
+        pkce = PkcePair.generate()  # ADM-1
         state = await states.put(
-            OidcLoginState(nonce=nonce, next_url=clamp_post_login_redirect(next, settings))
+            OidcLoginState(
+                nonce=nonce,
+                code_verifier=pkce.verifier,
+                next_url=clamp_post_login_redirect(next, settings),
+            )
         )
         url = provider.authorize_url(
-            state=state, nonce=nonce, redirect_uri=self._redirect_uri(settings)
+            state=state,
+            nonce=nonce,
+            redirect_uri=self._redirect_uri(settings),
+            code_challenge=pkce.challenge,
         )
         return RedirectResponse(url, status_code=302)
 
@@ -76,7 +85,10 @@ class LoginController(Controller):
             raise HTTPException(400, f"login failed: {error} {error_description}".strip())
         try:
             claims = await provider.exchange(
-                code=code, redirect_uri=self._redirect_uri(settings), nonce=login_state.nonce
+                code=code,
+                redirect_uri=self._redirect_uri(settings),
+                nonce=login_state.nonce,
+                code_verifier=login_state.code_verifier,
             )
         except OidcError as exc:
             raise HTTPException(400, str(exc)) from None
