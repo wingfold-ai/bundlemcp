@@ -33,6 +33,7 @@ from bundlemcp.infrastructure.valkey.rate_limiter import ValkeyRateLimiter
 from fakeredis.aioredis import FakeRedis
 from fastmcp import Client, FastMCP
 from httpx import ASGITransport, AsyncClient
+from redis.exceptions import ConnectionError as StoreConnectionError
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 
@@ -812,3 +813,21 @@ async def test_identity_header_injected_and_spoof_stripped(engine, redis):
         )
         assert captured["X-MCP-User"].startswith("api_key:")  # injected, not "spoofed"
         assert captured["x-tenant"] == "tenant-42"  # FWD-1 mapping
+
+
+async def test_store_unreachable_answers_503_not_500(gateway, redis, monkeypatch):
+    """SES-14 (#85): Valkey down → 503 + Retry-After, not a 500 and not a false 404."""
+    http, app, hook = gateway
+    session = await _initialize(http)
+
+    async def unreachable(*args, **kwargs):
+        raise StoreConnectionError("Connection reset by peer")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(redis, "get", unreachable)
+        resp = await _rpc(http, "main", session, "ping")
+    assert resp.status_code == 503
+    assert resp.headers["Retry-After"] == "1"
+
+    # Once the store answers again the session resumes, because it was never discarded.
+    assert await _still_alive(http, session)

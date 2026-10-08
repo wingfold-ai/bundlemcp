@@ -4,8 +4,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from redis.exceptions import ConnectionError as StoreConnectionError
+from redis.exceptions import TimeoutError as StoreTimeoutError
 
 from bundlemcp.api.health.controllers.health_controller import HealthController
+from bundlemcp.api.http.live_state_unavailable_handler import live_state_unavailable_handler
 from bundlemcp.api.http.service_error_handler import service_error_handler
 from bundlemcp.api.management.controllers import (
     ApiKeyController,
@@ -63,6 +66,9 @@ def create_app(
     app.add_exception_handler(OAuthError, oauth_error_handler)
     app.add_exception_handler(AuthorizationRedirectError, authorization_redirect_handler)
     app.add_exception_handler(LockedOut, locked_out_handler)  # RATE-5
+    # SES-14: Valkey still unreachable after the client's retries
+    app.add_exception_handler(StoreConnectionError, live_state_unavailable_handler)
+    app.add_exception_handler(StoreTimeoutError, live_state_unavailable_handler)
 
     if settings.web_origins:
         # SEC-4: credentials-enabled CORS for exactly the web app's origin(s)
