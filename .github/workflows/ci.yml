@@ -129,11 +129,6 @@ jobs:
         with:
           python-version: "3.13"
       - run: uv sync --all-packages
-      - name: Resolve the Keycloak compose hostname
-        # The gateway hands OAuth clients Keycloak URLs under the compose-internal
-        # hostname, so the runner (which drives the OAuth flow) must resolve it —
-        # same prerequisite as deploy/TESTING.md.
-        run: echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
       - name: Bring up the core stack
         # The fleet (seo-psi, seo-gsc, hyperframes) is behind the
         # `fleet` compose profile because its images are private, so the

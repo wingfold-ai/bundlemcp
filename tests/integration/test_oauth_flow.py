@@ -20,6 +20,25 @@ KEYCLOAK_USER = "admin"
 KEYCLOAK_PASSWORD = "admin"
 
 
+def _send_localhost_secure_cookies(client: httpx.Client) -> None:
+    """Send `Secure` cookies back to plain-HTTP localhost, as browsers do.
+
+    Keycloak serves the dev realm as `http://localhost:8080` and, treating
+    localhost as a secure context, marks its login-session cookies `Secure`.
+    The standard-library cookie jar returns those only over HTTPS, so the login
+    form post would arrive without them and Keycloak would answer 400. httpx
+    rebuilds the jar for every request, so a cookie policy would not survive;
+    clearing the flag as each response is stored does.
+    """
+
+    def clear_secure_flag(response: httpx.Response) -> None:
+        for cookie in client.cookies.jar:
+            if cookie.domain in ("localhost.local", "127.0.0.1"):
+                cookie.secure = False
+
+    client.event_hooks["response"].append(clear_secure_flag)
+
+
 def _pkce():
     verifier = secrets.token_urlsafe(48)
     challenge = base64.urlsafe_b64encode(
@@ -45,6 +64,7 @@ def _ensure_oauth_endpoint(client: httpx.Client) -> None:
 def test_full_oauth_happy_path():
     wait_ready(GATEWAY_URL)
     with httpx.Client(follow_redirects=False, timeout=30) as client:
+        _send_localhost_secure_cookies(client)
         _ensure_oauth_endpoint(client)
 
         # 1. Dynamic client registration
