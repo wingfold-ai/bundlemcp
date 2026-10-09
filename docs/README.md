@@ -20,6 +20,29 @@ cd docs && npm ci && npm run dev
 Navigation lives in `.vitepress/config.ts`; add a page there when you add a file. Pages describe shipped behaviour only,
 and change in the same PR as the behaviour they describe (DOC-5).
 
+### Publishing
+
+`.github/workflows/publish-docs.yml` builds the site on every push to `main` that touches `docs/` (or when run by hand
+from the **Actions** tab) and uploads it by FTP to Infomaniak web hosting (DOC-6). The upload is incremental: the action
+keeps `.ftp-deploy-sync-state.json` on the server, sends only changed files, and removes only files it uploaded itself.
+The hosting quota is 10 MB, so CI fails any build over 9 MiB. `public/.htaccess` is copied into the site: it redirects
+HTTP to HTTPS and serves `/guide/quickstart` from `guide/quickstart.html`, because the site uses clean URLs.
+
+One-time setup:
+
+1. **Infomaniak Manager** → the web hosting → **FTP / SSH**: create an FTP account and note the hostname. In **Web
+   FTP**, check which folder the site is served from. Enable SSL once DNS points at the hosting; Starter has no IPv6, so
+   remove any `AAAA` records first.
+2. **GitHub → Settings → Secrets and variables → Actions**, repository level:
+
+   | Kind | Name | Value |
+   |---|---|---|
+   | Secret | `INFOMANIAK_FTP_SERVER` | FTP hostname (or IP) |
+   | Secret | `INFOMANIAK_FTP_USERNAME` | FTP account |
+   | Secret | `INFOMANIAK_FTP_PASSWORD` | FTP password |
+   | Variable | `INFOMANIAK_FTP_SERVER_DIR` | served folder ending in `/` (default `./`) |
+   | Variable | `INFOMANIAK_FTP_PROTOCOL` | `ftps` (default), or `ftp` if refused |
+
 ## Brand assets
 
 `public/` holds the logo files the site and the repository README use. The bundle mark (`logo-mark.svg`, `logo.svg`) is
