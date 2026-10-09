@@ -1,0 +1,13 @@
+# Password gate while the site is private (spec 61 DOC-6). The publish workflow
+# prepends this to the site's .htaccess when the DOCS_AUTH_USER and
+# DOCS_AUTH_PASSWORD secrets are set, filling in their Basic encoding. Only
+# HTTPS requests are challenged, so a password never travels unencrypted:
+# plain HTTP falls through to the HTTPS redirect below.
+RewriteEngine on
+<If "%{HTTP:X-Forwarded-Proto} == 'https' && %{HTTP:Authorization} != 'Basic @CREDENTIALS@'">
+  Header always set WWW-Authenticate "Basic realm=\"bundlemcp docs\""
+</If>
+RewriteCond %{HTTP:X-Forwarded-Proto} =https
+RewriteCond %{HTTP:Authorization} "!=Basic @CREDENTIALS@"
+RewriteRule ^ - [R=401,L]
+

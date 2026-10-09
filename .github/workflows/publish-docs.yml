@@ -42,6 +42,21 @@ jobs:
           # page views go to Plausible only when the script URL variable is set
           DOCS_PLAUSIBLE_DOMAIN: bundlemcp.com
           DOCS_PLAUSIBLE_SCRIPT_URL: ${{ vars.DOCS_PLAUSIBLE_SCRIPT_URL }}
+      - name: Require a password while the site is private
+        env:
+          DOCS_AUTH_USER: ${{ secrets.DOCS_AUTH_USER }}
+          DOCS_AUTH_PASSWORD: ${{ secrets.DOCS_AUTH_PASSWORD }}
+        run: |
+          if [ -z "$DOCS_AUTH_USER" ] || [ -z "$DOCS_AUTH_PASSWORD" ]; then
+            echo "No DOCS_AUTH_* secrets: the site is public."
+            exit 0
+          fi
+          credentials=$(printf '%s:%s' "$DOCS_AUTH_USER" "$DOCS_AUTH_PASSWORD" | base64 -w0)
+          echo "::add-mask::$credentials"
+          { sed "s|@CREDENTIALS@|$credentials|g" docs/.vitepress/basic-auth.htaccess
+            cat "$SITE_DIR/.htaccess"; } > "$RUNNER_TEMP/htaccess"
+          mv "$RUNNER_TEMP/htaccess" "$SITE_DIR/.htaccess"
+          echo "The site requires a password."
       - name: Stays within the hosting quota
         run: |
           size=$(du -sb "$SITE_DIR" | cut -f1)

@@ -40,7 +40,9 @@ or integrator reads; architecture documentation (arc42/ADR/LikeC4) is owned by
   did not upload. The hosting plan has a 10 MB quota, so the built site must stay under 9 MiB; CI checks this on every
   pull request and again before each upload. `docs/public/.htaccess` redirects to HTTPS and maps clean URLs to their
   `.html` files. The published build alone loads cookieless Plausible analytics (self-hosted, in Switzerland), enabled
-  by the `DOCS_PLAUSIBLE_SCRIPT_URL` repository variable; local builds, CI and forks load no tracking script.
+  by the `DOCS_PLAUSIBLE_SCRIPT_URL` repository variable; local builds, CI and forks load no tracking script. While the
+  `DOCS_AUTH_USER` and `DOCS_AUTH_PASSWORD` secrets are set, the published site asks for that username and password
+  (HTTP Basic, on HTTPS only); removing them makes it public again on the next publish.
 
 ## Out of scope
 
