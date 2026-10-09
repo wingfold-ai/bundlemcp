@@ -1,4 +1,14 @@
-import { defineConfig } from "vitepress";
+import { defineConfig, type HeadConfig } from "vitepress";
+
+// Cookieless Plausible analytics on the published site only: the publish
+// workflow sets both variables from repository variables, so local builds, CI
+// and forks load no tracking script. The standard script ignores localhost.
+const plausibleDomain = process.env.DOCS_PLAUSIBLE_DOMAIN;
+const plausibleScript = process.env.DOCS_PLAUSIBLE_SCRIPT_URL;
+const analytics: HeadConfig[] =
+  plausibleDomain && plausibleScript
+    ? [["script", { defer: "", "data-domain": plausibleDomain, src: plausibleScript }]]
+    : [];
 
 // The user-facing documentation site (spec 61). Architecture material in
 // docs/arc42, docs/adr and docs/likec4 stays out of the site: it is written
@@ -16,7 +26,7 @@ export default defineConfig({
   vue: { template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("likec4-") } } },
   ignoreDeadLinks: "localhostLinks",
   lastUpdated: true,
-  head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo-mark.svg" }]],
+  head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo-mark.svg" }], ...analytics],
   themeConfig: {
     logo: { light: "/lockup-light.svg", dark: "/lockup-dark.svg", alt: "bundlemcp" },
     siteTitle: false,

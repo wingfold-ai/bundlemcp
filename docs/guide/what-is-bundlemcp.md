@@ -44,8 +44,8 @@ of client, or more than one user. Then you need a place to:
 
 - decide **which tools** each client sees, and under which names;
 - give claude.ai the **OAuth discovery surface** it requires, while a cron job uses an API key against the same tools;
-- work around client quirks, such as ChatGPT refusing write tools, without changing the servers;
-- know **who called what**, and optionally charge for it;
+- work around client quirks, such as your client refusing write tools, without changing the servers;
+- know **who called what**, from an audit log and a metering hook that your own billing can build on;
 - pass the caller's identity to upstream servers that keep per-user state.
 
 bundlemcp centralises all of that, and keeps its own state out of process memory so that restarts and additional

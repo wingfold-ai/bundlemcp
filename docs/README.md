@@ -42,6 +42,12 @@ One-time setup:
    | Secret | `INFOMANIAK_FTP_PASSWORD` | FTP password |
    | Variable | `INFOMANIAK_FTP_SERVER_DIR` | served folder ending in `/` (default `./`) |
    | Variable | `INFOMANIAK_FTP_PROTOCOL` | `ftps` (default), or `ftp` if refused |
+   | Variable | `DOCS_PLAUSIBLE_SCRIPT_URL` | optional: Plausible script URL; unset, no analytics are loaded |
+   | Secret | `DOCS_AUTH_USER` | optional: username that the published site asks for |
+   | Secret | `DOCS_AUTH_PASSWORD` | optional: its password |
+
+   With both auth secrets set, the next publish puts the site behind a password prompt
+   (`.vitepress/basic-auth.htaccess`); delete them and publish again to make it public.
 
 ## Brand assets
 

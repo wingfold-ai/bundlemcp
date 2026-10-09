@@ -1,0 +1,100 @@
+// bundlemcp — authentication flows, drawn on the authentication guide
+// (docs/guide/authentication.md). Dynamic views over the elements of model.c4.
+
+model {
+  person = actor 'Person' {
+    description 'Anyone signing in with a browser: an administrator, or a user connecting an MCP client'
+  }
+}
+
+views {
+  dynamic view authDirections {
+    title 'Authentication — the two directions'
+    description 'Direction 1 resolves one caller identity; direction 2 decides what the upstream is told'
+
+    mcpClient -> bundlemcp.gateway 'credential' {
+      technology 'HTTPS'
+    }
+    bundlemcp.gateway -> upstreams 'identity' {
+      technology 'MCP'
+    }
+
+    include
+      mcpClient with {
+        title 'Callers'
+        description 'MCP clients, scripts and browsers present a session, an OAuth token or an API key'
+      },
+      bundlemcp.gateway with {
+        title 'bundlemcp'
+        technology 'MCP gateway'
+        description 'Resolves one caller identity for rate limits, audit and metering'
+      },
+      upstreams with {
+        title 'Upstream MCP servers'
+        description 'Told who is calling by a header, a forwarded bearer or an upstream OAuth token'
+      }
+    style * {
+      size md
+      textSize md
+    }
+    autoLayout TopBottom
+  }
+
+  dynamic view authLogin {
+    title 'Path A — a person signs in'
+    variant sequence
+
+    person -> bundlemcp.gateway 'GET /login'
+    person <- bundlemcp.gateway 'redirect to the identity provider'
+    person -> idp 'signs in'
+    person <- idp 'redirect back with a code'
+    person -> bundlemcp.gateway 'GET /login/callback'
+    bundlemcp.gateway -> idp 'exchange the code for an ID token'
+    person <- bundlemcp.gateway 'signed session cookie'
+
+    include
+      person with { description 'In a browser' },
+      bundlemcp.gateway with {
+        title 'bundlemcp'
+        technology 'OIDC client'
+        description 'Provisions the User, stores the session'
+      },
+      idp with { title 'Identity provider' description 'Keycloak, Entra, Okta' }
+  }
+
+  dynamic view authConnect {
+    title 'Path B — a person connects an MCP client'
+    variant sequence
+
+    mcpClient -> bundlemcp.gateway 'discovery: /.well-known metadata' {
+      technology 'HTTPS'
+    }
+    mcpClient -> bundlemcp.gateway 'client registration' {
+      technology 'HTTPS'
+    }
+    person -> bundlemcp.gateway 'GET /oauth/authorize'
+    bundlemcp.gateway -> idp 'OIDC sign-in, only without a session'
+    idp -> bundlemcp.gateway 'ID token'
+    person -> bundlemcp.gateway 'approves consent'
+    mcpClient <- bundlemcp.gateway 'authorization code' {
+      technology 'redirect'
+    }
+    mcpClient -> bundlemcp.gateway 'POST /oauth/token' {
+      technology 'HTTPS'
+    }
+    mcpClient <- bundlemcp.gateway 'access + refresh token' {
+      technology 'HTTPS'
+    }
+    mcpClient -> bundlemcp.gateway 'MCP calls with the bearer token'
+
+    include
+      mcpClient with { title 'MCP client' description 'claude.ai, ChatGPT' },
+      person with { description 'In a browser' },
+      bundlemcp.gateway with {
+        title 'bundlemcp'
+        technology 'OAuth 2.1 server'
+        description 'OAuth server, MCP endpoint'
+      },
+      idp with { title 'Identity provider' description 'Keycloak, Entra, Okta' }
+  }
+}
