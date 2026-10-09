@@ -20,16 +20,7 @@ bundlemcp is, depending on who it is talking to:
 
 ## The two directions
 
-```
-DIRECTION 1 — does the caller get in?
-  Client / script / browser ──── credential ────▶ bundlemcp
-                                                   │  resolves one "caller identity"
-
-DIRECTION 2 — what does the upstream see?
-  bundlemcp ──── identity or credential ────▶ upstream MCP server
-                                                   │  X-MCP-User, a forwarded bearer,
-                                                   │  or an upstream OAuth token
-```
+<LikeC4Diagram view="authDirections" />
 
 Everything downstream in the gateway — rate limits, the audit record, the metering hook — keys on the
 **caller identity** from Direction 1. Direction 2 never changes *who* the call is attributed to; it only decides what
@@ -46,13 +37,7 @@ There are four ways in, and an endpoint picks which it accepts with its `auth_mo
 This is **OIDC-only**. There are no passwords, no signup and no password reset — not a missing feature, a deliberate
 deletion of that whole class of code.
 
-```
-browser  ── GET /login ──▶  identity provider (Keycloak, Entra, Okta, Auth0)
-                                   │  sign in
-        ◀── /login/callback ───────┘
-gateway: verify the ID token, provision or update a User from (issuer, sub),
-         set a signed httpOnly cookie + a session record in Valkey
-```
+<LikeC4Diagram view="authLogin" />
 
 What to take from this:
 
@@ -79,11 +64,7 @@ Details: [Identity provider](/self-hosting/identity-provider),
 
 Here it gets interesting, because there are **two OAuth conversations**:
 
-```
-claude.ai ─── OAuth 2.1 ───▶  gateway's OAuth server  ─── OIDC ───▶  identity provider
- (wants a token for            (issues the connector's              (authenticates the human)
-  the endpoint)                 access token)
-```
+<LikeC4Diagram view="authConnect" />
 
 The identity provider answers **"who is this person?"**. The gateway's OAuth server answers
 **"may this client act for that person on this endpoint?"** — and records the answer as an access token. Both happen

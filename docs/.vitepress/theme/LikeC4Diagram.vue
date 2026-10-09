@@ -1,18 +1,8 @@
-<script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+<script lang="ts">
 import { withBase } from "vitepress";
 
-// Renders one view of the LikeC4 model as the interactive web component that
-// `likec4 codegen webcomponent` writes to public/likec4-views.js during the
-// docs build: pan, zoom, click-through to related views, fullscreen browsing.
-const props = defineProps<{ view: string }>();
-const ready = ref(false);
-const host = ref<HTMLElement | null>(null);
-// Follow the theme through the <html> class the appearance toggle writes,
-// which is what the rest of the page is styled from.
-const dark = ref(false);
-let observer: MutationObserver | undefined;
-
+// Module scope, shared by every diagram on a page: <script setup> runs once
+// per instance, so a cache there would load the bundle once per diagram.
 let loading: Promise<void> | undefined;
 function loadOnce(): Promise<void> {
   if (customElements.get("likec4-view")) return Promise.resolve();
@@ -81,14 +71,30 @@ function enlargeLabels(node: Element): void {
   root.querySelectorAll("*").forEach((child) => enlargeLabels(child));
 }
 
-let labelObserver: MutationObserver | undefined;
-function watchLabels(el: HTMLElement): void {
+function watchLabels(el: HTMLElement): MutationObserver | undefined {
   enlargeLabels(el);
   const root = el.shadowRoot;
-  if (!root) return;
-  labelObserver = new MutationObserver(() => enlargeLabels(el));
-  labelObserver.observe(root, { childList: true, subtree: true });
+  if (!root) return undefined;
+  const observer = new MutationObserver(() => enlargeLabels(el));
+  observer.observe(root, { childList: true, subtree: true });
+  return observer;
 }
+</script>
+
+<script setup lang="ts">
+import { onMounted, onUnmounted, ref } from "vue";
+
+// Renders one view of the LikeC4 model as the interactive web component that
+// `likec4 codegen webcomponent` writes to public/likec4-views.js during the
+// docs build: pan, zoom, click-through to related views, fullscreen browsing.
+const props = defineProps<{ view: string }>();
+const ready = ref(false);
+const host = ref<HTMLElement | null>(null);
+// Follow the theme through the <html> class the appearance toggle writes,
+// which is what the rest of the page is styled from.
+const dark = ref(false);
+let observer: MutationObserver | undefined;
+let labelObserver: MutationObserver | undefined;
 
 onMounted(async () => {
   const root = document.documentElement;
@@ -102,7 +108,7 @@ onMounted(async () => {
   // the shadow root exists once the element has upgraded and connected
   await new Promise((resolve) => requestAnimationFrame(resolve));
   const el = host.value?.querySelector("likec4-view") as HTMLElement | null;
-  if (el) watchLabels(el);
+  if (el) labelObserver = watchLabels(el);
 });
 onUnmounted(() => {
   observer?.disconnect();
