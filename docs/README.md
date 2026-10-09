@@ -42,6 +42,7 @@ One-time setup:
    | Secret | `INFOMANIAK_FTP_PASSWORD` | FTP password |
    | Variable | `INFOMANIAK_FTP_SERVER_DIR` | served folder ending in `/` (default `./`) |
    | Variable | `INFOMANIAK_FTP_PROTOCOL` | `ftps` (default), or `ftp` if refused |
+   | Variable | `DOCS_PLAUSIBLE_SCRIPT_URL` | optional: Plausible script URL; unset, no analytics are loaded |
 
 ## Brand assets
 

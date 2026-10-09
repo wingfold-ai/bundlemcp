@@ -38,6 +38,10 @@ jobs:
         working-directory: docs
       - run: npm run build
         working-directory: docs
+        env:
+          # page views go to Plausible only when the script URL variable is set
+          DOCS_PLAUSIBLE_DOMAIN: bundlemcp.com
+          DOCS_PLAUSIBLE_SCRIPT_URL: ${{ vars.DOCS_PLAUSIBLE_SCRIPT_URL }}
       - name: Stays within the hosting quota
         run: |
           size=$(du -sb "$SITE_DIR" | cut -f1)
