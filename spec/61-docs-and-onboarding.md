@@ -35,11 +35,16 @@ or integrator reads; architecture documentation (arc42/ADR/LikeC4) is owned by
   ([ADOC-3](62-architecture-documentation.md)) instead of hand-drawn diagrams.
 - **DOC-5** Docs are updated in the same PR as the behavior they describe; stale docs are a review blocker, same status
   as failing tests.
+- **DOC-6 Published site:** every push to `main` that touches `docs/` builds the site and uploads it by FTP to
+  Infomaniak web hosting (`.github/workflows/publish-docs.yml`); the upload is incremental and never deletes files it
+  did not upload. The hosting plan has a 10 MB quota, so the built site must stay under 9 MiB; CI checks this on every
+  pull request and again before each upload. `docs/public/.htaccess` redirects to HTTPS and maps clean URLs to their
+  `.html` files.
 
 ## Out of scope
 
-- Theming beyond VitePress's default theme; hosting is the operator's choice (the built site in `docs/.vitepress/dist`
-  is static).
+- Theming beyond VitePress's default theme. Operators who want the docs elsewhere can host the static output of
+  `docs/.vitepress/dist` anywhere.
 - Rendering `docs/arc42`, `docs/adr` and `docs/likec4` inside the site — they are contributor material that links into
   `spec/` and stays on GitHub ([62-architecture-documentation.md](62-architecture-documentation.md)).
 - i18n of docs (decision log).
