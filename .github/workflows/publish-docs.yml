@@ -1,0 +1,57 @@
+# Publish the documentation site to Infomaniak web hosting by FTP (spec 61 DOC-6).
+# Pull requests build the site and check its size in ci.yml's docs job.
+name: Publish docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/publish-docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  SITE_DIR: docs/.vitepress/dist
+  # Infomaniak's Starter hosting has a 10 MB quota; 9 MiB keeps headroom below it.
+  MAX_SITE_BYTES: 9437184
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+        working-directory: docs
+      - run: npm run build
+        working-directory: docs
+      - name: Stays within the hosting quota
+        run: |
+          size=$(du -sb "$SITE_DIR" | cut -f1)
+          echo "Site size: $size bytes (limit $MAX_SITE_BYTES)"
+          test "$size" -le "$MAX_SITE_BYTES"
+      - name: Upload via FTP
+        uses: SamKirkland/FTP-Deploy-Action@a51268f67f6605236975928ae28b0f7e9971d50a # v4.3.6
+        with:
+          server: ${{ secrets.INFOMANIAK_FTP_SERVER }}
+          username: ${{ secrets.INFOMANIAK_FTP_USERNAME }}
+          password: ${{ secrets.INFOMANIAK_FTP_PASSWORD }}
+          protocol: ${{ vars.INFOMANIAK_FTP_PROTOCOL || 'ftps' }}
+          local-dir: ./${{ env.SITE_DIR }}/
+          server-dir: ${{ vars.INFOMANIAK_FTP_SERVER_DIR || './' }}
+          # Only files this workflow uploaded are tracked; anything else on the
+          # server (e.g. Infomaniak's own files) is left alone.
+          dangerous-clean-slate: false

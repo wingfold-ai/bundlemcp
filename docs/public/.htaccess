@@ -1,0 +1,23 @@
+# Apache rules for the docs site on Infomaniak web hosting (spec 61 DOC-6).
+RewriteEngine on
+
+# Send every HTTP request to HTTPS (Infomaniak FAQ 1961).
+# TLS ends at Infomaniak's proxy, so %{HTTPS} is always off here; check the
+# protocol the proxy forwards instead, or HTTPS requests redirect to themselves.
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteRule (.*) https://%{HTTP_HOST}/$1 [R=301,L]
+
+# The site is built with cleanUrls: /guide/quickstart is guide/quickstart.html.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.*)$ $1.html [L]
+
+ErrorDocument 404 /404.html
+
+# Files under /assets/ carry a content hash in their name, so they never change.
+<IfModule mod_headers.c>
+  <If "%{REQUEST_URI} =~ m#^/assets/#">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+</IfModule>
