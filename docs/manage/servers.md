@@ -247,6 +247,11 @@ The negotiated revision is stored as `protocol_version` so you can see which ser
 `POST /api/v1/servers/{name}:refresh-tools` re-probes and re-discovers; the result reports how many tools were
 discovered and how many definitions changed.
 
+Creating a server probes it in the background. Updating one probes it only when the update changes how the upstream is
+reached — `url`, `static_headers`, `forward_headers`, `auth_mode`, `identity_mode`, `send_identity_header` or
+`protocol_mode` — or when its last probe failed. Re-sending an unchanged definition to a working server only writes the
+database, so deploy tooling can re-apply its full config without waking every upstream.
+
 The gateway also re-discovers every server on its own every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds (default 30
 minutes). A server you registered before its upstream was reachable therefore gets its tools without a manual refresh,
 and a server whose tools change is picked up within one interval. Use the refresh endpoint when you do not want to wait.

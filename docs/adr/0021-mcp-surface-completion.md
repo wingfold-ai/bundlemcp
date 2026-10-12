@@ -1,6 +1,7 @@
 # ADR-0021: Complete the MCP surface — prompts/resources/completions passthrough, capability aggregation, version negotiation, roots/logging relay
 
-**Status:** accepted · **Date:** 2026-07-05 · **Amended by:** [ADR-0029](0029-dialects-and-dual-era-edge.md)
+**Status:** accepted · **Date:** 2026-07-05 · **Amended by:** [ADR-0029](0029-dialects-and-dual-era-edge.md),
+[ADR-0043](0043-contact-upstreams-only-with-a-reason.md)
 
 ## Context
 

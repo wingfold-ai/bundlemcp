@@ -83,7 +83,7 @@ async def _seed(engine: AsyncEngine) -> None:
                 kind=ApiKeyKind.ENDPOINT,
             )
         )
-        echo = McpServerRow(name="echo", url="http://echo/mcp")
+        echo = McpServerRow(name="echo", url="http://echo/mcp", capabilities={"resources": {}})
         bundle = BundleRow(name="main", description="Use these tools wisely")
         db.add_all([echo, bundle])
         await db.commit()

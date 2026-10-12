@@ -15,6 +15,7 @@ from bundlemcp.application.schemas import (
     ServerUpsert,
 )
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
+from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
@@ -132,6 +133,70 @@ async def test_failed_bootstrap_probes_nothing(uow):
     with pytest.raises(NotFoundError):
         await BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery).apply(document)
     assert discovery.probes == []
+
+
+async def _mark_reachable(uow: InMemoryUnitOfWork, name: str) -> None:
+    """Record a successful probe, as discovery would after reaching the upstream."""
+    server = await uow.servers.by_name(name)
+    server.connection_state = ConnectionState.READY
+    uow.servers.add(server)
+
+
+async def test_unchanged_upsert_of_a_working_server_does_not_probe(uow):
+    """SRV-2: re-applying the same config to a reachable server stays off the upstream."""
+    discovery = CommitAwareDiscovery(uow)
+    servers = ServerService(uow, discovery=discovery)
+    body = ServerUpsert(name="echo", url="http://echo/mcp", forward_headers={"x-a": "x-a"})
+    await servers.upsert(body)
+    await _mark_reachable(uow, "echo")
+    await servers.upsert(body)
+    await servers.upsert(body.model_copy(update={"description": "only a label changed"}))
+    assert [name for name, _ in discovery.probes] == ["echo"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"url": "http://echo-2/mcp"},
+        {"static_headers": {"Authorization": "Bearer new"}},
+        {"forward_headers": {"x-b": "x-b"}},
+        {"protocol_mode": "legacy"},
+        {"send_identity_header": False},
+        {"identity_mode": IdentityMode.PER_USER},
+    ],
+)
+async def test_upsert_that_changes_discovery_inputs_probes(uow, change):
+    """SRV-2: a change to how the upstream is reached is probed again."""
+    discovery = CommitAwareDiscovery(uow)
+    servers = ServerService(uow, discovery=discovery)
+    body = ServerUpsert(name="echo", url="http://echo/mcp")
+    await servers.upsert(body)
+    await _mark_reachable(uow, "echo")
+    await servers.upsert(body.model_copy(update=change))
+    assert [name for name, _ in discovery.probes] == ["echo", "echo"]
+
+
+async def test_unchanged_upsert_retries_a_server_whose_last_probe_failed(uow):
+    """SRV-2: re-applying a config still retries a server that was never reached."""
+    discovery = CommitAwareDiscovery(uow)
+    servers = ServerService(uow, discovery=discovery)
+    body = ServerUpsert(name="echo", url="http://echo/mcp")
+    await servers.upsert(body)
+    await servers.upsert(body)
+    assert [name for name, _ in discovery.probes] == ["echo", "echo"]
+
+
+async def test_reapplied_bootstrap_does_not_probe_working_servers(uow):
+    """BOOT-7/SRV-2: a gateway restart that re-applies the same document wakes no upstream."""
+    document = BootstrapDocument.model_validate(
+        {"servers": [{"name": "echo", "url": "http://echo/mcp"}]}
+    )
+    discovery = CommitAwareDiscovery(uow)
+    runner = BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery)
+    await runner.apply(document)
+    await _mark_reachable(uow, "echo")
+    await runner.apply(document)
+    assert [name for name, _ in discovery.probes] == ["echo"]
 
 
 async def test_bootstrap_document_lands_in_one_commit(uow):

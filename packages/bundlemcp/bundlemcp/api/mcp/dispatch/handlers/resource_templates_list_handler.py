@@ -5,6 +5,7 @@ from bundlemcp.api.mcp.protocol.cache_hints import CacheHints
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
+from bundlemcp.domain.servers.server_capability import ServerCapability
 
 
 class ResourceTemplatesListHandler:
@@ -16,7 +17,10 @@ class ResourceTemplatesListHandler:
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         items = await self._fanout.merged(
-            ctx, lambda client: client.list_resource_templates(), key="uriTemplate"
+            ctx,
+            lambda client: client.list_resource_templates(),
+            capability=ServerCapability.RESOURCES,
+            key="uriTemplate",
         )
         return rpc_result(
             message.id,

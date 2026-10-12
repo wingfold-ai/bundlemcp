@@ -9,6 +9,7 @@ from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.domain.bundles.presented_name import PresentedName
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.server_capability import ServerCapability
 
 
 class PromptsListHandler:
@@ -25,7 +26,11 @@ class PromptsListHandler:
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         prompts = await self._fanout.merged(
-            ctx, lambda client: client.list_prompts(), key="name", present=self._prefixed
+            ctx,
+            lambda client: client.list_prompts(),
+            capability=ServerCapability.PROMPTS,
+            key="name",
+            present=self._prefixed,
         )
         return rpc_result(
             message.id, ctx.shape({"prompts": prompts}, await self._cache_hints.for_list())

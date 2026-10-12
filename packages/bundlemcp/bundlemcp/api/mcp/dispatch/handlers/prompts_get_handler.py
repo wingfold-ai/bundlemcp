@@ -6,6 +6,7 @@ from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error, rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.domain.bundles.presented_name import PresentedName
+from bundlemcp.domain.servers.server_capability import ServerCapability
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 
 log = structlog.get_logger(__name__)
@@ -21,7 +22,8 @@ class PromptsGetHandler:
         presented = message.param("name", "")
         parsed = PresentedName.parse(presented)  # BND-2 first-`__`
         server = ctx.view.servers.get(parsed.server) if parsed else None
-        if parsed is None or server is None:
+        # BND-8: a member that never advertised prompts is not asked (ADR-0043)
+        if parsed is None or server is None or not server.advertises(ServerCapability.PROMPTS):
             return rpc_error(message.id, -32602, f"unknown prompt: {presented}")
         arguments = message.param("arguments")
         try:

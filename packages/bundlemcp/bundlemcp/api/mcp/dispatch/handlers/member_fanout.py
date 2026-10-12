@@ -18,6 +18,7 @@ from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.server_capability import ServerCapability
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import UpstreamOAuthNotConfigured
 
@@ -33,8 +34,10 @@ def dump(obj: Any) -> dict[str, Any]:
 class MemberFanout:
     """Runs a read-only MCP call against one member or all of them.
 
-    Live and uncurated, unlike the tool surface. A member that is unreachable
-    or not connected is skipped with a warning, so the rest still answer.
+    Live and uncurated, unlike the tool surface. Only members that advertised
+    the method's capability at their last discovery are asked, so a member
+    without it is never woken. A member that is unreachable or not connected
+    is skipped with a warning, so the rest still answer.
     """
 
     def __init__(
@@ -89,12 +92,18 @@ class MemberFanout:
         async with client:
             return await call(client)
 
+    @staticmethod
+    def members(ctx: RequestContext, capability: ServerCapability) -> list[McpServer]:
+        """The bundle's members that advertise ``capability``, in bundle order."""
+        # BND-8: a member without the capability is not contacted (ADR-0043)
+        return [server for server in ctx.view.servers.values() if server.advertises(capability)]
+
     async def each(
-        self, ctx: RequestContext, call: MemberCall
+        self, ctx: RequestContext, call: MemberCall, *, capability: ServerCapability
     ) -> list[tuple[McpServer, Any | None]]:
-        """Every member's answer, with None where a member could not be asked."""
+        """Every capable member's answer, with None where a member could not be asked."""
         results: list[tuple[McpServer, Any | None]] = []
-        for server in ctx.view.servers.values():
+        for server in self.members(ctx, capability):
             try:
                 results.append((server, await self.call(ctx, server, call)))
             except (NeedsConnect, UpstreamOAuthNotConfigured):
@@ -105,9 +114,11 @@ class MemberFanout:
                 results.append((server, None))
         return results
 
-    async def first(self, ctx: RequestContext, call: MemberCall) -> Any | None:
-        """The first member that answers, or None when none does."""
-        for server in ctx.view.servers.values():
+    async def first(
+        self, ctx: RequestContext, call: MemberCall, *, capability: ServerCapability
+    ) -> Any | None:
+        """The first capable member that answers, or None when none does."""
+        for server in self.members(ctx, capability):
             try:
                 return await self.call(ctx, server, call)
             except Exception:
@@ -120,13 +131,14 @@ class MemberFanout:
         ctx: RequestContext,
         call: MemberCall,
         *,
+        capability: ServerCapability,
         key: str,
         present: Callable[[McpServer, dict[str, Any]], dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
-        """Every member's list, concatenated and de-duplicated by ``key``."""
+        """Every capable member's list, concatenated and de-duplicated by ``key``."""
         items: list[dict[str, Any]] = []
         seen: set[Any] = set()
-        for server, member_items in await self.each(ctx, call):
+        for server, member_items in await self.each(ctx, call, capability=capability):
             if member_items is None:
                 continue
             for obj in member_items:
