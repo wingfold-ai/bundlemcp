@@ -78,11 +78,8 @@ The entries use exactly the same schemas as the management API's `PUT` routes:
 | `bundles` | the bundle upsert body plus `upstreams`, a list of member names | Members are added with `enabled: true`. Tool-level curation is not part of the document; set it through the API afterwards. |
 | `endpoints` | the endpoint upsert body | Profile and auth-mode rules are validated as on the API. |
 
-::: info Former key: `servers`
-Before `upstreams`, both lists were called `servers`. A document that still says `servers` — at the top or in a bundle —
-is applied as before until 2027-04-10, with one warning in the log naming every place to change. A document or bundle
-that has both keys is rejected, since the two lists could differ.
-:::
+An unknown key, in the document or in a bundle entry, makes the document invalid instead of being ignored, so a typo
+fails at startup rather than quietly leaving something out.
 
 ## Semantics
 

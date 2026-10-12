@@ -19,18 +19,11 @@ class RouteSpec(BaseModel):
         default_factory=dict,
         description="Keyword arguments passed through to FastAPI's add_api_route",
     )
-    former_path: str | None = Field(
-        default=None,
-        description="Path, relative to the controller's prefix, the route answered at before it "
-        "was renamed; it keeps answering there as a deprecated alias",
-    )
 
 
 def _mark(method: str, path: str, options: dict[str, Any]) -> Callable[[Callable], Callable]:
-    former_path = options.pop("former_path", None)
-
     def decorate(handler: Callable) -> Callable:
-        spec = RouteSpec(method=method, path=path, options=options, former_path=former_path)
+        spec = RouteSpec(method=method, path=path, options=options)
         setattr(handler, ROUTE_ATTRIBUTE, spec)
         return handler
 
@@ -39,9 +32,6 @@ def _mark(method: str, path: str, options: dict[str, Any]) -> Callable[[Callable
 
 class RouteDecorators:
     """``@route.get("/{name}")`` and friends.
-
-    ``former_path=...`` keeps a renamed route answering at its old path as a
-    deprecated alias, next to the new one.
 
     Unlike ``APIRouter``'s decorators these register nothing: there is no
     router yet while the class body runs, and the method is still unbound. The

@@ -1,4 +1,4 @@
-# ADR-0045: The published surface says "upstreams", with deprecated aliases for "servers"
+# ADR-0045: The published surface says "upstreams"
 
 **Status:** accepted · **Date:** 2026-10-12
 
@@ -9,9 +9,9 @@ and export documents (`servers:`), the OpenAPI tag, and the admin UI (**Servers*
 ambiguous: the gateway is itself an MCP server to its clients, and an HTTP server to everyone. The documentation already
 says "upstream server" when it needs to be unambiguous, so the product uses two names for one thing.
 
-The names are published. A private application layer's registrar drives `PUT /api/v1/servers/{name}` on every deploy,
-operators keep bootstrap files in their own repositories, and links to `/servers` pages sit in runbooks. A rename
-without a transition breaks all three on upgrade.
+The names are published, but nobody depends on them yet: the gateway is not in active use, and the application layer
+whose registrar will drive the management API has not been connected. A rename now costs one coordinated change; the
+same rename after adoption would need a deprecation window and an alias layer to get through it.
 
 Inventory at `9ec1a70`:
 
@@ -30,7 +30,7 @@ Inventory at `9ec1a70`:
 
 - One name for one thing, chosen for what the thing is relative to the gateway, not for its history
   (design-principles §1).
-- No deployment breaks on upgrade; automation gets a stated window and a visible signal to move.
+- Make the change while it is cheap, rather than carrying aliases for a transition no one needs.
 - Generated clients and new documentation learn only the new names.
 - Contracts that are versioned on their own (the metering hook) are not changed as a side effect.
 
@@ -45,12 +45,10 @@ Inventory at `9ec1a70`:
 - **Scope.** Collection nouns only: route paths, document keys, the tag, UI copy and routes. Payload field names stay
   (`server_name` on a tool or an audit record is already qualified by its object), and so do Python class names; both
   can follow later without touching the published contract.
-- **Transition.** Old routes stay as aliases with identical behaviour and `Deprecation`, `Sunset` and
-  `Link: rel="successor-version"` headers, a rate-limited `WARN` per caller, and a metric
-  ([API-8](../../spec/40-management-api.md)). They are left out of the OpenAPI document. The old bootstrap key is
-  accepted with a `WARN`; a document carrying both keys is rejected ([BOOT-8](../../spec/41-bootstrap.md)). Old UI
-  routes redirect. The window is at least 180 days from the first release that ships the new names, then `410 Gone`
-  for one minor release, then `404`.
+- **No transition.** The old names go in one step: `/api/v1/servers` answers `404`, the admin UI's `/servers` pages
+  are gone, and a bootstrap document that still says `servers` is rejected. The bootstrap document and its bundle
+  entries now refuse unknown keys, so an outdated document fails at startup instead of quietly provisioning nothing
+  ([BOOT-8](../../spec/41-bootstrap.md)).
 
 ## Alternatives considered
 
@@ -63,16 +61,21 @@ Inventory at `9ec1a70`:
 - **Documentation-only rename.** Cheapest, but leaves the API and UI saying "Servers", so a reader moving from the
   docs to the product meets two names for one thing again.
 - **Bump to `/api/v2`.** A whole version for one collection rename; every unchanged route would move with it.
+- **Keep the old names as deprecated aliases for a window.** Old routes answering with `Deprecation` and `Sunset`
+  headers, the old bootstrap key accepted with a warning, old UI routes redirecting. It protects callers who exist; with
+  none yet, it is an alias layer, tests and a removal date to maintain for nobody. A later rename of a surface that is
+  in use should take this route.
 
 ## Consequences
 
 **Positive:**
 
 - A reader new to MCP never has to guess which "server" a page or a route means.
-- Automation keeps working through the window and is told, per request, exactly what to change.
+- No alias layer to carry and later remove.
+- A misspelt or outdated bootstrap key now fails loudly, which it did not before.
 
 **Trade-offs:**
 
-- Two route trees serve the same resource for the length of the window, and the alias layer and its tests have to be
-  kept until the sunset date.
+- Anything written against the old names — scripts, a bootstrap file, a bookmark — breaks on upgrade and must be
+  updated by hand. Acceptable only because nothing such exists yet.
 - Payload fields keep the short `server_*` names, so the rename is visible in paths and keys but not inside bodies.

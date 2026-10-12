@@ -38,30 +38,6 @@ returns the DTO. Anything it would otherwise compute belongs in the service.
 `create_app` in `main/app.py` mounts every controller (`ServerController().mount(app, prefix=API_PREFIX)`);
 `include_router` is called in exactly one place, `Controller.mount` itself, and nowhere else.
 
-## Renaming a route without breaking its callers
-
-A published path does not simply move. Name the old location and the controller keeps it answering, bound to the same
-handler, for the deprecation window in a `RouteDeprecation`:
-
-```python
-class ServerController(ManagementController):
-    prefix = "/upstreams"
-    former_prefix = "/servers"        # every route of the class also answers here
-    deprecation = UPSTREAMS_RENAME
-
-class BundleController(ManagementController):
-    deprecation = UPSTREAMS_RENAME
-
-    @route.get("/{name}/upstreams", former_path="/{name}/servers")   # just this route
-    async def list_members(...): ...
-```
-
-The aliases are `DeprecatedAPIRoute`s, left out of the OpenAPI document. The `DeprecationHeaders` middleware adds
-the Deprecation, Sunset and successor Link headers to every response from them, errors included, and
-`DeprecatedRouteUse` (a `former_dependencies` entry of `ManagementController`) counts each use, logs it once per caller
-per hour, and answers `410 Gone` after the sunset date. When the window has passed, delete `former_prefix` /
-`former_path` and the `RouteDeprecation`; nothing else names the old paths.
-
 ## Policy is declared once, on the base
 
 `ManagementController` passes `Depends(ManagementAuth())` as a router-level dependency. Every route of every subclass is

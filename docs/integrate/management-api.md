@@ -97,8 +97,7 @@ and never returned; key values appear once, in the creation response.
 ### Upstream servers
 
 Upstream servers live under `/upstreams` (the short form of *upstream servers*), bundle members under
-`/bundles/{name}/upstreams`. The former paths, `/servers` and `/bundles/{name}/servers`, keep working until
-2027-04-10; see [Renamed paths](#renamed-paths).
+`/bundles/{name}/upstreams`.
 
 | Method | Path | |
 |---|---|---|
@@ -194,23 +193,3 @@ deletes explicitly.
 The API sets CORS headers only for origins in `BUNDLEMCP_WEB_ORIGINS`, and cookie-authenticated mutations must present a
 matching `Origin` or `Referer`. A browser application on another origin cannot use the admin cookie; give it a service
 key on a backend instead.
-
-## Renamed paths
-
-A path that is renamed keeps answering at its old location for a deprecation window, with identical behaviour and
-bodies, so automation keeps working while it moves. Every response from an old path carries three headers:
-
-| Header | Example | Meaning |
-|---|---|---|
-| `Deprecation` | `@1791763200` | When the path was deprecated (RFC 9745) |
-| `Sunset` | `Sat, 10 Apr 2027 00:00:00 GMT` | When it stops answering (RFC 8594) |
-| `Link` | `</api/v1/upstreams/weather>; rel="successor-version"` | Where the same request goes now |
-
-After the sunset date the old path answers `410 Gone` naming the new one, and later `404`. Old paths are not in the
-OpenAPI document, so a client generated from it only knows the new ones. Each use is counted, and logged as a warning
-once per caller per hour, so an operator can see which automation still has to move.
-
-| Old path | New path | Answers until |
-|---|---|---|
-| `/servers…` | `/upstreams…` | 2027-04-10 |
-| `/bundles/{name}/servers…` | `/bundles/{name}/upstreams…` | 2027-04-10 |

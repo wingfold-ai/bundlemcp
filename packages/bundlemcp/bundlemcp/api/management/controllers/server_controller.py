@@ -11,7 +11,6 @@ from bundlemcp.api.http.service_providers import (
     UpstreamOAuthConfigServiceProvider,
 )
 from bundlemcp.api.management.controllers.management_controller import ManagementController
-from bundlemcp.api.management.upstreams_rename import UPSTREAMS_RENAME
 from bundlemcp.application.schemas import (
     DiscoveryResult,
     Page,
@@ -29,10 +28,8 @@ from bundlemcp.application.schemas import (
 
 
 class ServerController(ManagementController):
-    prefix = "/upstreams"
+    prefix = "/upstreams"  # SRV-16
     tags = ("upstreams",)
-    former_prefix = "/servers"  # SRV-16: every route also answers at its old path
-    deprecation = UPSTREAMS_RENAME
 
     @route.get("")
     async def list_servers(

@@ -138,7 +138,7 @@ async def test_inline_json_document_is_applied_after_the_file(engine, redis, tmp
     from bundlemcp.infrastructure.config.settings import EnvSettings
 
     seed = tmp_path / "seed.yaml"
-    seed.write_text("servers:\n  - name: filed\n    url: http://filed/mcp\n")
+    seed.write_text("upstreams:\n  - name: filed\n    url: http://filed/mcp\n")
     settings = EnvSettings(
         _env_file=None, bootstrap_file=str(seed), bootstrap=json.dumps(DOC), bootstrap_strict=True
     )
@@ -206,36 +206,12 @@ async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis)
     assert server.connection_state != ConnectionState.READY
 
 
-async def test_boot8_former_servers_key_is_still_applied_with_one_warning():
-    """BOOT-8: a document that still says 'servers' is read as 'upstreams', with one warning."""
-    from bundlemcp.application.bootstrap.document_loader import parse_document
-    from structlog.testing import capture_logs
-
-    text = """
-servers:
-  - name: echo
-    url: http://echo/mcp
-bundles:
-  - name: demo
-    servers: [echo]
-"""
-    with capture_logs() as logs:
-        doc = parse_document(text)
-    assert [s.name for s in doc.upstreams] == ["echo"]
-    assert doc.bundles[0].upstreams == ["echo"]
-    warnings = [entry for entry in logs if entry["event"] == "bootstrap.former_key"]
-    assert len(warnings) == 1
-    assert warnings[0]["where"] == ["document", "bundle demo"]
-
-
-async def test_boot8_both_keys_are_rejected():
-    """BOOT-8: with both keys the gateway cannot know which list is meant."""
+async def test_boot8_unknown_keys_are_rejected():
+    """BOOT-8: an outdated or misspelt key fails the document instead of being ignored."""
     import pytest
     from pydantic import ValidationError
 
-    with pytest.raises(ValidationError, match="former name"):
-        BootstrapDocument.model_validate({"servers": [], "upstreams": []})
-    with pytest.raises(ValidationError, match="former name"):
-        BootstrapDocument.model_validate(
-            {"bundles": [{"name": "demo", "servers": ["a"], "upstreams": ["a"]}]}
-        )
+    with pytest.raises(ValidationError, match="servers"):
+        BootstrapDocument.model_validate({"servers": [{"name": "a", "url": "http://a/mcp"}]})
+    with pytest.raises(ValidationError, match="servers"):
+        BootstrapDocument.model_validate({"bundles": [{"name": "demo", "servers": ["a"]}]})

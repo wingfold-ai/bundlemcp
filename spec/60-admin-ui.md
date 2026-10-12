@@ -55,9 +55,7 @@ English-only, light/dark theme.
 
 - **UI-7 Upstream server naming.** Navigation and page titles say *Upstream servers* ([SRV-16](10-server-registry.md));
   buttons, empty states and error copy may use the short *upstream*, never a bare *server*. The pages live at
-  `/upstreams` and `/upstreams/{name}`; the former `/servers` routes redirect there
-  (client-side, preserving the rest of the path and query) so bookmarks and links in old documentation keep working.
-  The UI calls only the new API paths ([API-8](40-management-api.md)).
+  `/upstreams` and `/upstreams/{name}`.
 
 ## Out of scope
 

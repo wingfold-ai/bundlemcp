@@ -8,7 +8,6 @@ from redis.exceptions import ConnectionError as StoreConnectionError
 from redis.exceptions import TimeoutError as StoreTimeoutError
 
 from bundlemcp.api.health.controllers.health_controller import HealthController
-from bundlemcp.api.http.deprecation_headers import DeprecationHeaders
 from bundlemcp.api.http.live_state_unavailable_handler import live_state_unavailable_handler
 from bundlemcp.api.http.service_error_handler import service_error_handler
 from bundlemcp.api.management.controllers import (
@@ -70,8 +69,6 @@ def create_app(
     # SES-14: Valkey still unreachable after the client's retries
     app.add_exception_handler(StoreConnectionError, live_state_unavailable_handler)
     app.add_exception_handler(StoreTimeoutError, live_state_unavailable_handler)
-
-    app.add_middleware(DeprecationHeaders)  # API-8: on every response from an old path
 
     if settings.web_origins:
         # SEC-4: credentials-enabled CORS for exactly the web app's origin(s)

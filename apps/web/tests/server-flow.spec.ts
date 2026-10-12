@@ -55,14 +55,3 @@ test(testTitle("E2E-04"), async ({ page, steps }) => {
     }),
   ]);
 });
-
-test(testTitle("E2E-18"), async ({ page, steps }) => {
-  await steps.play([
-    when("opening a bookmark from before the rename", { req: "UI-7" }, () =>
-      page.goto("/servers/echo?tab=tools"),
-    ),
-    then("the browser lands on the same upstream server under /upstreams", { req: "UI-7" }, async () => {
-      await page.waitForURL(/\/upstreams\/echo\?tab=tools$/);
-    }),
-  ]);
-});

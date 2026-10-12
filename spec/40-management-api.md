@@ -37,16 +37,6 @@ which guarantees automation parity (the application layer's registrar, CI, scrip
   ([OAS-11](20-oauth-server.md)) and user deactivation ([ADM-6](21-admin-auth.md)) are exposed as routes.
 - **API-6** Write operations SHOULD be safely retryable: upserts by natural key where sensible (API-4), deletes
   idempotent (404 → 204 semantics documented per route).
-- **API-8 Deprecated route aliases.** A renamed route keeps answering at its old path for a deprecation window, with
-  identical behaviour, request and response bodies. Every response from an old path carries `Deprecation` (RFC 9745,
-  the date the alias was deprecated), `Sunset` (RFC 8594, the date it stops answering) and
-  `Link: <new path>; rel="successor-version"`; each use is logged at `WARN` once per caller identity per hour and
-  counted in a `deprecated_route_requests` metric labelled by route, so an operator can see which automation still has
-  to move. Old paths are left out of the OpenAPI document, so generated clients only learn the new ones. The window is
-  at least 180 days from the first release that ships the new path, and never shorter than one minor release; after the
-  sunset date the old path answers `410 Gone` with the new path in the problem body for one further minor release, then
-  `404`. The first use is the `servers` → `upstreams` rename ([SRV-16](10-server-registry.md),
-  [ADR-0045](../docs/adr/0045-upstreams-on-the-published-surface.md)).
 
 ## Out of scope
 
