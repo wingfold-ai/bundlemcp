@@ -17,7 +17,7 @@ For what a production deployment needs instead, see
 ## 1. Start the stack
 
 ```bash
-git clone https://github.com/mhoegger/bundlemcp.git
+git clone https://github.com/wingfold-ai/bundlemcp.git
 cd bundlemcp
 cp deploy/.env.example deploy/.env
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait --wait-timeout 300

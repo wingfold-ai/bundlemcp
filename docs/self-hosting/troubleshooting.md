@@ -183,4 +183,4 @@ from the document. See [Bootstrap file](/self-hosting/bootstrap).
 Collect the gateway logs for the failing request (they carry a request id, the
 endpoint and the caller, and never secrets), the output of
 `GET /api/v1/servers/{name}` for an upstream problem, and
-[open an issue](https://github.com/mhoegger/bundlemcp/issues).
+[open an issue](https://github.com/wingfold-ai/bundlemcp/issues).
