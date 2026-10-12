@@ -8,7 +8,7 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test(testTitle("E2E-14"), async ({ page, steps }) => {
   await steps.play([
     given("a person without admin rights signs in through Keycloak", { req: "UI-2" }, async () => {
-      await page.goto("/servers");
+      await page.goto("/upstreams");
       await page.waitForURL(/(localhost|keycloak):8080/, { timeout: 30_000 });
       await page.locator("#username").fill("jane");
       await page.locator("#password").fill("jane");
@@ -33,7 +33,7 @@ test(testTitle("E2E-14"), async ({ page, steps }) => {
       await page.screenshot({ path: "test-results/catalogue-bundle-non-admin.png", fullPage: true });
     }),
     when("they try to open a management page", { req: "UI-2" }, async () => {
-      await page.goto("/servers");
+      await page.goto("/upstreams");
     }),
     then("they are sent back to the catalogue", { req: "UI-2" }, async () => {
       await page.waitForURL(/\/catalogue/, { timeout: 15_000 });

@@ -1,4 +1,4 @@
-"""Server registry routes, including upstream OAuth client configuration."""
+"""Upstream server registry routes, including upstream OAuth client configuration."""
 
 from fastapi import HTTPException, status
 
@@ -11,6 +11,7 @@ from bundlemcp.api.http.service_providers import (
     UpstreamOAuthConfigServiceProvider,
 )
 from bundlemcp.api.management.controllers.management_controller import ManagementController
+from bundlemcp.api.management.upstreams_rename import UPSTREAMS_RENAME
 from bundlemcp.application.schemas import (
     DiscoveryResult,
     Page,
@@ -28,8 +29,10 @@ from bundlemcp.application.schemas import (
 
 
 class ServerController(ManagementController):
-    prefix = "/servers"
-    tags = ("servers",)
+    prefix = "/upstreams"
+    tags = ("upstreams",)
+    former_prefix = "/servers"  # SRV-16: every route also answers at its old path
+    deprecation = UPSTREAMS_RENAME
 
     @route.get("")
     async def list_servers(

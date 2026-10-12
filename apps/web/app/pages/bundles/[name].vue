@@ -78,7 +78,7 @@ const allServers = ref<ServerRead[]>([]);
 const selectedServer = ref("");
 
 async function loadMembers() {
-  const { data, error } = await api.GET("/api/v1/bundles/{name}/servers", {
+  const { data, error } = await api.GET("/api/v1/bundles/{name}/upstreams", {
     params: { path: { name: bundleName.value } },
   });
   if (error) {
@@ -89,7 +89,7 @@ async function loadMembers() {
 }
 
 async function loadAllServers() {
-  const { data, error } = await api.GET("/api/v1/servers", {
+  const { data, error } = await api.GET("/api/v1/upstreams", {
     params: { query: { offset: 0, limit: 100 } },
   });
   if (error) {
@@ -107,8 +107,8 @@ const addableServers = computed(() => {
 async function toggleMember(member: BundleMemberRead, event: Event) {
   errorMsg.value = "";
   const enabled = (event.target as HTMLInputElement).checked;
-  const { error } = await api.PUT("/api/v1/bundles/{name}/servers/{server_name}", {
-    params: { path: { name: bundleName.value, server_name: member.server_name } },
+  const { error } = await api.PUT("/api/v1/bundles/{name}/upstreams/{upstream_name}", {
+    params: { path: { name: bundleName.value, upstream_name: member.server_name } },
     body: { enabled },
   });
   if (error) {
@@ -119,8 +119,8 @@ async function toggleMember(member: BundleMemberRead, event: Event) {
 
 async function removeMember(serverName: string) {
   errorMsg.value = "";
-  const { error } = await api.DELETE("/api/v1/bundles/{name}/servers/{server_name}", {
-    params: { path: { name: bundleName.value, server_name: serverName } },
+  const { error } = await api.DELETE("/api/v1/bundles/{name}/upstreams/{upstream_name}", {
+    params: { path: { name: bundleName.value, upstream_name: serverName } },
   });
   if (error) {
     errorMsg.value = apiErrorMessage(error);
@@ -132,8 +132,8 @@ async function removeMember(serverName: string) {
 async function addMember() {
   errorMsg.value = "";
   if (!selectedServer.value) return;
-  const { error } = await api.PUT("/api/v1/bundles/{name}/servers/{server_name}", {
-    params: { path: { name: bundleName.value, server_name: selectedServer.value } },
+  const { error } = await api.PUT("/api/v1/bundles/{name}/upstreams/{upstream_name}", {
+    params: { path: { name: bundleName.value, upstream_name: selectedServer.value } },
     body: { enabled: true },
   });
   if (error) {
@@ -349,12 +349,12 @@ onMounted(async () => {
 
       <!-- Members -->
       <div class="wf-card space-y-3">
-        <h2 class="text-sm font-semibold">Member servers</h2>
+        <h2 class="text-sm font-semibold">Upstream servers</h2>
         <div class="overflow-x-auto">
           <table class="wf-table" data-testid="members-table">
             <thead>
               <tr>
-                <th>Server</th>
+                <th>Upstream</th>
                 <th>URL</th>
                 <th>Health</th>
                 <th>Enabled</th>
@@ -369,7 +369,7 @@ onMounted(async () => {
               >
                 <td>
                   <NuxtLink
-                    :to="`/servers/${m.server_name}`"
+                    :to="`/upstreams/${m.server_name}`"
                     class="inline-flex items-center gap-1.5 underline"
                     ><UIcon name="i-lucide-server" class="size-4 text-muted" />{{
                       m.server_name
@@ -405,14 +405,14 @@ onMounted(async () => {
                 </td>
               </tr>
               <tr v-if="members.length === 0">
-                <td colspan="5" class="text-muted">No member servers.</td>
+                <td colspan="5" class="text-muted">No upstream servers in this bundle.</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div class="flex items-center gap-2">
           <select v-model="selectedServer" class="wf-input max-w-xs" data-testid="member-select">
-            <option value="" disabled>Select server…</option>
+            <option value="" disabled>Select upstream…</option>
             <option v-for="s in addableServers" :key="s.name" :value="s.name">
               {{ s.name }}
             </option>
@@ -430,7 +430,7 @@ onMounted(async () => {
           <table class="wf-table" data-testid="curation-table">
             <thead>
               <tr>
-                <th>Server</th>
+                <th>Upstream</th>
                 <th>Upstream name</th>
                 <th>Presented name</th>
                 <th>Enabled</th>

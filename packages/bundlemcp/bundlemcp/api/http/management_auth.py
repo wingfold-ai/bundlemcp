@@ -69,4 +69,8 @@ class ManagementAuth:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF origin check failed (SEC-4)")
 
 
-ServiceAuthProvider = Annotated[Principal, Depends(ManagementAuth())]
+# One instance for the router-level check and every route that asks for the caller,
+# so FastAPI resolves it once per request instead of authenticating twice.
+management_auth = ManagementAuth()
+
+ServiceAuthProvider = Annotated[Principal, Depends(management_auth)]

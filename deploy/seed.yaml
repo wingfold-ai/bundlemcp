@@ -2,7 +2,7 @@
 # Registers the echo-mcp example and an OAuth-protected demo upstream, bundles
 # them, and exposes endpoints. The maintainers' private fleet lives in
 # seed.fleet.yaml (deploy/TESTING.md).
-servers:
+upstreams:
   - name: echo
     description: Demo echo MCP server
     url: http://echo-mcp:9000/mcp
@@ -27,7 +27,7 @@ servers:
 bundles:
   - name: demo
     description: Demo bundle - the echo server plus an OAuth-protected upstream
-    servers:
+    upstreams:
       - echo
       - oauth-demo
 

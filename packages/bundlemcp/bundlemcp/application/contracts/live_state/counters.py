@@ -5,6 +5,8 @@ RATE_LIMIT_REJECTIONS = "rate_limit_rejections"
 RATE_LIMIT_FAIL_OPEN = "rate_limit_fail_open"
 AUTH_FAILURES = "auth_failures"
 AUTH_FAILURE_LOCKOUTS = "auth_failure_lockouts"
+# per route: "deprecated_route_requests:<old path template>"
+DEPRECATED_ROUTE_REQUESTS = "deprecated_route_requests"
 
 
 @runtime_checkable

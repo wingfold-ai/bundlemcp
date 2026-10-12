@@ -200,13 +200,13 @@ async def test_set_client_config_and_status(engine, redis):
     await _seed(engine, with_client=False)
     async with _running(engine, redis, bearer=SERVICE_KEY) as (http, _app):
         r = await http.put(
-            "/api/v1/servers/up/upstream-oauth",
+            "/api/v1/upstreams/up/upstream-oauth",
             json={"client_id": "cli", "client_secret": "shh"},
         )
         assert r.status_code == 200
         assert r.json()["has_secret"] is True
 
-        status = await http.get("/api/v1/servers/up/upstream-oauth")
+        status = await http.get("/api/v1/upstreams/up/upstream-oauth")
         body = status.json()
         assert body["shared"]["connected"] is False
         assert body["client_id"] == "cli"  # the UI prefills the registration form from this
@@ -277,7 +277,7 @@ async def test_upo6_membership_rejects_per_user_upstream_behind_none_endpoint(en
             },
         )
         assert open_endpoint.status_code == 200
-        joined = await http.put("/api/v1/bundles/b/servers/up", json={"enabled": True})
+        joined = await http.put("/api/v1/bundles/b/upstreams/up", json={"enabled": True})
     assert joined.status_code == 409
     assert "UPO-6" in joined.json()["detail"]
 
@@ -288,7 +288,7 @@ async def test_upo6_identity_switch_rejected_while_none_endpoint_exposes_server(
     async with _running(engine, redis, bearer=SERVICE_KEY) as (http, _app):
         assert (await http.put("/api/v1/bundles/b", json={"name": "b"})).status_code == 200
         assert (
-            await http.put("/api/v1/bundles/b/servers/up", json={"enabled": True})
+            await http.put("/api/v1/bundles/b/upstreams/up", json={"enabled": True})
         ).status_code == 200
         assert (
             await http.put(
@@ -302,7 +302,7 @@ async def test_upo6_identity_switch_rejected_while_none_endpoint_exposes_server(
             )
         ).status_code == 200
         switched = await http.put(
-            "/api/v1/servers/up",
+            "/api/v1/upstreams/up",
             json={
                 "name": "up",
                 "url": "https://up/mcp",
@@ -310,7 +310,7 @@ async def test_upo6_identity_switch_rejected_while_none_endpoint_exposes_server(
                 "identity_mode": "per_user",
             },
         )
-        unchanged = await http.get("/api/v1/servers/up")
+        unchanged = await http.get("/api/v1/upstreams/up")
     assert switched.status_code == 409
     assert "UPO-6" in switched.json()["detail"]
     assert unchanged.json()["identity_mode"] == "shared"

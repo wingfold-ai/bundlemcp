@@ -2,7 +2,7 @@
 # (`--profile fleet`, images on a private registry). Selected with
 # BUNDLEMCP_SEED_FILE=seed.fleet.yaml in deploy/.env (deploy/TESTING.md).
 # Keep the part above the fleet entries identical to seed.yaml.
-servers:
+upstreams:
   - name: echo
     description: Demo echo MCP server
     url: http://echo-mcp:9000/mcp
@@ -57,20 +57,20 @@ servers:
 bundles:
   - name: demo
     description: Demo bundle - the echo server plus an OAuth-protected upstream
-    servers:
+    upstreams:
       - echo
       - oauth-demo
 
   - name: seo
     description: SEO toolkit - PageSpeed, Search Console, DataForSEO
-    servers:
+    upstreams:
       - seo-psi
       - seo-gsc
       - dataforseo
 
   - name: media
     description: Media generation - HyperFrames rendering
-    servers:
+    upstreams:
       - hyperframes
 
 endpoints:

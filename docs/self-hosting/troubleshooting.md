@@ -20,7 +20,7 @@ cold start the seed can finish before the upstream is listening.
 
 ```bash
 KEY=bmcp_sk_devservicekey000000000000000000000000
-curl -s -X POST http://localhost:8000/api/v1/servers/echo:refresh-tools \
+curl -s -X POST http://localhost:8000/api/v1/upstreams/echo:refresh-tools \
   -H "Authorization: Bearer $KEY"        # -> {"discovered": 3, ...}
 ```
 
@@ -30,7 +30,7 @@ itself is the problem — read on.
 ## A server shows `health_status: error`
 
 ```bash
-curl -s http://localhost:8000/api/v1/servers/my-server \
+curl -s http://localhost:8000/api/v1/upstreams/my-server \
   -H "Authorization: Bearer $KEY" | python3 -m json.tool | grep -A1 last_error
 ```
 
@@ -176,5 +176,5 @@ from the document. See [Bootstrap file](/self-hosting/bootstrap).
 
 Collect the gateway logs for the failing request (they carry a request id, the
 endpoint and the caller, and never secrets), the output of
-`GET /api/v1/servers/{name}` for an upstream problem, and
+`GET /api/v1/upstreams/{name}` for an upstream problem, and
 [open an issue](https://github.com/wingfold-ai/bundlemcp/issues).

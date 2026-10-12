@@ -43,6 +43,15 @@
       ]
     },
     {
+      "id": "E2E-18",
+      "testFile": "server-flow.spec.ts",
+      "slug": "former-servers-path-redirects",
+      "title": "An old /servers link lands on the upstream server's page",
+      "requirements": [
+        "UI-7"
+      ]
+    },
+    {
       "id": "E2E-05",
       "testFile": "bundle-flow.spec.ts",
       "slug": "bundle-compose-curate-expose",

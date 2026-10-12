@@ -1,8 +1,8 @@
 # Bootstrap file
 
-A bootstrap document declares servers, bundles and endpoints that the gateway applies **at startup**, as upserts by
-name. Applying the same document twice changes nothing, so it is the natural way to provision a gateway from CI, a
-compose file or a secret store without clicking through the UI.
+A bootstrap document declares upstream servers, bundles and endpoints that the gateway applies **at startup**, as
+upserts by name. Applying the same document twice changes nothing, so it is the natural way to provision a gateway from
+CI, a compose file or a secret store without clicking through the UI.
 
 ## Enabling it
 
@@ -32,7 +32,7 @@ three lists.
 ```yaml
 version: 1
 
-servers:
+upstreams:
   - name: weather
     description: Forecasts and current conditions
     url: http://weather-mcp:8080/mcp
@@ -50,7 +50,7 @@ servers:
 bundles:
   - name: assistant
     description: Everything a personal assistant needs
-    servers:
+    upstreams:
       - weather
       - notes
 
@@ -74,9 +74,15 @@ The entries use exactly the same schemas as the management API's `PUT` routes:
 
 | List | Schema | Notes |
 |---|---|---|
-| `servers` | the server upsert body plus an optional `upstream_oauth` block | See [Servers](/manage/servers) for every field. `upstream_oauth` is the pre-registered client the gateway presents to an OAuth-protected server (`client_id`, and optionally `client_secret`, `authorization_url`, `token_url`, `grant_type`), as the server's upstream OAuth client route takes it. It needs token encryption keys; without them the document does not apply. |
-| `bundles` | the bundle upsert body plus `servers`, a list of member names | Members are added with `enabled: true`. Tool-level curation is not part of the document; set it through the API afterwards. |
+| `upstreams` | the upstream server upsert body plus an optional `upstream_oauth` block | See [Upstream servers](/manage/servers) for every field. `upstream_oauth` is the pre-registered client the gateway presents to an OAuth-protected server (`client_id`, and optionally `client_secret`, `authorization_url`, `token_url`, `grant_type`), as the server's upstream OAuth client route takes it. It needs token encryption keys; without them the document does not apply. |
+| `bundles` | the bundle upsert body plus `upstreams`, a list of member names | Members are added with `enabled: true`. Tool-level curation is not part of the document; set it through the API afterwards. |
 | `endpoints` | the endpoint upsert body | Profile and auth-mode rules are validated as on the API. |
+
+::: info Former key: `servers`
+Before `upstreams`, both lists were called `servers`. A document that still says `servers` — at the top or in a bundle —
+is applied as before until 2027-04-10, with one warning in the log naming every place to change. A document or bundle
+that has both keys is rejected, since the two lists could differ.
+:::
 
 ## Semantics
 

@@ -28,7 +28,7 @@ async function removeLeftovers(): Promise<void> {
     storageState: { cookies: [], origins: [] },
     extraHTTPHeaders: { Authorization: `Bearer ${SERVICE_KEY}` },
   });
-  for (const path of [`endpoints/${ENDPOINT}`, `bundles/${BUNDLE}`, `servers/${SERVER}`]) {
+  for (const path of [`endpoints/${ENDPOINT}`, `bundles/${BUNDLE}`, `upstreams/${SERVER}`]) {
     const response = await api.delete(`${GATEWAY_URL}/api/v1/${path}`);
     expect([204, 404], `DELETE ${path}: ${await response.text()}`).toContain(response.status());
   }
@@ -39,7 +39,7 @@ test("quickstart walk-through", async ({ page }) => {
   page.on("dialog", (d) => d.accept());
   await removeLeftovers();
 
-  await page.goto("/servers");
+  await page.goto("/upstreams");
   await expect(page.getByTestId("row-echo")).toBeVisible();
   await shot(page, "01-upstream-servers");
 
@@ -50,7 +50,7 @@ test("quickstart walk-through", async ({ page }) => {
   await shot(page, "02-register-upstream-server");
 
   await page.getByTestId("create-submit").click();
-  await page.waitForURL(new RegExp(`/servers/${SERVER}$`));
+  await page.waitForURL(new RegExp(`/upstreams/${SERVER}$`));
   await page.getByTestId("refresh-tools").click();
   await expect(page.getByTestId("tools-table")).toContainText("echo", { timeout: 20_000 });
   await page.getByTestId("tools-table").scrollIntoViewIfNeeded();

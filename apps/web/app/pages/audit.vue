@@ -152,7 +152,7 @@ function exportCsv() {
             <th>Created at</th>
             <th>Endpoint</th>
             <th>Bundle</th>
-            <th>Server</th>
+            <th>Upstream</th>
             <th>Tool (presented)</th>
             <th>Status</th>
             <th>Duration (ms)</th>

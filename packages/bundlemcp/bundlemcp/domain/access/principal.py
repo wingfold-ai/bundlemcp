@@ -15,3 +15,10 @@ class Principal(BaseModel):
     api_key_id: str | None = Field(
         default=None, description="Service key used; None for admin sessions"
     )
+
+    @property
+    def caller_key(self) -> str:
+        """A stable name for the caller, safe to log: the user or key id, never a credential."""
+        if self.api_key_id is not None:
+            return f"api_key:{self.api_key_id}"
+        return f"user:{self.user_id}"

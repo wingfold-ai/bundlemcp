@@ -1729,7 +1729,7 @@
         "type": "object"
       },
       "ServerInspectRequest": {
-        "description": "Body for POST /servers:inspect.",
+        "description": "Body for POST /upstreams:inspect.",
         "properties": {
           "headers": {
             "additionalProperties": {
@@ -1827,7 +1827,7 @@
           },
           "suggestion": {
             "$ref": "#/components/schemas/ServerUpsert",
-            "description": "A registration derived from what was found: submit it to PUT /servers/{name} as is, adding the credential headers the server needs"
+            "description": "A registration derived from what was found: submit it to PUT /upstreams/{name} as is, adding the credential headers the server needs"
           },
           "tool_names": {
             "default": [],
@@ -1982,7 +1982,7 @@
         "type": "object"
       },
       "ServerJsonImport": {
-        "description": "Body for POST /servers:from-server-json.",
+        "description": "Body for POST /upstreams:from-server-json.",
         "properties": {
           "document": {
             "additionalProperties": true,
@@ -2154,12 +2154,12 @@
         "type": "object"
       },
       "ServerUpsert": {
-        "description": "Body for POST /servers and PUT /servers/{name}.",
+        "description": "Body for POST /upstreams and PUT /upstreams/{name}.",
         "properties": {
           "auth_mode": {
             "$ref": "#/components/schemas/ServerAuthMode",
             "default": "none",
-            "description": "How the gateway authenticates to this server: 'none' or 'static_headers' (which of the two is derived from whether static headers are stored), 'upstream_oauth' (the gateway holds OAuth tokens from the server's authorization server) or 'delegated_token' (each call carries a short-lived token the gateway issues for the caller, valid only at this server, which the server verifies through the gateway's introspection endpoint). Run POST /servers:inspect to learn which one a server needs"
+            "description": "How the gateway authenticates to this server: 'none' or 'static_headers' (which of the two is derived from whether static headers are stored), 'upstream_oauth' (the gateway holds OAuth tokens from the server's authorization server) or 'delegated_token' (each call carries a short-lived token the gateway issues for the caller, valid only at this server, which the server verifies through the gateway's introspection endpoint). Run POST /upstreams:inspect to learn which one a server needs"
           },
           "description": {
             "anyOf": [
@@ -3316,155 +3316,6 @@
         ]
       }
     },
-    "/api/v1/bundles/{name}/servers": {
-      "get": {
-        "operationId": "list_members_api_v1_bundles__name__servers_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "title": "Name",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/BundleMemberRead"
-                  },
-                  "title": "Response List Members Api V1 Bundles  Name  Servers Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Members",
-        "tags": [
-          "bundles"
-        ]
-      }
-    },
-    "/api/v1/bundles/{name}/servers/{server_name}": {
-      "delete": {
-        "operationId": "remove_member_api_v1_bundles__name__servers__server_name__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "title": "Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "server_name",
-            "required": true,
-            "schema": {
-              "title": "Server Name",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Remove Member",
-        "tags": [
-          "bundles"
-        ]
-      },
-      "put": {
-        "operationId": "set_member_api_v1_bundles__name__servers__server_name__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "title": "Name",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "server_name",
-            "required": true,
-            "schema": {
-              "title": "Server Name",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BundleServerUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BundleMembershipRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Set Member",
-        "tags": [
-          "bundles"
-        ]
-      }
-    },
     "/api/v1/bundles/{name}/tools": {
       "get": {
         "operationId": "list_tools_api_v1_bundles__name__tools_get",
@@ -3568,6 +3419,155 @@
           }
         },
         "summary": "Curate Tool",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{name}/upstreams": {
+      "get": {
+        "operationId": "list_members_api_v1_bundles__name__upstreams_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BundleMemberRead"
+                  },
+                  "title": "Response List Members Api V1 Bundles  Name  Upstreams Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Members",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{name}/upstreams/{upstream_name}": {
+      "delete": {
+        "operationId": "remove_member_api_v1_bundles__name__upstreams__upstream_name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "upstream_name",
+            "required": true,
+            "schema": {
+              "title": "Upstream Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Member",
+        "tags": [
+          "bundles"
+        ]
+      },
+      "put": {
+        "operationId": "set_member_api_v1_bundles__name__upstreams__upstream_name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "upstream_name",
+            "required": true,
+            "schema": {
+              "title": "Upstream Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundleServerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleMembershipRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Member",
         "tags": [
           "bundles"
         ]
@@ -4044,9 +4044,9 @@
         ]
       }
     },
-    "/api/v1/servers": {
+    "/api/v1/upstreams": {
       "get": {
-        "operationId": "list_servers_api_v1_servers_get",
+        "operationId": "list_servers_api_v1_upstreams_get",
         "parameters": [
           {
             "in": "query",
@@ -4096,13 +4096,13 @@
         },
         "summary": "List Servers",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },
-    "/api/v1/servers/{name}": {
+    "/api/v1/upstreams/{name}": {
       "delete": {
-        "operationId": "delete_server_api_v1_servers__name__delete",
+        "operationId": "delete_server_api_v1_upstreams__name__delete",
         "parameters": [
           {
             "in": "path",
@@ -4131,11 +4131,11 @@
         },
         "summary": "Delete Server",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       },
       "get": {
-        "operationId": "get_server_api_v1_servers__name__get",
+        "operationId": "get_server_api_v1_upstreams__name__get",
         "parameters": [
           {
             "in": "path",
@@ -4171,11 +4171,11 @@
         },
         "summary": "Get Server",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       },
       "put": {
-        "operationId": "upsert_server_api_v1_servers__name__put",
+        "operationId": "upsert_server_api_v1_upstreams__name__put",
         "parameters": [
           {
             "in": "path",
@@ -4221,13 +4221,13 @@
         },
         "summary": "Upsert Server",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },
-    "/api/v1/servers/{name}/tools": {
+    "/api/v1/upstreams/{name}/tools": {
       "get": {
-        "operationId": "list_tools_api_v1_servers__name__tools_get",
+        "operationId": "list_tools_api_v1_upstreams__name__tools_get",
         "parameters": [
           {
             "in": "path",
@@ -4286,13 +4286,13 @@
         },
         "summary": "List Tools",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },
-    "/api/v1/servers/{name}/upstream-oauth": {
+    "/api/v1/upstreams/{name}/upstream-oauth": {
       "get": {
-        "operationId": "upstream_oauth_status_api_v1_servers__name__upstream_oauth_get",
+        "operationId": "upstream_oauth_status_api_v1_upstreams__name__upstream_oauth_get",
         "parameters": [
           {
             "in": "path",
@@ -4328,11 +4328,11 @@
         },
         "summary": "Upstream Oauth Status",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       },
       "put": {
-        "operationId": "set_upstream_oauth_api_v1_servers__name__upstream_oauth_put",
+        "operationId": "set_upstream_oauth_api_v1_upstreams__name__upstream_oauth_put",
         "parameters": [
           {
             "in": "path",
@@ -4378,13 +4378,13 @@
         },
         "summary": "Set Upstream Oauth",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },
-    "/api/v1/servers/{name}/upstream-oauth/token": {
+    "/api/v1/upstreams/{name}/upstream-oauth/token": {
       "delete": {
-        "operationId": "disconnect_upstream_oauth_api_v1_servers__name__upstream_oauth_token_delete",
+        "operationId": "disconnect_upstream_oauth_api_v1_upstreams__name__upstream_oauth_token_delete",
         "parameters": [
           {
             "in": "path",
@@ -4413,14 +4413,14 @@
         },
         "summary": "Disconnect Upstream Oauth",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },
-    "/api/v1/servers/{name}/upstream-oauth:connect": {
+    "/api/v1/upstreams/{name}/upstream-oauth:connect": {
       "post": {
         "description": "Obtain the shared connection of a client-credentials client now.",
-        "operationId": "connect_upstream_oauth_client_api_v1_servers__name__upstream_oauth_connect_post",
+        "operationId": "connect_upstream_oauth_client_api_v1_upstreams__name__upstream_oauth_connect_post",
         "parameters": [
           {
             "in": "path",
@@ -4456,13 +4456,13 @@
         },
         "summary": "Connect Upstream Oauth Client",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },
-    "/api/v1/servers/{name}:refresh-tools": {
+    "/api/v1/upstreams/{name}:refresh-tools": {
       "post": {
-        "operationId": "refresh_tools_api_v1_servers__name__refresh_tools_post",
+        "operationId": "refresh_tools_api_v1_upstreams__name__refresh_tools_post",
         "parameters": [
           {
             "in": "path",
@@ -4498,13 +4498,13 @@
         },
         "summary": "Refresh Tools",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },
-    "/api/v1/servers/{name}:rename": {
+    "/api/v1/upstreams/{name}:rename": {
       "post": {
-        "operationId": "rename_server_api_v1_servers__name__rename_post",
+        "operationId": "rename_server_api_v1_upstreams__name__rename_post",
         "parameters": [
           {
             "in": "path",
@@ -4559,14 +4559,14 @@
         },
         "summary": "Rename Server",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },
-    "/api/v1/servers:from-server-json": {
+    "/api/v1/upstreams:from-server-json": {
       "post": {
         "description": "Draft a registration from an MCP Registry server.json; nothing is stored.",
-        "operationId": "draft_from_server_json_api_v1_servers_from_server_json_post",
+        "operationId": "draft_from_server_json_api_v1_upstreams_from_server_json_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4601,14 +4601,14 @@
         },
         "summary": "Draft From Server Json",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },
-    "/api/v1/servers:inspect": {
+    "/api/v1/upstreams:inspect": {
       "post": {
         "description": "Probe a URL without registering it: what it is and what registering it takes.",
-        "operationId": "inspect_server_api_v1_servers_inspect_post",
+        "operationId": "inspect_server_api_v1_upstreams_inspect_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4643,7 +4643,7 @@
         },
         "summary": "Inspect Server",
         "tags": [
-          "servers"
+          "upstreams"
         ]
       }
     },

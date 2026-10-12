@@ -26,14 +26,14 @@ class InlineDiscovery(DiscoveryService):
 
 
 DOC = {
-    "servers": [{"name": "echo", "url": "http://echo:9000/mcp"}],
-    "bundles": [{"name": "demo", "servers": ["echo"]}],
+    "upstreams": [{"name": "echo", "url": "http://echo:9000/mcp"}],
+    "bundles": [{"name": "demo", "upstreams": ["echo"]}],
     "endpoints": [{"name": "demo", "bundle_name": "demo", "auth_modes": ["api_key"]}],
 }
 
 
 OAUTH_DOC = {
-    "servers": [
+    "upstreams": [
         {
             "name": "protected",
             "url": "http://protected:8001/mcp",
@@ -112,7 +112,7 @@ async def test_seed_file_parses():
     root = pathlib.Path(__file__).resolve().parents[4]
     data = yaml.safe_load((root / "deploy" / "seed.yaml").read_text())
     doc = BootstrapDocument(**data)
-    assert doc.servers[0].name == "echo"
+    assert doc.upstreams[0].name == "echo"
     assert doc.endpoints[0].bundle_name == "demo"
 
 
@@ -126,7 +126,7 @@ async def test_fleet_seed_extends_the_demo_seed_unchanged():
     deploy = pathlib.Path(__file__).resolve().parents[4] / "deploy"
     demo = BootstrapDocument(**yaml.safe_load((deploy / "seed.yaml").read_text()))
     fleet = BootstrapDocument(**yaml.safe_load((deploy / "seed.fleet.yaml").read_text()))
-    for section in ("servers", "bundles", "endpoints"):
+    for section in ("upstreams", "bundles", "endpoints"):
         demo_entries = getattr(demo, section)
         assert getattr(fleet, section)[: len(demo_entries)] == demo_entries, section
 
@@ -204,3 +204,38 @@ async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis)
     async with factory() as db:
         server = (await db.execute(select(McpServerRow))).scalar_one()
     assert server.connection_state != ConnectionState.READY
+
+
+async def test_boot8_former_servers_key_is_still_applied_with_one_warning():
+    """BOOT-8: a document that still says 'servers' is read as 'upstreams', with one warning."""
+    from bundlemcp.application.bootstrap.document_loader import parse_document
+    from structlog.testing import capture_logs
+
+    text = """
+servers:
+  - name: echo
+    url: http://echo/mcp
+bundles:
+  - name: demo
+    servers: [echo]
+"""
+    with capture_logs() as logs:
+        doc = parse_document(text)
+    assert [s.name for s in doc.upstreams] == ["echo"]
+    assert doc.bundles[0].upstreams == ["echo"]
+    warnings = [entry for entry in logs if entry["event"] == "bootstrap.former_key"]
+    assert len(warnings) == 1
+    assert warnings[0]["where"] == ["document", "bundle demo"]
+
+
+async def test_boot8_both_keys_are_rejected():
+    """BOOT-8: with both keys the gateway cannot know which list is meant."""
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="former name"):
+        BootstrapDocument.model_validate({"servers": [], "upstreams": []})
+    with pytest.raises(ValidationError, match="former name"):
+        BootstrapDocument.model_validate(
+            {"bundles": [{"name": "demo", "servers": ["a"], "upstreams": ["a"]}]}
+        )

@@ -61,13 +61,13 @@ class BootstrapRunner:
             )
             bundles = BundleService(uow)
             endpoints = EndpointService(uow)
-            for server in doc.servers:
+            for server in doc.upstreams:
                 await servers.upsert(server)
                 if server.upstream_oauth is not None:  # BOOT-9
                     await upstream_clients.set_client(server.name, server.upstream_oauth)
             for bundle in doc.bundles:
                 await bundles.upsert(bundle)
-                for server_name in bundle.servers:
+                for server_name in bundle.upstreams:
                     await bundles.set_member(bundle.name, server_name, BundleServerUpdate())
             for endpoint in doc.endpoints:
                 await endpoints.upsert(endpoint)
@@ -92,7 +92,7 @@ class BootstrapRunner:
                 log.info(
                     "bootstrap.applied",
                     source=source,
-                    servers=len(doc.servers),
+                    upstreams=len(doc.upstreams),
                     bundles=len(doc.bundles),
                     endpoints=len(doc.endpoints),
                 )
