@@ -6,7 +6,15 @@
 #
 # Profiles: the core stack (postgres, valkey, keycloak, echo-mcp, gateway, web)
 # starts by default; the maintainers' fleet is behind `--profile fleet` because
-# its images are private (deploy/TESTING.md).
+# its images are private (deploy/TESTING.md); `--profile tunnel` (Cloudflare
+# quick tunnel) or `--profile ngrok` adds a reverse proxy plus a tunnel so
+# claude.ai, ChatGPT or Claude Desktop can reach the stack. deploy/stack.sh
+# drives that, since the gateway needs the tunnel's URL as BUNDLEMCP_PUBLIC_URL
+# before it boots (DEP-1).
+#
+# Data: Postgres lives in the `pgdata` volume, so it survives stop/start and
+# `down`/`up`; `down -v` (deploy/stack.sh rebuild) starts empty and the seed
+# re-applies.
 #
 # The inline defaults for secrets are for this dev stack only. A production
 # compose sets every one of them in its env file; the gateway refuses to boot
@@ -40,6 +48,10 @@ services:
       timeout: 3s
       retries: 10
 
+  # Dev IdP. Its realm (./keycloak) registers the gateway client with a
+  # wildcard redirect URI, so the login works at whatever URL the gateway is
+  # published on (a tunnel's URL is only known at start); a real realm names
+  # <public url>/login/callback exactly (docs/self-hosting/identity-provider).
   keycloak:
     image: quay.io/keycloak/keycloak:26.4
     restart: unless-stopped
@@ -193,6 +205,8 @@ services:
       BUNDLEMCP_WEB_ORIGINS: '["http://localhost:3000"]'
       # dev-only key (rotate for anything real): upstream OAuth token encryption
       BUNDLEMCP_TOKEN_ENCRYPTION_KEYS: ${BUNDLEMCP_TOKEN_ENCRYPTION_KEYS:-["Uqw2PEJomK66Xa6lD-TmIU75wHfWRU6T1n9jpYqjv80="]}
+      # DEP-2: the tunnel profiles' proxy forwards X-Forwarded-* from the compose network
+      BUNDLEMCP_TRUSTED_PROXIES: '["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]'
     volumes:
       - ../deploy/seed.yaml:/app/deploy/seed.yaml:ro
     ports:
@@ -216,6 +230,42 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
+
+  # --- tunnel profiles: reach the stack from claude.ai / ChatGPT / Claude Desktop ---
+  # One public origin for the gateway and the admin UI keeps the admin session
+  # cookie first-party: Caddy routes the gateway's paths to it, the rest to the
+  # web app (deploy/proxy/Caddyfile). BUNDLEMCP_PUBLIC_URL must be the tunnel's
+  # URL; deploy/stack.sh learns it from the quick tunnel or from NGROK_DOMAIN.
+  proxy:
+    image: caddy:2-alpine
+    profiles: [tunnel, ngrok]
+    restart: unless-stopped
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+    expose:
+      - "80"
+    depends_on:
+      gateway:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+  # Cloudflare quick tunnel: no account, a random *.trycloudflare.com URL that
+  # changes whenever this container restarts.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--url", "http://proxy:80"]
+
+  # ngrok with a static domain (the free tier includes one): a stable URL across restarts.
+  ngrok:
+    image: ngrok/ngrok:latest
+    profiles: [ngrok]
+    restart: unless-stopped
+    command: ["http", "--url=${NGROK_DOMAIN:-}", "http://proxy:80"]
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
 
 volumes:
   pgdata:

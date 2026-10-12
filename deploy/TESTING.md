@@ -22,6 +22,18 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile fle
 Services: gateway :8000, web UI :3000, Keycloak :8080 (admin/admin), seo-gsc :8001, SeaweedFS :8333. The seed registers
 echo + the fleet and exposes endpoints `demo` (api_key), `seo` and `media` (oauth + api_key).
 
+## Reach the stack from claude.ai, ChatGPT or Claude Desktop
+
+```bash
+deploy/stack.sh up      # or: make up
+```
+
+`deploy/stack.sh` starts the core stack behind a Caddy proxy and a tunnel, chosen by `TUNNEL` in `deploy/.env`:
+`quick` (default, a Cloudflare quick tunnel, no account, a new `*.trycloudflare.com` URL on every tunnel restart),
+`ngrok` (a static domain: `NGROK_AUTHTOKEN` and `NGROK_DOMAIN`), or `none`. It reads the tunnel's URL first and starts
+the gateway with it as `BUNDLEMCP_PUBLIC_URL`, so OAuth metadata and redirect URIs match what the client dials.
+`deploy/stack.sh url` prints the current URL, `down` stops everything (data stays), `rebuild` starts from empty volumes.
+
 ## Test suites
 
 ```bash
