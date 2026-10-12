@@ -28,7 +28,7 @@ accounts on per-user servers, and that is the extent of it; the management
 API answers 401 to them outside the `/api/v1/me/…` routes
 ([status codes](/integrate/management-api#authentication)). The division of
 responsibilities is spelled out on
-[Roles and identity](/guide/roles-and-identity).
+[Authentication](/guide/authentication#administrators-and-users).
 
 Admin status is re-evaluated at every login from the email list. To promote or demote someone, edit
 `BUNDLEMCP_ADMIN_EMAILS` and have them log in again.

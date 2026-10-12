@@ -68,7 +68,7 @@ limiting, audit, metering, identity forwarding.
 
 Endpoints that accept `oauth` appear in the users' catalogue, since a person can connect to them with their gateway
 identity; endpoints that accept only `api_key` are for automation and stay out of it. See
-[Roles and identity](/guide/roles-and-identity).
+[Authentication](/guide/authentication#caller-identity-who-is-calling-the-gateway).
 
 An OAuth token is bound to the endpoint it was issued for. Presenting it at another endpoint fails with `invalid_token`,
 and the client re-authorises for that endpoint.
