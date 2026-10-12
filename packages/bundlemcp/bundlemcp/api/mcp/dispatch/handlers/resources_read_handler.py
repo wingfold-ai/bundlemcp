@@ -6,6 +6,7 @@ from bundlemcp.api.mcp.protocol.dialect import NeutralError
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error, rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
+from bundlemcp.domain.servers.server_capability import ServerCapability
 
 
 class ResourcesReadHandler:
@@ -17,7 +18,11 @@ class ResourcesReadHandler:
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         # BND-8
         uri = message.param("uri", "")
-        result = await self._fanout.first(ctx, lambda client: client.read_resource_mcp(uri))
+        result = await self._fanout.first(
+            ctx,
+            lambda client: client.read_resource_mcp(uri),
+            capability=ServerCapability.RESOURCES,
+        )
         if result is None:
             # PROT-16: -32002 for handshake clients, -32602 for modern ones.
             code = ctx.dialect.error_code(NeutralError.RESOURCE_NOT_FOUND)

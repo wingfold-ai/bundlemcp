@@ -11,8 +11,8 @@ substrate for per-bundle overrides ([13-tool-management.md](13-tool-management.m
 
 ## Requirements
 
-- **DISC-1** Discovery MUST run on server create/update ([SRV-2](10-server-registry.md)), including a bootstrap upsert
-  once its document has committed ([BOOT-7](41-bootstrap.md)), on explicit "refresh tools"
+- **DISC-1** Discovery MUST run on server create and on an update that needs it ([SRV-2](10-server-registry.md)),
+  including a bootstrap upsert once its document has committed ([BOOT-7](41-bootstrap.md)), on explicit "refresh tools"
   from UI/API, on the periodic refresh (DISC-7), and after an upstream OAuth connect completes
   ([UPO-9](23-upstream-oauth.md)). An endpoint's `tools/list` is served from the cache (DISC-4) and never reaches an
   upstream, so serving it does not trigger discovery; the periodic refresh covers what that would have caught

@@ -22,7 +22,13 @@ Node+Python runtime images).
   ([40-management-api.md](40-management-api.md)) and the UI. Create and update MUST validate the config by connecting to
   the upstream (protocol negotiation per SRV-10) and running `tools/list`, storing discovered tools on success
   ([11-tool-discovery.md](11-tool-discovery.md)). A failed probe stores the server with `health_status=error`
-  (explicitly allowed: registering a server that isn't up yet), never blocks creation from the API.
+  (explicitly allowed: registering a server that isn't up yet), never blocks creation from the API. An update probes
+  only when it changes what discovery depends on — `url`, `static_headers`, `forward_headers`, `auth_mode`,
+  `identity_mode`, `send_identity_header` or `protocol_mode` — or when the server's last probe did not succeed
+  (`connection_state` other than `ready`). Re-applying an unchanged config to a working server is a database write
+  only, so an upstream that scales to zero stays idle across deploys that re-apply every server
+  ([ADR-0043](../docs/adr/0043-contact-upstreams-only-with-a-reason.md)). Explicit refresh and inspection (SRV-11)
+  always contact the upstream.
 - **SRV-3** `static_headers` values are secrets: write-only in the API (responses return key names only), never logged
   ([DOM-3](02-domain-model.md)).
 - **SRV-4** `health_status` + `last_error` MUST be maintained: set to `error` with a message after `N` consecutive
