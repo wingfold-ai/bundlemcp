@@ -41,7 +41,7 @@ you do not create them. How they sign in is explained in [Authentication](/guide
 An upstream server is an MCP server that bundlemcp talks to over **Streamable HTTP**, MCP's transport for servers
 reached over the network. "Upstream" says which way it faces: clients are downstream of the gateway, the servers it
 forwards to are upstream — so the short name for one is simply an *upstream*, and that is what the management API
-calls them. The admin UI lists them on the **Servers** page.
+calls them. The admin UI lists them on the **Upstream servers** page.
 
 Most upstream servers need only a name and a URL. The other settings exist for servers that need a credential, want to
 know who is calling, or have each person sign in to their own account. Each is explained, with the situations it is for,

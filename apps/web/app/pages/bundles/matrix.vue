@@ -25,7 +25,7 @@ const { data: matrix } = await useAsyncData<Matrix>(
     const empty: Matrix = { bundles: [], servers: [], members: {} };
     const [bundleResult, serverResult] = await Promise.all([
       api.GET("/api/v1/bundles", { params: { query: { offset: 0, limit: 100 } } }),
-      api.GET("/api/v1/servers", { params: { query: { offset: 0, limit: 100 } } }),
+      api.GET("/api/v1/upstreams", { params: { query: { offset: 0, limit: 100 } } }),
     ]);
     if (bundleResult.error || serverResult.error) {
       errorMsg.value = apiErrorMessage(bundleResult.error ?? serverResult.error);
@@ -36,7 +36,7 @@ const { data: matrix } = await useAsyncData<Matrix>(
     // rather than one after another.
     const memberships = await Promise.all(
       bundles.map((b) =>
-        api.GET("/api/v1/bundles/{name}/servers", { params: { path: { name: b.name } } }),
+        api.GET("/api/v1/bundles/{name}/upstreams", { params: { path: { name: b.name } } }),
       ),
     );
     const members: Record<string, Record<string, BundleMemberRead>> = {};
@@ -99,11 +99,11 @@ const orphans = computed(() => servers.value.filter((s) => bundleCount(s.name) =
           <tr>
             <th class="sticky left-0 bg-muted">Bundle</th>
             <th v-for="s in servers" :key="s.name" class="text-center">
-              <NuxtLink :to="`/servers/${s.name}`" class="underline whitespace-nowrap">{{
+              <NuxtLink :to="`/upstreams/${s.name}`" class="underline whitespace-nowrap">{{
                 s.name
               }}</NuxtLink>
             </th>
-            <th class="text-center whitespace-nowrap">Servers</th>
+            <th class="text-center whitespace-nowrap">Upstream servers</th>
           </tr>
         </thead>
         <tbody>

@@ -43,17 +43,18 @@ forbidden, so a user cannot learn that a bundle exists if they have no way in.
 
 ## Members
 
-Add a server to the bundle with `PUT /api/v1/bundles/{name}/servers/{server_name}`:
+Add a server to the bundle with `PUT /api/v1/bundles/{name}/upstreams/{server_name}`:
 
 ```bash
-curl -s -X PUT $API/bundles/assistant/servers/weather -H "$AUTH" \
+curl -s -X PUT $API/bundles/assistant/upstreams/weather -H "$AUTH" \
   -H "Content-Type: application/json" -d '{"enabled": true}'
 ```
 
 The same route with `"enabled": false` **hides** every tool of that server from the bundle without removing the
 membership or its per-tool curation. `DELETE` on the route removes the membership.
 
-`GET /api/v1/bundles/{name}/servers` lists members with their health, so you can see at a glance which upstream is down.
+`GET /api/v1/bundles/{name}/upstreams` lists members with their health, so you can see at a glance which upstream is
+down.
 
 A bundle cannot contain one of this gateway's own endpoints as a member; that self-reference is rejected when the
 membership is created.

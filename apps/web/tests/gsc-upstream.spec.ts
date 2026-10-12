@@ -10,7 +10,7 @@ test.use({ storageState: STORAGE });
 test(testTitle("E2E-12"), async ({ page, steps }) => {
   await steps.play([
     given("the seo-gsc server detail page", async () => {
-      await page.goto("/servers/seo-gsc");
+      await page.goto("/upstreams/seo-gsc");
       await expect(page.getByTestId("input-url")).toHaveValue("http://seo-gsc:8000/mcp");
     }),
     then("the seeded forward_headers pass the caller's bearer through", { req: "FWD-4" }, async () => {
@@ -29,20 +29,20 @@ test(testTitle("E2E-13"), async ({ page, steps }) => {
   const name = "e2e-oauth";
   page.on("dialog", (d) => d.accept());
   await steps.play([
-    given("the admin on the servers page", () => page.goto("/servers")),
+    given("the admin on the servers page", () => page.goto("/upstreams")),
     when("registering a server whose users sign in with their own account", { req: "UI-6" }, async () => {
       await page.getByTestId("create-url").fill("http://oauth-e2e.invalid/mcp");
       await page.getByTestId("create-manual").click();
       await page.getByTestId("create-name").fill(name);
       await page.getByTestId("source-per_user").check();
       await page.getByTestId("create-submit").click();
-      await page.waitForURL(new RegExp(`/servers/${name}$`));
+      await page.waitForURL(new RegExp(`/upstreams/${name}$`));
     }),
     then("the connect link targets its gateway connect route", { req: "UPO-1" }, async () => {
       const href = await page.getByTestId("upstream-connect").getAttribute("href");
       expect(href).toContain(`/oauth/upstream/${name}/connect`);
       await page.getByTestId("delete-server").click();
-      await page.waitForURL(/\/servers$/);
+      await page.waitForURL(/\/upstreams$/);
     }),
   ]);
 });

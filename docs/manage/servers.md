@@ -1,12 +1,12 @@
 # Upstream servers
 
 An upstream server is an MCP server the gateway connects to over Streamable HTTP and forwards calls to. Register it
-once; bundles reference it by name. The admin UI lists them on the **Servers** page, and the management API addresses
-them under `/api/v1/servers`. For what each setting is for, in plain terms, see
+once; bundles reference it by name. The admin UI lists them on the **Upstream servers** page, and the management API
+addresses them under `/api/v1/upstreams`. For what each setting is for, in plain terms, see
 [Upstream server settings](/guide/upstream-server-settings).
 
-Everything on this page is available in the admin UI under **Servers** and through the management API. The API examples
-assume:
+Everything on this page is available in the admin UI under **Upstream servers** and through the management API. The API
+examples assume:
 
 ```bash
 API=https://gw.example.com/api/v1
@@ -33,10 +33,10 @@ server.
 
 ## Inspecting a server before registering it
 
-`POST /api/v1/servers:inspect` contacts a URL the way discovery would and reports what it found. Nothing is stored.
+`POST /api/v1/upstreams:inspect` contacts a URL the way discovery would and reports what it found. Nothing is stored.
 
 ```bash
-curl -s -X POST $API/servers:inspect -H "$AUTH" -H "Content-Type: application/json" \
+curl -s -X POST $API/upstreams:inspect -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"url": "https://mcp.example.com/mcp"}'
 ```
 
@@ -51,20 +51,20 @@ The answer's `connection_state` is one of:
 | `unreachable` | No connection (DNS, refused, TLS, timeout). | Check the URL. A server that is not up yet can still be registered. |
 | `egress_denied` | The address is outside what the gateway may reach. | See [Network egress](/self-hosting/deploy#network-egress). |
 
-`suggestion` is a ready-to-submit body for `PUT /servers/{name}`: a name derived from the server's own `serverInfo`, its
-description, the detected `auth_mode`, and `per_user` for an OAuth server (a person's own account is the safe default;
-switch to `shared` for a service account).
+`suggestion` is a ready-to-submit body for `PUT /upstreams/{name}`: a name derived from the server's own `serverInfo`,
+its description, the detected `auth_mode`, and `per_user` for an OAuth server (a person's own account is the safe
+default; switch to `shared` for a service account).
 
-A registry `server.json` can seed the same flow: `POST /api/v1/servers:from-server-json` with `{"document": {...}}`
+A registry `server.json` can seed the same flow: `POST /api/v1/upstreams:from-server-json` with `{"document": {...}}`
 returns a draft with the first `streamable-http` remote's URL and the headers its publisher declared (name, description,
 required, secret), so you know which credential to enter. It fetches nothing.
 
 ## Registering a server
 
-`PUT /api/v1/servers/{name}` creates or updates a server by name. The path name and the body name must match.
+`PUT /api/v1/upstreams/{name}` creates or updates a server by name. The path name and the body name must match.
 
 ```bash
-curl -s -X PUT $API/servers/weather -H "$AUTH" -H "Content-Type: application/json" -d '{
+curl -s -X PUT $API/upstreams/weather -H "$AUTH" -H "Content-Type: application/json" -d '{
   "name": "weather",
   "description": "Forecasts and current conditions",
   "url": "http://weather-mcp:8080/mcp"
@@ -134,13 +134,13 @@ This needs `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` to be set; until it is, the server'
      (PKCE, no secret) with `<public url>/oauth/upstream/callback` as its redirect URI, and keeps that registration
      bound to the authorization server's issuer — if the server later moves to another authorization server, the
      registration and its tokens are dropped and the gateway registers again;
-   - otherwise you store a client. `POST /servers:inspect` tells you in advance
+   - otherwise you store a client. `POST /upstreams:inspect` tells you in advance
      (`oauth.client_identification: preregistered_required`).
 
    To store the client the gateway should present to the upstream:
 
    ```bash
-   curl -s -X PUT $API/servers/crm/upstream-oauth -H "$AUTH" -H "Content-Type: application/json" -d '{
+   curl -s -X PUT $API/upstreams/crm/upstream-oauth -H "$AUTH" -H "Content-Type: application/json" -d '{
      "client_id": "bundlemcp",
      "client_secret": "…",
      "authorization_url": "https://auth.crm.example.com/authorize",
@@ -158,7 +158,7 @@ This needs `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` to be set; until it is, the server'
 3. Connect an account. From the server's page in the UI click **Connect**, or open
    `<public url>/oauth/upstream/crm/connect` in a browser while signed in as an admin. The gateway sends you through the
    upstream's consent and stores the resulting tokens.
-4. Check `GET /api/v1/servers/crm/upstream-oauth`: `shared.connected` is `true`, and `account_hint` shows a masked
+4. Check `GET /api/v1/upstreams/crm/upstream-oauth`: `shared.connected` is `true`, and `account_hint` shows a masked
    account identifier.
 
 Every authorization, token and refresh request names the server as the RFC 8707 `resource`, so the token is issued for
@@ -170,8 +170,8 @@ a different issuer than the one it was fetched for.
 For a shared server whose provider issued a client for machine access, store the client with
 `grant_type: client_credentials` and its secret. The gateway then obtains tokens with the client credentials grant (the
 MCP OAuth Client Credentials extension) — no browser sign-in — and simply requests a new token when one expires. Connect
-it right away with `POST /api/v1/servers/{name}/upstream-oauth:connect`, or let the first call do it. Such a client only
-works with `identity_mode: shared`.
+it right away with `POST /api/v1/upstreams/{name}/upstream-oauth:connect`, or let the first call do it. Such a client
+only works with `identity_mode: shared`.
 
 #### When a server asks for more permission
 
@@ -184,7 +184,7 @@ is connected the server has no tools in the cache, and discovery reports it as n
 completed connect triggers discovery, and when the tools change the server's bundles are invalidated so connected
 clients re-list them.
 
-`DELETE /api/v1/servers/crm/upstream-oauth/token` disconnects the shared account.
+`DELETE /api/v1/upstreams/crm/upstream-oauth/token` disconnects the shared account.
 
 #### Shared versus per-user identity
 
@@ -245,8 +245,8 @@ The negotiated revision is stored as `protocol_version` so you can see which ser
 
 ## Tools and health
 
-`GET /api/v1/servers/{name}/tools` lists the cached tools with their input schema, annotations and `last_seen_at`.
-`POST /api/v1/servers/{name}:refresh-tools` re-probes and re-discovers; the result reports how many tools were
+`GET /api/v1/upstreams/{name}/tools` lists the cached tools with their input schema, annotations and `last_seen_at`.
+`POST /api/v1/upstreams/{name}:refresh-tools` re-probes and re-discovers; the result reports how many tools were
 discovered and how many definitions changed.
 
 Creating a server probes it in the background. Updating one probes it only when the update changes how the upstream is
@@ -277,12 +277,12 @@ The name is part of every presented tool name, so renaming a server that is a me
 connected client sees. The rename route refuses unless you acknowledge that:
 
 ```bash
-curl -s -X POST "$API/servers/weather:rename?new_name=forecast&force=true" -H "$AUTH"
+curl -s -X POST "$API/upstreams/weather:rename?new_name=forecast&force=true" -H "$AUTH"
 ```
 
 ## Deleting
 
-`DELETE /api/v1/servers/{name}` removes the server, its cached tools and its bundle memberships. Endpoints of those
+`DELETE /api/v1/upstreams/{name}` removes the server, its cached tools and its bundle memberships. Endpoints of those
 bundles keep serving the remaining members.
 
 ## Reaching the server

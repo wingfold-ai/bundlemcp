@@ -111,7 +111,7 @@ async def test_bootstrap_discovers_its_servers_after_the_commit(uow):
     """BOOT-7/DISC-1: every bootstrapped server is probed, and only once it is committed."""
     document = BootstrapDocument.model_validate(
         {
-            "servers": [
+            "upstreams": [
                 {"name": "echo", "url": "http://echo/mcp"},
                 {"name": "weather", "url": "http://weather/mcp"},
             ]
@@ -128,7 +128,7 @@ async def test_failed_bootstrap_probes_nothing(uow):
     """BOOT-7: a document that does not land schedules no discovery."""
     document = BootstrapDocument.model_validate(
         {
-            "servers": [{"name": "echo", "url": "http://echo/mcp"}],
+            "upstreams": [{"name": "echo", "url": "http://echo/mcp"}],
             "endpoints": [{"name": "ep", "bundle_name": "missing"}],
         }
     )
@@ -197,7 +197,7 @@ async def test_unchanged_upsert_retries_a_server_whose_last_probe_failed(uow):
 async def test_reapplied_bootstrap_does_not_probe_working_servers(uow):
     """BOOT-7/SRV-2: a gateway restart that re-applies the same document wakes no upstream."""
     document = BootstrapDocument.model_validate(
-        {"servers": [{"name": "echo", "url": "http://echo/mcp"}]}
+        {"upstreams": [{"name": "echo", "url": "http://echo/mcp"}]}
     )
     discovery = CommitAwareDiscovery(uow)
     runner = BootstrapRunner(
@@ -213,8 +213,8 @@ async def test_bootstrap_document_lands_in_one_commit(uow):
     """BOOT-2: the whole document is applied inside one atomic scope."""
     document = BootstrapDocument.model_validate(
         {
-            "servers": [{"name": "echo", "url": "http://echo/mcp"}],
-            "bundles": [{"name": "demo", "servers": ["echo"]}],
+            "upstreams": [{"name": "echo", "url": "http://echo/mcp"}],
+            "bundles": [{"name": "demo", "upstreams": ["echo"]}],
             "endpoints": [{"name": "ep", "bundle_name": "demo"}],
         }
     )

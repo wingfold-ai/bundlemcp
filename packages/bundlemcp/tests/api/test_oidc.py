@@ -122,7 +122,7 @@ async def test_management_api_accepts_admin_session(env):
     await _login(
         http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
     )
-    resp = await http.get("/api/v1/servers")
+    resp = await http.get("/api/v1/upstreams")
     assert resp.status_code == 200
 
 
@@ -130,7 +130,7 @@ async def test_non_admin_session_rejected(env):
     """Non-admin users can't reach the management API."""
     http, app, provider = env
     await _login(http, provider, OidcClaims(issuer="http://idp", sub="b", email="user@example.com"))
-    resp = await http.get("/api/v1/servers")
+    resp = await http.get("/api/v1/upstreams")
     assert resp.status_code == 401
 
 
@@ -143,17 +143,17 @@ async def test_csrf_origin_check_on_mutation(env):
     body = {"name": "s1", "url": "http://s1/mcp"}
 
     # no Origin -> rejected
-    bad = await http.put("/api/v1/servers/s1", json=body)
+    bad = await http.put("/api/v1/upstreams/s1", json=body)
     assert bad.status_code == 403
 
     # cross-origin -> rejected
     cross = await http.put(
-        "/api/v1/servers/s1", json=body, headers={"Origin": "http://evil.example"}
+        "/api/v1/upstreams/s1", json=body, headers={"Origin": "http://evil.example"}
     )
     assert cross.status_code == 403
 
     # same-origin -> allowed
-    ok = await http.put("/api/v1/servers/s1", json=body, headers={"Origin": PUBLIC_URL})
+    ok = await http.put("/api/v1/upstreams/s1", json=body, headers={"Origin": PUBLIC_URL})
     assert ok.status_code == 200
 
 
@@ -163,7 +163,7 @@ async def test_logout_clears_session(env):
         http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
     )
     await http.post("/logout", headers={"Origin": PUBLIC_URL})
-    resp = await http.get("/api/v1/servers")
+    resp = await http.get("/api/v1/upstreams")
     assert resp.status_code == 401
 
 
@@ -179,7 +179,7 @@ async def test_deactivation_logs_out_and_revokes(env):
     resp = await http.post(f"/api/v1/users/{user.id}:deactivate", headers={"Origin": PUBLIC_URL})
     assert resp.status_code == 200
     # session now fails is_active re-check
-    follow = await http.get("/api/v1/servers")
+    follow = await http.get("/api/v1/upstreams")
     assert follow.status_code == 401
 
 

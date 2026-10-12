@@ -41,7 +41,7 @@ def test_seo_bundle_discovers_gsc_tools():
     # force a fresh discovery pass in case the boot-time probe raced seo-gsc
     svc = {"Authorization": f"Bearer {SERVICE_KEY}"}
     refresh = httpx.post(
-        f"{GATEWAY_URL}/api/v1/servers/seo-gsc:refresh-tools", headers=svc, timeout=60
+        f"{GATEWAY_URL}/api/v1/upstreams/seo-gsc:refresh-tools", headers=svc, timeout=60
     )
     refresh.raise_for_status()
     result = refresh.json()

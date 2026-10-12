@@ -123,7 +123,7 @@ async function inspect(withCredential = false) {
   }
   inspecting.value = true;
   try {
-    const { data, error } = await api.POST("/api/v1/servers:inspect", {
+    const { data, error } = await api.POST("/api/v1/upstreams:inspect", {
       body: { url: url.value.trim(), headers: withCredential ? credentialHeaders() : {} },
     });
     if (error) {
@@ -152,7 +152,7 @@ async function importServerJson() {
     errorMsg.value = "server.json is not valid JSON";
     return;
   }
-  const { data, error } = await api.POST("/api/v1/servers:from-server-json", {
+  const { data, error } = await api.POST("/api/v1/upstreams:from-server-json", {
     body: { document },
   });
   if (error) {
@@ -207,7 +207,7 @@ async function create() {
   for (const r of fwdRows.value) if (r.key.trim()) forward_headers[r.key.trim()] = r.val || r.key;
   creating.value = true;
   try {
-    const { error } = await api.PUT("/api/v1/servers/{name}", {
+    const { error } = await api.PUT("/api/v1/upstreams/{name}", {
       params: { path: { name: trimmed } },
       body: {
         name: trimmed,
@@ -225,7 +225,7 @@ async function create() {
       return;
     }
     if (needsManualClient.value) {
-      const stored = await api.PUT("/api/v1/servers/{name}/upstream-oauth", {
+      const stored = await api.PUT("/api/v1/upstreams/{name}/upstream-oauth", {
         params: { path: { name: trimmed } },
         body: {
           client_id: clientId.value.trim(),
@@ -239,7 +239,7 @@ async function create() {
       }
     }
     if (source.value === "client_credentials") {
-      const connected = await api.POST("/api/v1/servers/{name}/upstream-oauth:connect", {
+      const connected = await api.POST("/api/v1/upstreams/{name}/upstream-oauth:connect", {
         params: { path: { name: trimmed } },
       });
       if (connected.error) {
@@ -266,13 +266,13 @@ watch(url, (value) => {
 
 <template>
   <div class="wf-card space-y-4 max-w-2xl" data-testid="register-server">
-    <h2 class="text-sm font-semibold">Register server</h2>
+    <h2 class="text-sm font-semibold">Register upstream server</h2>
 
     <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
 
     <!-- step 1: where it is -->
     <form class="space-y-2" @submit.prevent="inspect()">
-      <label class="wf-label" for="create-url">Server URL</label>
+      <label class="wf-label" for="create-url">Upstream URL</label>
       <div class="flex gap-2">
         <input
           id="create-url"
@@ -376,7 +376,7 @@ watch(url, (value) => {
             data-testid="create-name"
             @input="nameEdited = true"
           />
-          <p class="wf-help">Prefixes the server's tools, e.g. <code>{{ name || "name" }}__search</code>.</p>
+          <p class="wf-help">Prefixes the upstream's tools, e.g. <code>{{ name || "name" }}__search</code>.</p>
         </div>
         <div>
           <label class="wf-label" for="create-description">Description</label>
@@ -461,7 +461,7 @@ watch(url, (value) => {
             @click="inspect(true)"
             >Test the credential</UButton
           >
-          <span v-if="verified === 'ok'" class="text-success">The server accepted it.</span>
+          <span v-if="verified === 'ok'" class="text-success">The upstream accepted it.</span>
           <span v-else-if="verified === 'refused'" class="text-error">
             The server refused it ({{ CONNECTION_STATE_LABEL[inspection?.connection_state ?? "error"] }}).
           </span>

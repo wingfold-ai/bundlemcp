@@ -10,8 +10,8 @@ and marks handler methods with `@route.get`, `@route.post`, `@route.put` or `@ro
 
 ```python
 class ServerController(ManagementController):
-    prefix = "/servers"
-    tags = ("servers",)
+    prefix = "/upstreams"
+    tags = ("upstreams",)
 
     @route.get("")
     async def list_servers(

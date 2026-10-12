@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class ServerInspectRequest(BaseModel):
-    """Body for POST /servers:inspect."""
+    """Body for POST /upstreams:inspect."""
 
     url: str = Field(description="Streamable HTTP URL of the upstream MCP server to inspect")
     headers: dict[str, str] = Field(

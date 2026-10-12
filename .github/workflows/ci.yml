@@ -150,7 +150,7 @@ jobs:
           SK=bmcp_sk_devservicekey000000000000000000000000
           for i in $(seq 1 30); do
             n=$(curl -s -X POST -H "Authorization: Bearer $SK" \
-              http://localhost:8000/api/v1/servers/echo:refresh-tools \
+              http://localhost:8000/api/v1/upstreams/echo:refresh-tools \
               | python3 -c "import sys,json;print(json.load(sys.stdin).get('discovered',0))" 2>/dev/null || echo 0)
             [ "$n" -gt 0 ] && { echo "echo discovered $n tools"; break; }
             sleep 3

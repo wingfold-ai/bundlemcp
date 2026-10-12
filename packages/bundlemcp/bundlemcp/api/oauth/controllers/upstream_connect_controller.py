@@ -112,7 +112,7 @@ class UpstreamConnectController(Controller):
             elif exc.reason == "client_credentials_client":
                 detail = (
                     "the server's client uses client credentials; connect it with "
-                    "POST /api/v1/servers/{name}/upstream-oauth:connect instead"
+                    "POST /api/v1/upstreams/{name}/upstream-oauth:connect instead"
                 )
             else:
                 detail = f"upstream authorization server unavailable: {exc.reason}"

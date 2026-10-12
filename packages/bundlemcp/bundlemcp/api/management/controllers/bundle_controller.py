@@ -49,7 +49,7 @@ class BundleController(ManagementController):
     async def delete_bundle(self, name: str, service: BundleServiceProvider) -> None:
         await service.delete(name)
 
-    @route.get("/{name}/servers")
+    @route.get("/{name}/upstreams")  # SRV-16
     async def list_members(
         self, name: str, service: BundleServiceProvider
     ) -> list[BundleMemberRead]:
@@ -59,21 +59,21 @@ class BundleController(ManagementController):
     async def list_tools(self, name: str, service: BundleServiceProvider) -> list[BundleToolRead]:
         return await service.list_tools(name)
 
-    @route.put("/{name}/servers/{server_name}")
+    @route.put("/{name}/upstreams/{upstream_name}")
     async def set_member(
         self,
         name: str,
-        server_name: str,
+        upstream_name: str,
         body: BundleServerUpdate,
         service: BundleServiceProvider,
     ) -> BundleMembershipRead:
-        return await service.set_member(name, server_name, body)
+        return await service.set_member(name, upstream_name, body)
 
-    @route.delete("/{name}/servers/{server_name}", status_code=status.HTTP_204_NO_CONTENT)
+    @route.delete("/{name}/upstreams/{upstream_name}", status_code=status.HTTP_204_NO_CONTENT)
     async def remove_member(
-        self, name: str, server_name: str, service: BundleServiceProvider
+        self, name: str, upstream_name: str, service: BundleServiceProvider
     ) -> None:
-        await service.remove_member(name, server_name)
+        await service.remove_member(name, upstream_name)
 
     @route.put("/{name}/tools/{tool_id}")
     async def curate_tool(

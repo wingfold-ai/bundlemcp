@@ -29,14 +29,14 @@ Playwright test title, the recording filename, and this table.
 | Requirement | Spec | Statement |
 |-------------|------|-----------|
 | UI-2 | `60-admin-ui.md` | Auth: OIDC login redirect (21-admin-auth.md); all routes behind it; non-admin users get a "no access" page. |
-| UI-1 | `60-admin-ui.md` | - Servers — list w/ health and connection-state badges and the MCP revision negotiated at the last successful probe (SRV-10); detail: config, secret header e… |
+| UI-1 | `60-admin-ui.md` | - Upstream servers — list w/ health and connection-state badges and the MCP revision negotiated at the last successful probe (SRV-10); detail: config, secret… |
 | SRV-10 | `10-server-registry.md` | Protocol era per upstream (PROT-21): a server has a protocol_mode — auto (default: probe server/discover, fall back to initialize), legacy (always the initia… |
 | SRV-11 | `10-server-registry.md` | POST /servers:inspect takes a url and optional candidate headers, stores nothing, and reports what the upstream is: its connection_state (SRV-12), negotiated… |
 | UI-6 | `60-admin-ui.md` | Registering a server starts from its URL (or a pasted registry server.json, SRV-15): the UI runs inspection (SRV-11), shows what was detected, and asks only … |
 | SRV-2 | `10-server-registry.md` | Create/update/delete/list/get MUST be available in the management API (40-management-api.md) and the UI. Create and update MUST validate the config by connec… |
-| DISC-1 | `11-tool-discovery.md` | Discovery MUST run on server create/update (SRV-2), including a bootstrap upsert once its document has committed (BOOT-7), on explicit "refresh tools" from U… |
+| DISC-1 | `11-tool-discovery.md` | Discovery MUST run on server create and on an update that needs it (SRV-2), including a bootstrap upsert once its document has committed (BOOT-7), on explici… |
 | UI-4 | `60-admin-ui.md` | Form validation mirrors backend rules (generated from the OpenAPI constraints where possible) so users see slug/uniqueness errors before submitting. |
-| BND-6 | `12-bundles.md` | Bundle CRUD + membership management MUST be available in the management API and UI. |
+| BND-6 | `12-bundles.md` | Bundle CRUD + membership management MUST be available in the management API and UI; members are addressed as /bundles/{name}/upstreams/{upstream_name} (SRV-16). |
 | BND-4 | `12-bundles.md` | BundleServer.enabled=false removes all of a server's tools from the bundle's tools/list and blocks calls to them, without deleting the membership or its Bund… |
 | TM-1 | `13-tool-management.md` | Each (bundle, tool) pair has enabled (default true) and optional overrides for name, title, description, annotations (02-domain-model.md, BundleTool). |
 | TM-3 | `13-tool-management.md` | Name overrides replace the prefixed name (server__tool → override_name); the router MUST map override names back to the origin server/tool on call. Override … |
@@ -50,7 +50,7 @@ Playwright test title, the recording filename, and this table.
 | ADM-6 | `21-admin-auth.md` | admin sessions have a max age forcing periodic re-login (IdP re-check); an admin (or the management API) can deactivate a user, which immediately revokes the… |
 | OAS-11 | `20-oauth-server.md` | the authorize flow shows a consent screen (client name + target endpoint + requested scope) before issuing a code. Consent is persisted per (user, client, en… |
 | KEY-4 | `22-api-keys.md` | Deactivation (is_active=false) and deletion take effect within the cross-replica propagation budget (STP-3/STP-4 — an invalidation event, not a cache TTL); l… |
-| API-1 | `40-management-api.md` | Base path /api/v1; resources: servers, servers/{id}/tools, bundles, bundles/{id}/servers, bundles/{id}/tools, endpoints, api-keys, users, audit-records, conf… |
+| API-1 | `40-management-api.md` | Base path /api/v1; resources: upstreams, upstreams/{id}/tools, bundles, bundles/{id}/upstreams (SRV-16), bundles/{id}/tools, endpoints, api-keys, users, audi… |
 | DOM-5 | `02-domain-model.md` | Config-class entities participate in cross-replica cache invalidation per 33-state-propagation.md. |
 | FWD-4 | `24-identity-forwarding.md` | Upstreams that need to verify the forwarded bearer can call POST /oauth/introspect (OAS-5) — the sequence the first consumer's servers use today against meta… |
 | FWD-7 | `24-identity-forwarding.md` | A forward_headers entry that forwards authorization passes the caller's gateway token to the upstream — token passthrough, which the MCP authorization spec f… |
