@@ -13,14 +13,28 @@
 ## Bring the stack up
 
 ```bash
-# core stack (gateway, web, Postgres, Valkey, Keycloak, echo-mcp)
+# core stack (gateway, web, Postgres, Valkey, Keycloak, echo-mcp, oauth-demo)
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
-# ... plus the fleet (private GHCR images)
+# ... plus the fleet (private GHCR images), with BUNDLEMCP_SEED_FILE=seed.fleet.yaml in deploy/.env
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile fleet up -d --build --wait
 ```
 
-Services: gateway :8000, web UI :3000, Keycloak :8080 (admin/admin), seo-gsc :8001, SeaweedFS :8333. The seed registers
-echo + the fleet and exposes endpoints `demo` (api_key), `seo` and `media` (oauth + api_key).
+Services: gateway :8000, web UI :3000, Keycloak :8080 (admin/admin), seo-gsc :8001, SeaweedFS :8333. `seed.yaml`
+registers echo and oauth-demo and exposes endpoints `demo` (api_key), `claude` and `chatgpt` (oauth).
+`seed.fleet.yaml` is the same document plus the fleet, with endpoints `seo` and `media` (oauth + api_key); the fleet
+integration tests need it.
+
+## Reach the stack from claude.ai, ChatGPT or Claude Desktop
+
+```bash
+deploy/stack.sh up      # or: make up
+```
+
+`deploy/stack.sh` starts the core stack behind a Caddy proxy and a tunnel, chosen by `TUNNEL` in `deploy/.env`:
+`quick` (default, a Cloudflare quick tunnel, no account, a new `*.trycloudflare.com` URL on every tunnel restart),
+`ngrok` (a static domain: `NGROK_AUTHTOKEN` and `NGROK_DOMAIN`), or `none`. It reads the tunnel's URL first and starts
+the gateway with it as `BUNDLEMCP_PUBLIC_URL`, so OAuth metadata and redirect URIs match what the client dials.
+`deploy/stack.sh url` prints the current URL, `down` stops everything (data stays), `rebuild` starts from empty volumes.
 
 ## Test suites
 

@@ -32,6 +32,12 @@ layer, CI, or any operator can stand up a fully configured gateway from config a
   — a probe runs in its own transaction and would not see an uncommitted server. A fresh start therefore serves the
   servers' tools without a manual refresh. A failed probe is recorded on the server ([SRV-4](10-server-registry.md)) and
   never fails the bootstrap, strict or not; a document that does not land probes nothing.
+- **BOOT-9** A server entry MAY carry an `upstream_oauth` block — the pre-registered client the gateway presents to the
+  server's authorization server ([UPO-1](23-upstream-oauth.md)), in the same shape as the management API's client route
+  takes. It is applied after the server's upsert, inside the document's transaction, exactly as that route applies it:
+  the client secret is encrypted at rest and never returned. Storing a client needs token encryption keys
+  ([DEP-9](71-deployment.md)); a document that names one without them does not land, so a secret is never stored in the
+  clear. (Numbered after BOOT-8, which the published-name rename reserves.)
 
 ## Out of scope
 

@@ -204,7 +204,12 @@ class CompositionRoot:
         ).build()
 
         await self._ensure_initial_service_key(units, hasher, generator)
-        await BootstrapRunner(units, discovery).run(settings)  # spec 41
+        await BootstrapRunner(  # spec 41
+            units,
+            discovery,
+            cipher=cipher,
+            connections=upstream_tokens or NoUpstreamConnections(),
+        ).run(settings)
 
         subscriber = InvalidationSubscriber(redis)  # STP-2: one subscriber per replica
         subscriber.on_reconnect_flush(runtime_config.flush)

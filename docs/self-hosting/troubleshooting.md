@@ -49,12 +49,6 @@ the container, not your machine — and loopback is blocked deliberately. Use
 or attach your server to the compose network and use its service name. See
 [Network egress](/self-hosting/deploy#network-egress).
 
-## The four extra servers on the Servers page are red
-
-Expected. `deploy/seed.yaml` registers four private servers the maintainers use
-that the default stack does not start. Delete them, or remove them from your
-copy of the seed.
-
 ## `401 admin session or service API key required`
 
 **Cause, in order of likelihood.**

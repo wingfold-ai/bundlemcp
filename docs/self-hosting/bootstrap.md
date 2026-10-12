@@ -74,7 +74,7 @@ The entries use exactly the same schemas as the management API's `PUT` routes:
 
 | List | Schema | Notes |
 |---|---|---|
-| `servers` | the server upsert body | See [Servers](/manage/servers) for every field. |
+| `servers` | the server upsert body plus an optional `upstream_oauth` block | See [Servers](/manage/servers) for every field. `upstream_oauth` is the pre-registered client the gateway presents to an OAuth-protected server (`client_id`, and optionally `client_secret`, `authorization_url`, `token_url`, `grant_type`), as the server's upstream OAuth client route takes it. It needs token encryption keys; without them the document does not apply. |
 | `bundles` | the bundle upsert body plus `servers`, a list of member names | Members are added with `enabled: true`. Tool-level curation is not part of the document; set it through the API afterwards. |
 | `endpoints` | the endpoint upsert body | Profile and auth-mode rules are validated as on the API. |
 
@@ -104,6 +104,8 @@ from then on. Create further keys through the API with that key, then retire it.
 
 ## The demo seed
 
-`deploy/seed.yaml` is the document the reference stack applies. It registers the `echo` example server, bundles it as
-`demo` and exposes it at the `demo` endpoint with API-key access, plus the maintainers' fleet of upstream servers behind
+`deploy/seed.yaml` is the document the reference stack applies. It registers the `echo` example server and
+`oauth-demo`, an upstream that is itself OAuth-protected (`examples/oauth-demo-mcp`, login `demo_user` /
+`demo_password`), bundles both as `demo`, and exposes the bundle at three endpoints: `demo` with API-key access, and
+`claude` and `chatgpt` with OAuth for those clients. It also registers the maintainers' fleet of upstream servers behind
 the `fleet` compose profile. Copy it as a starting point and remove the fleet entries.
