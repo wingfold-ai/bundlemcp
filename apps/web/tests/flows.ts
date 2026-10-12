@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, request as apiRequest, type APIRequestContext, type Page } from "@playwright/test";
 
 // Shared, marker-based flows for the UI e2e suite. Every selector here is a
 // `data-testid` (never text or coordinates), so a visual/layout change does not
@@ -7,6 +7,31 @@ import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 export const STORAGE = "tests/.auth/admin.json";
 export const GATEWAY_URL = process.env.GATEWAY_URL ?? "http://localhost:8000";
+const SERVICE_KEY =
+  process.env.BUNDLEMCP_INITIAL_SERVICE_KEY ?? "bmcp_sk_devservicekey000000000000000000000000";
+
+// Register an upstream through the management API for a scenario that needs one
+// the demo seed does not have, run `body`, and delete it again even if `body`
+// fails. The request context is built with an empty storage state: it would
+// otherwise inherit the admin session cookie, and the gateway refuses a
+// cookie-authenticated write that carries no browser origin.
+export async function withUpstream(
+  upstream: { name: string; url: string; forward_headers?: Record<string, string> },
+  body: () => Promise<void>,
+): Promise<void> {
+  const api = await apiRequest.newContext({
+    storageState: { cookies: [], origins: [] },
+    extraHTTPHeaders: { Authorization: `Bearer ${SERVICE_KEY}` },
+  });
+  const path = `${GATEWAY_URL}/api/v1/upstreams/${upstream.name}`;
+  try {
+    expect((await api.put(path, { data: upstream })).ok()).toBeTruthy();
+    await body();
+  } finally {
+    await api.delete(path);
+    await api.dispose();
+  }
+}
 
 // Compose a bundle over the seeded `echo` server through the UI.
 export async function createEchoBundle(page: Page, bundle: string): Promise<void> {
