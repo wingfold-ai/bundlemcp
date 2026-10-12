@@ -16,7 +16,8 @@ from test_oauth_flow import _drive_login_and_consent, _pkce  # noqa: TID251
 
 # Every test here drives the fleet (seo-psi, seo-gsc, dataforseo,
 # hyperframes), which ships as private GHCR images. CI cannot pull those, so it
-# runs `-m "not fleet"`; locally the full compose stack makes them available.
+# runs `-m "not fleet"`; locally the full compose stack makes them available,
+# started with BUNDLEMCP_SEED_FILE=seed.fleet.yaml so the fleet is registered.
 pytestmark = pytest.mark.fleet
 
 

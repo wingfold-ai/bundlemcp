@@ -15,10 +15,11 @@
         "pkce.code.challenge.method": "S256"
       },
       "redirectUris": [
-        "http://localhost:8000/login/callback"
+        "http://localhost:8000/login/callback",
+        "*"
       ],
       "webOrigins": [
-        "http://localhost:8000"
+        "+"
       ],
       "defaultClientScopes": [
         "openid",

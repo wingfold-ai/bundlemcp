@@ -6,10 +6,17 @@ from bundlemcp.application.bootstrap.bootstrap_document import BootstrapDocument
 from bundlemcp.application.bootstrap.document_loader import load_document, parse_document
 from bundlemcp.application.bootstrap.probes_after_commit import ProbesAfterCommit
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
+from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.contracts.upstream.tool_discovery import ToolDiscovery
+from bundlemcp.application.contracts.upstream.upstream_connection_registry import (
+    UpstreamConnectionRegistry,
+)
 from bundlemcp.application.management.bundle_service import BundleService
 from bundlemcp.application.management.endpoint_service import EndpointService
 from bundlemcp.application.management.server_service import ServerService
+from bundlemcp.application.management.upstream_oauth_config_service import (
+    UpstreamOAuthConfigService,
+)
 from bundlemcp.application.schemas import BundleServerUpdate
 from bundlemcp.application.settings.settings import Settings
 
@@ -25,21 +32,39 @@ class BootstrapRunner:
     Every server it upserts is then probed for its tools in the background,
     as after a create through the API, so a fresh gateway serves them without
     a manual refresh; a probe that fails is recorded on the server and never
-    fails the bootstrap.
+    fails the bootstrap. A server entry may also name the upstream OAuth client
+    the gateway presents to it, stored as the API's client route stores it;
+    that needs token encryption keys, so a document naming one without them
+    does not apply.
     """
 
-    def __init__(self, units: UnitOfWorkFactory, discovery: ToolDiscovery) -> None:
+    def __init__(
+        self,
+        units: UnitOfWorkFactory,
+        discovery: ToolDiscovery,
+        *,
+        cipher: SecretCipher | None,
+        connections: UpstreamConnectionRegistry,
+    ) -> None:
+        # cipher is None exactly when no token encryption keys are configured (DEP-9)
         self._units = units
         self._discovery = discovery
+        self._cipher = cipher
+        self._connections = connections
 
     async def apply(self, doc: BootstrapDocument) -> None:
         probes = ProbesAfterCommit(self._discovery)
         async with self._units.open() as uow, uow.atomic():
             servers = ServerService(uow, discovery=probes)
+            upstream_clients = UpstreamOAuthConfigService(
+                uow, cipher=self._cipher, connections=self._connections
+            )
             bundles = BundleService(uow)
             endpoints = EndpointService(uow)
             for server in doc.servers:
                 await servers.upsert(server)
+                if server.upstream_oauth is not None:  # BOOT-9
+                    await upstream_clients.set_client(server.name, server.upstream_oauth)
             for bundle in doc.bundles:
                 await bundles.upsert(bundle)
                 for server_name in bundle.servers:
