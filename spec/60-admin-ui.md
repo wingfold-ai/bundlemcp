@@ -11,9 +11,10 @@ English-only, light/dark theme.
 ## Requirements
 
 - **UI-1 Pages**:
-  - **Servers** — list w/ health and connection-state badges and the MCP revision negotiated at the last successful
-    probe ([SRV-10](10-server-registry.md)); detail: config, secret header editing (write-only), forward-headers,
-    upstream OAuth connect status ([UPO-5](23-upstream-oauth.md)), discovered tools, refresh/prune, probe.
+  - **Upstream servers** — list w/ health and connection-state badges and the MCP revision negotiated at the last
+    successful probe ([SRV-10](10-server-registry.md)); detail: config, secret header editing (write-only),
+    forward-headers, upstream OAuth connect status ([UPO-5](23-upstream-oauth.md)), discovered tools, refresh/prune,
+    probe.
   - **Bundles** — list; detail: member servers (add/remove/enable), tool curation table (enable toggles, inline
     overrides, stale/overridden badges — [TM-5](13-tool-management.md)), endpoints of this bundle, and the catalogue
     overview shown to users ([BND-11](12-bundles.md)).
@@ -51,6 +52,12 @@ English-only, light/dark theme.
   header and the protocol pin sit in a collapsed *Advanced* section. The server detail page shows the connection state
   (SRV-12) and offers the fix for a state that contradicts the configuration, and shows the upstream OAuth card only for
   OAuth servers.
+
+- **UI-7 Upstream server naming.** Navigation, page titles, buttons, empty states and error copy say *upstream
+  server(s)* ([SRV-16](10-server-registry.md)); a sentence may shorten to *server* only after the full term appears in
+  it. The pages live at `/upstream-servers` and `/upstream-servers/{name}`; the former `/servers` routes redirect there
+  (client-side, preserving the rest of the path and query) so bookmarks and links in old documentation keep working.
+  The UI calls only the new API paths ([API-8](40-management-api.md)).
 
 ## Out of scope
 

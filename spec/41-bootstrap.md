@@ -13,8 +13,8 @@ layer, CI, or any operator can stand up a fully configured gateway from config a
 - **BOOT-1** Source: `BUNDLEMCP_BOOTSTRAP_FILE` (path to a YAML/JSON file, compose-friendly) and/or
   `BUNDLEMCP_BOOTSTRAP` (inline JSON). The document is a Pydantic-validated model mirroring the export format
   ([42-export-import.md](42-export-import.md)) plus API keys.
-- **BOOT-2** Applied on startup as **upserts by natural key** (server/bundle/ endpoint names) — semantically the same
-  operations as the management API ([API-4](40-management-api.md), API-6), sharing that code path. Running the same
+- **BOOT-2** Applied on startup as **upserts by natural key** (upstream server/bundle/endpoint names) — semantically the
+  same operations as the management API ([API-4](40-management-api.md), API-6), sharing that code path. Running the same
   bootstrap twice is a no-op.
 - **BOOT-3** API keys in bootstrap: the document supplies the key **value** via env-style reference (never plaintext
   committed to the repo), or a `create-if-missing` entry whose generated value is printed once to the startup log.
@@ -32,12 +32,17 @@ layer, CI, or any operator can stand up a fully configured gateway from config a
   — a probe runs in its own transaction and would not see an uncommitted server. A fresh start therefore serves the
   servers' tools without a manual refresh. A failed probe is recorded on the server ([SRV-4](10-server-registry.md)) and
   never fails the bootstrap, strict or not; a document that does not land probes nothing.
+- **BOOT-8 Key names.** The document lists upstream servers under `upstream_servers`, and a bundle lists its members
+  under `upstream_servers` ([SRV-16](10-server-registry.md)). The former key `servers` is accepted in both places for
+  the same deprecation window as the API aliases ([API-8](40-management-api.md)) and logs one `WARN` per document
+  naming the key to change. A document, or a bundle entry, that carries both keys is rejected as invalid (BOOT-4
+  applies): the gateway does not guess which list is meant.
 - **BOOT-9** A server entry MAY carry an `upstream_oauth` block — the pre-registered client the gateway presents to the
   server's authorization server ([UPO-1](23-upstream-oauth.md)), in the same shape as the management API's client route
   takes. It is applied after the server's upsert, inside the document's transaction, exactly as that route applies it:
   the client secret is encrypted at rest and never returned. Storing a client needs token encryption keys
   ([DEP-9](71-deployment.md)); a document that names one without them does not land, so a secret is never stored in the
-  clear. (Numbered after BOOT-8, which the published-name rename reserves.)
+  clear.
 
 ## Out of scope
 

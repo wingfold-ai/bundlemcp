@@ -11,12 +11,14 @@ migration between instances, and seeding bootstrap files.
 ## Requirements
 
 - **EXP-1** `GET /api/v1/export` returns a versioned JSON document
-  (`{"version": 1, "servers": [...], "bundles": [...], "endpoints": [...]}`) containing all configuration by natural
+  (`{"version": 1, "upstream_servers": [...], "bundles": [...], "endpoints": [...]}`, keys per
+  [SRV-16](10-server-registry.md)) containing all configuration by natural
   keys — the same Pydantic schema bootstrap consumes ([BOOT-1](41-bootstrap.md)).
 - **EXP-2** Secrets (static header values, upstream OAuth client secrets) are **excluded** by default, exported as named
   placeholders (`{"$secret": "HEADER_NAME"}`); an explicit `?include_secrets=true` exports values for full backups under
   the controls of [SEC-11](70-security.md) (admin session only, audit-logged, warning field).
-- **EXP-3** `POST /api/v1/import` applies a document transactionally as upserts by natural key, reporting per-resource
+- **EXP-3** `POST /api/v1/import` accepts the deprecated `servers` key like bootstrap does
+  ([BOOT-8](41-bootstrap.md)) and applies a document transactionally as upserts by natural key, reporting per-resource
   results (created/updated/skipped/error). `dry_run=true` validates and reports without writing.
 - **EXP-4** Import never deletes resources absent from the document (additive/updating only); a `prune=true` flag MAY be
   added later — not v1.

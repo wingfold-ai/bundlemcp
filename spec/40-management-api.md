@@ -12,19 +12,19 @@ which guarantees automation parity (the application layer's registrar, CI, scrip
 
 ## Requirements
 
-- **API-1** Base path `/api/v1`; resources: `servers`, `servers/{id}/tools`, `bundles`, `bundles/{id}/servers`,
-  `bundles/{id}/tools`, `endpoints`, `api-keys`, `users`, `audit-records`, `config`, `profiles` (read-only,
-  [PROF-5](15-endpoint-profiles.md)), plus action routes (e.g. `servers/{id}:refresh-tools`, `servers/{id}:probe`), and
-  `me` (caller identity for the UI: kind, email, `is_admin` — answers 200 for any active signed-in session, admin or
-  not, so the UI can render its "no access" page ([UI-2](60-admin-ui.md)); service keys get their key identity), and
-  `me/endpoints` — the catalogue for that same audience: every enabled endpoint accepting `oauth`, with its connection
-  URL and the bundle's description, so a signed-in non-admin finds what to connect an MCP client to without any
-  privileged call.
+- **API-1** Base path `/api/v1`; resources: `upstream-servers`, `upstream-servers/{id}/tools`, `bundles`,
+  `bundles/{id}/upstream-servers` ([SRV-16](10-server-registry.md)), `bundles/{id}/tools`, `endpoints`, `api-keys`,
+  `users`, `audit-records`, `config`, `profiles` (read-only, [PROF-5](15-endpoint-profiles.md)), plus action routes
+  (e.g. `upstream-servers/{id}:refresh-tools`, `upstream-servers/{id}:probe`), and `me` (caller identity for the UI:
+  kind, email, `is_admin` — answers 200 for any active signed-in session, admin or not, so the UI can render its "no
+  access" page ([UI-2](60-admin-ui.md)); service keys get their key identity), and `me/endpoints` — the catalogue for
+  that same audience: every enabled endpoint accepting `oauth`, with its connection URL and the bundle's description, so
+  a signed-in non-admin finds what to connect an MCP client to without any privileged call.
 - **API-2** Auth: admin browser session ([21-admin-auth.md](21-admin-auth.md)) or `service`-kind API key
   ([KEY-2](22-api-keys.md)) via `Authorization` header. All routes require one of the two; 401/403 are structured.
 - **API-3** DTOs are Pydantic models derived from the SQLModel entities ([ARC-3](01-architecture.md)); OpenAPI schema
   served at `/api/v1/openapi.json` and used to generate the frontend client ([ARC-4](01-architecture.md)).
-- **API-4 Registrar use case** (the contract replacing the tRPC hack): `PUT /api/v1/servers/{name}` is a
+- **API-4 Registrar use case** (the contract replacing the tRPC hack): `PUT /api/v1/upstream-servers/{name}` is a
   **config-only upsert** — create-or-update by name, idempotent, returning the server including current tool cache. It
   never blocks on probing the upstream ([SRV-2](10-server-registry.md) allows registering not-yet-started servers), so a
   discovery loop can converge by repeatedly PUTting desired state. The DTO tolerates an optional `transport` field but
@@ -37,6 +37,16 @@ which guarantees automation parity (the application layer's registrar, CI, scrip
   ([OAS-11](20-oauth-server.md)) and user deactivation ([ADM-6](21-admin-auth.md)) are exposed as routes.
 - **API-6** Write operations SHOULD be safely retryable: upserts by natural key where sensible (API-4), deletes
   idempotent (404 → 204 semantics documented per route).
+- **API-8 Deprecated route aliases.** A renamed route keeps answering at its old path for a deprecation window, with
+  identical behaviour, request and response bodies. Every response from an old path carries `Deprecation` (RFC 9745,
+  the date the alias was deprecated), `Sunset` (RFC 8594, the date it stops answering) and
+  `Link: <new path>; rel="successor-version"`; each use is logged at `WARN` once per caller identity per hour and
+  counted in a `deprecated_route_requests` metric labelled by route, so an operator can see which automation still has
+  to move. Old paths are left out of the OpenAPI document, so generated clients only learn the new ones. The window is
+  at least 180 days from the first release that ships the new path, and never shorter than one minor release; after the
+  sunset date the old path answers `410 Gone` with the new path in the problem body for one further minor release, then
+  `404`. The first use is the `servers` → `upstream-servers` rename ([SRV-16](10-server-registry.md),
+  [ADR-0045](../docs/adr/0045-upstream-servers-on-the-published-surface.md)).
 
 ## Out of scope
 
