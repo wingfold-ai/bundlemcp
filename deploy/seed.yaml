@@ -1,6 +1,7 @@
 # Demo bootstrap (spec 41 / DOC-3): a fresh compose install is never empty.
-# Registers the echo-mcp example plus the MCP fleet, bundles them,
-# and exposes endpoints.
+# Registers the echo-mcp example and an OAuth-protected demo upstream, bundles
+# them, and exposes endpoints. The maintainers' private fleet lives in
+# seed.fleet.yaml (deploy/TESTING.md).
 servers:
   - name: echo
     description: Demo echo MCP server
@@ -23,54 +24,12 @@ servers:
     upstream_oauth:
       client_id: bundlemcp
 
-  - name: seo-psi
-    description: PageSpeed Insights MCP
-    url: http://seo-psi:8000/mcp
-
-  - name: seo-gsc
-    description: >
-      Google Search Console MCP. Verifies the forwarded bearer via RFC 7662
-      introspection against this gateway; users connect their Google account
-      on the server's own /connect page (http://localhost:8001/connect).
-    url: http://seo-gsc:8000/mcp
-    # FWD-1/FWD-4: pass the gateway-issued bearer through so seo-gsc can
-    # introspect it and resolve the per-user Google token.
-    forward_headers:
-      authorization: authorization
-    # Discovery has no caller bearer; the static header (overridden by the
-    # forwarded one at call time) lets tool discovery pass seo-gsc's
-    # introspection (OAS-5 api_key introspection). Dev key — override the
-    # whole seed for real deployments.
-    static_headers:
-      authorization: Bearer bmcp_sk_devservicekey000000000000000000000000
-
-  - name: dataforseo
-    description: DataForSEO MCP (server-side static credentials)
-    url: http://dataforseo:3000/mcp
-
-  - name: hyperframes
-    description: HyperFrames HTML-to-video MCP (per-user via X-MCP-User)
-    url: http://hyperframes:8080/mcp
-    send_identity_header: true
-
 bundles:
   - name: demo
     description: Demo bundle - the echo server plus an OAuth-protected upstream
     servers:
       - echo
       - oauth-demo
-
-  - name: seo
-    description: SEO toolkit - PageSpeed, Search Console, DataForSEO
-    servers:
-      - seo-psi
-      - seo-gsc
-      - dataforseo
-
-  - name: media
-    description: Media generation - HyperFrames rendering
-    servers:
-      - hyperframes
 
 endpoints:
   - name: demo
@@ -94,19 +53,3 @@ endpoints:
     profile: chatgpt
     auth_modes:
       - oauth
-
-  # oauth is listed so seo-gsc's introspection path works (API keys are not
-  # introspectable OAuth tokens); api_key still serves psi/dataforseo callers.
-  - name: seo
-    bundle_name: seo
-    profile: default
-    auth_modes:
-      - oauth
-      - api_key
-
-  - name: media
-    bundle_name: media
-    profile: default
-    auth_modes:
-      - oauth
-      - api_key

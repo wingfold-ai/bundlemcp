@@ -102,7 +102,7 @@ services:
       gateway:
         condition: service_started
 
-  # --- MCP fleet (seed.yaml registers + bundles these) ----------------------
+  # --- MCP fleet (seed.fleet.yaml registers + bundles these) ----------------------
 
   # PageSpeed Insights MCP (sibling seo-improve-mcp repo -> GHCR). No auth
   # required; PSI_API_KEY raises Google quota when set.
@@ -221,7 +221,8 @@ services:
       BUNDLEMCP_OIDC_CLIENT_SECRET: ${BUNDLEMCP_OIDC_CLIENT_SECRET:-dev-gateway-secret}
       BUNDLEMCP_ADMIN_EMAILS: '["admin@example.com"]'
       BUNDLEMCP_INITIAL_SERVICE_KEY: ${BUNDLEMCP_INITIAL_SERVICE_KEY:-bmcp_sk_devservicekey000000000000000000000000}
-      BUNDLEMCP_BOOTSTRAP_FILE: /app/deploy/seed.yaml
+      # seed.fleet.yaml adds the maintainers' private fleet (deploy/TESTING.md)
+      BUNDLEMCP_BOOTSTRAP_FILE: /app/deploy/${BUNDLEMCP_SEED_FILE:-seed.yaml}
       BUNDLEMCP_WEB_ORIGINS: '["http://localhost:3000"]'
       # dev-only key (rotate for anything real): upstream OAuth token encryption
       BUNDLEMCP_TOKEN_ENCRYPTION_KEYS: ${BUNDLEMCP_TOKEN_ENCRYPTION_KEYS:-["Uqw2PEJomK66Xa6lD-TmIU75wHfWRU6T1n9jpYqjv80="]}
@@ -232,6 +233,7 @@ services:
       BUNDLEMCP_EGRESS_ALLOW_CIDRS: '["127.0.0.0/8","::1/128"]'
     volumes:
       - ../deploy/seed.yaml:/app/deploy/seed.yaml:ro
+      - ../deploy/seed.fleet.yaml:/app/deploy/seed.fleet.yaml:ro
     ports:
       - "8000:8000"
       - "9000:9000" # the oauth-demo sidecar (its login page, for the browser)

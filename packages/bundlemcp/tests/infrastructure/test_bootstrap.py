@@ -116,6 +116,21 @@ async def test_seed_file_parses():
     assert doc.endpoints[0].bundle_name == "demo"
 
 
+async def test_fleet_seed_extends_the_demo_seed_unchanged():
+    """The maintainers' seed is the demo seed plus the private fleet, so a stack
+    started with either file serves the same demo bundle and endpoints."""
+    import pathlib
+
+    import yaml
+
+    deploy = pathlib.Path(__file__).resolve().parents[4] / "deploy"
+    demo = BootstrapDocument(**yaml.safe_load((deploy / "seed.yaml").read_text()))
+    fleet = BootstrapDocument(**yaml.safe_load((deploy / "seed.fleet.yaml").read_text()))
+    for section in ("servers", "bundles", "endpoints"):
+        demo_entries = getattr(demo, section)
+        assert getattr(fleet, section)[: len(demo_entries)] == demo_entries, section
+
+
 async def test_inline_json_document_is_applied_after_the_file(engine, redis, tmp_path):
     """BOOT-1: BUNDLEMCP_BOOTSTRAP carries the document inline as JSON; both sources apply."""
     import json
