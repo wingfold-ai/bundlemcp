@@ -41,6 +41,9 @@ collision-free; calls are routed back to the owning upstream by parsing the pref
     enabled member wins, collisions logged). `resources/read`, `resources/subscribe`, and resource-template completions
     resolve the owning member by **fan-out** — trying enabled members in order and taking the first that owns the URI.
   - Completions are routed per [PROT-9](32-protocol-passthrough.md).
+
+  Prompts and resources authored on the bundle itself, served beside this passthrough, are specified in
+  [17-bundle-prompts-resources.md](17-bundle-prompts-resources.md) (Draft).
 - **BND-9** The capability set the bundle advertises at `initialize` is computed per
   [PROT-11](32-protocol-passthrough.md).
 - **BND-10** Bundle `name` is the natural key for export/bootstrap upserts ([EXP-3](42-export-import.md),

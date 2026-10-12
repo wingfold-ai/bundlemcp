@@ -2,10 +2,11 @@
 
 MADR-style records: **Status / Context / Decision drivers / Decision / Alternatives considered / Consequences**
 (Consequences split into Positive and Trade-offs). Append-only: a later decision never edits an earlier record's
-Context, Decision or Consequences, only its `**Status:**` line. Two states express that:
+Context, Decision or Consequences, only its `**Status:**` line. Two states express that, after an optional `proposed`:
 
 | Status | Meaning |
 |---|---|
+| `proposed` | Written with a `Draft` spec and under review; not yet authoritative. Becomes `accepted` when the spec does. |
 | `accepted` | Still authoritative. `**Amended by:** NNNN` means part of it was revised — read both, newest last. |
 | `superseded by NNNN` | Wholly replaced. Do not follow it; it is kept for the reasoning only. |
 
@@ -36,7 +37,7 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0018](0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted |
 | [0019](0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020, 0026) |
 | [0020](0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted (amended by 0023, 0025, 0033) |
-| [0021](0021-mcp-surface-completion.md) | Complete the MCP surface: prompts/resources/completions passthrough, capability aggregation, version negotiation, roots/logging relay | accepted (amended by 0029, 0043) |
+| [0021](0021-mcp-surface-completion.md) | Complete the MCP surface: prompts/resources/completions passthrough, capability aggregation, version negotiation, roots/logging relay | accepted (amended by 0029, 0043, 0044) |
 | [0022](0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | accepted |
 | [0023](0023-import-contracts-and-shared-providers.md) | Import contracts enforce layer direction; shared providers at library level | accepted (amended by 0025, 0033) |
 | [0024](0024-value-objects-and-rich-entities.md) | Value objects for what crosses the edge; behavior on the entities that own it | accepted |
@@ -59,3 +60,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0041](0041-delegated-upstream-tokens.md) | Delegated tokens replace token passthrough for identity-aware upstreams | accepted |
 | [0042](0042-http-metering-hook-and-outcome-kinds.md) | The metering hook can run out of process, and reports outcome kinds | accepted |
 | [0043](0043-contact-upstreams-only-with-a-reason.md) | The gateway contacts an upstream only when it has a reason to | accepted |
+| [0044](0044-bundle-owned-prompts-and-resources.md) | Bundles own prompts and resources, served by the gateway | proposed |

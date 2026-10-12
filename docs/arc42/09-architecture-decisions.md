@@ -26,7 +26,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0018](../adr/0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted | Cross-replica abuse protection; per-IP credential-scan throttling |
 | [0019](../adr/0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020, 0026) | Business logic in framework-free services; one DTO class per module |
 | [0020](../adr/0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted (amended by 0023, 0025, 0033) | Services/DTOs are library peers any subsystem consumes; framework-free AuthService |
-| [0021](../adr/0021-mcp-surface-completion.md) | Complete the MCP surface (prompts/resources/completions, capabilities, version, roots/logging) | accepted (amended by 0029, 0043) | Full-fidelity MCP request/response plane; live passthrough; push-between-calls pooling-dependent |
+| [0021](../adr/0021-mcp-surface-completion.md) | Complete the MCP surface (prompts/resources/completions, capabilities, version, roots/logging) | accepted (amended by 0029, 0043, 0044) | Full-fidelity MCP request/response plane; live passthrough; push-between-calls pooling-dependent |
 | [0022](../adr/0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | accepted | Permissively-licensed store; redis-py client unchanged; RESP-generic |
 | [0023](../adr/0023-import-contracts-and-shared-providers.md) | Import contracts enforce layer direction | accepted (amended by 0025, 0033) | Layering is checked in CI, not by review |
 | [0024](../adr/0024-value-objects-and-rich-entities.md) | Value objects at the edge; behavior on entities | accepted | No tuples or dicts cross layers; rules live once; typed columns |
@@ -49,6 +49,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0041](../adr/0041-delegated-upstream-tokens.md) | Gateway-issued, audience-bound delegated tokens instead of token passthrough | accepted | Upstreams verify callers without holding their credential; one Valkey write per call |
 | [0042](../adr/0042-http-metering-hook-and-outcome-kinds.md) | Out-of-process metering hook over HTTP; post-call reports outcome kinds | accepted | An out-of-process hook needs no custom image; hook contract v2 is breaking for in-process hooks |
 | [0043](../adr/0043-contact-upstreams-only-with-a-reason.md) | Probe on upsert only when discovery inputs change; fan out only to members advertising the capability | accepted | Idle scale-to-zero upstreams stay asleep across deploys and client connects; a stale snapshot hides new prompts/resources until the next discovery |
+| [0044](../adr/0044-bundle-owned-prompts-and-resources.md) | Bundle-authored prompts and resources, unprefixed names and `bundle://` URIs, served without upstream contact | proposed | One server serves several bundles with bundle-specific context; the gateway now stores and serves content |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).
