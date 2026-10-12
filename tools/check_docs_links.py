@@ -46,6 +46,7 @@ TARGETS = _tracked(
 
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*$", re.MULTILINE)
+CUSTOM_ANCHOR = re.compile(r"\{#([\w-]+)\}\s*$")
 SKIP_PREFIXES = ("http://", "https://", "mailto:", "#/", "data:")
 
 
@@ -58,6 +59,9 @@ def slugs(heading: str) -> set[str]:
     rendered by VitePress, so both spellings are accepted rather than guessing
     which renderer a given file is read in.
     """
+    custom = CUSTOM_ANCHOR.search(heading)
+    if custom:  # VitePress `{#id}`: that id replaces the generated slug
+        return {custom.group(1)}
     text = re.sub(r"`([^`]*)`", r"\1", heading)
     text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
     text = re.sub(r"[*_]", "", text)
@@ -72,8 +76,9 @@ def anchors(path: pathlib.Path) -> set[str]:
 def resolve(source: pathlib.Path, target: str) -> pathlib.Path | None:
     """The file a link points at, or None when it resolves to nothing."""
     if target.startswith("/"):
-        # A VitePress site-absolute link; cleanUrls means the .md is implied.
-        candidates = [DOCS / target.lstrip("/")]
+        # A VitePress site-absolute link; cleanUrls means the .md is implied, and
+        # files under docs/public/ are served from the site root.
+        candidates = [DOCS / target.lstrip("/"), DOCS / "public" / target.lstrip("/")]
     else:
         candidates = [source.parent / target]
     for base in candidates:
