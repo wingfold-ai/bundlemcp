@@ -98,6 +98,10 @@ bundlemcp is up.
   Admin UI         $public_url$( [ "$TUNNEL" = none ] && echo "  (web at http://localhost:3000)" )
   Gateway          $public_url
   Keycloak login   admin / admin  (dev identity provider at http://localhost:8080)
+  OAuth demo login demo_user / demo_password  (upstream login page at http://localhost:9000)
+
+  claude.ai / Claude Desktop connector URL:   $public_url/claude/mcp
+  ChatGPT connector URL:                      $public_url/chatgpt/mcp
 
   Every endpoint is served at $public_url/<endpoint name>/mcp, for example:
     curl -H "Authorization: Bearer ${BUNDLEMCP_INITIAL_SERVICE_KEY:-<service key>}" $public_url/demo/mcp

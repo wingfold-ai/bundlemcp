@@ -6,6 +6,23 @@ servers:
     description: Demo echo MCP server
     url: http://echo-mcp:9000/mcp
 
+  # An OAuth-protected upstream (examples/oauth-demo-mcp) reached on the
+  # gateway's own loopback, where the compose stack runs it as a sidecar.
+  # per_user: every caller connects their own account at the demo's login form
+  # (demo_user / demo_password); discovery borrows the first connected account
+  # to list its tools. The client is the public client the demo pre-registers
+  # (BOOT-9).
+  - name: oauth-demo
+    description: >
+      OAuth-protected demo upstream (the MCP python-sdk simple-auth example).
+      Until you connect your account, the bundle offers a tool that returns the
+      connect link; sign in there with demo_user / demo_password.
+    url: http://localhost:9000/mcp
+    auth_mode: upstream_oauth
+    identity_mode: per_user
+    upstream_oauth:
+      client_id: bundlemcp
+
   - name: seo-psi
     description: PageSpeed Insights MCP
     url: http://seo-psi:8000/mcp
@@ -38,9 +55,10 @@ servers:
 
 bundles:
   - name: demo
-    description: Demo bundle aggregating the echo server
+    description: Demo bundle - the echo server plus an OAuth-protected upstream
     servers:
       - echo
+      - oauth-demo
 
   - name: seo
     description: SEO toolkit - PageSpeed, Search Console, DataForSEO
@@ -60,6 +78,22 @@ endpoints:
     profile: default
     auth_modes:
       - api_key
+
+  # The URL to paste into claude.ai / Claude Desktop (<public url>/claude/mcp):
+  # the claude profile requires oauth only, so every caller is a signed-in user
+  # and can connect their own oauth-demo account.
+  - name: claude
+    bundle_name: demo
+    profile: claude
+    auth_modes:
+      - oauth
+
+  # The same bundle for a ChatGPT connector (<public url>/chatgpt/mcp).
+  - name: chatgpt
+    bundle_name: demo
+    profile: chatgpt
+    auth_modes:
+      - oauth
 
   # oauth is listed so seo-gsc's introspection path works (API keys are not
   # introspectable OAuth tokens); api_key still serves psi/dataforseo callers.

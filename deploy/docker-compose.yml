@@ -4,8 +4,8 @@
 # Egress note (SEC-2): compose service hostnames resolve to private IPs, which
 # the default egress policy allows; loopback/metadata ranges stay blocked.
 #
-# Profiles: the core stack (postgres, valkey, keycloak, echo-mcp, gateway, web)
-# starts by default; the maintainers' fleet is behind `--profile fleet` because
+# Profiles: the core stack (postgres, valkey, keycloak, echo-mcp, oauth-demo,
+# gateway, web) starts by default; the maintainers' fleet is behind `--profile fleet` because
 # its images are private (deploy/TESTING.md); `--profile tunnel` (Cloudflare
 # quick tunnel) or `--profile ngrok` adds a reverse proxy plus a tunnel so
 # claude.ai, ChatGPT or Claude Desktop can reach the stack. deploy/stack.sh
@@ -81,6 +81,26 @@ services:
     restart: unless-stopped
     expose:
       - "9000"
+
+  # An upstream that is itself OAuth-protected (examples/oauth-demo-mcp: the
+  # MCP python-sdk's simple-auth demo, login demo_user / demo_password). It
+  # shares the gateway's network namespace so that one URL,
+  # http://localhost:9000, reaches it from the gateway and from a browser on
+  # the host, and satisfies the SDK's rule that a plain-http issuer must be
+  # localhost; port 9000 is therefore published on the gateway service, and the
+  # gateway's egress policy allows its own loopback below.
+  oauth-demo:
+    build: ../examples/oauth-demo-mcp
+    restart: unless-stopped
+    network_mode: "service:gateway"
+    environment:
+      OAUTH_DEMO_PUBLIC_URL: http://localhost:9000
+      OAUTH_DEMO_CLIENT_ID: bundlemcp
+      # the gateway's upstream-connect callback, which follows its public URL
+      OAUTH_DEMO_REDIRECT_URIS: ${BUNDLEMCP_PUBLIC_URL:-http://localhost:8000}/oauth/upstream/callback
+    depends_on:
+      gateway:
+        condition: service_started
 
   # --- MCP fleet (seed.yaml registers + bundles these) ----------------------
 
@@ -207,10 +227,14 @@ services:
       BUNDLEMCP_TOKEN_ENCRYPTION_KEYS: ${BUNDLEMCP_TOKEN_ENCRYPTION_KEYS:-["Uqw2PEJomK66Xa6lD-TmIU75wHfWRU6T1n9jpYqjv80="]}
       # DEP-2: the tunnel profiles' proxy forwards X-Forwarded-* from the compose network
       BUNDLEMCP_TRUSTED_PROXIES: '["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]'
+      # SEC-2: the oauth-demo sidecar answers on this container's loopback. A
+      # production gateway never allows its own loopback.
+      BUNDLEMCP_EGRESS_ALLOW_CIDRS: '["127.0.0.0/8","::1/128"]'
     volumes:
       - ../deploy/seed.yaml:/app/deploy/seed.yaml:ro
     ports:
       - "8000:8000"
+      - "9000:9000" # the oauth-demo sidecar (its login page, for the browser)
 
   web:
     build:

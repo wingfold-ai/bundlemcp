@@ -22,6 +22,7 @@ from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
     InMemoryUnitOfWorkFactory,
 )
+from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
 
 
@@ -117,7 +118,9 @@ async def test_bootstrap_discovers_its_servers_after_the_commit(uow):
         }
     )
     discovery = CommitAwareDiscovery(uow)
-    await BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery).apply(document)
+    await BootstrapRunner(
+        InMemoryUnitOfWorkFactory(uow), discovery, cipher=None, connections=NoUpstreamConnections()
+    ).apply(document)
     assert discovery.probes == [("echo", 1), ("weather", 1)]
 
 
@@ -131,7 +134,12 @@ async def test_failed_bootstrap_probes_nothing(uow):
     )
     discovery = CommitAwareDiscovery(uow)
     with pytest.raises(NotFoundError):
-        await BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery).apply(document)
+        await BootstrapRunner(
+            InMemoryUnitOfWorkFactory(uow),
+            discovery,
+            cipher=None,
+            connections=NoUpstreamConnections(),
+        ).apply(document)
     assert discovery.probes == []
 
 
@@ -192,7 +200,9 @@ async def test_reapplied_bootstrap_does_not_probe_working_servers(uow):
         {"servers": [{"name": "echo", "url": "http://echo/mcp"}]}
     )
     discovery = CommitAwareDiscovery(uow)
-    runner = BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery)
+    runner = BootstrapRunner(
+        InMemoryUnitOfWorkFactory(uow), discovery, cipher=None, connections=NoUpstreamConnections()
+    )
     await runner.apply(document)
     await _mark_reachable(uow, "echo")
     await runner.apply(document)
@@ -208,7 +218,12 @@ async def test_bootstrap_document_lands_in_one_commit(uow):
             "endpoints": [{"name": "ep", "bundle_name": "demo"}],
         }
     )
-    await BootstrapRunner(InMemoryUnitOfWorkFactory(uow), NoopToolDiscovery()).apply(document)
+    await BootstrapRunner(
+        InMemoryUnitOfWorkFactory(uow),
+        NoopToolDiscovery(),
+        cipher=None,
+        connections=NoUpstreamConnections(),
+    ).apply(document)
     assert uow.committed == 1
     assert await uow.endpoints.by_name("ep") is not None
     assert len(await uow.memberships.for_bundle((await uow.bundles.by_name("demo")).id)) == 1

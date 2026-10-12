@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field
 
 from bundlemcp.application.bootstrap.bootstrap_bundle import BootstrapBundle
-from bundlemcp.application.schemas import EndpointUpsert, ServerUpsert
+from bundlemcp.application.bootstrap.bootstrap_server import BootstrapServer
+from bundlemcp.application.schemas import EndpointUpsert
 
 
 class BootstrapDocument(BaseModel):
@@ -14,8 +15,10 @@ class BootstrapDocument(BaseModel):
         description="Format version of the document. Only 1 exists; a future format bumps it "
         "so an old document is rejected with a clear error rather than misread",
     )
-    servers: list[ServerUpsert] = Field(
-        default=[], description="Upstream servers to register or update"
+    servers: list[BootstrapServer] = Field(
+        default=[],
+        description="Upstream servers to register or update, each optionally with the OAuth "
+        "client the gateway presents to it",
     )
     bundles: list[BootstrapBundle] = Field(
         default=[], description="Bundles to create or update, with their membership"
