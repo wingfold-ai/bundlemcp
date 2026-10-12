@@ -17,7 +17,7 @@ Security fixes are released for the latest published version.
 
 Report it privately through GitHub's private vulnerability reporting:
 
-https://github.com/mhoegger/bundlemcp/security/advisories/new
+https://github.com/wingfold-ai/bundlemcp/security/advisories/new
 
 Include what you can of the following:
 

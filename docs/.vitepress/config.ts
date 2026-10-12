@@ -93,9 +93,9 @@ export default defineConfig({
         ],
       },
     ],
-    socialLinks: [{ icon: "github", link: "https://github.com/mhoegger/bundlemcp" }],
+    socialLinks: [{ icon: "github", link: "https://github.com/wingfold-ai/bundlemcp" }],
     editLink: {
-      pattern: "https://github.com/mhoegger/bundlemcp/edit/main/docs/:path",
+      pattern: "https://github.com/wingfold-ai/bundlemcp/edit/main/docs/:path",
       text: "Edit this page on GitHub",
     },
     search: { provider: "local" },

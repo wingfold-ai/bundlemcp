@@ -11,15 +11,15 @@ Every push to `main` publishes both images to the GitHub Container Registry, tag
 SHA:
 
 ```text
-ghcr.io/mhoegger/bundlemcp-gateway:<sha>
-ghcr.io/mhoegger/bundlemcp-web:<sha>
+ghcr.io/wingfold-ai/bundlemcp-gateway:<sha>
+ghcr.io/wingfold-ai/bundlemcp-web:<sha>
 ```
 
 There is no versioned release yet, so pin the SHA tag (or the digest) rather than `:latest`, and record which commit you
 deployed. To build from a checkout instead, for your own registry:
 
 ```bash
-git clone https://github.com/mhoegger/bundlemcp.git && cd bundlemcp
+git clone https://github.com/wingfold-ai/bundlemcp.git && cd bundlemcp
 SHA=$(git rev-parse --short HEAD)
 
 docker build -f apps/gateway/Dockerfile -t your-registry/bundlemcp-gateway:$SHA .
