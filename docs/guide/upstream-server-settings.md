@@ -1,8 +1,8 @@
 # Upstream server settings explained
 
-An **upstream server** is an MCP server that bundlemcp connects to on your behalf. Your MCP client (claude.ai, ChatGPT,
-a script) only ever talks to the gateway; the gateway then talks to each upstream server. Most of an upstream server's
-settings answer one of two questions about that second hop:
+An **upstream server** (or **upstream** for short) is an MCP server that bundlemcp connects to on your behalf. Your MCP
+client (claude.ai, ChatGPT, a script) only ever talks to the gateway; the gateway then talks to each upstream server.
+Most of an upstream server's settings answer one of two questions about that second hop:
 
 - **How does the gateway get in?** Some upstream servers answer anyone, some want an API key, some want each person to
   sign in with their own account.

@@ -6,8 +6,8 @@ ChatGPT, Claude Code, your own agents) and the MCP servers you operate, and does
 
 <HomePipeline compact />
 
-- An **upstream server** is an MCP server reachable over Streamable HTTP. The gateway probes it, discovers its tools,
-  and keeps that tool list cached.
+- An **upstream server** (or **upstream** for short) is an MCP server reachable over Streamable HTTP. The gateway probes
+  it, discovers its tools, and keeps that tool list cached.
 - A **bundle** composes any number of servers into one virtual MCP server. Tools are prefixed with the server name so
   they never collide, and you can hide or rename tools per bundle.
 - An **endpoint** is a public URL that serves one bundle. A bundle can have many endpoints, each with its own

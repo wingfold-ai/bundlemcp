@@ -61,9 +61,9 @@ happens later, from an MCP client.
 
 ## 3. Register an upstream server
 
-An **upstream server** is an MCP server that bundlemcp forwards tool calls to. To have one that is guaranteed to be
-running, register the example `echo-mcp` server a second time, under a new name. To use your own server instead, enter
-its URL — see the warning below first.
+An **upstream server** (or **upstream** for short) is an MCP server that bundlemcp forwards tool calls to. To have one
+that is guaranteed to be running, register the example `echo-mcp` server a second time, under a new name. To use your
+own server instead, enter its URL — see the warning below first.
 
 1. On the **Servers** page, enter `http://echo-mcp:9000/mcp` under **Register server** and click **Check**. The gateway
    contacts the server and reports what it found: here *ready*, the MCP revision it speaks and three tools, and that it

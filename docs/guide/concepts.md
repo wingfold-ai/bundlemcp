@@ -28,7 +28,7 @@ MCP client ──▶ endpoint ──▶ bundle ──▶ upstream servers
                may use it    tools        actually do the work
 ```
 
-- An **upstream server** is an MCP server that bundlemcp forwards to.
+- An **upstream server** (or **upstream** for short) is an MCP server that bundlemcp forwards to.
 - A **bundle** combines several upstream servers into what looks, to a client, like one server.
 - An **endpoint** publishes a bundle at a URL, with the rules for who may use it and how.
 - An **API key** lets a script or agent use an endpoint without a person signing in.
@@ -40,7 +40,8 @@ you do not create them. How they sign in is explained in [Authentication](/guide
 
 An upstream server is an MCP server that bundlemcp talks to over **Streamable HTTP**, MCP's transport for servers
 reached over the network. "Upstream" says which way it faces: clients are downstream of the gateway, the servers it
-forwards to are upstream. The admin UI lists them on the **Servers** page.
+forwards to are upstream — so the short name for one is simply an *upstream*, and that is what the management API
+calls them. The admin UI lists them on the **Servers** page.
 
 Most upstream servers need only a name and a URL. The other settings exist for servers that need a credential, want to
 know who is calling, or have each person sign in to their own account. Each is explained, with the situations it is for,
@@ -65,13 +66,13 @@ that is not running yet.
 
 The three things an upstream server offers are handled differently, because they are used differently.
 
-**Tools are copied and curated.** The gateway stores each upstream server's tool list — name, description, input
+**Tools are copied and curated.** The gateway stores each upstream's tool list — name, description, input
 schema — and answers clients from that copy. That has two effects. A client's request for the list never wakes an
-upstream server, and keeps working while one is down. And because the list is the gateway's own, a bundle can hide a
+upstream, and keeps working while one is down. And because the list is the gateway's own, a bundle can hide a
 tool or change how it is presented without touching the server. The copy is refreshed when you change the server, when
 you ask for it, and periodically.
 
-**Prompts and resources are passed through.** When a client asks for them, the gateway asks the upstream servers live
+**Prompts and resources are passed through.** When a client asks for them, the gateway asks the upstreams live
 and hands the answer back unchanged: prompt names are prefixed with the server name, exactly like tool names; resource
 addresses are passed on as they are. Only servers that said they offer prompts or resources are asked.
 
@@ -85,7 +86,7 @@ tools come with context for the bundle's purpose. The design is in review in
 
 ## Bundles
 
-A bundle is a set of upstream servers presented as **one MCP server**. A client connected to a bundle sees the tools of
+A bundle is a set of upstreams presented as **one MCP server**. A client connected to a bundle sees the tools of
 every member server, as if they all came from one place. The bundle's description is sent to the model as that server's
 instructions.
 
