@@ -1,7 +1,9 @@
-# Servers
+# Upstream servers
 
-A server is an upstream MCP server the gateway connects to over Streamable HTTP. Register it once; bundles reference it
-by name.
+An upstream server is an MCP server the gateway connects to over Streamable HTTP and forwards calls to. Register it
+once; bundles reference it by name. The admin UI lists them on the **Servers** page, and the management API addresses
+them under `/api/v1/servers`. For what each setting is for, in plain terms, see
+[Upstream server settings](/guide/upstream-server-settings).
 
 Everything on this page is available in the admin UI under **Servers** and through the management API. The API examples
 assume:
@@ -202,7 +204,7 @@ One account per person per server: the stored token is used for every MCP client
 server can only be served by endpoints that identify callers: the gateway refuses to put such a server in a bundle
 exposed by a `none` endpoint, and refuses the endpoint change that would create that situation. How this fits with the
 caller identity is on
-[Roles and identity](/guide/roles-and-identity).
+[Authentication](/guide/authentication#upstream-identity-how-the-gateway-reaches-an-upstream-server).
 
 Tokens are never returned by any API. The UI shows connection status (connected, expired, invalid) and the account hint
 only.

@@ -6,8 +6,8 @@ ChatGPT, Claude Code, your own agents) and the MCP servers you operate, and does
 
 <HomePipeline compact />
 
-- A **server** is an upstream MCP server reachable over Streamable HTTP. The gateway probes it, discovers its tools, and
-  keeps that tool list cached.
+- An **upstream server** is an MCP server reachable over Streamable HTTP. The gateway probes it, discovers its tools,
+  and keeps that tool list cached.
 - A **bundle** composes any number of servers into one virtual MCP server. Tools are prefixed with the server name so
   they never collide, and you can hide or rename tools per bundle.
 - An **endpoint** is a public URL that serves one bundle. A bundle can have many endpoints, each with its own
@@ -58,6 +58,6 @@ For a detailed breakdown of how bundlemcp differs from tool frameworks, see
 
 - [Quickstart](/guide/quickstart) brings up the full stack with Docker Compose in a few minutes.
 - [Core concepts](/guide/concepts) explains servers, bundles, endpoints and profiles in more depth.
-- [Roles and identity](/guide/roles-and-identity) explains what administrators and users can do, and which identity a
-  call carries at each step.
+- [Authentication](/guide/authentication) explains how people, MCP clients and scripts sign in, what administrators
+  and users can do, and which identity a call carries at each step.
 - [Production deployment](/self-hosting/deploy) covers public URLs, reverse proxies, upgrades and backups.

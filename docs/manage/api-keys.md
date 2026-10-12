@@ -16,7 +16,7 @@ route. Hand out `endpoint` keys to anything that only needs to use tools.
 Keys are created by administrators only. A person using an endpoint does not get a key: they connect their MCP client
 through OAuth, and the call is attributed to them. Keys identify a script or a service, never a person; see
 [Authentication](/guide/authentication) for how the kinds of credential fit together, and
-[Roles and identity](/guide/roles-and-identity) for what each role may do.
+[Administrators and users](/guide/authentication#administrators-and-users) for what each role may do.
 
 ## Creating a key
 

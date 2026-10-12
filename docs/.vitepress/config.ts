@@ -45,14 +45,15 @@ export default defineConfig({
           { text: "Quickstart", link: "/guide/quickstart" },
           { text: "Core concepts", link: "/guide/concepts" },
           { text: "bundlemcp vs. FastMCP", link: "/guide/bundlemcp-vs-fastmcp" },
+          { text: "Upstream server settings", link: "/guide/upstream-server-settings" },
           { text: "Authentication", link: "/guide/authentication" },
-          { text: "Roles and identity", link: "/guide/roles-and-identity" },
           { text: "Glossary", link: "/guide/glossary" },
         ],
       },
       {
         text: "Self-hosting",
         items: [
+          { text: "Local, tunnel or production", link: "/self-hosting/setups" },
           { text: "Requirements", link: "/self-hosting/requirements" },
           { text: "Production deployment", link: "/self-hosting/deploy" },
           { text: "Configuration", link: "/self-hosting/configuration" },
@@ -65,7 +66,7 @@ export default defineConfig({
       {
         text: "Manage the gateway",
         items: [
-          { text: "Servers", link: "/manage/servers" },
+          { text: "Upstream servers", link: "/manage/servers" },
           { text: "Bundles and tool curation", link: "/manage/bundles" },
           { text: "Endpoints", link: "/manage/endpoints" },
           { text: "API keys", link: "/manage/api-keys" },
