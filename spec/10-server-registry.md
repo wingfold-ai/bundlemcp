@@ -98,16 +98,17 @@ cannot answer are put to the operator ([ADR-0039](../docs/adr/0039-server-inspec
   and `isSecret` flags, so the UI can render the credential form the server's publisher described. It stores nothing and
   fetches nothing; `sse` remotes are reported as unsupported. This imports one document an operator already has — it is
   not a registry browser (decision log: marketplace).
-- **SRV-16 Published name.** The resource is called an **upstream server** everywhere a person or a client of the
-  gateway reads it: the management API collection is `/api/v1/upstream-servers` (with every sub-route and action of
-  today's `/api/v1/servers` under it), a bundle's members are `/api/v1/bundles/{name}/upstream-servers`, the OpenAPI
-  tag is `upstream-servers`, the bootstrap and export documents use the key `upstream_servers`
-  ([BOOT-8](41-bootstrap.md), [EXP-1](42-export-import.md)), and the admin UI labels and routes say *Upstream servers*
-  ([UI-7](60-admin-ui.md)). "Server" alone is ambiguous next to the gateway, which is itself an MCP server to its
-  clients and an HTTP server to everyone. Field names inside payloads (`server_name`, `server_id`, the metering
-  context's `server`) are unchanged: each is already qualified by the object it sits on, and the metering hook contract
-  is versioned separately ([MID-3](31-middleware.md)). The old names stay accepted as deprecated aliases
-  ([API-8](40-management-api.md), BOOT-8) ([ADR-0045](../docs/adr/0045-upstream-servers-on-the-published-surface.md)).
+- **SRV-16 Published name.** The resource is called an **upstream server**, or **upstream** for short, everywhere a
+  person or a client of the gateway reads it. On the wire it is always the short form: the management API collection is
+  `/api/v1/upstreams` (with every sub-route and action of today's `/api/v1/servers` under it), a bundle's members are
+  `/api/v1/bundles/{name}/upstreams`, the OpenAPI tag is `upstreams`, the bootstrap and export documents use the key
+  `upstreams` ([BOOT-8](41-bootstrap.md), [EXP-1](42-export-import.md)), the admin UI routes are `/upstreams` and its
+  labels say *Upstream servers* ([UI-7](60-admin-ui.md)), and the documentation introduces the term as "upstream server
+  (upstream for short)" and may use either afterwards. "Server" alone is ambiguous next to the gateway, which is itself
+  an MCP server to its clients and an HTTP server to everyone. Field names inside payloads (`server_name`, `server_id`,
+  the metering context's `server`) are unchanged: each is already qualified by the object it sits on, and the metering
+  hook contract is versioned separately ([MID-3](31-middleware.md)). The old names stay accepted as deprecated aliases
+  ([API-8](40-management-api.md), BOOT-8) ([ADR-0045](../docs/adr/0045-upstreams-on-the-published-surface.md)).
 
 ## The stdio pattern (documentation, not code)
 

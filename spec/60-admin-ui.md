@@ -53,9 +53,9 @@ English-only, light/dark theme.
   (SRV-12) and offers the fix for a state that contradicts the configuration, and shows the upstream OAuth card only for
   OAuth servers.
 
-- **UI-7 Upstream server naming.** Navigation, page titles, buttons, empty states and error copy say *upstream
-  server(s)* ([SRV-16](10-server-registry.md)); a sentence may shorten to *server* only after the full term appears in
-  it. The pages live at `/upstream-servers` and `/upstream-servers/{name}`; the former `/servers` routes redirect there
+- **UI-7 Upstream server naming.** Navigation and page titles say *Upstream servers* ([SRV-16](10-server-registry.md));
+  buttons, empty states and error copy may use the short *upstream*, never a bare *server*. The pages live at
+  `/upstreams` and `/upstreams/{name}`; the former `/servers` routes redirect there
   (client-side, preserving the rest of the path and query) so bookmarks and links in old documentation keep working.
   The UI calls only the new API paths ([API-8](40-management-api.md)).
 

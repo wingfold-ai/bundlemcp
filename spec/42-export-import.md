@@ -11,7 +11,7 @@ migration between instances, and seeding bootstrap files.
 ## Requirements
 
 - **EXP-1** `GET /api/v1/export` returns a versioned JSON document
-  (`{"version": 1, "upstream_servers": [...], "bundles": [...], "endpoints": [...]}`, keys per
+  (`{"version": 1, "upstreams": [...], "bundles": [...], "endpoints": [...]}`, keys per
   [SRV-16](10-server-registry.md)) containing all configuration by natural
   keys — the same Pydantic schema bootstrap consumes ([BOOT-1](41-bootstrap.md)).
 - **EXP-2** Secrets (static header values, upstream OAuth client secrets) are **excluded** by default, exported as named

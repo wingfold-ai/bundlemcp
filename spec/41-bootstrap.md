@@ -32,8 +32,8 @@ layer, CI, or any operator can stand up a fully configured gateway from config a
   — a probe runs in its own transaction and would not see an uncommitted server. A fresh start therefore serves the
   servers' tools without a manual refresh. A failed probe is recorded on the server ([SRV-4](10-server-registry.md)) and
   never fails the bootstrap, strict or not; a document that does not land probes nothing.
-- **BOOT-8 Key names.** The document lists upstream servers under `upstream_servers`, and a bundle lists its members
-  under `upstream_servers` ([SRV-16](10-server-registry.md)). The former key `servers` is accepted in both places for
+- **BOOT-8 Key names.** The document lists upstream servers under `upstreams`, and a bundle lists its members
+  under `upstreams` ([SRV-16](10-server-registry.md)). The former key `servers` is accepted in both places for
   the same deprecation window as the API aliases ([API-8](40-management-api.md)) and logs one `WARN` per document
   naming the key to change. A document, or a bundle entry, that carries both keys is rejected as invalid (BOOT-4
   applies): the gateway does not guess which list is meant.

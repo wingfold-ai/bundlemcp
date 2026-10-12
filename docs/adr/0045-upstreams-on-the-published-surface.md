@@ -1,4 +1,4 @@
-# ADR-0045: The published surface says "upstream server", with deprecated aliases for "server"
+# ADR-0045: The published surface says "upstreams", with deprecated aliases for "servers"
 
 **Status:** accepted · **Date:** 2026-10-12
 
@@ -36,10 +36,12 @@ Inventory at `9ec1a70`:
 
 ## Decision
 
-- **Name.** *Upstream server*: the position of the resource relative to the gateway, which is the property that tells it
-  apart from the gateway itself. On the wire that becomes `upstream-servers` in paths and the OpenAPI tag,
-  `upstream_servers` in JSON and YAML keys, and *Upstream servers* in the UI
-  ([SRV-16](../../spec/10-server-registry.md), [UI-7](../../spec/60-admin-ui.md)).
+- **Name.** *Upstream server*, *upstream* for short: the position of the resource relative to the gateway, which is
+  the property that tells it apart from the gateway itself. On the wire it is always the short form: `upstreams` in
+  paths, the OpenAPI tag and JSON and YAML keys, `/upstreams` for UI routes. Prose and UI titles say *upstream
+  server*; the documentation introduces the term as "upstream server (upstream for short)" and uses either afterwards,
+  so the wire name is one a reader has already met ([SRV-16](../../spec/10-server-registry.md),
+  [UI-7](../../spec/60-admin-ui.md)).
 - **Scope.** Collection nouns only: route paths, document keys, the tag, UI copy and routes. Payload field names stay
   (`server_name` on a tool or an audit record is already qualified by its object), and so do Python class names; both
   can follow later without touching the published contract.
@@ -52,9 +54,11 @@ Inventory at `9ec1a70`:
 
 ## Alternatives considered
 
-- **`/api/v1/upstreams` and `upstreams:`.** Shorter, but "upstream" alone reads as an adjective or a direction, and the
-  documentation and UI would still say "upstream servers", so the wire name and the prose name would differ again.
-- **Rename the fields too** (`upstream_server_name`, metering `upstream_server`). Consistent, but changes the metering
+- **`/api/v1/upstream-servers` and `upstream_servers:`.** The full term on the wire. Rejected as long in every path and
+  key a registrar or bootstrap file writes, when "upstream" used as a noun is already common in gateway and proxy
+  vocabulary; introducing the short form in the documentation alongside the full term keeps the two from reading as
+  different things.
+- **Rename the fields too** (`upstream_name`, metering `upstream`). Consistent, but changes the metering
   hook contract that ADR-0042 just versioned, and the audit API that consumers query, for no gain in clarity.
 - **Documentation-only rename.** Cheapest, but leaves the API and UI saying "Servers", so a reader moving from the
   docs to the product meets two names for one thing again.
