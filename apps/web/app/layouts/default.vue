@@ -3,7 +3,7 @@ const { me } = useMe();
 const route = useRoute();
 
 const nav = [
-  { to: "/servers", label: "Servers", testid: "nav-servers", icon: "i-lucide-server" },
+  { to: "/upstreams", label: "Upstream servers", testid: "nav-servers", icon: "i-lucide-server" },
   { to: "/bundles", label: "Bundles", testid: "nav-bundles", icon: "i-lucide-package" },
   // which bundle holds which server, as one grid across every bundle
   { to: "/bundles/matrix", label: "Composition", testid: "nav-matrix", icon: "i-lucide-grid-3x3", sub: true },
@@ -19,7 +19,7 @@ const nav = [
   { to: "/catalogue", label: "Catalogue", testid: "nav-catalogue", icon: "i-lucide-layout-grid" },
 ];
 
-/** A section stays highlighted on its detail pages too (/servers/SEO under Servers). */
+/** A section stays highlighted on its detail pages too (/upstreams/seo under Upstream servers). */
 function isActive(to: string): boolean {
   return route.path === to || route.path.startsWith(`${to}/`);
 }
@@ -33,7 +33,7 @@ async function logout() {
 <template>
   <div class="flex min-h-screen bg-muted text-default">
     <aside class="w-56 shrink-0 border-r border-default bg-muted p-4 flex flex-col gap-1">
-      <NuxtLink to="/servers" class="mb-5 block" data-testid="app-title" aria-label="bundlemcp">
+      <NuxtLink to="/upstreams" class="mb-5 block" data-testid="app-title" aria-label="bundlemcp">
         <img src="/lockup-light.svg" alt="bundlemcp" class="h-9 w-auto dark:hidden" />
         <img src="/lockup-dark.svg" alt="bundlemcp" class="h-9 w-auto hidden dark:block" />
       </NuxtLink>

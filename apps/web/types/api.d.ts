@@ -109,41 +109,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bundles/{name}/servers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Members */
-        get: operations["list_members_api_v1_bundles__name__servers_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/bundles/{name}/servers/{server_name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Set Member */
-        put: operations["set_member_api_v1_bundles__name__servers__server_name__put"];
-        post?: never;
-        /** Remove Member */
-        delete: operations["remove_member_api_v1_bundles__name__servers__server_name__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/bundles/{name}/tools": {
         parameters: {
             query?: never;
@@ -173,6 +138,41 @@ export interface paths {
         put: operations["curate_tool_api_v1_bundles__name__tools__tool_id__put"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bundles/{name}/upstreams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Members */
+        get: operations["list_members_api_v1_bundles__name__upstreams_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bundles/{name}/upstreams/{upstream_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Member */
+        put: operations["set_member_api_v1_bundles__name__upstreams__upstream_name__put"];
+        post?: never;
+        /** Remove Member */
+        delete: operations["remove_member_api_v1_bundles__name__upstreams__upstream_name__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -343,7 +343,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers": {
+    "/api/v1/upstreams": {
         parameters: {
             query?: never;
             header?: never;
@@ -351,7 +351,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Servers */
-        get: operations["list_servers_api_v1_servers_get"];
+        get: operations["list_servers_api_v1_upstreams_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -360,7 +360,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers/{name}": {
+    "/api/v1/upstreams/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -368,18 +368,18 @@ export interface paths {
             cookie?: never;
         };
         /** Get Server */
-        get: operations["get_server_api_v1_servers__name__get"];
+        get: operations["get_server_api_v1_upstreams__name__get"];
         /** Upsert Server */
-        put: operations["upsert_server_api_v1_servers__name__put"];
+        put: operations["upsert_server_api_v1_upstreams__name__put"];
         post?: never;
         /** Delete Server */
-        delete: operations["delete_server_api_v1_servers__name__delete"];
+        delete: operations["delete_server_api_v1_upstreams__name__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers/{name}/tools": {
+    "/api/v1/upstreams/{name}/tools": {
         parameters: {
             query?: never;
             header?: never;
@@ -387,7 +387,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Tools */
-        get: operations["list_tools_api_v1_servers__name__tools_get"];
+        get: operations["list_tools_api_v1_upstreams__name__tools_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -396,7 +396,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers/{name}/upstream-oauth": {
+    "/api/v1/upstreams/{name}/upstream-oauth": {
         parameters: {
             query?: never;
             header?: never;
@@ -404,9 +404,9 @@ export interface paths {
             cookie?: never;
         };
         /** Upstream Oauth Status */
-        get: operations["upstream_oauth_status_api_v1_servers__name__upstream_oauth_get"];
+        get: operations["upstream_oauth_status_api_v1_upstreams__name__upstream_oauth_get"];
         /** Set Upstream Oauth */
-        put: operations["set_upstream_oauth_api_v1_servers__name__upstream_oauth_put"];
+        put: operations["set_upstream_oauth_api_v1_upstreams__name__upstream_oauth_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -414,7 +414,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers/{name}/upstream-oauth/token": {
+    "/api/v1/upstreams/{name}/upstream-oauth/token": {
         parameters: {
             query?: never;
             header?: never;
@@ -425,13 +425,13 @@ export interface paths {
         put?: never;
         post?: never;
         /** Disconnect Upstream Oauth */
-        delete: operations["disconnect_upstream_oauth_api_v1_servers__name__upstream_oauth_token_delete"];
+        delete: operations["disconnect_upstream_oauth_api_v1_upstreams__name__upstream_oauth_token_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers/{name}/upstream-oauth:connect": {
+    "/api/v1/upstreams/{name}/upstream-oauth:connect": {
         parameters: {
             query?: never;
             header?: never;
@@ -444,14 +444,14 @@ export interface paths {
          * Connect Upstream Oauth Client
          * @description Obtain the shared connection of a client-credentials client now.
          */
-        post: operations["connect_upstream_oauth_client_api_v1_servers__name__upstream_oauth_connect_post"];
+        post: operations["connect_upstream_oauth_client_api_v1_upstreams__name__upstream_oauth_connect_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers/{name}:refresh-tools": {
+    "/api/v1/upstreams/{name}:refresh-tools": {
         parameters: {
             query?: never;
             header?: never;
@@ -461,14 +461,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Refresh Tools */
-        post: operations["refresh_tools_api_v1_servers__name__refresh_tools_post"];
+        post: operations["refresh_tools_api_v1_upstreams__name__refresh_tools_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers/{name}:rename": {
+    "/api/v1/upstreams/{name}:rename": {
         parameters: {
             query?: never;
             header?: never;
@@ -478,14 +478,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Rename Server */
-        post: operations["rename_server_api_v1_servers__name__rename_post"];
+        post: operations["rename_server_api_v1_upstreams__name__rename_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers:from-server-json": {
+    "/api/v1/upstreams:from-server-json": {
         parameters: {
             query?: never;
             header?: never;
@@ -498,14 +498,14 @@ export interface paths {
          * Draft From Server Json
          * @description Draft a registration from an MCP Registry server.json; nothing is stored.
          */
-        post: operations["draft_from_server_json_api_v1_servers_from_server_json_post"];
+        post: operations["draft_from_server_json_api_v1_upstreams_from_server_json_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/servers:inspect": {
+    "/api/v1/upstreams:inspect": {
         parameters: {
             query?: never;
             header?: never;
@@ -518,7 +518,7 @@ export interface paths {
          * Inspect Server
          * @description Probe a URL without registering it: what it is and what registering it takes.
          */
-        post: operations["inspect_server_api_v1_servers_inspect_post"];
+        post: operations["inspect_server_api_v1_upstreams_inspect_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1643,7 +1643,7 @@ export interface components {
         };
         /**
          * ServerInspectRequest
-         * @description Body for POST /servers:inspect.
+         * @description Body for POST /upstreams:inspect.
          */
         ServerInspectRequest: {
             /**
@@ -1691,7 +1691,7 @@ export interface components {
              * @description A nearby URL that does answer as MCP (such as the same URL with /mcp appended), when the given one is not an MCP endpoint
              */
             suggested_url?: string | null;
-            /** @description A registration derived from what was found: submit it to PUT /servers/{name} as is, adding the credential headers the server needs */
+            /** @description A registration derived from what was found: submit it to PUT /upstreams/{name} as is, adding the credential headers the server needs */
             suggestion: components["schemas"]["ServerUpsert"];
             /**
              * Tool Names
@@ -1784,7 +1784,7 @@ export interface components {
         };
         /**
          * ServerJsonImport
-         * @description Body for POST /servers:from-server-json.
+         * @description Body for POST /upstreams:from-server-json.
          */
         ServerJsonImport: {
             /**
@@ -1896,11 +1896,11 @@ export interface components {
         };
         /**
          * ServerUpsert
-         * @description Body for POST /servers and PUT /servers/{name}.
+         * @description Body for POST /upstreams and PUT /upstreams/{name}.
          */
         ServerUpsert: {
             /**
-             * @description How the gateway authenticates to this server: 'none' or 'static_headers' (which of the two is derived from whether static headers are stored), 'upstream_oauth' (the gateway holds OAuth tokens from the server's authorization server) or 'delegated_token' (each call carries a short-lived token the gateway issues for the caller, valid only at this server, which the server verifies through the gateway's introspection endpoint). Run POST /servers:inspect to learn which one a server needs
+             * @description How the gateway authenticates to this server: 'none' or 'static_headers' (which of the two is derived from whether static headers are stored), 'upstream_oauth' (the gateway holds OAuth tokens from the server's authorization server) or 'delegated_token' (each call carries a short-lived token the gateway issues for the caller, valid only at this server, which the server verifies through the gateway's introspection endpoint). Run POST /upstreams:inspect to learn which one a server needs
              * @default none
              */
             auth_mode?: components["schemas"]["ServerAuthMode"];
@@ -2538,103 +2538,6 @@ export interface operations {
             };
         };
     };
-    list_members_api_v1_bundles__name__servers_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BundleMemberRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    set_member_api_v1_bundles__name__servers__server_name__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-                server_name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BundleServerUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BundleMembershipRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    remove_member_api_v1_bundles__name__servers__server_name__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-                server_name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_tools_api_v1_bundles__name__tools_get: {
         parameters: {
             query?: never;
@@ -2690,6 +2593,103 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ToolCurationRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_members_api_v1_bundles__name__upstreams_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleMemberRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_member_api_v1_bundles__name__upstreams__upstream_name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                upstream_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BundleServerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleMembershipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_member_api_v1_bundles__name__upstreams__upstream_name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                upstream_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -3040,7 +3040,7 @@ export interface operations {
             };
         };
     };
-    list_servers_api_v1_servers_get: {
+    list_servers_api_v1_upstreams_get: {
         parameters: {
             query?: {
                 offset?: number;
@@ -3072,7 +3072,7 @@ export interface operations {
             };
         };
     };
-    get_server_api_v1_servers__name__get: {
+    get_server_api_v1_upstreams__name__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3103,7 +3103,7 @@ export interface operations {
             };
         };
     };
-    upsert_server_api_v1_servers__name__put: {
+    upsert_server_api_v1_upstreams__name__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -3138,7 +3138,7 @@ export interface operations {
             };
         };
     };
-    delete_server_api_v1_servers__name__delete: {
+    delete_server_api_v1_upstreams__name__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -3167,7 +3167,7 @@ export interface operations {
             };
         };
     };
-    list_tools_api_v1_servers__name__tools_get: {
+    list_tools_api_v1_upstreams__name__tools_get: {
         parameters: {
             query?: {
                 offset?: number;
@@ -3201,7 +3201,7 @@ export interface operations {
             };
         };
     };
-    upstream_oauth_status_api_v1_servers__name__upstream_oauth_get: {
+    upstream_oauth_status_api_v1_upstreams__name__upstream_oauth_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3232,7 +3232,7 @@ export interface operations {
             };
         };
     };
-    set_upstream_oauth_api_v1_servers__name__upstream_oauth_put: {
+    set_upstream_oauth_api_v1_upstreams__name__upstream_oauth_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -3267,7 +3267,7 @@ export interface operations {
             };
         };
     };
-    disconnect_upstream_oauth_api_v1_servers__name__upstream_oauth_token_delete: {
+    disconnect_upstream_oauth_api_v1_upstreams__name__upstream_oauth_token_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -3296,7 +3296,7 @@ export interface operations {
             };
         };
     };
-    connect_upstream_oauth_client_api_v1_servers__name__upstream_oauth_connect_post: {
+    connect_upstream_oauth_client_api_v1_upstreams__name__upstream_oauth_connect_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -3327,7 +3327,7 @@ export interface operations {
             };
         };
     };
-    refresh_tools_api_v1_servers__name__refresh_tools_post: {
+    refresh_tools_api_v1_upstreams__name__refresh_tools_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -3358,7 +3358,7 @@ export interface operations {
             };
         };
     };
-    rename_server_api_v1_servers__name__rename_post: {
+    rename_server_api_v1_upstreams__name__rename_post: {
         parameters: {
             query: {
                 new_name: string;
@@ -3392,7 +3392,7 @@ export interface operations {
             };
         };
     };
-    draft_from_server_json_api_v1_servers_from_server_json_post: {
+    draft_from_server_json_api_v1_upstreams_from_server_json_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -3425,7 +3425,7 @@ export interface operations {
             };
         };
     };
-    inspect_server_api_v1_servers_inspect_post: {
+    inspect_server_api_v1_upstreams_inspect_post: {
         parameters: {
             query?: never;
             header?: never;

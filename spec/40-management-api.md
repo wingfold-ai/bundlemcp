@@ -12,19 +12,19 @@ which guarantees automation parity (the application layer's registrar, CI, scrip
 
 ## Requirements
 
-- **API-1** Base path `/api/v1`; resources: `servers`, `servers/{id}/tools`, `bundles`, `bundles/{id}/servers`,
-  `bundles/{id}/tools`, `endpoints`, `api-keys`, `users`, `audit-records`, `config`, `profiles` (read-only,
-  [PROF-5](15-endpoint-profiles.md)), plus action routes (e.g. `servers/{id}:refresh-tools`, `servers/{id}:probe`), and
-  `me` (caller identity for the UI: kind, email, `is_admin` — answers 200 for any active signed-in session, admin or
-  not, so the UI can render its "no access" page ([UI-2](60-admin-ui.md)); service keys get their key identity), and
-  `me/endpoints` — the catalogue for that same audience: every enabled endpoint accepting `oauth`, with its connection
-  URL and the bundle's description, so a signed-in non-admin finds what to connect an MCP client to without any
-  privileged call.
+- **API-1** Base path `/api/v1`; resources: `upstreams`, `upstreams/{id}/tools`, `bundles`,
+  `bundles/{id}/upstreams` ([SRV-16](10-server-registry.md)), `bundles/{id}/tools`, `endpoints`, `api-keys`,
+  `users`, `audit-records`, `config`, `profiles` (read-only, [PROF-5](15-endpoint-profiles.md)), plus action routes
+  (e.g. `upstreams/{id}:refresh-tools`, `upstreams/{id}:probe`), and `me` (caller identity for the UI:
+  kind, email, `is_admin` — answers 200 for any active signed-in session, admin or not, so the UI can render its "no
+  access" page ([UI-2](60-admin-ui.md)); service keys get their key identity), and `me/endpoints` — the catalogue for
+  that same audience: every enabled endpoint accepting `oauth`, with its connection URL and the bundle's description, so
+  a signed-in non-admin finds what to connect an MCP client to without any privileged call.
 - **API-2** Auth: admin browser session ([21-admin-auth.md](21-admin-auth.md)) or `service`-kind API key
   ([KEY-2](22-api-keys.md)) via `Authorization` header. All routes require one of the two; 401/403 are structured.
 - **API-3** DTOs are Pydantic models derived from the SQLModel entities ([ARC-3](01-architecture.md)); OpenAPI schema
   served at `/api/v1/openapi.json` and used to generate the frontend client ([ARC-4](01-architecture.md)).
-- **API-4 Registrar use case** (the contract replacing the tRPC hack): `PUT /api/v1/servers/{name}` is a
+- **API-4 Registrar use case** (the contract replacing the tRPC hack): `PUT /api/v1/upstreams/{name}` is a
   **config-only upsert** — create-or-update by name, idempotent, returning the server including current tool cache. It
   never blocks on probing the upstream ([SRV-2](10-server-registry.md) allows registering not-yet-started servers), so a
   discovery loop can converge by repeatedly PUTting desired state. The DTO tolerates an optional `transport` field but

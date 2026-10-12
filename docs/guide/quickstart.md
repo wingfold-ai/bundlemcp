@@ -50,11 +50,11 @@ and `claude` and `chatgpt` for those clients.
 
 Open <http://localhost:3000>. You are sent to the development identity provider; sign in with `admin` / `admin`.
 
-That account's email is listed in `BUNDLEMCP_ADMIN_EMAILS`, so it gets admin rights and lands on the **Servers** page,
-the list of upstream servers. Any other account sees the catalogue instead: the bundles it can connect an MCP client to,
+That account's email is listed in `BUNDLEMCP_ADMIN_EMAILS`, so it gets admin rights and lands on the
+**Upstream servers** page. Any other account sees the catalogue instead: the bundles it can connect an MCP client to,
 and nothing to manage.
 
-![The Servers page lists the two seeded upstream servers](/screenshots/quickstart/01-upstream-servers.png)
+![The Upstream servers page lists the two seeded upstream servers](/screenshots/quickstart/01-upstream-servers.png)
 
 `echo` is ready. `oauth-demo` says *account not connected*: it only answers to someone who has signed in to it, which
 happens later, from an MCP client.
@@ -65,9 +65,9 @@ An **upstream server** (or **upstream** for short) is an MCP server that bundlem
 that is guaranteed to be running, register the example `echo-mcp` server a second time, under a new name. To use your
 own server instead, enter its URL — see the warning below first.
 
-1. On the **Servers** page, enter `http://echo-mcp:9000/mcp` under **Register server** and click **Check**. The gateway
-   contacts the server and reports what it found: here *ready*, the MCP revision it speaks and three tools, and that it
-   needs no credential.
+1. On the **Upstream servers** page, enter `http://echo-mcp:9000/mcp` under **Register upstream server** and click
+   **Check**. The gateway contacts the server and reports what it found: here *ready*, the MCP revision it speaks and
+   three tools, and that it needs no credential.
 2. Enter `my-server` as the **Name**. The name becomes the prefix of every tool the server contributes, such as
    `my-server__echo`.
 3. Click **Register**.
@@ -99,13 +99,13 @@ how to widen it.
 ::: details The same step through the management API
 ```bash
 KEY=bmcp_sk_devservicekey000000000000000000000000
-curl -s -X PUT http://localhost:8000/api/v1/servers/my-server \
+curl -s -X PUT http://localhost:8000/api/v1/upstreams/my-server \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   -d '{"name":"my-server","url":"http://echo-mcp:9000/mcp"}'
 ```
 
 `KEY` is the development service key the compose file provisions. The gateway discovers the tools in the background;
-`POST /api/v1/servers/my-server:refresh-tools` does it immediately.
+`POST /api/v1/upstreams/my-server:refresh-tools` does it immediately.
 :::
 
 ## 4. Put it in a bundle
@@ -113,7 +113,7 @@ curl -s -X PUT http://localhost:8000/api/v1/servers/my-server \
 A **bundle** combines the tools of several upstream servers into what looks, to a client, like one MCP server.
 
 1. Open **Bundles**, enter `tools` as the name and *My tools and the echo tools* as the description, and create it.
-2. Open the new bundle. Under **Member servers**, select `my-server` and click **Add member**; do the same for `echo`.
+2. Open the new bundle. Under **Upstream servers**, select `my-server` and click **Add member**; do the same for `echo`.
 
 ![The bundle with both upstream servers as members](/screenshots/quickstart/04-bundle-members.png)
 
@@ -125,9 +125,9 @@ Further down, **Tool curation** lists all six tools as the client will see them,
 API=http://localhost:8000/api/v1
 curl -s -X PUT $API/bundles/tools -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   -d '{"name":"tools","description":"My tools and the echo tools"}'
-curl -s -X PUT $API/bundles/tools/servers/my-server -H "Authorization: Bearer $KEY" \
+curl -s -X PUT $API/bundles/tools/upstreams/my-server -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" -d '{"enabled":true}'
-curl -s -X PUT $API/bundles/tools/servers/echo -H "Authorization: Bearer $KEY" \
+curl -s -X PUT $API/bundles/tools/upstreams/echo -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" -d '{"enabled":true}'
 ```
 :::

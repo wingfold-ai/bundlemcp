@@ -49,6 +49,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0041](../adr/0041-delegated-upstream-tokens.md) | Gateway-issued, audience-bound delegated tokens instead of token passthrough | accepted | Upstreams verify callers without holding their credential; one Valkey write per call |
 | [0042](../adr/0042-http-metering-hook-and-outcome-kinds.md) | Out-of-process metering hook over HTTP; post-call reports outcome kinds | accepted | An out-of-process hook needs no custom image; hook contract v2 is breaking for in-process hooks |
 | [0043](../adr/0043-contact-upstreams-only-with-a-reason.md) | Probe on upsert only when discovery inputs change; fan out only to members advertising the capability | accepted | Idle scale-to-zero upstreams stay asleep across deploys and client connects; a stale snapshot hides new prompts/resources until the next discovery |
+| [0045](../adr/0045-upstreams-on-the-published-surface.md) | Rename `servers` to `upstreams` in API paths, document keys and UI, without aliases | accepted | One name for one thing; done before anyone depends on the old names |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../spec/README.md).

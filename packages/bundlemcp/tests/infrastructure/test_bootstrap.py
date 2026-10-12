@@ -26,14 +26,14 @@ class InlineDiscovery(DiscoveryService):
 
 
 DOC = {
-    "servers": [{"name": "echo", "url": "http://echo:9000/mcp"}],
-    "bundles": [{"name": "demo", "servers": ["echo"]}],
+    "upstreams": [{"name": "echo", "url": "http://echo:9000/mcp"}],
+    "bundles": [{"name": "demo", "upstreams": ["echo"]}],
     "endpoints": [{"name": "demo", "bundle_name": "demo", "auth_modes": ["api_key"]}],
 }
 
 
 OAUTH_DOC = {
-    "servers": [
+    "upstreams": [
         {
             "name": "protected",
             "url": "http://protected:8001/mcp",
@@ -112,7 +112,7 @@ async def test_seed_file_parses():
     root = pathlib.Path(__file__).resolve().parents[4]
     data = yaml.safe_load((root / "deploy" / "seed.yaml").read_text())
     doc = BootstrapDocument(**data)
-    assert doc.servers[0].name == "echo"
+    assert doc.upstreams[0].name == "echo"
     assert doc.endpoints[0].bundle_name == "demo"
 
 
@@ -126,7 +126,7 @@ async def test_fleet_seed_extends_the_demo_seed_unchanged():
     deploy = pathlib.Path(__file__).resolve().parents[4] / "deploy"
     demo = BootstrapDocument(**yaml.safe_load((deploy / "seed.yaml").read_text()))
     fleet = BootstrapDocument(**yaml.safe_load((deploy / "seed.fleet.yaml").read_text()))
-    for section in ("servers", "bundles", "endpoints"):
+    for section in ("upstreams", "bundles", "endpoints"):
         demo_entries = getattr(demo, section)
         assert getattr(fleet, section)[: len(demo_entries)] == demo_entries, section
 
@@ -138,7 +138,7 @@ async def test_inline_json_document_is_applied_after_the_file(engine, redis, tmp
     from bundlemcp.infrastructure.config.settings import EnvSettings
 
     seed = tmp_path / "seed.yaml"
-    seed.write_text("servers:\n  - name: filed\n    url: http://filed/mcp\n")
+    seed.write_text("upstreams:\n  - name: filed\n    url: http://filed/mcp\n")
     settings = EnvSettings(
         _env_file=None, bootstrap_file=str(seed), bootstrap=json.dumps(DOC), bootstrap_strict=True
     )
@@ -204,3 +204,14 @@ async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis)
     async with factory() as db:
         server = (await db.execute(select(McpServerRow))).scalar_one()
     assert server.connection_state != ConnectionState.READY
+
+
+async def test_boot8_unknown_keys_are_rejected():
+    """BOOT-8: an outdated or misspelt key fails the document instead of being ignored."""
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="servers"):
+        BootstrapDocument.model_validate({"servers": [{"name": "a", "url": "http://a/mcp"}]})
+    with pytest.raises(ValidationError, match="servers"):
+        BootstrapDocument.model_validate({"bundles": [{"name": "demo", "servers": ["a"]}]})

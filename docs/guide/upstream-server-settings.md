@@ -44,7 +44,7 @@ server that runs as a local command (stdio) needs a [small HTTP sidecar](/connec
   [Network egress](/self-hosting/deploy#network-egress).
 - When you click **Check**, the gateway also tries the URL with `/mcp` appended and suggests it if that works.
 
-**In the UI:** *Server URL* when registering, *URL* on the server's page. **API and bootstrap:** `url`.
+**In the UI:** *Upstream URL* when registering, *URL* on the server's page. **API and bootstrap:** `url`.
 
 ## Auth mode {#auth_mode}
 

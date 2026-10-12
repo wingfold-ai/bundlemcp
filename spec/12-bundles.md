@@ -24,7 +24,8 @@ collision-free; calls are routed back to the owning upstream by parsing the pref
   to them, without deleting the membership or its `BundleTool` curation.
 - **BND-5** A bundle MUST NOT include bundlemcp's own endpoints as member servers (self/circular reference guard,
   validated at membership creation against the endpoint URL set of this instance).
-- **BND-6** Bundle CRUD + membership management MUST be available in the management API and UI.
+- **BND-6** Bundle CRUD + membership management MUST be available in the management API and UI; members are addressed
+  as `/bundles/{name}/upstreams/{upstream_name}` ([SRV-16](10-server-registry.md)).
 - **BND-7** Changes to a bundle (membership, enable flags, overrides) MUST take effect for new requests without a
   gateway restart; live sessions pick up changes on their next `tools/list` and SHOULD receive a
   `notifications/tools/list_changed` when the serving session supports it.
