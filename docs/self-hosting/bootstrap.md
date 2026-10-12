@@ -88,9 +88,11 @@ The entries use exactly the same schemas as the management API's `PUT` routes:
 - **Secrets stay out of the repo.** `static_headers` values and upstream OAuth client secrets are real credentials.
   Template them in from your secret store before the file reaches the container, or supply the whole document through
   `BUNDLEMCP_BOOTSTRAP` from a secret.
-- **Tools are discovered, without blocking startup.** Once the document has landed, every server it names is probed in
-  the background, as after creating it through the API, so a fresh gateway lists its tools without a manual
-  `:refresh-tools`. A server that is not up yet keeps its failure in `connection_state` and is probed again by the
+- **Tools are discovered, without blocking startup.** Once the document has landed, every server it creates is probed
+  in the background, as after creating it through the API, so a fresh gateway lists its tools without a manual
+  `:refresh-tools`. On later starts a server is probed again only if the document changed how it is reached (URL,
+  headers, auth or identity settings, protocol mode) or its last probe failed, so a restart does not wake idle
+  upstreams. A server that is not up yet keeps its failure in `connection_state` and is probed again by the
   periodic refresh (`BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL`) or an explicit refresh; a failed probe never fails the
   bootstrap.
 

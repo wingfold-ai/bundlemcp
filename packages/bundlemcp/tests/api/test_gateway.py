@@ -80,6 +80,12 @@ def write_note(text: str) -> str:
 
 UPSTREAMS = {"echo": echo_server, "notes": notes_server}
 
+ECHO_CAPABILITIES = {
+    "prompts": {"listChanged": False},
+    "resources": {"subscribe": False, "listChanged": False},
+    "completions": {},
+}
+
 
 def upstream_factory(server, extra_headers, *, observer=None, **handlers):
     client = Client(UPSTREAMS[server.name])
@@ -116,7 +122,9 @@ async def _seed(engine: AsyncEngine) -> None:
                 kind=ApiKeyKind.ENDPOINT,
             )
         )
-        echo = McpServerRow(name="echo", url="http://echo/mcp")
+        # capabilities snapshots as discovery would store them: echo serves prompts,
+        # resources and completions, notes only tools
+        echo = McpServerRow(name="echo", url="http://echo/mcp", capabilities=ECHO_CAPABILITIES)
         notes = McpServerRow(
             name="notes", url="http://notes/mcp", forward_headers={"x-tenant": "x-tenant"}
         )
@@ -233,9 +241,20 @@ async def _initialize_raw(http, endpoint="main", version="2025-11-25"):
     )
 
 
+async def _set_capabilities(app, server_name: str, capabilities: dict) -> None:
+    async with app.state.container.session_factory() as db:
+        row = (
+            await db.execute(select(McpServerRow).where(McpServerRow.name == server_name))
+        ).scalar_one()
+        row.capabilities = capabilities
+        db.add(row)
+        await db.commit()
+
+
 async def test_initialize_tools_only_when_no_member_caps(gateway):
     """PROT-11: with no advertised member capabilities, only tools is advertised."""
     http, app, hook = gateway
+    await _set_capabilities(app, "echo", {})
     caps = (await _initialize_raw(http)).json()["result"]["capabilities"]
     assert set(caps) == {"tools"}
 
@@ -243,18 +262,16 @@ async def test_initialize_tools_only_when_no_member_caps(gateway):
 async def test_initialize_aggregates_member_capabilities(gateway):
     """PROT-11: prompts/resources/completions/logging advertised iff a member supports them."""
     http, app, hook = gateway
-    async with app.state.container.session_factory() as db:
-        echo = (
-            await db.execute(select(McpServerRow).where(McpServerRow.name == "echo"))
-        ).scalar_one()
-        echo.capabilities = {
+    await _set_capabilities(
+        app,
+        "echo",
+        {
             "prompts": {"listChanged": True},
             "resources": {"subscribe": True, "listChanged": True},
             "completions": {},
             "logging": {},
-        }
-        db.add(echo)
-        await db.commit()
+        },
+    )
 
     caps = (await _initialize_raw(http)).json()["result"]["capabilities"]
     assert caps["tools"] == {"listChanged": True}
@@ -345,6 +362,35 @@ async def test_resources_read_fans_out_to_owner(gateway):
     resp = await _rpc(http, "main", session, "resources/read", {"uri": "res://greeting"})
     contents = resp.json()["result"]["contents"]
     assert "hello resource" in str(contents)
+
+
+@pytest.mark.parametrize(
+    ("method", "params"),
+    [
+        ("prompts/list", None),
+        ("prompts/get", {"name": "notes__anything"}),
+        ("resources/list", None),
+        ("resources/templates/list", None),
+        ("resources/read", {"uri": "res://nope"}),
+        (
+            "completion/complete",
+            {"ref": {"type": "ref/resource", "uri": "res://x"}, "argument": {"name": "a"}},
+        ),
+    ],
+)
+async def test_passthrough_skips_members_without_the_capability(engine, redis, method, params):
+    """BND-8: a member that did not advertise the method's capability is never contacted,
+    so a tools-only upstream that scales to zero stays idle when a client connects."""
+    contacted: list[str] = []
+
+    def recording_factory(server, extra_headers, **handlers):
+        contacted.append(server.name)
+        return upstream_factory(server, extra_headers, **handlers)
+
+    async with _running(engine, redis, client_factory=recording_factory) as (http, app):
+        session = await _initialize(http)
+        await _rpc(http, "main", session, method, params)
+    assert "notes" not in contacted
 
 
 async def test_resources_read_unknown_uri(gateway):

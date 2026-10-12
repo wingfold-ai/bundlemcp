@@ -4,10 +4,12 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from bundlemcp.domain.servers.connection_state import ConnectionState
+from bundlemcp.domain.servers.discovery_inputs import DiscoveryInputs
 from bundlemcp.domain.servers.forward_header_rules import CALLER_TOKEN_HEADER
 from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
+from bundlemcp.domain.servers.server_capability import ServerCapability
 from bundlemcp.domain.shared.clock import utcnow
 
 
@@ -71,6 +73,30 @@ class McpServer(BaseModel):
         default_factory=utcnow,
         description="When the record was last changed",
     )
+
+    @property
+    def discovery_inputs(self) -> DiscoveryInputs:
+        """The configuration a probe of this server depends on."""
+        return DiscoveryInputs(
+            url=self.url,
+            static_headers=dict(self.static_headers),
+            forward_headers=dict(self.forward_headers),
+            auth_mode=self.auth_mode,
+            identity_mode=self.identity_mode,
+            send_identity_header=self.send_identity_header,
+            protocol_mode=self.protocol_mode,
+        )
+
+    # SRV-2
+    @property
+    def last_probe_succeeded(self) -> bool:
+        """The most recent probe reached the upstream and read its tools."""
+        return self.connection_state == ConnectionState.READY
+
+    # BND-8
+    def advertises(self, capability: ServerCapability) -> bool:
+        """The upstream advertised this capability at its last successful probe."""
+        return capability.value in self.capabilities
 
     @property
     def uses_upstream_oauth(self) -> bool:

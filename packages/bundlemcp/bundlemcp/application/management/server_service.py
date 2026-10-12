@@ -27,10 +27,13 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
 
         Fields a caller leaves out keep their stored value on update and take
         their default on create; the send_identity_header default depends on
-        whether the server is on the gateway's own network.
+        whether the server is on the gateway's own network. The upstream is
+        probed in the background on create, when the write changes what
+        discovery depends on, or when the last probe did not succeed.
         """
         server = await self._by_name(body.name)
         created = server is None
+        previous_inputs = None if server is None else server.discovery_inputs
         if server is None:
             server = McpServer(
                 name=body.name,
@@ -57,8 +60,10 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
             await self._policy.ensure_identity_switch_allowed(server)
             await self._ensure_grant_allows_identity(server)
         read = await self._save(server, name=body.name, created=created)
-        # SRV-2: validate + discover best-effort; never blocks the API response.
-        await self._discovery.schedule_probe(server.id)
+        # SRV-2: validate + discover best-effort; never blocks the API response. An
+        # unchanged re-apply to a working server stays off the upstream (ADR-0043).
+        if previous_inputs != server.discovery_inputs or not server.last_probe_succeeded:
+            await self._discovery.schedule_probe(server.id)
         return read
 
     async def _ensure_grant_allows_identity(self, server: McpServer) -> None:

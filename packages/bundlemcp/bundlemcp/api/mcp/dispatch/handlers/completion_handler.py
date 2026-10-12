@@ -7,6 +7,7 @@ from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error, rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.domain.bundles.presented_name import PresentedName
+from bundlemcp.domain.servers.server_capability import ServerCapability
 
 log = structlog.get_logger(__name__)
 
@@ -33,10 +34,11 @@ class CompletionHandler:
             if parsed is None or server is None:
                 return rpc_error(message.id, -32602, f"unknown prompt ref: {presented}")
             member_ref = PromptReference(type="ref/prompt", name=parsed.name)
-            candidates = [server]
+            candidates = [server] if server.advertises(ServerCapability.COMPLETIONS) else []
         elif ref.get("type") == "ref/resource":
             member_ref = ResourceTemplateReference(type="ref/resource", uri=ref.get("uri", ""))
-            candidates = list(ctx.view.servers.values())  # URI is not prefixed → fan-out
+            # URI is not prefixed → fan-out over the members that complete at all
+            candidates = self._fanout.members(ctx, ServerCapability.COMPLETIONS)
         else:
             return rpc_error(message.id, -32602, f"unsupported completion ref: {ref.get('type')}")
 

@@ -29,7 +29,11 @@ collision-free; calls are routed back to the owning upstream by parsing the pref
   gateway restart; live sessions pick up changes on their next `tools/list` and SHOULD receive a
   `notifications/tools/list_changed` when the serving session supports it.
 - **BND-8** Resources and prompts of member servers are **uncurated passthrough** (tools are the curated surface); they
-  are fetched **live** from members per request and are not cached ([DISC](11-tool-discovery.md)). Routing rules:
+  are fetched **live** from members per request and are not cached ([DISC](11-tool-discovery.md)). Only members whose
+  capabilities snapshot ([DISC-6](11-tool-discovery.md)) advertises the capability a method belongs to are asked —
+  `prompts` for `prompts/*`, `resources` for `resources/*`, `completions` for `completion/complete` — so a member
+  without it, or one never successfully discovered, is not contacted and contributes nothing
+  ([ADR-0043](../docs/adr/0043-contact-upstreams-only-with-a-reason.md)). Routing rules:
   - **Prompts** carry a name, so they are **always prefixed** `<server_name>__<prompt_name>` (BND-2 scheme);
     `prompts/get` and completion prompt-refs de-prefix on the first `__` to find the owning member.
   - **Resources** are keyed by opaque URI, not a prefixable name, so URIs are passed through **unchanged**.

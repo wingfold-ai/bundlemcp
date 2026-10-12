@@ -226,6 +226,30 @@ Two facts about a single replica, since they set the shape of a deployment:
 - **The container always listens on 8000.** No environment variable changes it;
   remap at the proxy or in the container's port mapping.
 
+## Upstreams that scale to zero
+
+An upstream that scales to zero when idle — a Deployment behind the KEDA HTTP add-on, Knative, or a similar interceptor
+— is woken by any request that reaches it. The gateway answers most client traffic without contacting upstreams:
+
+| Contacts the upstream | Does not |
+|---|---|
+| `tools/call` for one of its tools | `initialize`, `server/discover`, `tools/list` (served from the tool cache) |
+| `prompts/*`, `resources/*` and `completion/complete`, but only for a server that advertised `prompts`, `resources` or `completions` when it was last discovered | The same methods for a server that did not advertise them |
+| Creating a server, or an update that changes how it is reached, or one to a server whose last probe failed | Re-applying an unchanged definition (API or bootstrap file) to a working server |
+| The periodic refresh, every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds | A gateway restart |
+| `:refresh-tools`, `:inspect`, and completing an upstream OAuth connect | |
+
+To keep idle upstreams at zero:
+
+- **Set `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL=0`.** The refresh probes every server on its interval, so it would wake
+  each one every 30 minutes by default. The cost of turning it off: a change to an upstream's tools reaches the cache
+  only through `:refresh-tools`, or when the server's definition changes.
+- **Keep the bootstrap file or deploy tooling stable.** Re-applying it is free; changing a server's URL, headers or auth
+  settings in it wakes that server once on the next start.
+- **Expect servers that serve prompts or resources to be woken by clients that list them.** Many clients, claude.ai
+  among them, list prompts and resources right after connecting. Those lists are read live from every server that
+  advertises them.
+
 ## Backups
 
 Postgres holds **all** durable state: configuration, users, OAuth clients and tokens, upstream tokens, the audit log. A
