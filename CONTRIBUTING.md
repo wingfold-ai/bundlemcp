@@ -52,7 +52,7 @@ The four corpora and what each is for:
 ## Development setup
 
 ```bash
-git clone https://github.com/mhoegger/bundlemcp.git
+git clone https://github.com/wingfold-ai/bundlemcp.git
 cd bundlemcp
 uv sync --all-packages     # Python >= 3.13 workspace (gateway + library)
 ```

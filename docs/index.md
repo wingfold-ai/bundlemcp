@@ -16,7 +16,7 @@ hero:
       link: /guide/what-is-bundlemcp
     - theme: alt
       text: GitHub
-      link: https://github.com/mhoegger/bundlemcp
+      link: https://github.com/wingfold-ai/bundlemcp
 
 features:
   - icon: 🧩
@@ -60,7 +60,7 @@ the first call needs nothing but a key.
 ::: code-group
 
 ```bash [1. start]
-git clone https://github.com/mhoegger/bundlemcp.git && cd bundlemcp
+git clone https://github.com/wingfold-ai/bundlemcp.git && cd bundlemcp
 cp deploy/.env.example deploy/.env
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env \
   up -d --build --wait --wait-timeout 300
