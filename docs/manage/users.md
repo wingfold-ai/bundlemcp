@@ -40,11 +40,16 @@ curl -s -X POST https://gw.example.com/api/v1/users/$USER_ID:deactivate \
   -H "Authorization: Bearer $SERVICE_KEY"
 ```
 
-Deactivation is immediate and thorough: the user's admin sessions, every OAuth token issued to their connectors, their
-consents and their upstream OAuth tokens are all revoked. The user can no longer sign in.
+Deactivation is immediate for the gateway's own credentials: the user's admin sessions end, and every OAuth token
+issued to their connectors and their consents are revoked. Two gaps remain:
 
-Deactivate here when someone leaves; removing them at the identity provider alone only takes effect when their sessions
-and tokens expire.
+- Their upstream OAuth tokens are **not** revoked, so a per-user upstream can still be reached with them.
+- It does not stick: the next time the user signs in at the identity provider, the gateway marks them active again.
+  To keep someone out, disable them at the identity provider as well.
+
+When someone leaves, do both: deactivate them here, which ends their access at once, and disable them at the identity
+provider, which keeps them from signing in again. Either alone falls short — the identity provider alone takes effect
+only when their sessions and tokens expire.
 
 ## Consents
 

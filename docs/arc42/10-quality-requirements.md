@@ -36,4 +36,4 @@
 | Upstream container redeployed mid-session | One transparent retry re-binds; call succeeds or surfaces a clear retryable error (SES-7) |
 | API key deactivated in UI | Rejected on all replicas within 2 s (SES-19) |
 | Tool call runs 130 s with progress events | Completes: progress relayed, timeout reset per event, cancel works (PROT-1/2/3) |
-| Token minted for endpoint A replayed at endpoint B | 401 invalid_token (EP-3a) |
+| Token minted for endpoint A replayed at endpoint B | 401 with the endpoint's `WWW-Authenticate` challenge (EP-3a); an explicit `error="invalid_token"` is planned in change `complete-oauth-server` |

@@ -23,7 +23,8 @@ Two log events deserve alerts:
 | `GET /readyz` | Readiness: Postgres and Valkey reachable, migrations applied. |
 
 Server health is visible per server in the UI and API (`health_status`, `last_error`, `protocol_version`). A server is
-marked `error` after `server_error_attempts` consecutive failures and back to `ok` on the next successful connection.
+marked `error` after 3 consecutive failed discovery probes and back to `ok` on the next successful connection (the
+`server_error_attempts` setting is not read yet).
 
 ## Rotating credentials
 

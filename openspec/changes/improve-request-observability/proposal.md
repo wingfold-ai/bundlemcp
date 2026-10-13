@@ -28,7 +28,7 @@ adds to a `tools/call`.
 about convention and about tooling that reads only one stream. The delta below keeps **stderr** (what ships today, no
 behaviour change); if the maintainers choose stdout, OPS-8's delta changes one word and task 1.1 switches the handler.
 Decide before applying. Either way the docstrings are corrected (in
-[fix-stale-documentation](../fix-stale-documentation/proposal.md) until this lands).
+[fix-stale-documentation](../archive/2026-10-13-fix-stale-documentation/proposal.md) until this lands).
 
 ## Capabilities
 

@@ -24,7 +24,7 @@ reads the logs.
   paths (SEC-10).
 - `/metrics` added to what the gateway container serves (ARC-11).
 - The two false docstrings are corrected as part of the implementation (the docs-only correction until then is in
-  [fix-stale-documentation](../fix-stale-documentation/proposal.md)).
+  [fix-stale-documentation](../archive/2026-10-13-fix-stale-documentation/proposal.md)).
 
 ## Capabilities
 

@@ -44,5 +44,5 @@ class ToolRow(SQLModel, table=True):
         default_factory=utcnow,
         sa_column=timestamp_column(),
         description="When the tool was last reported. A stale value means it has disappeared "
-        "upstream and is no longer served, though its curation is kept",
+        "upstream; its curation is kept, and it is still served until it is pruned",
     )

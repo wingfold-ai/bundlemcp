@@ -1,8 +1,9 @@
 """Lightweight in-process counters.
 
-Metrics are replica-local by nature (each Prometheus target scrapes its own
-process), so plain in-memory counters are correct here. The /metrics endpoint
-exports these; this module is the collection point it reads.
+Metrics are replica-local by nature (a scraper reads each process on its
+own), so plain in-memory counters are correct here. Nothing exports them yet:
+there is no /metrics endpoint, so they are only the collection point a future
+exporter would read.
 """
 
 from collections import defaultdict
@@ -22,4 +23,4 @@ class InProcessCounters:
         return dict(self._counts)
 
 
-# Canonical metric names (kept stable for the spec-51 exporter).
+# Canonical metric names, kept stable for the exporter that will read them.
