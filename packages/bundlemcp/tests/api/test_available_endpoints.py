@@ -1,4 +1,4 @@
-"""The endpoint catalogue for signed-in people (API-1 `me/endpoints`, UI-2)."""
+"""The endpoint catalogue for signed-in people (MGMT-1 `me/endpoints`, UI-2)."""
 
 from collections.abc import AsyncIterator
 from urllib.parse import parse_qs, urlparse
@@ -75,7 +75,7 @@ async def test_catalogue_lists_enabled_oauth_endpoints_for_non_admins(env):
             "profile": "claude",
             "bundle_name": "b1",
             "bundle_description": "Tools",
-            "bundle_overview": "Everything about b1.",  # BND-11
+            "bundle_overview": "Everything about b1.",
         }
     ]
 
@@ -126,7 +126,7 @@ async def test_catalogue_tools_require_a_signed_in_caller(env):
 
 
 async def test_catalogue_lists_the_bundles_own_prompts_and_resources(env):
-    """BPR-19: a signed-in person sees what context a bundle offers before connecting it,
+    """BND-36: a signed-in person sees what context a bundle offers before connecting it,
     and only for a bundle they could connect to."""
     http, provider = env
     web = {"Origin": WEB_ORIGIN}

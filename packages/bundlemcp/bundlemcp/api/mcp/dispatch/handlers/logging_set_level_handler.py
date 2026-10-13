@@ -18,6 +18,6 @@ class LoggingSetLevelHandler:
         level = message.param("level")
         if level not in LOG_LEVELS:
             return rpc_error(message.id, INVALID_PARAMS, f"unknown log level {level!r}")
-        if ctx.session is not None:  # PROT-7: a handshake client's level lives on its session
+        if ctx.session is not None:  # a handshake client's level lives on its session
             await self._sessions.set_log_level(ctx.session.session_id, level)
         return rpc_result(message.id, ctx.shape({}))

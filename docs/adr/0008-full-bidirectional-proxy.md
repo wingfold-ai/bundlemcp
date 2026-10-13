@@ -12,15 +12,16 @@ cheaper alternative (relay progress/cancellation, reject sampling/ elicitation) 
 ## Decision drivers
 
 - Proxy transparency: upstreams behind bundlemcp should not lose protocol features they'd have when connected directly.
-- Elicitation is also the natural UX for per-user upstream OAuth connects (UPO-3).
+- Elicitation is also the natural UX for per-user upstream OAuth connects (UPS-27).
 - Doing it now shapes the session model correctly; bolting it on later would rework spec/30.
 
 ## Decision
 
 bundlemcp relays the **full protocol surface** bidirectionally, across replicas
-([spec/32](../../spec/32-protocol-passthrough.md)): progress, cancellation, logging, ping, completions, list-changed,
-and server→client requests (sampling/createMessage, elicitation/create, roots/list), with capability gating (PROT-5).
-The endpoint GET event stream is mandatory (EP-1a); cross-replica delivery rides Redis pub/sub (SES-13).
+([spec/32](../../openspec/specs/protocol/spec.md)): progress, cancellation, logging, ping, completions,
+list-changed, and server→client requests (sampling/createMessage, elicitation/create, roots/list), with capability
+gating (PROT-5). The endpoint GET event stream is mandatory (EP-1a); cross-replica delivery rides Redis pub/sub
+(SES-13).
 
 ## Alternatives considered
 

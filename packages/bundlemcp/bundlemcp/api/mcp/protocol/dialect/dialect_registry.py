@@ -10,7 +10,7 @@ from bundlemcp.api.mcp.protocol.protocol_version import (
 
 
 class DialectRegistry:
-    # PROT-22: one registration per revision, no other edit
+    # one registration per revision, no other edit
     """The supported revisions, newest first within each era.
 
     Adding a revision means registering one more dialect here; the router, the

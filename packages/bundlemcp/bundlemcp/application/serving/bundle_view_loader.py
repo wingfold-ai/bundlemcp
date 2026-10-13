@@ -9,14 +9,14 @@ from bundlemcp.domain.bundles.tool_presentation import present_tool
 async def load_bundle_view(uow: UnitOfWork, endpoint_name: str) -> BundleView | None:
     """Everything needed to serve one endpoint, or None when it is unknown or disabled."""
     endpoint = await uow.endpoints.by_name(endpoint_name)
-    if endpoint is None or not endpoint.enabled:  # EP-5
+    if endpoint is None or not endpoint.enabled:
         return None
     bundle = await uow.bundles.get(endpoint.bundle_id)
     if bundle is None:
         return None
 
     memberships = await uow.memberships.for_bundle(bundle.id)
-    enabled_ids = [m.server_id for m in memberships if m.enabled]  # BND-4
+    enabled_ids = [m.server_id for m in memberships if m.enabled]
     enabled_servers = {s.name: s for s in await uow.servers.by_ids(enabled_ids)}
     server_by_id = {s.id: s for s in enabled_servers.values()}
 
@@ -34,6 +34,6 @@ async def load_bundle_view(uow: UnitOfWork, endpoint_name: str) -> BundleView | 
         bundle=bundle,
         servers=enabled_servers,
         tools=tools,
-        prompts=await uow.bundle_prompts.listings(bundle.id),  # BPR-8
+        prompts=await uow.bundle_prompts.listings(bundle.id),
         resources=await uow.bundle_resources.listings(bundle.id),
     )

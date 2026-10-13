@@ -1,4 +1,4 @@
-"""Delegated tokens live in Valkey, by hash, until they expire (FWD-6)."""
+"""Delegated tokens live in Valkey, by hash, until they expire (AUTH-32)."""
 
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -10,7 +10,7 @@ from bundlemcp.infrastructure.valkey.delegated_token_store import (
 )
 
 
-async def test_fwd6_a_record_round_trips_and_expires_with_the_token(redis):
+async def test_auth32_a_record_round_trips_and_expires_with_the_token(redis):
     store = ValkeyDelegatedTokenStore(redis)
     record = DelegatedToken(
         sub="api_key:1",
@@ -25,6 +25,6 @@ async def test_fwd6_a_record_round_trips_and_expires_with_the_token(redis):
     assert await store.get("unknown") is None
 
 
-async def test_fwd6_a_malformed_record_reads_as_absent(redis):
+async def test_auth32_a_malformed_record_reads_as_absent(redis):
     await redis.set(DELEGATED_TOKEN_KEY.format(token_hash="bad"), "{not json")
     assert await ValkeyDelegatedTokenStore(redis).get("bad") is None

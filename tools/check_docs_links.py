@@ -3,7 +3,7 @@
 
 The VitePress build already fails on a dead link, but only for the pages it
 builds: ``docs/.vitepress/config.ts`` excludes ``arc42/**``, ``adr/**``,
-``likec4/**`` and every ``README.md``. Those, plus ``CLAUDE.md``, ``spec/`` and
+``likec4/**`` and every ``README.md``. Those, plus ``CLAUDE.md``, ``openspec/`` and
 ``.claude/docs/``, are checked here instead — and anchors are checked
 everywhere, which the VitePress build does not do at all.
 
@@ -38,7 +38,7 @@ TARGETS = _tracked(
         *DOCS.rglob("*.md"),
         *ROOT.glob("*.md"),
         *(ROOT / ".claude" / "docs").glob("*.md"),
-        *(ROOT / "spec").glob("*.md"),
+        *(ROOT / "openspec").rglob("*.md"),
         *(ROOT / "packages").rglob("README.md"),
         *(ROOT / "deploy").glob("*.md"),
     ]

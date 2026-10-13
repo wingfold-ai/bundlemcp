@@ -19,7 +19,7 @@ class EndpointRow(SQLModel, table=True):
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4, primary_key=True, description="Identifier of the endpoint"
     )
-    name: str = Field(  # EP-1
+    name: str = Field(
         unique=True,
         index=True,
         description="Unique endpoint name; it forms the public URL path segment",

@@ -49,7 +49,7 @@ class AuditRecord(BaseModel):
     )
     session_id: str | None = Field(default=None, description="MCP session the call belonged to")
     status: AuditStatus = Field(description="Outcome of the call: success, error or denied")
-    denied_reason: str | None = Field(  # AUD-2
+    denied_reason: str | None = Field(
         default=None,
         description="Why a denied call was refused, such as a metering or rate-limit decision",
     )
@@ -57,6 +57,6 @@ class AuditRecord(BaseModel):
         default=None,
         description="Time spent on the upstream call; null when the call was denied",
     )
-    error_message: str | None = Field(  # AUD-1
+    error_message: str | None = Field(
         default=None, description="Failure detail when the call errored, truncated if long"
     )

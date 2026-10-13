@@ -96,7 +96,6 @@ class MeController(Controller):
     ) -> list[CataloguePromptRead]:
         """The prompts a bundle itself offers, for a signed-in person reading its catalogue
         entry."""
-        # BPR-19
         await self._caller(request, callers)
         bundle_id = await endpoints.reachable_bundle_id(bundle_name)
         return await prompts.catalogue(bundle_id)
@@ -112,7 +111,6 @@ class MeController(Controller):
     ) -> list[CatalogueResourceRead]:
         """The documents a bundle itself offers, for a signed-in person reading its catalogue
         entry."""
-        # BPR-19
         await self._caller(request, callers)
         bundle_id = await endpoints.reachable_bundle_id(bundle_name)
         return await resources.catalogue(bundle_id)

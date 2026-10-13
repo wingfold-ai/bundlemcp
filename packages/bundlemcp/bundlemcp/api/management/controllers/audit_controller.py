@@ -11,7 +11,7 @@ from bundlemcp.api.management.controllers.management_controller import Managemen
 from bundlemcp.application.management.audit_service import AuditFilter
 from bundlemcp.application.schemas import AuditRecordRead, Page
 
-# AUD-6: one query parameter per filter field, parsed straight into the model
+# one query parameter per filter field, parsed straight into the model
 AuditFilterQuery = Annotated[AuditFilter, Depends(AuditFilter)]
 
 

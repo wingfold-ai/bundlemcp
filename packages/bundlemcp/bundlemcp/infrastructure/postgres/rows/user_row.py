@@ -27,11 +27,11 @@ class UserRow(SQLModel, table=True):
     display_name: str | None = Field(
         default=None, description="Display name claim, when the issuer sent one"
     )
-    is_admin: bool = Field(  # ADM-3
+    is_admin: bool = Field(
         default=False,
         description="Whether the user may use the management API. Re-evaluated at every login",
     )
-    is_active: bool = Field(  # ADM-6
+    is_active: bool = Field(
         default=True,
         description="Whether the user may authenticate; deactivating also ends their sessions",
     )

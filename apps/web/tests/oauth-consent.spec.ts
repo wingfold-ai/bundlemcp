@@ -47,7 +47,7 @@ test(testTitle("E2E-17"), async ({ page, steps }) => {
   let landed: URL;
 
   await steps.play([
-    given("an OAuth endpoint and a client registered with a redirect URI on another origin", { req: "OAS-2" }, async () => {
+    given("an OAuth endpoint and a client registered with a redirect URI on another origin", { req: "AUTH-2" }, async () => {
       // Plain fetch, not the `request` fixture: that one carries the stored admin
       // cookie, and a cookie-authenticated write must pass the CSRF check.
       const endpoint = await fetch(`${GATEWAY_URL}/api/v1/endpoints/${ENDPOINT}`, {
@@ -69,7 +69,7 @@ test(testTitle("E2E-17"), async ({ page, steps }) => {
       expect(registered.status).toBe(201);
       clientId = (await registered.json()).client_id;
     }),
-    when("the signed-in user denies the consent screen", { req: "OAS-11" }, async () => {
+    when("the signed-in user denies the consent screen", { req: "AUTH-11" }, async () => {
       await page.goto(authorizeUrl(clientId, "deny-state"));
       await page.getByRole("button", { name: "Deny" }).click();
       await page.waitForURL((url) => url.href.startsWith(redirectUri));
@@ -79,7 +79,7 @@ test(testTitle("E2E-17"), async ({ page, steps }) => {
       expect(landed.searchParams.get("error")).toBe("access_denied");
       expect(landed.searchParams.get("state")).toBe("deny-state");
     }),
-    when("the user approves the consent screen", { req: "OAS-11" }, async () => {
+    when("the user approves the consent screen", { req: "AUTH-11" }, async () => {
       await page.goto(authorizeUrl(clientId, "approve-state"));
       await page.getByRole("button", { name: "Approve" }).click();
       await page.waitForURL((url) => url.href.startsWith(redirectUri));

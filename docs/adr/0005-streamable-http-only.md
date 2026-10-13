@@ -18,8 +18,8 @@ and clients (claude.ai, ChatGPT) speak Streamable HTTP.
 ## Decision
 
 bundlemcp connects to upstreams and serves endpoints **exclusively over Streamable HTTP**
-([spec/10](../../spec/10-server-registry.md) SRV-1, [spec/14](../../spec/14-endpoints.md) EP-1). stdio servers are
-supported via a documented sidecar pattern (SRV-7), not in-process.
+([spec/10](../../openspec/specs/upstreams/spec.md) UPS-1, [spec/14](../../openspec/specs/endpoints/spec.md)
+EP-1). stdio servers are supported via a documented sidecar pattern (UPS-7), not in-process.
 
 ## Alternatives considered
 
@@ -34,6 +34,6 @@ _Not recorded at the time of the decision._
 ### Trade-offs
 
 - Users with stdio-only servers must run a sidecar (documented with a compose example,
-  [spec/61](../../spec/61-docs-and-onboarding.md)).
+  [spec/61](../../openspec/specs/documentation/spec.md)).
 - Legacy SSE-only clients/servers are unsupported (recorded in the decision log).
 

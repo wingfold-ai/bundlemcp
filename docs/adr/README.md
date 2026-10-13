@@ -13,7 +13,7 @@ Context, Decision or Consequences, only its `**Status:**` line. Two states expre
 Every `**Amends:**` has a matching `**Amended by:**` on its target, and the
 index below is generated from those lines, so file and index cannot disagree.
 Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules in
-[spec/62](../../spec/62-architecture-documentation.md) (ADOC-2, ADOC-5).
+[spec/62](../../openspec/specs/documentation/spec.md) (DOC-8, DOC-11).
 
 | # | Decision | Status |
 |---|---|---|

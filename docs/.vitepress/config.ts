@@ -1,4 +1,5 @@
 import { defineConfig, type HeadConfig } from "vitepress";
+import { requirementsLedgerPlugin } from "./requirements-ledger";
 
 // Cookieless Plausible analytics on the published site only: the publish
 // workflow sets both variables from repository variables, so local builds, CI
@@ -10,9 +11,9 @@ const analytics: HeadConfig[] =
     ? [["script", { defer: "", "data-domain": plausibleDomain, src: plausibleScript }]]
     : [];
 
-// The user-facing documentation site (spec 61). Architecture material in
+// The user-facing documentation site (the documentation spec). Architecture material in
 // docs/arc42, docs/adr and docs/likec4 stays out of the site: it is written
-// for contributors, links into spec/, and is read on GitHub.
+// for contributors, links into openspec/, and is read on GitHub.
 export default defineConfig({
   title: "bundlemcp",
   description:
@@ -25,6 +26,8 @@ export default defineConfig({
   // <likec4-view> is the web component generated from docs/likec4 at build time
   vue: { template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("likec4-") } } },
   ignoreDeadLinks: "localhostLinks",
+  // /requirements.json, fetched by the Requirements page (docs/reference/requirements.md)
+  vite: { plugins: [requirementsLedgerPlugin()] },
   lastUpdated: true,
   head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo-mark.svg" }], ...analytics],
   themeConfig: {
@@ -92,6 +95,10 @@ export default defineConfig({
           { text: "Identity for upstream servers", link: "/integrate/upstream-identity" },
           { text: "HTTP surface reference", link: "/integrate/http-surface" },
         ],
+      },
+      {
+        text: "Reference",
+        items: [{ text: "Requirements", link: "/reference/requirements" }],
       },
     ],
     socialLinks: [{ icon: "github", link: "https://github.com/wingfold-ai/bundlemcp" }],

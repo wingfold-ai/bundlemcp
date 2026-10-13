@@ -1,4 +1,4 @@
-"""The identity provider is discovered once it is reachable, not only at startup (ADM-7)."""
+"""The identity provider is discovered once it is reachable, not only at startup (AUTH-21)."""
 
 import asyncio
 
@@ -61,7 +61,7 @@ async def _authorize(provider: DiscoveringOidcProvider) -> str:
 
 
 async def test_login_discovers_an_idp_that_came_up_after_startup():
-    """ADM-7 (#86): a failed discovery is not kept; a later login retries and succeeds."""
+    """AUTH-21 (#86): a failed discovery is not kept; a later login retries and succeeds."""
     idp, clock = FlakyIdp(), ManualClock()
     provider = _provider(idp, clock)
 
@@ -75,7 +75,7 @@ async def test_login_discovers_an_idp_that_came_up_after_startup():
 
 
 async def test_logins_within_the_retry_floor_do_not_refetch():
-    """ADM-7: a burst of logins while the IdP is down costs one discovery fetch."""
+    """AUTH-21: a burst of logins while the IdP is down costs one discovery fetch."""
     idp, clock = FlakyIdp(), ManualClock()
     provider = _provider(idp, clock)
 
@@ -92,7 +92,7 @@ async def test_logins_within_the_retry_floor_do_not_refetch():
 
 
 async def test_failed_refresh_keeps_the_document_already_fetched():
-    """ADM-7: once discovered, an IdP outage does not undo it; the login still completes."""
+    """AUTH-21: once discovered, an IdP outage does not undo it; the login still completes."""
     idp = FlakyIdp()
     idp.up = True
     idp.id_token = idp.sign()
@@ -110,7 +110,7 @@ async def test_failed_refresh_keeps_the_document_already_fetched():
 
 
 async def test_background_loop_discovers_without_a_login(monkeypatch):
-    """ADM-7: the background retry picks the IdP up on its own once it answers."""
+    """AUTH-21: the background retry picks the IdP up on its own once it answers."""
     monkeypatch.setattr(discovering_oidc_provider, "BACKOFF_INITIAL_SECONDS", 0.01)
     monkeypatch.setattr(discovering_oidc_provider, "BACKOFF_CAP_SECONDS", 0.02)
     idp = FlakyIdp()

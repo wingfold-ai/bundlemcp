@@ -3,27 +3,28 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // ---------------------------------------------------------------------------
-// Spec requirements — parsed verbatim out of /spec at run time, so on-screen
-// cards and TESTMAP.md always quote the real requirement and cannot drift.
+// Spec requirements — parsed verbatim out of openspec/specs at run time, so
+// on-screen cards and TESTMAP.md always quote the real requirement and cannot
+// drift.
 // ---------------------------------------------------------------------------
 
 export interface Requirement {
   id: string;
-  spec: string;
+  spec: string; // the capability, e.g. "bundles" for openspec/specs/bundles/spec.md
   title: string;
   text: string;
 }
 
-function findSpecDir(): string {
+function findSpecsDir(): string {
   let dir = process.cwd();
   for (let i = 0; i < 8; i++) {
-    const candidate = join(dir, "spec");
-    if (existsSync(join(candidate, "README.md"))) return candidate;
+    const candidate = join(dir, "openspec", "specs");
+    if (existsSync(candidate)) return candidate;
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  throw new Error("could not locate the /spec directory");
+  throw new Error("could not locate the openspec/specs directory");
 }
 
 function stripMarkdown(s: string): string {
@@ -38,25 +39,27 @@ let cache: Map<string, Requirement> | null = null;
 
 function allRequirements(): Map<string, Requirement> {
   if (cache) return cache;
-  const dir = findSpecDir();
+  const dir = findSpecsDir();
   const found = new Map<string, Requirement>();
-  for (const file of readdirSync(dir).filter((f) => f.endsWith(".md"))) {
-    const lines = readFileSync(join(dir, file), "utf8").split("\n");
+  for (const capability of readdirSync(dir)) {
+    const file = join(dir, capability, "spec.md");
+    if (!existsSync(file)) continue;
+    const lines = readFileSync(file, "utf8").split("\n");
     lines.forEach((line, i) => {
-      // Requirements look like: `- **EP-1** ...` or `- **ADM-6 Deprovisioning:** ...`
-      const m = line.match(/^- \*\*([A-Za-z]+-[0-9a-z]+)([^*]*)\*\*:?\s*(.*)$/);
+      // Requirements look like: `### Requirement: <CODE>-<n> Short name`
+      const m = line.match(/^### Requirement: ([A-Za-z]+-[0-9a-z]+)\s*(.*)$/);
       if (!m) return;
-      const [, id, rawTitle, rest] = m;
+      const [, id, rawTitle] = m;
       if (found.has(id)) return;
-      const parts = [rest];
+      const parts: string[] = [];
       for (let j = i + 1; j < lines.length; j++) {
-        if (!/^\s{2,}\S/.test(lines[j])) break; // continuation lines are indented
+        if (/^#{1,4} /.test(lines[j])) break; // the text ends at the first scenario
         parts.push(lines[j].trim());
       }
       found.set(id, {
         id,
-        spec: file,
-        title: stripMarkdown(rawTitle).replace(/:$/, ""),
+        spec: capability,
+        title: stripMarkdown(rawTitle),
         text: stripMarkdown(parts.join(" ")),
       });
     });
@@ -67,7 +70,7 @@ function allRequirements(): Map<string, Requirement> {
 
 export function requirement(id: string): Requirement {
   const req = allRequirements().get(id);
-  if (!req) throw new Error(`unknown requirement id "${id}" — not found in /spec`);
+  if (!req) throw new Error(`unknown requirement id "${id}" — not found in openspec/specs`);
   return req;
 }
 
@@ -98,7 +101,7 @@ export function scenario(id: string): Scenario {
   return s;
 }
 
-// The primary spec of a scenario is the file that defines its first requirement.
+// The primary spec of a scenario is the capability that defines its first requirement.
 export function primarySpec(id: string): string {
   return requirement(scenario(id).requirements[0]).spec;
 }
@@ -114,9 +117,9 @@ export function testTitle(id: string): string {
 }
 
 // The staged recording filename, e.g.
-// "E2E-07__14-endpoints__endpoint-relay-mcp-and-audit.webm" — the spec file is
+// "E2E-07__endpoints__endpoint-relay-mcp-and-audit.webm" — the capability is
 // embedded so the recording name maps straight to the spec that codes it.
 export function videoName(id: string): string {
   const s = scenario(id);
-  return `${id}__${primarySpec(id).replace(/\.md$/, "")}__${s.slug}.webm`;
+  return `${id}__${primarySpec(id)}__${s.slug}.webm`;
 }

@@ -56,14 +56,14 @@ find in the product glossary.
 |---|---|---|
 | **Signal bus** | Valkey pub/sub delivering cancels, client replies and events to whichever replica holds the stream | `infrastructure/valkey/` |
 | **Stream registry** | This replica's open streams and in-flight calls. Deliberately process-local: a stream *is* a connection | `infrastructure/inprocess/` |
-| **STP event** | A cross-replica configuration-invalidation message ([spec/33](../../spec/33-state-propagation.md)) | `infrastructure/valkey/publish_invalidation.py` |
+| **Invalidation event** | A cross-replica configuration-invalidation message ([sessions spec](../../openspec/specs/sessions/spec.md)) | `infrastructure/valkey/publish_invalidation.py` |
 | **Invalidation bus** | The channel those events travel on, so a config change reaches every replica without a restart | `infrastructure/valkey/` |
 
 ## Conventions
 
 | Term | Meaning |
 |---|---|
-| **Requirement ID** | A stable, testable identifier in `/spec` (`SRV-1`, `EP-3`, `PROT-13`). Belongs in `#` comments, test names and error messages — never in a docstring or a field description |
+| **Requirement ID** | A stable, testable identifier in `/spec` (`UPS-1`, `EP-3`, `PROT-13`). Belongs in `#` comments, test names and error messages — never in a docstring or a field description |
 | **Policy object** | An invariant spanning several resources, as an object rather than a check buried in a service (`PerUserUpstreamPolicy`) |
 | **Import contract** | An import-linter rule enforcing the layer direction. Three of them, zero exceptions |
 

@@ -61,19 +61,19 @@ def create_app(
         title="bundlemcp",
         version="0.1.0",
         lifespan=lifespan,
-        openapi_url=f"{API_PREFIX}/openapi.json",  # API-3
+        openapi_url=f"{API_PREFIX}/openapi.json",
         docs_url=f"{API_PREFIX}/docs",
     )
     app.add_exception_handler(ServiceError, service_error_handler)
     app.add_exception_handler(OAuthError, oauth_error_handler)
     app.add_exception_handler(AuthorizationRedirectError, authorization_redirect_handler)
-    app.add_exception_handler(LockedOut, locked_out_handler)  # RATE-5
-    # SES-14: Valkey still unreachable after the client's retries
+    app.add_exception_handler(LockedOut, locked_out_handler)
+    # Valkey still unreachable after the client's retries
     app.add_exception_handler(StoreConnectionError, live_state_unavailable_handler)
     app.add_exception_handler(StoreTimeoutError, live_state_unavailable_handler)
 
     if settings.web_origins:
-        # SEC-4: credentials-enabled CORS for exactly the web app's origin(s)
+        # credentials-enabled CORS for exactly the web app's origin(s)
         app.add_middleware(
             CORSMiddleware,
             allow_origins=[o.rstrip("/") for o in settings.web_origins],
@@ -86,7 +86,7 @@ def create_app(
     for controller in (
         ServerController(),
         BundleController(),
-        BundlePromptController(),  # BPR-14
+        BundlePromptController(),
         BundleResourceController(),
         EndpointController(),
         ApiKeyController(),
@@ -95,7 +95,7 @@ def create_app(
         MeController(),
     ):
         controller.mount(app, prefix=API_PREFIX)
-    # OAuth server routes at root for .well-known discovery (spec 20)
+    # OAuth server routes at root for .well-known discovery (the auth spec)
     for controller in (
         OAuthMetadataController(),
         ClientRegistrationController(),
@@ -103,10 +103,10 @@ def create_app(
         OAuthTokenController(),
         IntrospectionController(),
         LoginController(),
-        UpstreamConnectController(),  # spec 23 connect flow
+        UpstreamConnectController(),  # the upstreams spec connect flow
     ):
         controller.mount(app)
-    UserController().mount(app, prefix=API_PREFIX)  # /api/v1/users (ADM-6, OAS-11)
+    UserController().mount(app, prefix=API_PREFIX)  # /api/v1/users
     HealthController().mount(app)
-    McpEndpointController().mount(app)  # public /{endpoint}/mcp (EP-1)
+    McpEndpointController().mount(app)  # public /{endpoint}/mcp
     return app

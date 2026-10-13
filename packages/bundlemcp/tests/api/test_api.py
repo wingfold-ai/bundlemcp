@@ -1,4 +1,4 @@
-"""Management API tests (spec 40: API-2/4/5/6; spec 14 EP-3/EP-8; spec 22)."""
+"""Management API tests (MGMT-2/4/5/6; EP-3/EP-8; the auth spec)."""
 
 import pytest
 from httpx import AsyncClient
@@ -10,7 +10,7 @@ def client(service_client: AsyncClient) -> AsyncClient:
 
 
 async def test_auth_required(client: AsyncClient):
-    """API-2: no credentials -> 401; endpoint-kind key -> 403."""
+    """MGMT-2: no credentials -> 401; endpoint-kind key -> 403."""
     resp = await client.get("/api/v1/upstreams", headers={"Authorization": ""})
     assert resp.status_code == 401
 
@@ -21,7 +21,7 @@ async def test_auth_required(client: AsyncClient):
 
 
 async def test_server_upsert_idempotent(client: AsyncClient):
-    """API-4: PUT create-or-update by name, tolerates transport field, idempotent."""
+    """MGMT-4: PUT create-or-update by name, tolerates transport field, idempotent."""
     body = {"name": "seo", "url": "http://seo:8000/mcp", "transport": "streamable-http"}
     r1 = await client.put("/api/v1/upstreams/seo", json=body)
     assert r1.status_code == 200
@@ -34,7 +34,7 @@ async def test_server_upsert_idempotent(client: AsyncClient):
 
 
 async def test_server_secret_headers_write_only(client: AsyncClient):
-    """SRV-3: header values never leave the API."""
+    """UPS-3: header values never leave the API."""
     body = {"name": "s1", "url": "http://s1/mcp", "static_headers": {"authorization": "secret1"}}
     resp = await client.put("/api/v1/upstreams/s1", json=body)
     assert resp.status_code == 200
@@ -43,7 +43,7 @@ async def test_server_secret_headers_write_only(client: AsyncClient):
 
 
 async def test_server_name_rules(client: AsyncClient):
-    """DOM-4: bad slug and double-underscore rejected."""
+    """ARC-19: bad slug and double-underscore rejected."""
     bad = await client.put("/api/v1/upstreams/a.b", json={"name": "a.b", "url": "http://x/mcp"})
     assert bad.status_code == 422
     dbl = await client.put("/api/v1/upstreams/a__b", json={"name": "a__b", "url": "http://x/mcp"})
@@ -51,7 +51,7 @@ async def test_server_name_rules(client: AsyncClient):
 
 
 async def test_server_rename_guard(client: AsyncClient):
-    """SRV-5: rename rejected while a bundle member, unless force."""
+    """UPS-5: rename rejected while a bundle member, unless force."""
     await client.put("/api/v1/upstreams/s1", json={"name": "s1", "url": "http://x/mcp"})
     await client.put("/api/v1/bundles/b1", json={"name": "b1"})
     await client.put("/api/v1/bundles/b1/upstreams/s1", json={"enabled": True})
@@ -66,7 +66,7 @@ async def test_server_rename_guard(client: AsyncClient):
 
 
 async def test_endpoint_validation_matrix(client: AsyncClient):
-    """EP-1 reserved names, EP-3 none-alone rule, PROF-6 matrix."""
+    """EP-1 reserved names, EP-3 none-alone rule, EP-15 matrix."""
     await client.put("/api/v1/bundles/b1", json={"name": "b1"})
 
     reserved = await client.put(
@@ -112,13 +112,13 @@ async def test_endpoint_rename_needs_force(client: AsyncClient):
 
 
 async def test_delete_idempotent(client: AsyncClient):
-    """API-6: deleting a missing resource is 204."""
+    """MGMT-6: deleting a missing resource is 204."""
     resp = await client.delete("/api/v1/upstreams/ghost")
     assert resp.status_code == 204
 
 
 async def test_api_key_lifecycle(client: AsyncClient):
-    """KEY-1 one-time value, KEY-4 deactivation."""
+    """AUTH-22 one-time value, AUTH-25 deactivation."""
     created = await client.post("/api/v1/api-keys", json={"name": "k1", "kind": "endpoint"})
     assert created.status_code == 201
     payload = created.json()
@@ -135,13 +135,13 @@ async def test_api_key_lifecycle(client: AsyncClient):
 
 
 async def test_pagination_limits(client: AsyncClient):
-    """API-5: limit capped at 500, default 50."""
+    """MGMT-5: limit capped at 500, default 50."""
     resp = await client.get("/api/v1/upstreams", params={"limit": 9999})
     assert resp.status_code == 422
 
 
 async def test_pagination_bounds(client: AsyncClient):
-    """API-5: offset and limit are validated; the envelope echoes them."""
+    """MGMT-5: offset and limit are validated; the envelope echoes them."""
     ok = await client.get("/api/v1/upstreams", params={"offset": 0, "limit": 500})
     assert ok.status_code == 200 and ok.json()["limit"] == 500
     for params in ({"limit": 0}, {"limit": 501}, {"offset": -1}, {"limit": "many"}):

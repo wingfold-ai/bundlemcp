@@ -34,6 +34,6 @@ class ToolsListHandler:
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         tools: list[ListedTool] = list(ctx.view.tools)
-        tools += await self._connect_prompts.pending(ctx.view, ctx.identity)  # UPO-3
+        tools += await self._connect_prompts.pending(ctx.view, ctx.identity)
         result = {"tools": [self._entry(t) for t in tools]}
         return rpc_result(message.id, ctx.shape(result, await self._cache_hints.for_list()))

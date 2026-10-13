@@ -37,7 +37,7 @@ extend-exclude = [".claude"]
 [tool.rumdl]
 enable = ["MD013"]
 line-length = 120
-exclude = [".claude/skills"]
+exclude = [".claude/skills", ".claude/commands"]
 
 [tool.rumdl.MD013]
 line-length = 120
@@ -53,7 +53,7 @@ select = [
     "I",   # isort
     "UP",  # pyupgrade
     "B",   # bugbear
-    "T20", # no print statements (OBS-1: structured logging only)
+    "T20", # no print statements (structured logging only)
 ]
 
 [tool.pytest.ini_options]

@@ -1,4 +1,4 @@
-"""Bundle-owned prompts and resources (spec 17) through the management API and its storage."""
+"""Bundle-owned prompts and resources through the management API and its storage."""
 
 import pytest
 from httpx import AsyncClient
@@ -23,7 +23,7 @@ async def client(service_client: AsyncClient) -> AsyncClient:
 
 
 async def test_resource_round_trip_with_folder_name(client):
-    """BPR-14, BPR-6: a name with '/' folders is addressed through the path as written."""
+    """BND-31, BND-23: a name with '/' folders is addressed through the path as written."""
     put = await client.put("/api/v1/bundles/charts/resources/guides/style", json=RESOURCE)
     assert put.status_code == 200, put.text
     body = put.json()
@@ -42,7 +42,7 @@ async def test_resource_round_trip_with_folder_name(client):
 
 
 async def test_prompt_round_trip(client):
-    """BPR-14: GET, idempotent PUT, paginated list and DELETE under the bundle."""
+    """BND-31: GET, idempotent PUT, paginated list and DELETE under the bundle."""
     await client.put("/api/v1/bundles/charts/resources/guides/style", json=RESOURCE)
     first = await client.put("/api/v1/bundles/charts/prompts/plot", json=PROMPT)
     second = await client.put("/api/v1/bundles/charts/prompts/plot", json=PROMPT)
@@ -68,13 +68,13 @@ async def test_prompt_round_trip(client):
     [
         ("prompts/other", PROMPT, "must match"),
         ("prompts/a__b", {**PROMPT, "name": "a__b"}, "__"),
-        ("prompts/plot", PROMPT, "guides/style"),  # BPR-3: resource not there yet
+        ("prompts/plot", PROMPT, "guides/style"),  # resource not there yet
         ("prompts/plot", {**PROMPT, "messages": []}, "messages"),
         ("resources/x", {"name": "x", "content": "", "mime_type": "image/png"}, "mime_type"),
     ],
 )
 async def test_invalid_writes_are_rejected(client, path, body, fragment):
-    """BPR-2, BPR-3, BPR-6: rejected with 422 and a message that says why."""
+    """BND-19, BND-20, BND-23: rejected with 422 and a message that says why."""
     resp = await client.put(f"/api/v1/bundles/charts/{path}", json=body)
     assert resp.status_code == 422
     assert fragment in resp.text
@@ -93,7 +93,7 @@ async def test_embedded_resource_delete_conflicts(client):
 
 
 async def test_content_goes_with_its_bundle(client):
-    """DOM-2: deleting the bundle removes its prompts and resources."""
+    """ARC-17: deleting the bundle removes its prompts and resources."""
     await client.put("/api/v1/bundles/charts/resources/guides/style", json=RESOURCE)
     await client.put("/api/v1/bundles/charts/prompts/plot", json=PROMPT)
     assert (await client.delete("/api/v1/bundles/charts")).status_code == 204
@@ -103,7 +103,7 @@ async def test_content_goes_with_its_bundle(client):
 
 
 async def test_same_name_in_two_bundles(client):
-    """BPR-1, BPR-6: the natural key is (bundle, name)."""
+    """BND-18, BND-23: the natural key is (bundle, name)."""
     await client.put("/api/v1/bundles/other", json={"name": "other"})
     for bundle in ("charts", "other"):
         resp = await client.put(f"/api/v1/bundles/{bundle}/resources/guides/style", json=RESOURCE)

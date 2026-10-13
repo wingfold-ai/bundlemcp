@@ -5,7 +5,7 @@ type BundleRead = components["schemas"]["BundleRead"];
 type ServerRead = components["schemas"]["ServerRead"];
 type BundleMemberRead = components["schemas"]["BundleMemberRead"];
 
-// The composition overview (UI-1): which bundle contains which server, as one
+// The composition overview: which bundle contains which server, as one
 // grid. The per-bundle membership pages answer "what is in this bundle"; this
 // answers the questions that span bundles — what a server is used by, and what
 // is registered but in no bundle at all.

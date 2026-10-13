@@ -26,9 +26,8 @@ class ResourcesReadHandler:
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         uri = message.param("uri", "")
         if is_bundle_uri(uri):
-            # BPR-9: the bundle's own scheme never falls through to a member
+            # the bundle's own scheme never falls through to a member
             return await self._bundle_resource(ctx, message, uri)
-        # BND-8
         result = await self._fanout.first(
             ctx,
             lambda client: client.read_resource_mcp(uri),
@@ -49,11 +48,11 @@ class ResourcesReadHandler:
         if resource is None:
             return self._not_found(ctx, message, uri)
         payload = {"contents": [resource_contents(resource)]}
-        hint = await self._cache_hints.for_bundle_resource()  # BPR-12
+        hint = await self._cache_hints.for_bundle_resource()
         return rpc_result(message.id, ctx.shape(payload, hint))
 
     @staticmethod
     def _not_found(ctx: RequestContext, message: JsonRpcMessage, uri: str) -> Response:
-        # PROT-16: -32002 for handshake clients, -32602 for modern ones.
+        # -32002 for handshake clients, -32602 for modern ones.
         code = ctx.dialect.error_code(NeutralError.RESOURCE_NOT_FOUND)
         return rpc_error(message.id, code, f"resource not found: {uri}", data={"uri": uri})

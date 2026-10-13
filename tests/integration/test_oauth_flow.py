@@ -1,9 +1,9 @@
-"""OAS-9 end-to-end OAuth happy path against the compose stack + real Keycloak.
+"""AUTH-9 end-to-end OAuth happy path against the compose stack + real Keycloak.
 
 Drives: DCR -> authorize (Keycloak login form + gateway consent) -> code ->
 token -> MCP initialize/list/call -> refresh -> introspect, including the IdP
 subject (oidc_iss / oidc_sub). The realm's gateway client enforces PKCE S256, so
-the gateway's own login to Keycloak (ADM-1) is exercised with PKCE too. Requires
+the gateway's own login to Keycloak (AUTH-15) is exercised with PKCE too. Requires
 an oauth-profile endpoint; the demo seed ships an api_key endpoint, so this test
 provisions an oauth endpoint via the management API first.
 """
@@ -143,7 +143,7 @@ def test_full_oauth_happy_path():
         body = introspect.json()
         assert body["active"] is True
         assert body["aud"] == resource
-        # OAS-5 / MID-1: the Keycloak subject travels beside the gateway's own user id.
+        # the Keycloak subject travels beside the gateway's own user id.
         # Keycloak's `sub` is the user's id in the realm, a UUID that is not the gateway's.
         assert body["oidc_iss"].endswith("/realms/bundlemcp")
         assert str(uuid.UUID(body["oidc_sub"])) == body["oidc_sub"]
@@ -151,7 +151,7 @@ def test_full_oauth_happy_path():
 
 
 def test_idp_refuses_the_login_code_without_its_verifier():
-    """ADM-1: the gateway's login carries an S256 challenge, so a code taken from its callback
+    """AUTH-15: the gateway's login carries an S256 challenge, so a code taken from its callback
     is useless to anyone without the verifier the gateway kept."""
     wait_ready(GATEWAY_URL)
     with httpx.Client(follow_redirects=False, timeout=30) as client:

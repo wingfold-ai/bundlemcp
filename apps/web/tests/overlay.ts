@@ -137,7 +137,7 @@ export async function introCard(
             'font-weight:700;font-size:12px;white-space:nowrap">' +
             r.id +
             "</span>" +
-            '<div style="color:#8b949e;font-size:12px">spec/' +
+            '<div style="color:#8b949e;font-size:12px">openspec/specs/' +
             r.spec +
             (r.title ? " · " + r.title : "") +
             "</div></div>",

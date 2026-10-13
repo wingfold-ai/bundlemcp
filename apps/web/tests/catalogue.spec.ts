@@ -15,17 +15,17 @@ test(testTitle("E2E-14"), async ({ page, steps }) => {
       await page.locator("#kc-login").click();
       await page.waitForURL(/\/catalogue/, { timeout: 30_000 });
     }),
-    then("they land on the catalogue, with no management navigation", { req: "ADM-3" }, async () => {
+    then("they land on the catalogue, with no management navigation", { req: "AUTH-17" }, async () => {
       await expect(page.getByTestId("me-email")).toHaveText("jane@example.com");
       await expect(page.getByTestId("catalogue")).toBeVisible();
       await expect(page.getByTestId("nav-servers")).toHaveCount(0);
     }),
-    then("the seeded bundle with OAuth endpoints is listed", { req: "API-1" }, async () => {
+    then("the seeded bundle with OAuth endpoints is listed", { req: "MGMT-1" }, async () => {
       await expect(page.getByTestId("catalogue-bundle-demo")).toBeVisible();
       await page.screenshot({ path: "test-results/catalogue-non-admin.png", fullPage: true });
     }),
     when("they open a bundle", () => page.getByTestId("catalogue-bundle-demo").click()),
-    then("its OAuth endpoints are shown with their connection URLs", { req: "API-1" }, async () => {
+    then("its OAuth endpoints are shown with their connection URLs", { req: "MGMT-1" }, async () => {
       await expect(page.getByTestId("catalogue-claude")).toBeVisible();
       await expect(page.getByTestId("catalogue-url-claude")).toContainText("/claude/mcp");
       await page.screenshot({ path: "test-results/catalogue-bundle-non-admin.png", fullPage: true });

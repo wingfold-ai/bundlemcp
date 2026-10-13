@@ -48,7 +48,7 @@ export const HEALTH_ICON: Record<string, string> = {
   unknown: "i-lucide-circle-help",
 };
 
-/** What the last probe found out about the upstream (SRV-12). */
+/** What the last probe found out about the upstream. */
 export const CONNECTION_STATE_LABEL: Record<string, string> = {
   unknown: "not probed",
   ready: "ready",
@@ -98,7 +98,7 @@ export function connectionStateColor(
   return "error";
 }
 
-/** The one question registration asks: where the upstream credential comes from (UI-6). */
+/** The one question registration asks: where the upstream credential comes from. */
 export type CredentialSource =
   | "none"
   | "key"

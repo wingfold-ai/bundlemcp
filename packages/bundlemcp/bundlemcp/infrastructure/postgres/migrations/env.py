@@ -12,7 +12,7 @@ import bundlemcp.infrastructure.postgres.rows  # noqa: F401  (register all table
 config = context.config
 target_metadata = SQLModel.metadata
 
-# One well-known advisory lock id so N replicas never run migrations concurrently (DEP-4).
+# One well-known advisory lock id so N replicas never run migrations concurrently.
 MIGRATION_LOCK_ID = 0x62_6D_63_70  # "bmcp"
 
 

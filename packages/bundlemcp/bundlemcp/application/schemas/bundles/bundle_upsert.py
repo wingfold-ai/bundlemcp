@@ -12,7 +12,7 @@ class BundleUpsert(BaseModel):
     description: str | None = Field(
         default=None, description="Free-text note about what this bundle is for"
     )
-    overview: str | None = Field(  # BND-11
+    overview: str | None = Field(
         default=None,
         description="Long-form description of the bundle for people browsing the "
         "catalogue: what it is for, what the tools can do, and anything a user must set "

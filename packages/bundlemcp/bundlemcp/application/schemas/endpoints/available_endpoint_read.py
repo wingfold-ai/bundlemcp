@@ -19,7 +19,7 @@ class AvailableEndpointRead(BaseModel):
     bundle_description: str | None = Field(
         description="What the bundle offers, as its administrator described it"
     )
-    bundle_overview: str | None = Field(  # BND-11
+    bundle_overview: str | None = Field(
         description="The administrator's long-form description of the bundle, for the "
         "catalogue page; absent when none was written"
     )

@@ -106,8 +106,8 @@ non-event for in-flight client sessions. The only replica-local objects are open
 
 ## Where the rest of the documentation lives
 
-- `spec/` — the source of truth: atomic specs with testable requirement IDs (`SRV-1`, `EP-3`, `OAS-5`, …). These READMEs
-  cite those IDs.
+- `openspec/` — the source of truth: one spec per capability with testable requirement IDs (`UPS-1`, `EP-3`, `AUTH-5`,
+  …), and the change proposals not yet implemented. These READMEs cite those IDs.
 - `docs/arc42/` — architecture narrative. `docs/adr/` — decision records (ADR-0033 explains the four layers and the
   contracts; ADR-0034 the entity/row split used above).
 - `deploy/TESTING.md` — how to run the full compose stack and the test suites.

@@ -48,7 +48,7 @@ class LoginController(Controller):
         if provider is None:
             raise HTTPException(503, "no OIDC provider configured")
         nonce = secrets.token_urlsafe(24)
-        pkce = PkcePair.generate()  # ADM-1
+        pkce = PkcePair.generate()
         state = await states.put(
             OidcLoginState(
                 nonce=nonce,
@@ -118,13 +118,13 @@ class LoginController(Controller):
     async def logout(self, request: Request, admin_sessions: AdminSessionsProvider) -> Response:
         session_id = request.cookies.get(SESSION_COOKIE)
         if session_id:
-            await admin_sessions.delete(session_id)  # ADM-5
+            await admin_sessions.delete(session_id)
         response = RedirectResponse("/", status_code=302)
         response.delete_cookie(SESSION_COOKIE, path="/")
         return response
 
 
 def _unavailable(exc: OidcUnavailable) -> HTTPException:
-    # ADM-7: the IdP is not reachable yet; the gateway keeps retrying discovery.
+    # the IdP is not reachable yet; the gateway keeps retrying discovery.
     log.warning("admin.login_unavailable", retry_after=exc.retry_after)
     return HTTPException(503, str(exc), headers={"Retry-After": str(exc.retry_after)})

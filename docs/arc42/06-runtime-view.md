@@ -5,13 +5,15 @@ Three load-bearing scenarios (normative details in the linked specs).
 ## 6.1 claude.ai connects to an endpoint (OAuth 2.1)
 
 1. Client hits `/{endpoint}/mcp` unauthenticated → 401 + protected-resource metadata
-   ([EP-3](../../spec/14-endpoints.md)).
+   ([EP-3](../../openspec/specs/endpoints/spec.md)).
 2. Client registers via `POST /oauth/register` (DCR) and starts `GET /oauth/authorize` (PKCE, `resource` = endpoint
    URL).
 3. Gateway has no session → redirects the user to the OIDC IdP; on return the user is provisioned
-   ([ADM-2](../../spec/21-admin-auth.md)) and sees the **consent screen** ([OAS-11](../../spec/20-oauth-server.md)).
-4. Code → token exchange; the access token's audience is the endpoint ([OAS-10](../../spec/20-oauth-server.md)). Client
-   initializes; session record created in Redis ([SES-1](../../spec/30-session-management.md)).
+   ([AUTH-16](../../openspec/specs/auth/spec.md)) and sees the **consent screen**
+   ([AUTH-11](../../openspec/specs/auth/spec.md)).
+4. Code → token exchange; the access token's audience is the endpoint
+   ([AUTH-10](../../openspec/specs/auth/spec.md)). Client initializes; session record created in Redis
+   ([SES-1](../../openspec/specs/sessions/spec.md)).
 5. Refresh rotates tokens; introspection exposes `sub` + audience to upstreams/app layer.
 
 ## 6.2 Tool call with metering, progress, and refund-on-failure
@@ -19,15 +21,15 @@ Three load-bearing scenarios (normative details in the linked specs).
 1. `tools/call` arrives at **any** replica; session loaded from Redis; identity from the bearer (EP-6).
 2. Middleware chain: tool enabled? → override reverse-map → profile check → **metering pre-call**
    (`{sub, email, bundle, server, tool, idempotency_key}`) — deny ends the call with a structured error
-   ([MID-3](../../spec/31-middleware.md)).
+   ([PROT-26](../../openspec/specs/protocol/spec.md)).
 3. Prefix parsed (first `__`), upstream binding resolved or lazily created (identity-keyed when headers are forwarded,
-   [FWD-5](../../spec/24-identity-forwarding.md)).
+   [AUTH-31](../../openspec/specs/auth/spec.md)).
 4. Upstream call runs with progress-aware timeouts; `notifications/progress` relayed to the client
-   ([PROT-1/2](../../spec/32-protocol-passthrough.md)). A client cancel reaching another replica is routed via pub/sub
-   ([PROT-3](../../spec/32-protocol-passthrough.md), SES-13).
+   ([PROT-1/2](../../openspec/specs/protocol/spec.md)). A client cancel reaching another replica is routed
+   via pub/sub ([PROT-3](../../openspec/specs/protocol/spec.md), SES-13).
 5. Result → **metering post-call** with the outcome (`result`, `tool_error`, `no_result` or `cancelled`; the hook
    decides what each costs) → audit record
-   ([AUD-1/7](../../spec/50-audit-log.md)).
+   ([OPS-1/7](../../openspec/specs/operations/spec.md)).
 
 ## 6.3 Gateway restart under load (the metamcp fix)
 
@@ -47,6 +49,6 @@ Three load-bearing scenarios (normative details in the linked specs).
 3. The client's `notifications/cancelled` lands on **another replica**. That replica publishes a `cancel` signal on the
    Redis bus ([ADR-0016](../adr/0016-relay-design.md), SES-13); the replica holding the `CallHandle` sets its cancel
    event, the upstream task is cancelled, and the SSE stream emits a JSON-RPC error. Metering
-   `post_call(status=error)` + audit record fire (MID-3).
+   `post_call(status=error)` + audit record fire (PROT-26).
 4. If instead the upstream raises `elicitation/create`, it is delivered on the client's GET event stream (possibly on a
    third replica) and the client's reply routed back by correlation id — capability-gated (PROT-4/5/6).

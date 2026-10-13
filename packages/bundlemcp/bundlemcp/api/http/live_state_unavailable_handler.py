@@ -20,7 +20,7 @@ RETRY_AFTER_SECONDS = 1
 
 async def live_state_unavailable_handler(request: Request, exc: Exception) -> JSONResponse:
     """Answer 503 with ``Retry-After`` instead of an unhandled server error."""
-    # SES-14: Redis down → 503 + Retry-After, never a false 404.
+    # Redis down → 503 + Retry-After, never a false 404.
     log.warning("livestate.unavailable", path=request.url.path, error=type(exc).__name__)
     return JSONResponse(
         status_code=503,

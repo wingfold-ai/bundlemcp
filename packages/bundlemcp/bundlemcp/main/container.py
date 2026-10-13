@@ -72,7 +72,7 @@ class AppContainer(BaseModel):
     connection_diagnoser: ConnectionDiagnoser = Field(
         description="Settles what an upstream's refusal means, following its OAuth chain"
     )
-    delegated_tokens: DelegatedTokenIssuer = Field(  # FWD-6
+    delegated_tokens: DelegatedTokenIssuer = Field(
         description="Issues and recognises the upstream-bound tokens of delegated_token servers"
     )
     audit: AuditSink = Field(description="Queued writer for audit records")
@@ -85,11 +85,11 @@ class AppContainer(BaseModel):
     auth_failure_guard: AuthFailureGuard = Field(
         description="Per-IP lockout after repeated bad credentials, for every credential edge"
     )
-    token_cipher: SecretCipher | None = Field(  # DEP-9
+    token_cipher: SecretCipher | None = Field(
         repr=False,
         description="Encrypts stored upstream secrets; None until encryption keys are configured",
     )
-    upstream_tokens: UpstreamTokenService | None = Field(  # spec 23
+    upstream_tokens: UpstreamTokenService | None = Field(  # the upstreams spec
         description="Store for upstream OAuth tokens; None when no encryption keys are configured"
     )
     upstream_connections: UpstreamConnectionRegistry = Field(

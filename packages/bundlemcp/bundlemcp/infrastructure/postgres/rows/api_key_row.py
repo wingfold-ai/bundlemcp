@@ -18,7 +18,7 @@ class ApiKeyRow(SQLModel, table=True):
         default_factory=uuid.uuid4, primary_key=True, description="Identifier of the key"
     )
     name: str = Field(description="Human-readable label, shown in listings")
-    key_hash: str = Field(  # KEY-1
+    key_hash: str = Field(
         unique=True,
         index=True,
         description="Hash of the secret. The secret itself is never stored",
@@ -26,7 +26,7 @@ class ApiKeyRow(SQLModel, table=True):
     key_prefix: str = Field(
         description="Leading characters of the secret, enough to recognise which key this is"
     )
-    kind: ApiKeyKind = Field(  # KEY-2
+    kind: ApiKeyKind = Field(
         default=ApiKeyKind.ENDPOINT,
         sa_type=String,
         description="'endpoint' keys call MCP endpoints; 'service' keys call the management API",

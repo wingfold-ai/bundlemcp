@@ -41,7 +41,8 @@ class ManagementAuth:
                 return Principal(kind=PrincipalKind.SERVICE, api_key_id=str(caller.id))
             case ApiKey():
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="key is not service-kind (KEY-2)"
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="key is not service-kind (AUTH-23)",
                 )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -50,7 +51,7 @@ class ManagementAuth:
 
     @staticmethod
     def _check_origin(request: Request, settings: Settings) -> None:
-        # SEC-4: cookie-authenticated mutations require an Origin/Referer
+        # cookie-authenticated mutations require an Origin/Referer
         # matching the gateway itself or an allowlisted web-app origin. An
         # Origin is an origin and must match exactly; a Referer is a URL and
         # must sit under one. A plain prefix test would let

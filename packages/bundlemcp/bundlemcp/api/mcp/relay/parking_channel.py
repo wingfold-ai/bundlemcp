@@ -1,6 +1,6 @@
 """Park the upstream call until the stateless client retries with its answers."""
 
-# PROT-18: park and resume, the stateless era's answer to a mid-request tool response.
+# park and resume, the stateless era's answer to a mid-request tool response.
 
 import asyncio
 from collections.abc import Callable
@@ -41,7 +41,7 @@ class ParkingChannel:
         )
         await self._events.emit("input_required", {"result": self._shape(asked)})
         try:
-            # PROT-6: the client's retry must arrive within the call's own budget.
+            # the client's retry must arrive within the call's own budget.
             reply = await asyncio.wait_for(future, timeout=self._wait_timeout)
         finally:
             self._registry.unregister_reply(self._events.correlation_id)

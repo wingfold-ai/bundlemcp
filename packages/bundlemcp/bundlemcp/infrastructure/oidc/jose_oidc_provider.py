@@ -88,7 +88,7 @@ class JoseOidcProvider:
             "state": state,
             "nonce": nonce,
         }
-        if self._sends_pkce:  # ADM-1
+        if self._sends_pkce:
             params["code_challenge"] = code_challenge
             params["code_challenge_method"] = CodeChallengeMethod.S256
         return f"{self._metadata['authorization_endpoint']}?{urlencode(params)}"
@@ -107,7 +107,7 @@ class JoseOidcProvider:
             "client_id": self._settings.oidc_client_id,
             "client_secret": self._settings.oidc_client_secret,
         }
-        if self._sends_pkce:  # ADM-1
+        if self._sends_pkce:
             form["code_verifier"] = code_verifier
         try:
             async with self._client_factory() as client:
@@ -159,6 +159,6 @@ def _accepts_s256(metadata: dict[str, Any]) -> bool:
 
 def _check_egress(url: str, settings: Settings) -> None:
     try:
-        check_url_allowed(url, settings)  # SEC-1
+        check_url_allowed(url, settings)
     except EgressDenied as exc:
         raise OidcError("identity provider URL is not allowed by the egress policy") from exc

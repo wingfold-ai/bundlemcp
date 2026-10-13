@@ -1,6 +1,6 @@
 # ADR-0042: The metering hook can run out of process, and reports outcome kinds
 
-**Status:** accepted · **Date:** 2026-10-08 · **Amends:** spec 31 (MID-3, MID-4)
+**Status:** accepted · **Date:** 2026-10-08 · **Amends:** spec 31 (PROT-26, PROT-27)
 
 ## Context
 
@@ -16,7 +16,7 @@ unreachable or timed out produced nothing.
 Two further gaps showed up once the hook is a network call:
 
 - A `pre_call` that times out or fails may already have acted on the call (debited, counted a quota) on the hook's side,
-  but MID-3 delivered a `post_call` only after a successful `pre_call`, so that debit was never compensated.
+  but PROT-26 delivered a `post_call` only after a successful `pre_call`, so that debit was never compensated.
 - The only text a denied caller saw was `reason`, a machine code, as a JSON-RPC error that clients rarely show to the
   person, who therefore never learned why the call was refused or what to do about it.
 
@@ -41,7 +41,7 @@ Two further gaps showed up once the hook is a network call:
   few seconds on shutdown. The gateway keeps awaiting `post_call` inline, so in-process hooks behave as before.
 - **Outcome kinds replace success/error.** `post_call(ctx, outcome: MeterOutcome, duration_ms)` with `result`,
   `tool_error`, `no_result` and `cancelled`. `CallOutcome.meter_outcome` is the one place the gateway classifies a
-  call's ending. `METERING_PROTOCOL_VERSION` becomes 2: a breaking change under MID-4.
+  call's ending. `METERING_PROTOCOL_VERSION` becomes 2: a breaking change under PROT-27.
 - **Compensation is the gateway's job.** When `pre_call` raises and the failure policy denies the call, `ToolCall`
   delivers `post_call(no_result, 0)` under the same `idempotency_key`. Because it lives in the gateway, it applies to
   every hook, not just the HTTP one.
@@ -60,7 +60,7 @@ Two further gaps showed up once the hook is a network call:
 - **Always answer a denial as a tool result.** Changes what every existing client receives for a hook that never set a
   message, and a JSON-RPC error is still the clearer signal for a programmatic caller.
 - **A durable outbox for post-calls.** Survives a crash, but adds a persistent queue for a case the audit log already
-  covers as the reconciliation source (MID-3).
+  covers as the reconciliation source (PROT-26).
 
 ## Consequences
 

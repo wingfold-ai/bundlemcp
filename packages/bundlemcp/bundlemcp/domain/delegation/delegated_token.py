@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 DELEGATION_CLIENT_ID = "bundlemcp-delegation"  # the client every delegated token is issued to
-DELEGATED_TOKEN_TTL_SECONDS = 300  # FWD-6
+DELEGATED_TOKEN_TTL_SECONDS = 300
 ENDPOINT_ACTOR_PREFIX = "endpoint:"
 
 
@@ -20,7 +20,7 @@ class DelegatedToken(BaseModel):
 
     sub: str = Field(description="The caller: a user id or 'api_key:<id>'")
     email: str | None = Field(default=None, description="The caller's email, when known")
-    # Defaults keep records written before these fields existed readable (DEP-6).
+    # Defaults keep records written before these fields existed readable.
     oidc_issuer: str | None = Field(
         default=None, description="Identity provider that authenticated the caller, for a user"
     )

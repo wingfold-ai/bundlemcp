@@ -1,4 +1,4 @@
-"""How curation and the endpoint profile shape the tool a client sees (PROF-3, TM-2/3/4)."""
+"""How curation and the endpoint profile shape the tool a client sees (EP-12, BND-13/14/15)."""
 
 import uuid
 

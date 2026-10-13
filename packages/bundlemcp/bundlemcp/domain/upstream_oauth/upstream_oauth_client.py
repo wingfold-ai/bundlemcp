@@ -13,11 +13,11 @@ class UpstreamOAuthClient(BaseModel):
         default=None,
         description="Client id at the upstream authorization server; null until registered",
     )
-    client_secret_encrypted: str | None = Field(  # DOM-3 / DEP-9
+    client_secret_encrypted: str | None = Field(
         default=None,
         description="Client secret, encrypted at rest. Never returned by the API",
     )
-    metadata_: dict[str, Any] = Field(  # UPO-1
+    metadata_: dict[str, Any] = Field(
         default_factory=dict,
         description="Endpoints and scopes discovered from the upstream authorization server",
     )

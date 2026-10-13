@@ -1,0 +1,1441 @@
+{
+  "$comment": "Dates for the requirements that were already in the specs when they moved to OpenSpec on 2026-10-13, derived once from git history and frozen. 'specified' is the first commit that wrote the code into spec/. 'implemented' is the first commit that cited it in a test ('evidence': 'test') or, if earlier or the only one, in code ('code'); null when nothing cites it, so it was implemented on or before 2026-10-13. Requirements that were specified but not built carry 'evidence': 'unbuilt' and only their 'specified' date; each is ADDED by an open change. Every later date comes from openspec/changes/archive/<date>-<change>/. tools/spec_ledger.py merges both.",
+  "migrated_on": "2026-10-13",
+  "requirements": {
+    "ARC-1": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "ARC-2": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "ARC-3": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-31",
+      "evidence": "code"
+    },
+    "ARC-4": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "ARC-5": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "ARC-6": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "ARC-7": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-12",
+      "evidence": "code"
+    },
+    "ARC-8": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-12",
+      "evidence": "code"
+    },
+    "ARC-9": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-31",
+      "evidence": "code"
+    },
+    "ARC-10": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-31",
+      "evidence": "code"
+    },
+    "ARC-11": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "ARC-12": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "ARC-13": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-23",
+      "evidence": "code"
+    },
+    "ARC-14": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-16",
+      "evidence": "test"
+    },
+    "ARC-15": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "ARC-16": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-16",
+      "evidence": "test"
+    },
+    "ARC-17": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-16",
+      "evidence": "test"
+    },
+    "ARC-18": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "ARC-19": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-14",
+      "evidence": "code"
+    },
+    "ARC-20": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-30",
+      "evidence": "test"
+    },
+    "AUTH-1": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-07",
+      "evidence": "test"
+    },
+    "AUTH-2": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-07",
+      "evidence": "test"
+    },
+    "AUTH-3": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "AUTH-4": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "AUTH-5": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-05",
+      "evidence": "code"
+    },
+    "AUTH-6": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-07",
+      "evidence": "test"
+    },
+    "AUTH-7": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "AUTH-8": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "AUTH-9": {
+      "specified": "2026-07-05",
+      "implemented": "2026-09-03",
+      "evidence": "test"
+    },
+    "AUTH-10": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "AUTH-11": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-05",
+      "evidence": "code"
+    },
+    "AUTH-12": {
+      "specified": "2026-07-05",
+      "implemented": "2026-09-06",
+      "evidence": "test"
+    },
+    "AUTH-13": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-06",
+      "evidence": "test"
+    },
+    "AUTH-14": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-06",
+      "evidence": "test"
+    },
+    "AUTH-15": {
+      "specified": "2026-07-05",
+      "implemented": "2026-09-06",
+      "evidence": "test"
+    },
+    "AUTH-16": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-02",
+      "evidence": "test"
+    },
+    "AUTH-17": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "AUTH-18": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "AUTH-19": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-02",
+      "evidence": "code"
+    },
+    "AUTH-20": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "AUTH-21": {
+      "specified": "2026-10-08",
+      "implemented": "2026-10-08",
+      "evidence": "test"
+    },
+    "AUTH-22": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "AUTH-23": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "AUTH-24": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "AUTH-25": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-23",
+      "evidence": "code"
+    },
+    "AUTH-26": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "AUTH-27": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-28",
+      "evidence": "test"
+    },
+    "AUTH-28": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-27",
+      "evidence": "code"
+    },
+    "AUTH-29": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-14",
+      "evidence": "code"
+    },
+    "AUTH-30": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-05",
+      "evidence": "code"
+    },
+    "AUTH-31": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-18",
+      "evidence": "code"
+    },
+    "AUTH-32": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "AUTH-33": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "BND-1": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-14",
+      "evidence": "code"
+    },
+    "BND-2": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-14",
+      "evidence": "code"
+    },
+    "BND-3": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-28",
+      "evidence": "test"
+    },
+    "BND-4": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-14",
+      "evidence": "code"
+    },
+    "BND-5": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "BND-6": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-22",
+      "evidence": "code"
+    },
+    "BND-7": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-08",
+      "evidence": "code"
+    },
+    "BND-8": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-11",
+      "evidence": "code"
+    },
+    "BND-9": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "BND-10": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "BND-11": {
+      "specified": "2026-10-08",
+      "implemented": "2026-10-08",
+      "evidence": "test"
+    },
+    "BND-12": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-14",
+      "evidence": "code"
+    },
+    "BND-13": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "BND-14": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-14",
+      "evidence": "code"
+    },
+    "BND-15": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "BND-16": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "BND-17": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "BND-18": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-19": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-20": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-21": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-22": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-23": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-24": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-25": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-26": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-27": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-28": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-29": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-30": {
+      "specified": "2026-10-13",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "BND-31": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-32": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-33": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-34": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "code"
+    },
+    "BND-35": {
+      "specified": "2026-10-13",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "BND-36": {
+      "specified": "2026-10-13",
+      "implemented": "2026-10-13",
+      "evidence": "test"
+    },
+    "BND-37": {
+      "specified": "2026-10-13",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "DEP-1": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-12",
+      "evidence": "code"
+    },
+    "DEP-2": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-12",
+      "evidence": "code"
+    },
+    "DEP-3": {
+      "specified": "2026-07-08",
+      "implemented": "2026-08-23",
+      "evidence": "code"
+    },
+    "DEP-4": {
+      "specified": "2026-07-08",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "DEP-5": {
+      "specified": "2026-07-08",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "DEP-6": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-18",
+      "evidence": "code"
+    },
+    "DEP-7": {
+      "specified": "2026-07-08",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "DEP-8": {
+      "specified": "2026-07-08",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "DEP-9": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "DEP-10": {
+      "specified": "2026-07-08",
+      "implemented": "2026-08-25",
+      "evidence": "code"
+    },
+    "DEP-11": {
+      "specified": "2026-07-08",
+      "implemented": "2026-07-28",
+      "evidence": "code"
+    },
+    "DOC-1": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "DOC-2": {
+      "specified": "2026-07-06",
+      "implemented": "2026-09-14",
+      "evidence": "code"
+    },
+    "DOC-3": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-23",
+      "evidence": "code"
+    },
+    "DOC-4": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-25",
+      "evidence": "code"
+    },
+    "DOC-5": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "DOC-6": {
+      "specified": "2026-07-06",
+      "implemented": "2026-10-09",
+      "evidence": "code"
+    },
+    "DOC-7": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "DOC-8": {
+      "specified": "2026-07-06",
+      "implemented": "2026-10-08",
+      "evidence": "code"
+    },
+    "DOC-9": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "DOC-10": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-25",
+      "evidence": "code"
+    },
+    "DOC-11": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "DOC-12": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "EP-1": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-12",
+      "evidence": "code"
+    },
+    "EP-1a": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-08",
+      "evidence": "code"
+    },
+    "EP-2": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-12",
+      "evidence": "code"
+    },
+    "EP-3": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "EP-3a": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-07",
+      "evidence": "test"
+    },
+    "EP-3b": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "EP-4": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "EP-5": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "EP-6": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-18",
+      "evidence": "code"
+    },
+    "EP-7": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-28",
+      "evidence": "code"
+    },
+    "EP-8": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "EP-9": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "EP-10": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "EP-11": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "EP-12": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "EP-13": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "EP-14": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "EP-15": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "EP-16": {
+      "specified": "2026-07-08",
+      "implemented": "2026-08-22",
+      "evidence": "test"
+    },
+    "EP-17": {
+      "specified": "2026-07-08",
+      "implemented": "2026-07-18",
+      "evidence": "code"
+    },
+    "EP-18": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-22",
+      "evidence": "test"
+    },
+    "EP-19": {
+      "specified": "2026-07-08",
+      "implemented": "2026-08-21",
+      "evidence": "code"
+    },
+    "EP-20": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-21",
+      "evidence": "test"
+    },
+    "EP-21": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-21",
+      "evidence": "test"
+    },
+    "EP-22": {
+      "specified": "2026-07-08",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "MGMT-1": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-30",
+      "evidence": "test"
+    },
+    "MGMT-2": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-01",
+      "evidence": "test"
+    },
+    "MGMT-3": {
+      "specified": "2026-07-06",
+      "implemented": "2026-07-28",
+      "evidence": "code"
+    },
+    "MGMT-4": {
+      "specified": "2026-07-06",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "MGMT-5": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-01",
+      "evidence": "test"
+    },
+    "MGMT-6": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-01",
+      "evidence": "test"
+    },
+    "MGMT-7": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "MGMT-8": {
+      "specified": "2026-07-06",
+      "implemented": "2026-09-06",
+      "evidence": "test"
+    },
+    "MGMT-9": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-22",
+      "evidence": "test"
+    },
+    "MGMT-10": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-22",
+      "evidence": "code"
+    },
+    "MGMT-11": {
+      "specified": "2026-07-06",
+      "implemented": "2026-10-08",
+      "evidence": "test"
+    },
+    "MGMT-12": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "MGMT-13": {
+      "specified": "2026-07-06",
+      "implemented": "2026-09-03",
+      "evidence": "test"
+    },
+    "MGMT-14": {
+      "specified": "2026-10-08",
+      "implemented": "2026-10-08",
+      "evidence": "test"
+    },
+    "MGMT-15": {
+      "specified": "2026-10-12",
+      "implemented": "2026-10-12",
+      "evidence": "test"
+    },
+    "MGMT-16": {
+      "specified": "2026-10-12",
+      "implemented": "2026-10-12",
+      "evidence": "test"
+    },
+    "MGMT-17": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "MGMT-18": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "MGMT-19": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "MGMT-20": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "MGMT-21": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "MGMT-22": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "OPS-1": {
+      "specified": "2026-07-06",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "OPS-2": {
+      "specified": "2026-07-06",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "OPS-3": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-26",
+      "evidence": "code"
+    },
+    "OPS-4": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "OPS-5": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-08",
+      "evidence": "code"
+    },
+    "OPS-6": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-01",
+      "evidence": "test"
+    },
+    "OPS-7": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-31",
+      "evidence": "code"
+    },
+    "OPS-8": {
+      "specified": "2026-07-06",
+      "implemented": "2026-09-06",
+      "evidence": "test"
+    },
+    "OPS-9": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "OPS-10": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "OPS-11": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "OPS-12": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "OPS-13": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "OPS-14": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "OPS-15": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "OPS-16": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "OPS-17": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "PROT-1": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-08",
+      "evidence": "code"
+    },
+    "PROT-2": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-08",
+      "evidence": "code"
+    },
+    "PROT-3": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-08",
+      "evidence": "test"
+    },
+    "PROT-4": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-20",
+      "evidence": "code"
+    },
+    "PROT-5": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-11",
+      "evidence": "code"
+    },
+    "PROT-6": {
+      "specified": "2026-07-05",
+      "implemented": "2026-09-05",
+      "evidence": "code"
+    },
+    "PROT-7": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-11",
+      "evidence": "code"
+    },
+    "PROT-8": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-27",
+      "evidence": "code"
+    },
+    "PROT-9": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-11",
+      "evidence": "code"
+    },
+    "PROT-10": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "PROT-11": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-20",
+      "evidence": "test"
+    },
+    "PROT-12": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-09",
+      "evidence": "test"
+    },
+    "PROT-13": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "PROT-14": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "PROT-15": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "PROT-16": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "PROT-17": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "PROT-18": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "PROT-19": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "PROT-20": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "PROT-21": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "PROT-22": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "code"
+    },
+    "PROT-24": {
+      "specified": "2026-07-05",
+      "implemented": "2026-10-08",
+      "evidence": "test"
+    },
+    "PROT-25": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-28",
+      "evidence": "test"
+    },
+    "PROT-26": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-18",
+      "evidence": "code"
+    },
+    "PROT-27": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "PROT-28": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "PROT-29": {
+      "specified": "2026-10-08",
+      "implemented": "2026-10-08",
+      "evidence": "test"
+    },
+    "SEC-1": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-20",
+      "evidence": "code"
+    },
+    "SEC-2": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-19",
+      "evidence": "test"
+    },
+    "SEC-3": {
+      "specified": "2026-07-08",
+      "implemented": "2026-07-19",
+      "evidence": "code"
+    },
+    "SEC-4": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-01",
+      "evidence": "code"
+    },
+    "SEC-5": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "SEC-6": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-05",
+      "evidence": "code"
+    },
+    "SEC-7": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "SEC-8": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "SEC-9": {
+      "specified": "2026-07-08",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "SEC-10": {
+      "specified": "2026-07-08",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "SEC-11": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "SES-1": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-18",
+      "evidence": "code"
+    },
+    "SES-1a": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-19",
+      "evidence": "test"
+    },
+    "SES-2": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-27",
+      "evidence": "code"
+    },
+    "SES-3": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-19",
+      "evidence": "test"
+    },
+    "SES-3a": {
+      "specified": "2026-10-08",
+      "implemented": "2026-10-08",
+      "evidence": "test"
+    },
+    "SES-4": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-19",
+      "evidence": "test"
+    },
+    "SES-5": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "SES-6": {
+      "specified": "2026-07-05",
+      "implemented": "2026-09-05",
+      "evidence": "code"
+    },
+    "SES-7": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "SES-8": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "SES-9": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "SES-10": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-18",
+      "evidence": "code"
+    },
+    "SES-11": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "SES-12": {
+      "specified": "2026-07-05",
+      "implemented": "2026-09-03",
+      "evidence": "test"
+    },
+    "SES-13": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-18",
+      "evidence": "code"
+    },
+    "SES-14": {
+      "specified": "2026-07-04",
+      "implemented": "2026-10-08",
+      "evidence": "test"
+    },
+    "SES-15": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "code"
+    },
+    "SES-16": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "SES-17": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-18",
+      "evidence": "code"
+    },
+    "SES-18": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-08",
+      "evidence": "code"
+    },
+    "SES-19": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-08",
+      "evidence": "test"
+    },
+    "SES-20": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-08",
+      "evidence": "test"
+    },
+    "SES-21": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "SES-22": {
+      "specified": "2026-07-05",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "UI-1": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-30",
+      "evidence": "test"
+    },
+    "UI-2": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-02",
+      "evidence": "test"
+    },
+    "UI-3": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-26",
+      "evidence": "code"
+    },
+    "UI-4": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-27",
+      "evidence": "code"
+    },
+    "UI-5": {
+      "specified": "2026-07-06",
+      "implemented": "2026-08-01",
+      "evidence": "code"
+    },
+    "UI-6": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UI-7": {
+      "specified": "2026-10-12",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "UI-8": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "UI-9": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "UI-10": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "UI-11": {
+      "specified": "2026-07-06",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "UPS-1": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-30",
+      "evidence": "test"
+    },
+    "UPS-2": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-23",
+      "evidence": "code"
+    },
+    "UPS-3": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "UPS-4": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-20",
+      "evidence": "test"
+    },
+    "UPS-5": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-22",
+      "evidence": "code"
+    },
+    "UPS-6": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "UPS-7": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "UPS-8": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "UPS-9": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "unbuilt"
+    },
+    "UPS-10": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-05",
+      "evidence": "test"
+    },
+    "UPS-11": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UPS-12": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UPS-13": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UPS-14": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UPS-15": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UPS-16": {
+      "specified": "2026-10-12",
+      "implemented": "2026-10-12",
+      "evidence": "test"
+    },
+    "UPS-17": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-20",
+      "evidence": "test"
+    },
+    "UPS-18": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-14",
+      "evidence": "code"
+    },
+    "UPS-19": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-14",
+      "evidence": "code"
+    },
+    "UPS-20": {
+      "specified": "2026-07-04",
+      "implemented": "2026-08-11",
+      "evidence": "code"
+    },
+    "UPS-21": {
+      "specified": "2026-07-04",
+      "implemented": null,
+      "evidence": "none"
+    },
+    "UPS-22": {
+      "specified": "2026-07-04",
+      "implemented": "2026-07-20",
+      "evidence": "test"
+    },
+    "UPS-23": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UPS-25": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "UPS-26": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "UPS-27": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-20",
+      "evidence": "test"
+    },
+    "UPS-28": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "UPS-29": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-15",
+      "evidence": "code"
+    },
+    "UPS-30": {
+      "specified": "2026-07-05",
+      "implemented": "2026-07-23",
+      "evidence": "code"
+    },
+    "UPS-31": {
+      "specified": "2026-07-05",
+      "implemented": "2026-08-07",
+      "evidence": "test"
+    },
+    "UPS-32": {
+      "specified": "2026-09-05",
+      "implemented": "2026-09-06",
+      "evidence": "test"
+    },
+    "UPS-33": {
+      "specified": "2026-09-21",
+      "implemented": "2026-09-21",
+      "evidence": "code"
+    },
+    "UPS-34": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UPS-35": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UPS-36": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    },
+    "UPS-37": {
+      "specified": "2026-09-30",
+      "implemented": "2026-09-30",
+      "evidence": "test"
+    }
+  }
+}

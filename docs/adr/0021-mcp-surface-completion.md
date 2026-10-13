@@ -13,9 +13,9 @@ closes the gap, and resolves five points the specs left under-specified.
 
 ## Decision drivers
 
-- Following BND-8/DISC (live passthrough, no cache/curation) makes the feature far smaller than mirroring the
-  Tool/BundleTool machinery, and matches the spec's intent.
-- A cached capability snapshot keeps `initialize` fast and correct even when a member is down (DISC-4), unlike a live
+- Following BND-8 and tool discovery (live passthrough, no cache/curation) makes the feature far smaller than mirroring
+  the Tool/BundleTool machinery, and matches the spec's intent.
+- A cached capability snapshot keeps `initialize` fast and correct even when a member is down (UPS-20), unlike a live
   per-initialize probe.
 - Stateless fan-out for resource reads avoids non-standard URIs and cross-replica cache coherency for a rare
   (same-URI-across-members) case.
@@ -23,9 +23,9 @@ closes the gap, and resolves five points the specs left under-specified.
 ## Decision
 
 - **Prompts/resources/completions are live, uncurated passthrough.** No `Prompt`/`Resource` content tables and no
-  per-bundle curation (BND-8; DISC says not cached in v1). Each request fans out concurrently to the enabled member
-  servers, isolating a down member (skip + WARN, never a silent partial — DISC-4). Tools remain the only cached/curated
-  surface.
+  per-bundle curation (BND-8; tool discovery says not cached in v1). Each request fans out concurrently to the enabled
+  member servers, isolating a down member (skip + WARN, never a silent partial — UPS-20). Tools remain the only
+  cached/curated surface.
 - **Prompt names are always prefixed** `server__prompt` (BND-2 first-`__` scheme); `prompts/get` and completion
   prompt-refs de-prefix to the owner.
 - **Resource URIs pass through unchanged.** `resources/list` / `resources/templates/list` merge members verbatim,
@@ -34,7 +34,7 @@ closes the gap, and resolves five points the specs left under-specified.
   wins. Chosen over URI-rewriting (breaks client URI validation) and a URI→owner cache (extra Redis state on the read
   path) for a stateless, cross-replica-safe v1.
 - **Capability aggregation (PROT-11) reads a per-server snapshot.** Discovery captures each upstream's advertised
-  `initialize` capabilities into a new `McpServer.capabilities` JSON column (DISC-6); `initialize` aggregates over
+  `initialize` capabilities into a new `McpServer.capabilities` JSON column (UPS-22); `initialize` aggregates over
   enabled members (advertise a capability iff ≥1 supports it; `tools` always; `listChanged`/`resources.subscribe` where
   the gateway can honor it) without fanning out to members on the hot path.
 - **Version negotiation (PROT-12)** declares a supported-version window, negotiates the highest common version with the

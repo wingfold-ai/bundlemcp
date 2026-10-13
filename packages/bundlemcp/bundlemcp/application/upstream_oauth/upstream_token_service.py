@@ -84,12 +84,10 @@ class UpstreamTokenService:
             server, user_id, code=code, code_verifier=code_verifier, redirect_uri=redirect_uri
         )
 
-    # UPO-11
     async def connect_as_client(self, server: McpServer) -> None:
         """Establish the shared connection of a client-credentials client now."""
         await self._flow.grant_client_credentials(server)
 
-    # UPO-10
     async def request_step_up(self, server: McpServer, scopes: list[str]) -> bool:
         """Have the next connect ask for scopes the upstream demanded."""
         return await self._tokens.add_step_up_scopes(server.id, scopes)

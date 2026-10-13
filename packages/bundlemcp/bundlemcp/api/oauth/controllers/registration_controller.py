@@ -25,5 +25,5 @@ class ClientRegistrationController(Controller):
         service: ClientRegistrationServiceProvider,
         settings: SettingsProvider,
     ) -> ClientRegistrationResponse:
-        # OAS-12: per client IP, which behind a trusted proxy is the forwarded one
+        # per client IP, which behind a trusted proxy is the forwarded one
         return await service.register(body, client_ip(request, settings))

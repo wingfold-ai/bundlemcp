@@ -193,7 +193,7 @@ async function deleteEndpoint() {
 
     <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
 
-    <!-- EP-7: connection instructions -->
+    <!-- connection instructions -->
     <div class="wf-card space-y-3">
       <h2 class="font-medium">Connection</h2>
       <div class="flex items-center gap-2">

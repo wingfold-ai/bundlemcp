@@ -52,12 +52,12 @@ class AdmissionGate:
             if view is None:
                 raise RequestRejected(JSONResponse({"error": "not found"}, status_code=404))
             if _carries_credential(request):
-                locked = await self._auth_failures.rejection_if_locked(request)  # RATE-5
+                locked = await self._auth_failures.rejection_if_locked(request)
                 if locked is not None:
                     raise RequestRejected(locked)
             identity = await self._authentication.authenticate(request, uow, view)
         if identity is None:
-            locked = await self._auth_failures.note_failure(request)  # RATE-5
+            locked = await self._auth_failures.note_failure(request)
             raise RequestRejected(
                 locked or unauthorized_challenge(self._public_base, endpoint_name)
             )

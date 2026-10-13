@@ -3,7 +3,7 @@ import type { paths } from "~~/types/api";
 
 let client: ReturnType<typeof createClient<paths>> | null = null;
 
-/** Typed client for the management API (UI-3: generated types, cookie auth). */
+/** Typed client for the management API (generated types, cookie auth). */
 export function useApi() {
   if (!client) {
     const config = useRuntimeConfig();
@@ -12,7 +12,7 @@ export function useApi() {
       credentials: "include",
     });
     client.use({
-      // UI-2: a session that expired mid-visit answers 401 on the next call;
+      // a session that expired mid-visit answers 401 on the next call;
       // send the browser back through login instead of showing a failed request.
       onResponse({ response }) {
         if (response.status === 401) {

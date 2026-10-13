@@ -1,4 +1,4 @@
-"""Rate limiter core tests (spec 16: RATE-2/3/6/7)."""
+"""Rate limiter core tests (EP-17/18/21/22)."""
 
 from bundlemcp.api.http.client_ip import client_ip
 from bundlemcp.application.contracts.live_state.counters import (
@@ -47,7 +47,7 @@ async def test_fail_open_on_redis_error():
     counters = InProcessCounters()
     rl = ValkeyRateLimiter(BoomRedis(), counters)
     res = await rl.check("s", 1, 100)
-    assert res.allowed is True  # RATE-6 fail-open
+    assert res.allowed is True  # fail-open
     assert counters.get(RATE_LIMIT_FAIL_OPEN) == 1
 
 
@@ -62,7 +62,7 @@ async def test_fail_closed_option():
 
 
 async def test_auth_failure_limiter_locks_out_by_ip(redis):
-    """RATE-5: threshold reached → lockout; a different IP keeps its own budget."""
+    """EP-20: threshold reached → lockout; a different IP keeps its own budget."""
     counters = InProcessCounters()
     lim = ValkeyAuthFailureLimiter(redis, limit=2, window=100, counters=counters)
     assert (await lim.record_failure("1.2.3.4")).allowed is True
@@ -76,7 +76,7 @@ async def test_auth_failure_limiter_locks_out_by_ip(redis):
 
 
 async def test_auth_failure_limiter_fails_open():
-    """RATE-6: a Redis outage never locks anyone out."""
+    """EP-21: a Redis outage never locks anyone out."""
 
     class BoomRedis:
         async def time(self):

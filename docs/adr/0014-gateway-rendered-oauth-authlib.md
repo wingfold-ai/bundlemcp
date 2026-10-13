@@ -25,7 +25,7 @@ external IdP, and how issued bearers are validated on the hot path.
 - **authlib as the OIDC relying party:** `AuthlibOidcProvider` behind an `OidcProvider` Protocol (`oauth/oidc.py`) —
   discovery, code exchange, id_token/JWKS validation. The Protocol lets hermetic tests inject a fake issuer instead of
   running Keycloak (ARC-14).
-- **Direct-DB token validation (OAS-7):** endpoint bearers are validated by a hashed lookup in `oauth_access_tokens`
+- **Direct-DB token validation (AUTH-7):** endpoint bearers are validated by a hashed lookup in `oauth_access_tokens`
   with an audience check, **not** by an HTTP self-call to `/oauth/introspect` — explicitly avoiding metamcp's
   introspect-yourself-over-HTTP anti-pattern.
 

@@ -14,7 +14,7 @@ log = structlog.get_logger(__name__)
 
 
 class RuntimeConfig:
-    """Typed accessors with a per-replica cache invalidated via STP events."""
+    """Typed accessors with a per-replica cache invalidated via invalidation events."""
 
     def __init__(self, units: UnitOfWorkFactory) -> None:
         self._units = units

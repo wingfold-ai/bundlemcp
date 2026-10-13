@@ -3,7 +3,7 @@ import type { components } from "~~/types/api";
 
 type AvailableEndpointRead = components["schemas"]["AvailableEndpointRead"];
 
-// The catalogue (UI-2): the bundles a signed-in person can connect to, grouped
+// The catalogue: the bundles a signed-in person can connect to, grouped
 // from the endpoints that accept their identity. Admins see it inside the
 // management layout as a preview of what users get.
 definePageMeta({ layout: false });

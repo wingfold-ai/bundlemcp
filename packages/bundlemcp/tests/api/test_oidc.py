@@ -1,4 +1,4 @@
-"""OIDC login + admin session + management-API session auth tests (spec 21).
+"""OIDC login + admin session + management-API session auth tests (the auth spec).
 
 A fake OidcProvider stands in for Keycloak (ARC-14) — the login/callback,
 provisioning, admin re-eval, cookie session, and CSRF machinery are what we test.
@@ -75,7 +75,7 @@ async def _login(http, provider, claims: OidcClaims) -> None:
 
 
 async def test_login_proves_pkce_to_the_issuer(env):
-    """ADM-1: the exchange presents the verifier the authorize challenge commits to."""
+    """AUTH-15: the exchange presents the verifier the authorize challenge commits to."""
     http, _, provider = env
     await _login(http, provider, OidcClaims(issuer="http://idp", sub="u1", email="u1@example.com"))
     assert provider.last_verifier is not None
@@ -83,7 +83,7 @@ async def test_login_proves_pkce_to_the_issuer(env):
 
 
 async def test_login_provisions_user_and_sets_admin(env):
-    """ADM-2/ADM-3: first login provisions; admin email -> is_admin."""
+    """AUTH-16/AUTH-17: first login provisions; admin email -> is_admin."""
     http, app, provider = env
     await _login(
         http,
@@ -98,7 +98,7 @@ async def test_login_provisions_user_and_sets_admin(env):
 
 
 async def test_admin_role_reevaluated_on_each_login(env):
-    """ADM-3: dropping the admin email demotes on next login."""
+    """AUTH-17: dropping the admin email demotes on next login."""
     http, app, provider = env
     await _login(
         http, provider, OidcClaims(issuer="http://idp", sub="u1", email="admin@example.com")
@@ -117,7 +117,7 @@ async def test_admin_role_reevaluated_on_each_login(env):
 
 
 async def test_management_api_accepts_admin_session(env):
-    """API-2: admin cookie session authorizes management calls."""
+    """MGMT-2: admin cookie session authorizes management calls."""
     http, app, provider = env
     await _login(
         http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
@@ -168,7 +168,7 @@ async def test_logout_clears_session(env):
 
 
 async def test_deactivation_logs_out_and_revokes(env):
-    """ADM-6: deactivating a user invalidates their admin session."""
+    """AUTH-20: deactivating a user invalidates their admin session."""
     http, app, provider = env
     await _login(
         http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
@@ -191,7 +191,7 @@ class UnreachableOidcProvider(FakeOidcProvider):
 
 
 async def test_login_while_idp_unreachable_answers_503_with_retry_after(engine, redis):
-    """ADM-7 (#86): no 'no provider configured' for the process's life; a 503 to retry."""
+    """AUTH-21 (#86): no 'no provider configured' for the process's life; a 503 to retry."""
     settings = hermetic_settings(public_url=PUBLIC_URL)
     async with serving(
         engine,

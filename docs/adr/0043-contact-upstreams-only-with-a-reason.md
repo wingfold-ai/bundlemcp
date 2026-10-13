@@ -12,13 +12,13 @@ gateway should contact it only while serving a call that needs it.
 two paths that did not:
 
 - **Every server upsert scheduled a discovery probe**, including one that changed nothing
-  ([SRV-2](../../spec/10-server-registry.md)). Declarative setups re-apply every server on every deploy, and a
-  bootstrap file is re-applied on every gateway start ([BOOT-2](../../spec/41-bootstrap.md)). On Kubernetes that is
-  every rollout, restart and new replica, and each one woke every upstream.
-- **Prompt and resource methods fanned out live to every member** ([BND-8](../../spec/12-bundles.md)), including
-  members whose discovery snapshot did not advertise prompts or resources. Clients such as claude.ai list prompts and
-  resources right after connecting, so connecting a client woke every server in the bundle to answer with an empty
-  list.
+  ([UPS-2](../../openspec/specs/upstreams/spec.md)). Declarative setups re-apply every server on every deploy,
+  and a bootstrap file is re-applied on every gateway start ([MGMT-9](../../openspec/specs/management/spec.md)). On
+  Kubernetes that is every rollout, restart and new replica, and each one woke every upstream.
+- **Prompt and resource methods fanned out live to every member** ([BND-8](../../openspec/specs/bundles/spec.md)),
+  including members whose discovery snapshot did not advertise prompts or resources. Clients such as claude.ai list
+  prompts and resources right after connecting, so connecting a client woke every server in the bundle to answer with an
+  empty list.
 
 The third path, the periodic refresh ([ADR-0038](0038-periodic-tool-refresh.md)), already has an off switch.
 
@@ -37,9 +37,10 @@ The third path, the periodic refresh ([ADR-0038](0038-periodic-tool-refresh.md))
   registered. A create always probes; explicit refresh and inspection always contact the upstream. Bootstrap goes
   through the same `upsert`, so it inherits the rule.
 - **Fan-out asks only members that advertise the capability.** `MemberFanout` filters members by their capabilities
-  snapshot ([DISC-6](../../spec/11-tool-discovery.md)): `prompts` for `prompts/*`, `resources` for `resources/*`,
-  `completions` for `completion/complete`. A member that was never discovered has an empty snapshot and is skipped,
-  which matches what `initialize` already advertises for it ([PROT-11](../../spec/32-protocol-passthrough.md)).
+  snapshot ([UPS-22](../../openspec/specs/upstreams/spec.md)): `prompts` for `prompts/*`, `resources` for
+  `resources/*`, `completions` for `completion/complete`. A member that was never discovered has an empty snapshot and
+  is skipped, which matches what `initialize` already advertises for it
+  ([PROT-11](../../openspec/specs/protocol/spec.md)).
 
 ## Alternatives considered
 

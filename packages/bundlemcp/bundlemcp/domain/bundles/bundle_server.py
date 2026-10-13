@@ -11,7 +11,7 @@ class BundleServer(BaseModel):
     server_id: uuid.UUID = Field(
         description="Server that belongs to the bundle",
     )
-    enabled: bool = Field(  # BND-4
+    enabled: bool = Field(
         default=True,
         description="Whether this membership contributes tools; disabling hides them without "
         "losing their curation",

@@ -61,7 +61,7 @@ const forwardsCallerToken = computed(() =>
   fwdRows.value.some((r) => r.key.trim().toLowerCase() === "authorization"),
 );
 
-/** Apply the change a contradicting connection state calls for (SRV-12). */
+/** Apply the change a contradicting connection state calls for. */
 async function fixMismatch() {
   if (server.value?.connection_state === "oauth_required") {
     authMode.value = "upstream_oauth";
@@ -196,7 +196,7 @@ async function saveUpstream() {
   }
 }
 
-/** UPO-11: a client-credentials client connects with a grant, not a browser sign-in. */
+/** a client-credentials client connects with a grant, not a browser sign-in. */
 async function connectAsClient() {
   errorMsg.value = "";
   upConnecting.value = true;
@@ -238,7 +238,7 @@ const renameForce = ref(false);
 async function renameServer() {
   errorMsg.value = "";
   const newName = renameName.value.trim();
-  // UI-4: client-side validation before submit
+  // client-side validation before submit
   if (!/^[a-zA-Z0-9_-]+$/.test(newName)) {
     errorMsg.value = "Name must match ^[a-zA-Z0-9_-]+$";
     return;
@@ -290,7 +290,7 @@ onMounted(async () => {
     <p v-if="notFound" class="text-muted" data-testid="not-found">not found</p>
 
     <template v-else-if="server">
-      <!-- What the last probe found out (SRV-12) -->
+      <!-- What the last probe found out -->
       <div class="flex flex-wrap items-center gap-2 text-sm" data-testid="connection-state">
         <UBadge
           :icon="CONNECTION_STATE_ICON[server.connection_state]"

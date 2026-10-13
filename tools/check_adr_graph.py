@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check (or regenerate) the ADR amendment graph and the two indexes built from it.
 
-Three invariants, all from spec/62 ADOC-2:
+Three invariants, all from DOC-8 (the documentation spec):
 
 1. Every ``**Amends:** NNNN`` has a matching ``**Amended by:**`` (or
    ``superseded by``) on each ADR it names, so a reader who lands on the older

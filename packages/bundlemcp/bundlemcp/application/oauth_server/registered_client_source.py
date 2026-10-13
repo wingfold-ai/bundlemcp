@@ -3,7 +3,7 @@ from bundlemcp.application.contracts.persistence.oauth_client_repository import 
 )
 from bundlemcp.domain.oauth.oauth_client import OAuthClient
 
-METADATA_DOCUMENT_SCHEME = "https://"  # OAS-13: a URL-shaped client_id is a metadata document
+METADATA_DOCUMENT_SCHEME = "https://"  # a URL-shaped client_id is a metadata document
 
 
 class RegisteredClientSource:

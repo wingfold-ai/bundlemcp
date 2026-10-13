@@ -1,4 +1,4 @@
-"""The connect-account tool over the MCP edge, and discovery after a connect (UPO-3, DISC-1).
+"""The connect-account tool over the MCP edge, and discovery after a connect (UPS-27, UPS-17).
 
 A signed-in user who has not connected a per-user server sees that server's
 connect tool, calls it for the link, connects in the browser, and from then on
@@ -163,7 +163,7 @@ async def _tool_names(http, session) -> list[str]:
 
 
 async def test_unconnected_user_is_offered_the_connect_tool(engine, redis):
-    """UPO-3: listed after the bundle's tools; calling it returns the link, reaching no upstream."""
+    """UPS-27: listed after the bundle's tools; calling it returns the link, no upstream reached."""
     await _seed(engine, with_tool=True)
     factory = HeaderRecordingFactory()
     async with _running(engine, redis, factory) as (http, _app):
@@ -179,7 +179,7 @@ async def test_unconnected_user_is_offered_the_connect_tool(engine, redis):
 
 
 async def test_connecting_discovers_tools_and_retires_the_connect_tool(engine, redis):
-    """DISC-1: the callback's token lists the tools; the user then sees them, not the prompt."""
+    """UPS-17: the callback's token lists the tools; the user then sees them, not the prompt."""
     user, _server = await _seed(engine, with_tool=False)
     factory = HeaderRecordingFactory()
     async with _running(engine, redis, factory) as (http, app):

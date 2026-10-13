@@ -30,19 +30,18 @@ class ConfigSetting(BaseModel):
 
 # The single registry of runtime-tunable settings.
 DEFAULTS: dict[str, ConfigSetting] = {
-    # PROT-2 timeout model (seconds)
+    # per-call timeout model (seconds)
     "call_timeout": ConfigSetting(default=60.0, value_type=float),
     "reset_timeout_on_progress": ConfigSetting(default=True, value_type=bool),
     "max_total_timeout": ConfigSetting(default=1800.0, value_type=float),
-    # SES-10 (seconds; 0 = no idle expiry)
+    # idle session expiry (seconds; 0 = no idle expiry)
     "session_lifetime": ConfigSetting(default=86400, value_type=int),
-    # PROT-16 (milliseconds a client may keep a tools/prompts/resources list)
+    # milliseconds a client may keep a tools/prompts/resources list
     "list_cache_ttl_ms": ConfigSetting(default=300000, value_type=int),
-    # SRV-4
     "server_error_attempts": ConfigSetting(default=3, value_type=int),
-    # AUD-5 (days)
+    # audit retention (days)
     "audit_retention_days": ConfigSetting(default=90, value_type=int),
-    # OAS-3 / OAS-4 (seconds): what the gateway's own OAuth server issues
+    # lifetimes (seconds) of what the gateway's own OAuth server issues
     "authorization_code_lifetime": ConfigSetting(default=600, value_type=int),
     "access_token_lifetime": ConfigSetting(default=3600, value_type=int),
     "refresh_token_lifetime": ConfigSetting(default=604800, value_type=int),

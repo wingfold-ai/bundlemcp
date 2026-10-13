@@ -1,4 +1,4 @@
-"""The authorization endpoint's collaborators, run on the in-memory fakes (spec 20)."""
+"""The authorization endpoint's collaborators, run on the in-memory fakes."""
 
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -67,7 +67,7 @@ def _resolver(
 
 
 async def test_opaque_ids_come_from_the_registry_without_a_fetch(uow):
-    """OAS-2: the registry answers a registered client; the document source is never asked."""
+    """AUTH-2: the registry answers a registered client; the document source is never asked."""
     uow.oauth_clients.add(OAuthClient(client_id="bmcp_client_x", client_name="Reg"))
     fetcher = FakeFetcher(None)
     client = await _resolver(uow, fetcher).resolve("bmcp_client_x")
@@ -77,7 +77,7 @@ async def test_opaque_ids_come_from_the_registry_without_a_fetch(uow):
 
 
 async def test_url_ids_are_fetched_checked_and_mirrored(uow):
-    """OAS-13: a URL client_id resolves through its document and is mirrored as a client."""
+    """AUTH-13: a URL client_id resolves through its document and is mirrored as a client."""
     fetcher = FakeFetcher(
         ClientIdMetadataDocument(
             client_id=CIMD_URL, client_name="Docs", redirect_uris=["https://client.example/cb"]
@@ -90,7 +90,7 @@ async def test_url_ids_are_fetched_checked_and_mirrored(uow):
 
 
 async def test_a_document_naming_another_url_is_refused(uow):
-    """OAS-13: the document's client_id must be the URL it was fetched from."""
+    """AUTH-13: the document's client_id must be the URL it was fetched from."""
     fetcher = FakeFetcher(
         ClientIdMetadataDocument(
             client_id="https://elsewhere.example/c.json", redirect_uris=["https://c/cb"]
@@ -102,7 +102,7 @@ async def test_a_document_naming_another_url_is_refused(uow):
 
 
 async def test_a_document_with_an_unlisted_redirect_uri_is_refused(uow):
-    """OAS-13: a configured allow-list applies to the redirect URIs a document declares."""
+    """AUTH-13: a configured allow-list applies to the redirect URIs a document declares."""
     fetcher = FakeFetcher(
         ClientIdMetadataDocument(client_id=CIMD_URL, redirect_uris=["https://client.example/cb"])
     )
@@ -116,7 +116,7 @@ async def test_a_document_with_an_unlisted_redirect_uri_is_refused(uow):
 
 
 async def test_consent_is_remembered_per_user_client_and_endpoint(uow):
-    """OAS-11: consent granted once is found again for the same triple only."""
+    """AUTH-11: consent granted once is found again for the same triple only."""
     consents = ConsentService(uow)
     user, endpoint, other = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     assert not await consents.is_granted(user, "c", endpoint)
@@ -127,7 +127,7 @@ async def test_consent_is_remembered_per_user_client_and_endpoint(uow):
 
 
 async def test_issued_code_is_stored_as_a_hash_bound_to_the_request(uow):
-    """OAS-3/OAS-8: only the hash is stored, and the code carries the request it approves."""
+    """AUTH-3/AUTH-8: only the hash is stored, and the code carries the request it approves."""
     pending = PendingAuthorization(
         client_id="c",
         client_name="C",
@@ -195,7 +195,7 @@ def _registrations(
 
 
 async def test_allow_listed_registration_never_touches_the_per_ip_counter(uow):
-    """OAS-12: a registration whose redirect URIs are all listed is exempt from the IP budget."""
+    """AUTH-12: a registration whose redirect URIs are all listed is exempt from the IP budget."""
     limiter = CountingRateLimiter(limit_reached=True)
     service = _registrations(uow, limiter, allowed=["https://claude.ai/cb"])
     request = ClientRegistrationRequest(redirect_uris=["https://claude.ai/cb"])
@@ -204,7 +204,7 @@ async def test_allow_listed_registration_never_touches_the_per_ip_counter(uow):
 
 
 async def test_unlisted_registration_counts_against_its_ip(uow):
-    """OAS-12: without an allow-list every registration is counted per client IP."""
+    """AUTH-12: without an allow-list every registration is counted per client IP."""
     limiter = CountingRateLimiter(limit_reached=True)
     service = _registrations(uow, limiter, allowed=[])
     request = ClientRegistrationRequest(redirect_uris=["https://client.example/cb"])
@@ -216,7 +216,7 @@ async def test_unlisted_registration_counts_against_its_ip(uow):
 
 
 async def test_refused_redirect_uri_is_answered_before_any_counter_or_query(uow):
-    """OAS-2: an unlisted redirect URI is refused in memory, before the IP budget is spent."""
+    """AUTH-2: an unlisted redirect URI is refused in memory, before the IP budget is spent."""
     limiter = CountingRateLimiter()
     service = _registrations(uow, limiter, allowed=["https://claude.ai/cb"])
     request = ClientRegistrationRequest(redirect_uris=["https://evil.example/cb"])

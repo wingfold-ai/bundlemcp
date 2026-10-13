@@ -6,7 +6,7 @@
 // name maps straight to the spec that codes it. The video->scenario mapping is
 // read from the per-test output directory, whose name always begins with the
 // E2E-NN token (Playwright truncates the middle of long titles, never the
-// leading token), and every requirement's text comes verbatim from /spec.
+// leading token), and every requirement's text comes verbatim from openspec/specs.
 //
 // Usage, from apps/web:  PW_VIDEO=1 npx playwright test && node tests/stage-recordings.mjs
 
@@ -119,9 +119,9 @@ items.forEach((it,i)=>{const li=document.createElement("li");
 function play(i){current=(i+items.length)%items.length;const it=items[current];
  player.src=it.file;player.play().catch(()=>{});
  titleEl.innerHTML='<span class="eidbig">'+it.id+'</span> &middot; '+esc(it.title);
- metaEl.innerHTML='spec/'+esc(it.spec)+'  &middot;  tests/'+esc(it.testFile)+'  &middot;  '+esc(it.file);
+ metaEl.innerHTML='openspec/specs/'+esc(it.spec)+'  &middot;  tests/'+esc(it.testFile)+'  &middot;  '+esc(it.file);
  reqsEl.innerHTML=it.reqs.map(r=>'<div class="req"><span class="badge">'+esc(r.id)+
-  '</span><div><div class="rspec">spec/'+esc(r.spec)+(r.title?' &middot; '+esc(r.title):'')+
+  '</span><div><div class="rspec">openspec/specs/'+esc(r.spec)+(r.title?' &middot; '+esc(r.title):'')+
   '</div><div class="rtext">'+esc(r.text)+'</div></div></div>').join("");
  [...listEl.children].forEach((el,n)=>el.classList.toggle("active",n===current));
  listEl.children[current].scrollIntoView({block:"nearest"});}

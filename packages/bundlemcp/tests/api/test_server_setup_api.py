@@ -1,7 +1,7 @@
 """Guided server setup and upstream credentials through the ASGI app.
 
-Spec 10 (SRV-11, SRV-12, SRV-14, SRV-15), spec 20 (OAS-5), spec 23 (UPO-1, UPO-4, UPO-10),
-spec 24 (FWD-6, FWD-7).
+UPS-11, UPS-12, UPS-14, UPS-15, AUTH-5, UPS-25, UPS-28, UPS-34,
+AUTH-32, AUTH-33.
 """
 
 import json
@@ -126,7 +126,7 @@ def _result_of(response) -> dict:
     return response.json()
 
 
-async def test_srv11_inspect_reports_a_ready_server(engine, redis):
+async def test_ups11_inspect_reports_a_ready_server(engine, redis):
     await seed_api_key(engine, SERVICE_KEY)
     async with serving(engine, redis, bearer=SERVICE_KEY, client_factory=RecordingFactory()) as (
         http,
@@ -142,7 +142,7 @@ async def test_srv11_inspect_reports_a_ready_server(engine, redis):
     assert body["suggestion"]["send_identity_header"] is True  # a compose service name
 
 
-async def test_srv15_a_server_json_becomes_a_draft(service_client):
+async def test_ups15_a_server_json_becomes_a_draft(service_client):
     resp = await service_client.post(
         "/api/v1/upstreams:from-server-json",
         json={
@@ -162,7 +162,7 @@ async def test_srv15_a_server_json_becomes_a_draft(service_client):
     assert resp.json()["headers"][0]["name"] == "X-API-Key"
 
 
-async def test_srv14_a_denied_forward_header_is_rejected_on_write(service_client):
+async def test_ups14_a_denied_forward_header_is_rejected_on_write(service_client):
     resp = await service_client.put(
         "/api/v1/upstreams/s",
         json={"name": "s", "url": "http://s/mcp", "forward_headers": {"cookie": "cookie"}},
@@ -170,7 +170,7 @@ async def test_srv14_a_denied_forward_header_is_rejected_on_write(service_client
     assert resp.status_code == 422
 
 
-async def test_fwd7_forwarding_authorization_is_reported(service_client):
+async def test_auth33_forwarding_authorization_is_reported(service_client):
     resp = await service_client.put(
         "/api/v1/upstreams/s",
         json={
@@ -185,7 +185,7 @@ async def test_fwd7_forwarding_authorization_is_reported(service_client):
     assert body["connection_state"] == "unknown"
 
 
-async def test_upo1_the_gateway_publishes_its_client_metadata_document(engine, redis):
+async def test_ups25_the_gateway_publishes_its_client_metadata_document(engine, redis):
     settings = hermetic_settings(public_url="https://gw.example")
     async with serving(engine, redis, settings=settings) as (http, _):
         resp = await http.get("/oauth/upstream/client.json")
@@ -197,7 +197,7 @@ async def test_upo1_the_gateway_publishes_its_client_metadata_document(engine, r
     assert document["application_type"] == "web"
 
 
-async def test_fwd6_a_delegated_server_gets_an_introspectable_token_bound_to_it(engine, redis):
+async def test_auth32_a_delegated_server_gets_an_introspectable_token_bound_to_it(engine, redis):
     await _seed_delegated(engine)
     key = await seed_api_key(engine, ENDPOINT_KEY, name="caller", kind=ApiKeyKind.ENDPOINT)
     await seed_api_key(engine, SERVICE_KEY)
@@ -220,7 +220,7 @@ async def test_fwd6_a_delegated_server_gets_an_introspectable_token_bound_to_it(
     assert body["act"] == {"sub": "endpoint:main"}
 
 
-async def test_srv12_a_refused_static_key_is_named_in_the_call_error(engine, redis):
+async def test_ups12_a_refused_static_key_is_named_in_the_call_error(engine, redis):
     await _seed_delegated(engine, auth_mode=ServerAuthMode.STATIC_HEADERS)
     await seed_api_key(engine, ENDPOINT_KEY, name="caller", kind=ApiKeyKind.ENDPOINT)
     factory = RecordingFactory(refuse=ObservedResponse(status=401))
@@ -230,7 +230,7 @@ async def test_srv12_a_refused_static_key_is_named_in_the_call_error(engine, red
     assert len(factory.headers) == 1  # no OAuth refresh-and-retry for a static credential
 
 
-async def test_upo10_insufficient_scope_asks_the_caller_to_reconnect(engine, redis):
+async def test_ups34_insufficient_scope_asks_the_caller_to_reconnect(engine, redis):
     await _seed_delegated(engine, auth_mode=ServerAuthMode.UPSTREAM_OAUTH)
     await seed_api_key(engine, ENDPOINT_KEY, name="caller", kind=ApiKeyKind.ENDPOINT)
     async with session_factory(engine)() as db:

@@ -1,4 +1,4 @@
-"""Discovery tests (spec 11 DISC-1/2/3, spec 10 SRV-4) against in-process FastMCP servers."""
+"""Discovery tests (UPS-17/18/19, UPS-4) against in-process FastMCP servers."""
 
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.domain.servers.health_status import HealthStatus
@@ -30,7 +30,7 @@ def _units(engine, redis) -> SqlAlchemyUnitOfWorkFactory:
 
 def factory_for(upstream: FastMCP):
     def factory(server, extra_headers, *, observer=None):
-        return Client(upstream, mode=server.protocol_mode)  # SRV-10
+        return Client(upstream, mode=server.protocol_mode)
 
     return factory
 
@@ -67,7 +67,7 @@ async def test_discover_syncs_tools(engine, redis):
 
 
 async def test_discover_captures_capabilities(engine, redis):
-    """DISC-6: the upstream's advertised capabilities are snapshotted for PROT-11."""
+    """UPS-22: the upstream's advertised capabilities are snapshotted for PROT-11."""
     server = await seed_server(engine)
     upstream = FastMCP("caps")
 
@@ -94,7 +94,7 @@ async def test_discover_captures_capabilities(engine, redis):
 
 
 async def test_discover_records_negotiated_protocol_version(engine, redis):
-    """SRV-10/PROT-21: auto mode adopts the modern era; legacy mode keeps the handshake."""
+    """UPS-10/PROT-21: auto mode adopts the modern era; legacy mode keeps the handshake."""
     modern = await seed_server(engine, name="modern")
     legacy = await seed_server(engine, name="legacy", protocol_mode="legacy")
     svc = DiscoveryService(
@@ -112,7 +112,7 @@ async def test_discover_records_negotiated_protocol_version(engine, redis):
 
 
 async def test_rediscovery_is_hash_stable(engine, redis):
-    """DISC-2: unchanged definitions produce zero writes on re-sync."""
+    """UPS-18: unchanged definitions produce zero writes on re-sync."""
     server = await seed_server(engine)
     upstream = make_upstream(["alpha"])
     svc = DiscoveryService(_units(engine, redis), FastMcpUpstreamProbe(factory_for(upstream)))
@@ -124,7 +124,7 @@ async def test_rediscovery_is_hash_stable(engine, redis):
 
 
 async def test_vanished_tool_kept_stale(engine, redis):
-    """DISC-3: tools that disappear upstream stay cached with old last_seen_at."""
+    """UPS-19: tools that disappear upstream stay cached with old last_seen_at."""
     server = await seed_server(engine)
     svc = DiscoveryService(
         _units(engine, redis), FastMcpUpstreamProbe(factory_for(make_upstream(["alpha", "beta"])))
@@ -143,7 +143,7 @@ async def test_vanished_tool_kept_stale(engine, redis):
 
 
 async def test_health_error_after_consecutive_failures_and_self_heal(engine, redis):
-    """SRV-4: N consecutive failures -> error; success resets to ok."""
+    """UPS-4: N consecutive failures -> error; success resets to ok."""
     server = await seed_server(engine)
     svc = DiscoveryService(
         _units(engine, redis), FastMcpUpstreamProbe(failing_factory), max_attempts=2
@@ -183,7 +183,7 @@ def factory_by_name(upstreams: dict[str, FastMCP]):
 
 
 async def test_sweep_probes_every_server_past_a_failing_one(engine, redis):
-    """DISC-7: one server's failure never stops the sweep for the rest."""
+    """UPS-23: one server's failure never stops the sweep for the rest."""
     await seed_server(engine, name="down")
     await seed_server(engine, name="up")
     svc = DiscoveryService(
@@ -202,7 +202,7 @@ async def test_sweep_probes_every_server_past_a_failing_one(engine, redis):
 
 
 async def test_sweep_heals_a_server_unreachable_at_registration(engine, redis):
-    """DISC-7: a server whose first discovery failed gets its tools on the next sweep."""
+    """UPS-23: a server whose first discovery failed gets its tools on the next sweep."""
     server = await seed_server(engine)
     upstreams: dict[str, FastMCP] = {}
     svc = DiscoveryService(_units(engine, redis), FastMcpUpstreamProbe(factory_by_name(upstreams)))
@@ -219,7 +219,7 @@ async def test_sweep_heals_a_server_unreachable_at_registration(engine, redis):
 
 
 async def test_sweep_pages_through_every_server(engine, redis, monkeypatch):
-    """DISC-7: servers beyond the first page are swept too."""
+    """UPS-23: servers beyond the first page are swept too."""
     from bundlemcp.application.discovery import discovery_service
 
     monkeypatch.setattr(discovery_service, "SWEEP_PAGE_SIZE", 2)
@@ -235,7 +235,7 @@ async def test_sweep_pages_through_every_server(engine, redis, monkeypatch):
 
 
 async def test_sweep_moves_past_a_hanging_upstream(engine, redis, monkeypatch):
-    """DISC-7: a probe that never answers times out as a failure; the sweep continues."""
+    """UPS-23: a probe that never answers times out as a failure; the sweep continues."""
     import asyncio
 
     from bundlemcp.application.discovery import discovery_service

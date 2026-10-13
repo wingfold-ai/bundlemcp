@@ -19,7 +19,7 @@ Pydantic as the single typing system, integrating with the database and frontend
 
 Entities are defined **once** as SQLModel classes (Pydantic models that are SQLAlchemy tables); API DTOs are Pydantic
 models derived from them; frontend TypeScript types are **generated** from the FastAPI OpenAPI schema (ARC-3/ARC-4 in
-[spec/01](../../spec/01-architecture.md)).
+[spec/01](../../openspec/specs/architecture/spec.md)).
 
 ## Alternatives considered
 

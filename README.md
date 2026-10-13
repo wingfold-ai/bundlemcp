@@ -58,7 +58,7 @@ see [deploy/TESTING.md](deploy/TESTING.md).
 | | |
 |---|---|
 | [docs/](docs/README.md) | The user documentation site (VitePress): self-hosting, managing servers/bundles/endpoints, connecting claude.ai, ChatGPT and scripts, integrating an application layer — `pnpm docs:install && pnpm docs:dev` |
-| [spec/](spec/README.md) | The source of truth: one atomic spec per capability, with testable requirement IDs; the decision log of what was deliberately left out |
+| [openspec/](openspec/README.md) | The source of truth, kept with OpenSpec: one spec per capability with testable requirement IDs, open change proposals, and the decision log of what was deliberately left out |
 | [docs/arc42/](docs/arc42/) | Architecture rationale, arc42 sections |
 | [docs/adr/](docs/adr/README.md) | Architecture decision records, append-only |
 | [docs/likec4/](docs/likec4/) | Diagrams as a LikeC4 model |

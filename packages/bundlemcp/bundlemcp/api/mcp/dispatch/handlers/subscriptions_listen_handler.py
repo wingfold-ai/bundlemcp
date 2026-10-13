@@ -30,9 +30,9 @@ from bundlemcp.application.serving.list_changed_notifier import (
 )
 from bundlemcp.application.serving.stream_key import StreamKey
 
-# PROT-17: what the gateway can deliver between calls without a standing upstream
+# what the gateway can deliver between calls without a standing upstream
 # connection (ADR-0012). The tool list, and the bundle's own prompts and resources
-# (BPR-11), change only on a gateway write; a member's prompt or resource changes,
+# change only on a gateway write; a member's prompt or resource changes,
 # and resource updates, would need that connection, so they are not acknowledged,
 # which the protocol defines as "not supported".
 

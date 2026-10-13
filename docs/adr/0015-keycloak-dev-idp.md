@@ -19,7 +19,7 @@ Hermetic unit tests already use an in-process fake via the `OidcProvider` seam
 ## Decision
 
 The `deploy/docker-compose.yml` stack ships **Keycloak** (`start-dev --import-realm`) with
-`deploy/keycloak/bundlemcp-realm.json` (realm `bundlemcp`, a confidential gateway client, a demo admin user). The OAS-9
+`deploy/keycloak/bundlemcp-realm.json` (realm `bundlemcp`, a confidential gateway client, a demo admin user). The AUTH-9
 integration test drives Keycloak's real login form end to end.
 
 ## Alternatives considered

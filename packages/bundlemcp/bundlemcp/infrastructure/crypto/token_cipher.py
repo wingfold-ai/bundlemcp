@@ -14,7 +14,7 @@ class TokenCipher:
                 "BUNDLEMCP_TOKEN_ENCRYPTION_KEYS is required for upstream OAuth "
                 "(generate with cryptography.fernet.Fernet.generate_key())"
             )
-        # first key encrypts, all decrypt (DEP-9)
+        # first key encrypts, all decrypt
         self._fernet = MultiFernet([Fernet(k.encode()) for k in keys])
 
     def encrypt(self, plaintext: str) -> str:

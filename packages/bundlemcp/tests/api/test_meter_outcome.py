@@ -1,4 +1,4 @@
-"""How a tool call's ending is reported to the metering hook (MID-3)."""
+"""How a tool call's ending is reported to the metering hook (PROT-26)."""
 
 from types import SimpleNamespace
 

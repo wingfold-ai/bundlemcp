@@ -1,4 +1,4 @@
-"""OAuth 2.1 server tests (spec 20: OAS-1..11, EP-3a/3b) — full PKCE flow.
+"""OAuth 2.1 server tests (AUTH-1..11, EP-3a/3b) — full PKCE flow.
 
 The OIDC login itself is exercised in test_oidc.py; here a browser session is
 seeded directly so the authorize/consent/token machinery is tested hermetically.
@@ -39,7 +39,7 @@ CIMD_CLIENT_ID = "https://client.example/oauth/client-metadata.json"
 
 
 class FakeClientMetadataFetcher:
-    """Serves one client's metadata document without touching the network (OAS-13)."""
+    """Serves one client's metadata document without touching the network (AUTH-13)."""
 
     def __init__(self) -> None:
         self.fetches = 0
@@ -102,7 +102,7 @@ async def _register_client(http) -> str:
     )
     assert resp.status_code == 201, resp.text
     body = resp.json()
-    assert "client_secret" not in body  # public client by default (OAS-2)
+    assert "client_secret" not in body  # public client by default
     return body["client_id"]
 
 
@@ -118,7 +118,7 @@ async def _authorize(http, client_id, challenge, resource, expect_consent=True) 
     }
     resp = await http.get("/oauth/authorize", params=params)
     if expect_consent:
-        assert resp.status_code == 200  # consent page (OAS-11)
+        assert resp.status_code == 200  # consent page
         assert "Authorize access" in resp.text
         token = resp.text.split('name="token" value="')[1].split('"')[0]
         resp = await http.post("/oauth/consent", data={"token": token, "action": "approve"})
@@ -162,7 +162,7 @@ async def _exchange(http, client_id, code, verifier) -> dict:
 
 
 async def test_discovery_metadata(oauth_env):
-    """OAS-1: AS metadata + per-endpoint protected-resource metadata."""
+    """AUTH-1: AS metadata + per-endpoint protected-resource metadata."""
     http, app, user = oauth_env
     meta = (await http.get("/.well-known/oauth-authorization-server")).json()
     assert meta["issuer"] == PUBLIC_URL
@@ -174,7 +174,7 @@ async def test_discovery_metadata(oauth_env):
 
 
 async def test_full_pkce_flow_and_mcp_call(oauth_env):
-    """OAS-2/3/4/10/11 + EP-3a happy path down to an authenticated initialize."""
+    """AUTH-2/3/4/10/11 + EP-3a happy path down to an authenticated initialize."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -200,7 +200,7 @@ async def test_full_pkce_flow_and_mcp_call(oauth_env):
 
 
 async def test_consent_skipped_on_second_authorize(oauth_env):
-    """OAS-11: persistent consent."""
+    """AUTH-11: persistent consent."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -214,7 +214,7 @@ async def test_consent_skipped_on_second_authorize(oauth_env):
 
 
 async def test_token_bound_to_endpoint_audience(oauth_env):
-    """EP-3a/OAS-10: a token for ep1 is rejected at ep2 with the 401 challenge."""
+    """EP-3a/AUTH-10: a token for ep1 is rejected at ep2 with the 401 challenge."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -231,7 +231,7 @@ async def test_token_bound_to_endpoint_audience(oauth_env):
 
 
 async def test_code_single_use_and_pkce_verified(oauth_env):
-    """OAS-3: bad verifier rejected; code burns on first use."""
+    """AUTH-3: bad verifier rejected; code burns on first use."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -279,7 +279,7 @@ async def test_code_single_use_and_pkce_verified(oauth_env):
 
 
 async def test_refresh_rotation_revokes_old(oauth_env):
-    """OAS-4: refresh rotates; the old refresh token stops working."""
+    """AUTH-4: refresh rotates; the old refresh token stops working."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -314,7 +314,7 @@ async def test_refresh_rotation_revokes_old(oauth_env):
 
 
 async def test_token_endpoint_honours_registered_grant_types(oauth_env):
-    """OAS-4: a client registered for the code grant alone may not refresh (unauthorized_client)."""
+    """AUTH-4: a client registered for the code grant alone may not refresh (unauthorized)."""
     http, app, user = oauth_env
     resp = await http.post(
         "/oauth/register",
@@ -342,7 +342,7 @@ async def test_token_endpoint_honours_registered_grant_types(oauth_env):
 
 
 async def test_authorize_refuses_a_client_without_the_code_grant(oauth_env):
-    """OAS-4: a client registered only for refresh_token cannot start the code flow."""
+    """AUTH-4: a client registered only for refresh_token cannot start the code flow."""
     http, app, user = oauth_env
     resp = await http.post(
         "/oauth/register",
@@ -366,7 +366,7 @@ async def test_authorize_refuses_a_client_without_the_code_grant(oauth_env):
 
 
 async def test_token_lifetimes_follow_runtime_config(oauth_env):
-    """OAS-4: access_token_lifetime is read from runtime config when the pair is issued."""
+    """AUTH-4: access_token_lifetime is read from runtime config when the pair is issued."""
     from bundlemcp.domain.config.config_entry import ConfigEntry
 
     http, app, user = oauth_env
@@ -382,7 +382,7 @@ async def test_token_lifetimes_follow_runtime_config(oauth_env):
 
 
 async def test_tokens_expire_by_the_clock(oauth_env):
-    """OAS-4: an access token dies at its lifetime; a refresh token at its own, longer one."""
+    """AUTH-4: an access token dies at its lifetime; a refresh token at its own, longer one."""
     from datetime import timedelta
 
     http, app, user = oauth_env
@@ -422,7 +422,7 @@ async def test_tokens_expire_by_the_clock(oauth_env):
 
 
 async def test_introspection_requires_service_key(oauth_env):
-    """OAS-5/UPO-7."""
+    """AUTH-5/UPS-31."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -443,7 +443,7 @@ async def test_introspection_requires_service_key(oauth_env):
     assert body["aud"] == f"{PUBLIC_URL}/ep1/mcp"
     assert body["email"] == "alice@example.com"
 
-    # RFC 7662 client auth (OAS-5 "client credentials"): the service key may
+    # RFC 7662 client auth ("client credentials"): the service key may
     # arrive as the HTTP Basic client secret — what introspecting upstreams send.
     import base64
 
@@ -463,8 +463,8 @@ async def test_introspection_requires_service_key(oauth_env):
     )
     assert denied.status_code == 401
 
-    # gateway API keys introspect as active with the FWD-3 identity format,
-    # so introspecting upstreams can serve api_key callers (FWD-4)
+    # gateway API keys introspect as active with the identity format,
+    # so introspecting upstreams can serve api_key callers
     key_introspect = await http.post(
         "/oauth/introspect",
         data={"token": SERVICE_KEY},
@@ -483,7 +483,7 @@ async def test_introspection_requires_service_key(oauth_env):
 
 
 async def test_revocation(oauth_env):
-    """OAS-6."""
+    """AUTH-6."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -519,7 +519,7 @@ async def test_revocation(oauth_env):
 
 
 async def test_authorize_requires_login_redirect(oauth_env):
-    """OAS-3: no browser session -> redirect into /login with next."""
+    """AUTH-3: no browser session -> redirect into /login with next."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     _, challenge = make_pkce()
@@ -569,7 +569,7 @@ async def test_authorize_login_next_uses_public_url_behind_proxy(oauth_env):
 
 
 async def test_unauthenticated_authorize_writes_no_client_mirror(oauth_env):
-    """OAS-13: before login the document is only checked; the mirror is written on authorization."""
+    """AUTH-13: before login the document is only checked; the mirror is written on approval."""
     from bundlemcp.infrastructure.postgres.rows.oauth_client_row import OAuthClientRow
 
     http, app, user = oauth_env
@@ -593,7 +593,7 @@ async def test_unauthenticated_authorize_writes_no_client_mirror(oauth_env):
 
 
 async def test_missing_resource_rejected(oauth_env):
-    """OAS-10: resource is required and must be a bundlemcp endpoint."""
+    """AUTH-10: resource is required and must be a bundlemcp endpoint."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     _, challenge = make_pkce()
@@ -612,7 +612,7 @@ async def test_missing_resource_rejected(oauth_env):
 
 
 async def test_authorization_responses_carry_the_issuer(oauth_env):
-    """OAS-14: code and error redirects carry iss, and the metadata says so."""
+    """AUTH-14: code and error redirects carry iss, and the metadata says so."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -640,7 +640,7 @@ async def test_authorization_responses_carry_the_issuer(oauth_env):
 
 
 async def test_client_id_metadata_document_needs_no_registration(oauth_env):
-    """OAS-13: an https client_id is resolved from its document and works end to end."""
+    """AUTH-13: an https client_id is resolved from its document and works end to end."""
     http, app, user = oauth_env
     verifier, challenge = make_pkce()
     code = await _authorize(http, CIMD_CLIENT_ID, challenge, f"{PUBLIC_URL}/ep1/mcp")
@@ -663,7 +663,7 @@ async def test_client_id_metadata_document_needs_no_registration(oauth_env):
 
 
 async def test_registration_records_application_type(oauth_env):
-    """OAS-2: application_type is accepted, stored and echoed."""
+    """AUTH-2: application_type is accepted, stored and echoed."""
     http, app, user = oauth_env
     resp = await http.post(
         "/oauth/register",
@@ -685,7 +685,7 @@ async def test_registration_records_application_type(oauth_env):
 
 
 async def test_registration_refuses_grants_the_server_does_not_serve(oauth_env):
-    """OAS-2: OAuth 2.1 dropped the implicit grant; asking for it is invalid_client_metadata."""
+    """AUTH-2: OAuth 2.1 dropped the implicit grant; asking for it is invalid_client_metadata."""
     http, app, user = oauth_env
     resp = await http.post(
         "/oauth/register",
@@ -698,7 +698,7 @@ async def test_registration_refuses_grants_the_server_does_not_serve(oauth_env):
 
 
 async def test_registration_answers_a_malformed_body_in_protocol_terms(oauth_env):
-    """OAS-2: a body FastAPI cannot parse is still an RFC 7591 error, never a bare 422."""
+    """AUTH-2: a body FastAPI cannot parse is still an RFC 7591 error, never a bare 422."""
     http, app, user = oauth_env
     resp = await http.post(
         "/oauth/register", content=b"not json", headers={"Content-Type": "application/json"}
@@ -708,7 +708,7 @@ async def test_registration_answers_a_malformed_body_in_protocol_terms(oauth_env
 
 
 async def test_registration_rejects_a_bad_redirect_uri_with_its_own_error(oauth_env):
-    """OAS-2: a redirect URI that is neither https nor localhost is invalid_redirect_uri."""
+    """AUTH-2: a redirect URI that is neither https nor localhost is invalid_redirect_uri."""
     http, app, user = oauth_env
     resp = await http.post("/oauth/register", json={"redirect_uris": ["http://client.example/cb"]})
     assert resp.status_code == 400
@@ -716,7 +716,7 @@ async def test_registration_rejects_a_bad_redirect_uri_with_its_own_error(oauth_
 
 
 async def test_code_burn_is_a_compare_and_set(oauth_env):
-    """OAS-3: a code another transaction burned between the read and the burn is refused.
+    """AUTH-3: a code another transaction burned between the read and the burn is refused.
 
     The race is reproduced without concurrency: the code is read into the
     session (as a racing request would), then the row changes underneath that
@@ -759,7 +759,7 @@ async def test_code_burn_is_a_compare_and_set(oauth_env):
 
 
 async def test_refresh_rotation_is_a_compare_and_set(oauth_env):
-    """OAS-4: a refresh token rotated between the read and the rotation is a replay."""
+    """AUTH-4: a refresh token rotated between the read and the rotation is a replay."""
     from bundlemcp.application.errors import OAuthError
     from bundlemcp.application.oauth_server import TokenRequest
     from sqlalchemy import update
@@ -790,7 +790,7 @@ async def test_refresh_rotation_is_a_compare_and_set(oauth_env):
 
 
 async def test_refresh_replay_revokes_the_family(oauth_env):
-    """OAS-4 / RFC 9700 4.14.2: replaying a rotated refresh token revokes every descendant."""
+    """AUTH-4 / RFC 9700 4.14.2: replaying a rotated refresh token revokes every descendant."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -866,7 +866,7 @@ async def test_redirect_uri_with_query_receives_the_code(oauth_env):
 
 
 async def test_locked_out_client_gets_no_exchange(oauth_env):
-    """RATE-5: once locked out, even a correct redemption is refused before it is evaluated."""
+    """EP-20: once locked out, even a correct redemption is refused before it is evaluated."""
     http, app, user = oauth_env
     client_id = await _register_client(http)
     verifier, challenge = make_pkce()
@@ -896,7 +896,7 @@ async def test_locked_out_client_gets_no_exchange(oauth_env):
 
 
 async def test_registration_rate_limit_keys_on_the_forwarded_client_ip(engine, redis):
-    """OAS-12: behind a trusted proxy the limit is per original client, not per proxy."""
+    """AUTH-12: behind a trusted proxy the limit is per original client, not per proxy."""
     settings = hermetic_settings(public_url=PUBLIC_URL, trusted_proxies=["127.0.0.0/8"])
     assert (settings.dcr_rate_limit, settings.dcr_rate_window) == (10, 3600)
     body = {"redirect_uris": ["https://client.example/cb"], "client_name": "C"}
@@ -921,7 +921,7 @@ ALLOWED_REDIRECTS = ["https://claude.ai/api/mcp/auth_callback", "https://*.clien
 
 
 async def test_registration_allow_list_refuses_unlisted_redirect_uris(engine, redis):
-    """OAS-2: with an allow-list configured, an unlisted redirect URI is invalid_redirect_uri."""
+    """AUTH-2: with an allow-list configured, an unlisted redirect URI is invalid_redirect_uri."""
     settings = hermetic_settings(public_url=PUBLIC_URL, dcr_allowed_redirect_uris=ALLOWED_REDIRECTS)
     async with serving(engine, redis, settings=settings, base_url=PUBLIC_URL) as (http, _app):
         for listed in ("https://claude.ai/api/mcp/auth_callback", "https://app.client.example/cb"):
@@ -941,7 +941,7 @@ async def test_registration_allow_list_refuses_unlisted_redirect_uris(engine, re
 
 
 async def test_registration_without_allow_list_accepts_any_https_redirect_uri(engine, redis):
-    """OAS-2: the default empty allow-list keeps every https redirect URI acceptable."""
+    """AUTH-2: the default empty allow-list keeps every https redirect URI acceptable."""
     async with serving(engine, redis, settings=hermetic_settings(public_url=PUBLIC_URL)) as (
         http,
         _app,
@@ -951,7 +951,7 @@ async def test_registration_without_allow_list_accepts_any_https_redirect_uri(en
 
 
 async def test_registration_rate_limit_and_window_are_configurable(engine, redis):
-    """OAS-12: the per-IP registration limit and its window come from settings."""
+    """AUTH-12: the per-IP registration limit and its window come from settings."""
     settings = hermetic_settings(public_url=PUBLIC_URL, dcr_rate_limit=2, dcr_rate_window=60)
     body = {"redirect_uris": ["https://client.example/cb"]}
     async with serving(engine, redis, settings=settings, base_url=PUBLIC_URL) as (http, _app):
@@ -967,7 +967,7 @@ async def test_registration_rate_limit_and_window_are_configurable(engine, redis
 async def test_allow_listed_registrations_skip_the_per_ip_limit_not_the_global_quota(
     engine, redis
 ):
-    """OAS-12/SEC-8: allow-listed redirect URIs bypass the per-IP budget; the global quota holds."""
+    """AUTH-12/SEC-8: allow-listed redirect URIs skip the per-IP budget; the global quota holds."""
     settings = hermetic_settings(
         public_url=PUBLIC_URL,
         dcr_allowed_redirect_uris=ALLOWED_REDIRECTS,
@@ -1002,7 +1002,7 @@ async def test_global_quota_counts_only_clients_that_never_obtained_a_token(engi
 
 
 async def test_metadata_document_redirect_uris_must_be_on_the_allow_list(engine, redis):
-    """OAS-13: a metadata document declaring an unlisted redirect URI is refused at authorize."""
+    """AUTH-13: a metadata document declaring an unlisted redirect URI is refused at authorize."""
     _, challenge = make_pkce()
     params = {
         "client_id": CIMD_CLIENT_ID,
@@ -1027,7 +1027,7 @@ async def test_metadata_document_redirect_uris_must_be_on_the_allow_list(engine,
 
 
 def test_malformed_allow_list_entries_are_refused_at_startup():
-    """OAS-2: a pattern that is not an exact URI or a leading-label wildcard fails settings."""
+    """AUTH-2: a pattern that is not an exact URI or a leading-label wildcard fails settings."""
     from pydantic import ValidationError
 
     for bad in ("claude.ai/cb", "https://*.com/cb", "https://a.*.example.com/cb", "https://x/*"):
@@ -1035,7 +1035,7 @@ def test_malformed_allow_list_entries_are_refused_at_startup():
             hermetic_settings(dcr_allowed_redirect_uris=[bad])
 
 
-# Consent page CSP (SEC-6): browsers apply form-action to the redirect that answers a form
+# Consent page CSP: browsers apply form-action to the redirect that answers a form
 # post, so the consent page admits its own authorization's redirect URI and nothing else.
 
 SAME_ORIGIN_POLICY = (
@@ -1102,7 +1102,7 @@ async def test_consent_page_source_drops_the_redirect_query(oauth_env):
 
 
 async def test_consent_deny_redirects_access_denied(oauth_env):
-    """OAS-11: Deny reaches the client's redirect URI as error=access_denied."""
+    """AUTH-11: Deny reaches the client's redirect URI as error=access_denied."""
     http, _, _ = oauth_env
     client_id = await _register_redirect(http, "https://client.example/cb")
     _, token = await _consent_page(http, client_id, "https://client.example/cb")

@@ -47,7 +47,7 @@ class BufferedCallResponse:
 
 
 class StreamedCallResponse:
-    # PROT-18: an input-required call outlives its own response stream
+    # an input-required call outlives its own response stream
     """Stream the call's notifications as SSE events, then the final JSON-RPC message.
 
     Progress events are sent only when the client supplied a progress token; log
@@ -96,6 +96,6 @@ class StreamedCallResponse:
                     yield chunk
             finally:
                 if not task.done() and not events.parked:
-                    call.disconnected()  # PROT-19
+                    call.disconnected()
 
         return StreamingResponse(body(), media_type="text/event-stream", headers=SSE_HEADERS)

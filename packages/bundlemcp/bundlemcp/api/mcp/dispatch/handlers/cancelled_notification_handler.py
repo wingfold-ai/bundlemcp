@@ -12,7 +12,6 @@ class CancelledNotificationHandler:
         self._signals = signals
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
-        # PROT-3
         request_id = message.params.get("requestId")
         if request_id is not None:
             await self._signals.cancel(ctx.routing_key, str(request_id))

@@ -1,4 +1,4 @@
-"""Add oauth_access_tokens.family_id (OAS-4, RFC 9700 section 4.14.2).
+"""Add oauth_access_tokens.family_id (AUTH-4, RFC 9700 section 4.14.2).
 
 Every pair descended from one authorization grant through refresh rotation
 shares a family id, so a replayed refresh token can revoke all of them.

@@ -8,12 +8,12 @@ from bundlemcp.api.mcp.routing.adapters.session_adapter import SessionMcpAdapter
 from bundlemcp.api.mcp.routing.adapters.stateless_adapter import StatelessMcpAdapter
 from bundlemcp.api.mcp.routing.admission_gate import AdmissionGate
 
-# SEC-1: Upper bound on request body size before reading into memory (4 MB)
+# Upper bound on request body size before reading into memory (4 MB)
 MAX_PAYLOAD_BYTES = 4 * 1024 * 1024
 
 
 def _method_not_allowed() -> Response:
-    # EP-1: the stateless era is POST-only; GET/DELETE exist for session clients.
+    # the stateless era is POST-only; GET/DELETE exist for session clients.
     return Response(status_code=405, headers={"Allow": "POST"})
 
 
@@ -42,7 +42,7 @@ class McpGatewayRouter:
         except RequestRejected as rejected:
             return rejected.response
 
-        # PROT-13: the client's opening decides the era adapter, once per request.
+        # the client's opening decides the era adapter, once per request.
         if message.has_modern_meta:
             return await self._stateless.handle_post(ctx, message, endpoint_name)
         return await self._session.handle_post(ctx, message, endpoint_name)
@@ -52,7 +52,7 @@ class McpGatewayRouter:
         if not request.headers.get(SESSION_HEADER):
             return _method_not_allowed()
         try:
-            ctx = await self._admission.admit_caller(request, endpoint_name)  # SES-3a
+            ctx = await self._admission.admit_caller(request, endpoint_name)
         except RequestRejected as rejected:
             return rejected.response
         return await self._session.close_session(ctx, endpoint_name)

@@ -48,7 +48,7 @@ class FakeUpstream:
 
 
 async def test_discovery_follows_the_protected_resource_chain():
-    """UPO-1: RFC 9728 document -> RFC 8414 metadata at the named authorization server."""
+    """UPS-25: RFC 9728 document -> RFC 8414 metadata at the named authorization server."""
     upstream = FakeUpstream()
     meta = await upstream.provider().discover(SERVER_URL)
     assert meta.token_endpoint == f"{AS_URL}/token" and meta.issuer == AS_URL
@@ -155,7 +155,7 @@ class PathScopedUpstream:
 
 
 async def test_discovery_follows_the_document_a_401_names():
-    """UPO-1: the WWW-Authenticate resource_metadata, then RFC 8414 path insertion."""
+    """UPS-25: the WWW-Authenticate resource_metadata, then RFC 8414 path insertion."""
     upstream = PathScopedUpstream()
     meta = await upstream.provider().discover(SERVER_URL)
     assert meta.issuer == KEYCLOAK
@@ -164,7 +164,7 @@ async def test_discovery_follows_the_document_a_401_names():
 
 
 async def test_requested_scopes_come_from_the_resource_not_the_authorization_server():
-    """UPO-1: the resource document's scopes_supported, not Keycloak's whole catalogue."""
+    """UPS-25: the resource document's scopes_supported, not Keycloak's whole catalogue."""
     meta = await PathScopedUpstream().provider().discover(SERVER_URL)
     assert meta.resource_scopes == ["openid"]
     assert meta.authorization_scope == "openid"
@@ -172,14 +172,14 @@ async def test_requested_scopes_come_from_the_resource_not_the_authorization_ser
 
 
 async def test_a_challenge_scope_wins_over_the_resource_document():
-    """UPO-1: the scope a 401 names is the most specific request the server makes."""
+    """UPS-25: the scope a 401 names is the most specific request the server makes."""
     upstream = PathScopedUpstream(challenge_scope="mcp:tools mcp:read")
     meta = await upstream.provider().discover(SERVER_URL)
     assert meta.resource_scopes == ["mcp:tools", "mcp:read"]
 
 
 async def test_discovery_finds_the_path_inserted_document_without_a_challenge():
-    """UPO-1: RFC 9728 puts a path-scoped resource's document under its path."""
+    """UPS-25: RFC 9728 puts a path-scoped resource's document under its path."""
     upstream = PathScopedUpstream(challenge=False)
     meta = await upstream.provider().discover(SERVER_URL)
     assert meta.token_endpoint == f"{KEYCLOAK}/protocol/openid-connect/token"
@@ -204,7 +204,7 @@ async def test_a_named_document_on_a_blocked_range_is_not_fetched():
 
 
 async def test_registration_asks_for_a_public_pkce_client():
-    """UPO-1: RFC 7591 registration with the gateway's callback as the only redirect URI."""
+    """UPS-25: RFC 7591 registration with the gateway's callback as the only redirect URI."""
     upstream = PathScopedUpstream()
     provider = upstream.provider()
     meta = await provider.discover(SERVER_URL)
@@ -280,8 +280,8 @@ class CompliantUpstream:
         )
 
 
-async def test_upo1_the_challenge_is_a_post_so_a_stateless_server_answers_it():
-    """UPO-1: a GET would meet 405 from a stateless server before any challenge."""
+async def test_ups25_the_challenge_is_a_post_so_a_stateless_server_answers_it():
+    """UPS-25: a GET would meet 405 from a stateless server before any challenge."""
     upstream = CompliantUpstream()
     meta = await upstream.provider().discover(SERVER_URL)
     first = upstream.requests[0]
@@ -293,7 +293,7 @@ async def test_upo1_the_challenge_is_a_post_so_a_stateless_server_answers_it():
     assert "client_credentials" in meta.grant_types_supported
 
 
-async def test_upo12_every_request_names_the_resource():
+async def test_ups36_every_request_names_the_resource():
     upstream = CompliantUpstream()
     provider = upstream.provider()
     meta = await provider.discover(SERVER_URL)
@@ -316,7 +316,7 @@ async def test_upo12_every_request_names_the_resource():
     assert all(b"resource=http%3A%2F%2F10.0.0.5" in r.content for r in token_requests)
 
 
-async def test_upo1_registration_names_the_application_type():
+async def test_ups25_registration_names_the_application_type():
     upstream = CompliantUpstream()
     provider = upstream.provider()
     meta = await provider.discover(SERVER_URL)
@@ -325,21 +325,21 @@ async def test_upo1_registration_names_the_application_type():
     assert json.loads(sent.content)["application_type"] == "web"
 
 
-async def test_upo13_metadata_without_pkce_is_refused():
+async def test_ups37_metadata_without_pkce_is_refused():
     upstream = CompliantUpstream(code_challenge_methods_supported=["plain"])
     with pytest.raises(NeedsConnect) as excinfo:
         await upstream.provider().discover(SERVER_URL)
     assert excinfo.value.reason == "pkce_not_supported"
 
 
-async def test_upo13_metadata_naming_another_issuer_is_refused():
+async def test_ups37_metadata_naming_another_issuer_is_refused():
     upstream = CompliantUpstream(issuer="http://10.0.0.99/realms/x")
     with pytest.raises(NeedsConnect) as excinfo:
         await upstream.provider().discover(SERVER_URL)
     assert excinfo.value.reason == "issuer_mismatch"
 
 
-async def test_upo11_client_credentials_grant_sends_secret_scope_and_resource():
+async def test_ups35_client_credentials_grant_sends_secret_scope_and_resource():
     upstream = CompliantUpstream()
     provider = upstream.provider()
     meta = await provider.discover(SERVER_URL)

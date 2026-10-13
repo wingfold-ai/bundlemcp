@@ -60,7 +60,7 @@ class ClientRelay:
         # on_notification is None when log messages belong on the client's own
         # notification stream (handshake era) rather than the call's response;
         # channel is None in the handshake era, where requests go out on that
-        # stream, and set for a modern client (PROT-18)
+        # stream, and set for a modern client
         self._registry = registry
         self._signals = signals
         self._routing_key = routing_key
@@ -71,7 +71,7 @@ class ClientRelay:
 
     def client_kwargs(self, capabilities: Mapping[str, Any]) -> dict[str, Any]:
         """The handler keyword arguments for the upstream client, gated by capability."""
-        # PROT-5: capability intersection; PROT-4 names the `roots` kwarg
+        # only the handlers the client's capabilities allow are offered upstream
         offered: dict[str, tuple[str, Callable[..., Any]]] = {
             "elicitation": ("elicitation_handler", self.elicit),
             "sampling": ("sampling_handler", self.sample),
@@ -82,7 +82,7 @@ class ClientRelay:
             for capability, (kwarg, handler) in offered.items()
             if capability in capabilities
         }
-        if self._log_level is not None:  # PROT-7 / PROT-20
+        if self._log_level is not None:
             kwargs["log_handler"] = _as_function(self.log)
         return kwargs
 

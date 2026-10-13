@@ -77,7 +77,7 @@ class ToolCall:
         # resume: a retry's answers for an upstream that asked for input itself
         # (passthrough); preanswered: answers for an upstream that will ask again
         # because its parked call was lost (re-run); idempotency_key: carried over
-        # from the first leg so the retry is charged once (MID-3)
+        # from the first leg so the retry is charged once
         self._support = support
         self._ctx = ctx
         self._message = message
@@ -123,7 +123,7 @@ class ToolCall:
         return task
 
     async def run(self) -> Response:
-        # spec 23: resolve the upstream bearer BEFORE metering, so an unconnected
+        # the upstreams spec: resolve the upstream bearer BEFORE metering, so an unconnected
         # upstream is never debited.
         try:
             self._headers = await self._resolve_headers()
@@ -149,8 +149,8 @@ class ToolCall:
             self._handle = self._support.registry.register_call(
                 self._ctx.routing_key, str(self.rpc_id)
             )
-        # PROT-1: with a progressToken, stream progress as SSE and deliver the
-        # result as the final event. PROT-19: a modern client is always streamed,
+        # with a progressToken, stream progress as SSE and deliver the
+        # result as the final event. A modern client is always streamed,
         # so closing the stream is its cancellation signal. Otherwise the
         # buffered JSON path.
         if self._message.progress_token is not None or self._ctx.era is ProtocolEra.STATELESS:
@@ -164,7 +164,7 @@ class ToolCall:
         upstream = await self._support.credentials.headers_for(
             self._tool.server, self._ctx.identity, endpoint=self._ctx.view.endpoint.name
         )
-        headers.update(upstream)  # spec 23: the upstream OAuth bearer wins
+        headers.update(upstream)  # the upstreams spec: the upstream OAuth bearer wins
         return headers
 
     async def _meter_pre_call(self) -> MeterDecision:
@@ -177,16 +177,16 @@ class ToolCall:
             bundle=self._ctx.view.bundle.name,
             server=self._tool.server.name,
             tool=self._tool.tool.name,
-            idempotency_key=self._idempotency_key,  # MID-3: once per client invocation
+            idempotency_key=self._idempotency_key,  # once per client invocation
         )
         try:
             return await self._support.metering.pre_call(self._meter)
         except Exception:
             log.error("metering.pre_call_failed", exc_info=True)
-        # MID-3: fail-open is the gateway's policy, not the hook's property.
+        # fail-open is the gateway's policy, not the hook's property.
         if self._support.metering_fail_open:
             return MeterDecision(allowed=True, reason="metering_unavailable")
-        # MID-3: the hook may have debited before it failed to answer, so it is
+        # the hook may have debited before it failed to answer, so it is
         # told, under the same key, that the refused call produced no result.
         await self._post_call(MeterOutcome.NO_RESULT, 0)
         return MeterDecision(allowed=False, reason="metering_unavailable")
@@ -195,7 +195,7 @@ class ToolCall:
         """Refuse the call the hook denied, in words the person behind the client can read."""
         self._record(AuditStatus.DENIED, denied_reason=decision.reason or "denied")
         if decision.user_message:
-            # MID-3: a tool error result, so the model relays the text verbatim
+            # a tool error result, so the model relays the text verbatim
             content = [{"type": "text", "text": decision.user_message}]
             return rpc_result(self.rpc_id, self.shape({"content": content, "isError": True}))
         return rpc_error(self.rpc_id, UPSTREAM_FAILURE, decision.reason or "call denied")
@@ -207,7 +207,6 @@ class ToolCall:
         except Exception:
             log.error("metering.post_call_failed", exc_info=True)
 
-    # UPO-4, UPO-10, MID-3
     async def execute(
         self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
     ) -> CallOutcome:
@@ -245,7 +244,6 @@ class ToolCall:
             {**self._headers, **refreshed}, on_progress, on_notification
         ).run()
 
-    # UPO-10
     async def _step_up(self, outcome: CallOutcome, scopes: list[str]) -> CallOutcome:
         """Remember the demanded scopes and tell the caller to reconnect."""
         server = self._tool.server
@@ -264,7 +262,7 @@ class ToolCall:
         on_notification: NotificationSink | None,
         started: float,
     ) -> None:
-        # PROT-18: the detached runner is what lets a parked call survive its response
+        # the detached runner is what lets a parked call survive its response
         """Execute, account, and tell the streaming client how it ended.
 
         Runs detached from the response so that a call which asked the client
@@ -300,7 +298,7 @@ class ToolCall:
         await self._events.emit("result", outcome.body(self.shape))
 
     def disconnected(self) -> None:
-        # PROT-19: a disconnect is accounted for as a cancellation
+        # a disconnect is accounted for as a cancellation
         """The client closed the response stream mid-call: end the upstream call.
 
         The detached runner then accounts for the call as cancelled.
@@ -309,10 +307,10 @@ class ToolCall:
             self._handle.cancel_event.set()
 
     def _channel(self) -> InputChannel | None:
-        # PROT-18: which relay strategy serves a mid-request tool response
+        # which relay strategy serves a mid-request tool response
         """How an upstream's request for input reaches this client."""
         if self._ctx.era is ProtocolEra.SESSION:
-            return None  # PROT-4: the GET stream relay
+            return None  # the GET stream relay
         if self._preanswered is not None:
             return PreansweredChannel(self._preanswered)
         assert self._events is not None and self._timeouts is not None
@@ -363,7 +361,7 @@ class ToolCall:
             arguments=self._arguments,
             headers=headers,
             session=self._ctx.session,
-            # PROT-5: only capabilities the client advertised are offered upstream
+            # only capabilities the client advertised are offered upstream
             client_capabilities=self._ctx.client_capabilities,
             log_level=self._ctx.log_level,
             relay=relay,

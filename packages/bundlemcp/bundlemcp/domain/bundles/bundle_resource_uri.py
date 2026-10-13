@@ -1,6 +1,6 @@
 """How a bundle's own resources are addressed by URI."""
 
-# BPR-7: no bundle name in the URI, so renaming the bundle does not change it
+# no bundle name in the URI, so renaming the bundle does not change it
 BUNDLE_RESOURCE_URI_PREFIX = "bundle://resources/"
 
 

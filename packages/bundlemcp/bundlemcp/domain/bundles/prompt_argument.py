@@ -12,12 +12,12 @@ class PromptArgument(BaseModel):
     description: str | None = Field(
         default=None, description="What the argument is for, shown to the user filling it in"
     )
-    required: bool = Field(  # BPR-4
+    required: bool = Field(
         default=False,
         description="Whether the prompt refuses to render without it; an optional argument "
         "left out is replaced with the empty string",
     )
-    values: list[str] = Field(  # BPR-5
+    values: list[str] = Field(
         default_factory=list,
         description="Suggested values a client offers as completions, in this order; empty "
         "when the argument is free text",
