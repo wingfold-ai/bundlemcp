@@ -34,11 +34,11 @@ server.
 ### Requirement: BND-8 Prompt and resource passthrough
 Resources and prompts of member servers MUST be **uncurated passthrough** (tools are the curated surface); they are
 fetched **live** from members per request and are not cached
-([upstreams](../../../../specs/upstreams/spec.md)). Only members whose capabilities snapshot
-([UPS-22](../../../../specs/upstreams/spec.md)) advertises the capability a method belongs to are asked — `prompts`
+([upstreams](../upstreams/spec.md)). Only members whose capabilities snapshot
+([UPS-22](../upstreams/spec.md)) advertises the capability a method belongs to are asked — `prompts`
 for `prompts/*`, `resources` for `resources/*`, `completions` for `completion/complete` — so a member without it, or one
 never successfully discovered, is not contacted and contributes nothing
-([ADR-0043](../../../../../docs/adr/0043-contact-upstreams-only-with-a-reason.md)). Routing rules:
+([ADR-0043](../../../docs/adr/0043-contact-upstreams-only-with-a-reason.md)). Routing rules:
 
 - **Prompts** carry a name, so they are **always prefixed** `<server_name>__<prompt_name>` (BND-2 scheme);
   `prompts/get` and completion prompt-refs de-prefix on the first `__` to find the owning member.
@@ -47,10 +47,10 @@ never successfully discovered, is not contacted and contributes nothing
   enabled member in member order (BND-1) wins, collisions logged). `resources/read`, `resources/subscribe`, and
   resource-template completions resolve the owning member by **fan-out** — trying enabled members in member order and
   taking the first that owns the URI.
-- Completions are routed per [PROT-9](../../../../specs/protocol/spec.md).
+- Completions are routed per [PROT-9](../protocol/spec.md).
 
 Prompts and resources authored on the bundle itself, served beside this passthrough, are specified in
-[bundles](../../../../specs/bundles/spec.md).
+[bundles](../bundles/spec.md).
 
 #### Scenario: Member prompts are prefixed and de-prefixed
 - **WHEN** member `weather` offers prompt `daily` and a client calls `prompts/list` then `prompts/get` with
@@ -113,7 +113,7 @@ is rejected with `409 Conflict` when it would introduce a prefixed name equal to
 The bundle detail page SHALL list all member tools with an enable toggle and inline editing of the override name,
 override title, override description and override annotations, and SHALL flag tools whose name, title, description or
 annotations are overridden, tools whose membership is disabled, and stale tools
-([UPS-19](../../../../specs/upstreams/spec.md)). Saving a tool's row MUST send every override the tool currently
+([UPS-19](../upstreams/spec.md)). Saving a tool's row MUST send every override the tool currently
 carries, so a save never clears an override the admin did not change, including one set through the management API.
 
 #### Scenario: Admin toggles and renames a tool in the UI

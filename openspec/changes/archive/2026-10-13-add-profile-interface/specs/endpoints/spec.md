@@ -3,7 +3,7 @@
 ### Requirement: EP-13 Where profile transforms apply
 Profile transforms SHALL be applied as a pluggable stage of the endpoint's tool pipeline at the endpoint layer — after
 bundle curation decides which tools are served and before per-tool annotation overrides are merged
-([BND-15](../../../../specs/bundles/spec.md)) — and the output of that pipeline SHALL back both `tools/list` and
+([BND-15](../bundles/spec.md)) — and the output of that pipeline SHALL back both `tools/list` and
 `tools/call` validation, so a call is checked against exactly the transformed tool the list presented.
 
 #### Scenario: List and call see the same transformed tool

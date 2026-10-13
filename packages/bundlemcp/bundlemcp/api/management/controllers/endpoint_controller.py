@@ -4,26 +4,9 @@ from fastapi import HTTPException, status
 
 from bundlemcp.api.http.pagination import PageProvider
 from bundlemcp.api.http.route import route
-from bundlemcp.api.http.service_providers import EndpointServiceProvider
+from bundlemcp.api.http.service_providers import EndpointServiceProvider, ProfileServiceProvider
 from bundlemcp.api.management.controllers.management_controller import ManagementController
 from bundlemcp.application.schemas import EndpointProfileRead, EndpointRead, EndpointUpsert, Page
-from bundlemcp.domain.endpoints.endpoint_profile import EndpointProfile
-
-PROFILES = [
-    EndpointProfileRead(name=EndpointProfile.DEFAULT, description="Passthrough; any auth mode"),
-    EndpointProfileRead(
-        name=EndpointProfile.CLAUDE,
-        description="claude.ai remote connector: OAuth-only, passthrough tools",
-    ),
-    EndpointProfileRead(
-        name=EndpointProfile.CHATGPT,
-        description=(
-            "Re-annotates write tools as read-safe — tools still perform "
-            "their real operations upstream"
-        ),
-        warning="annotations no longer reflect true tool behavior",
-    ),
-]
 
 
 class EndpointController(ManagementController):
@@ -38,9 +21,9 @@ class EndpointController(ManagementController):
 
     # declared before /{name}: a literal path must bind ahead of the parameterised one
     @route.get("/profiles", tags=["profiles"])
-    async def list_profiles(self) -> list[EndpointProfileRead]:
+    async def list_profiles(self, service: ProfileServiceProvider) -> list[EndpointProfileRead]:
         """Profiles are code presets, listed here so the UI stays data-driven."""
-        return PROFILES
+        return service.list()
 
     @route.get("/{name}")
     async def get_endpoint(self, name: str, service: EndpointServiceProvider) -> EndpointRead:

@@ -2,7 +2,7 @@
 
 ### Requirement: EP-3a OAuth audience binding
 OAuth bearers MUST be accepted only when the token's audience matches this endpoint
-([AUTH-10](../../../../specs/auth/spec.md)). A presented bearer that is refused — its audience is another
+([AUTH-10](../auth/spec.md)). A presented bearer that is refused — its audience is another
 endpoint, or it is expired, revoked or unknown — MUST be answered 401 with
 `WWW-Authenticate: Bearer error="invalid_token"` alongside this endpoint's `resource_metadata`, prompting the client to
 re-authorize for this endpoint. A request that carries no credentials at all receives the challenge without an error

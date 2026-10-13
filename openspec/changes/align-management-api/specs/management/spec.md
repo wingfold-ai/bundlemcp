@@ -3,15 +3,15 @@
 ### Requirement: MGMT-1 Base path and resources
 The management API SHALL be served under the base path `/api/v1` with these resources, each addressed by its natural
 key (a name) where it has one: `upstreams`, `upstreams/{name}/tools`, `bundles`, `bundles/{name}/upstreams`
-([UPS-16](../../../../specs/upstreams/spec.md)), `bundles/{name}/tools`, `bundles/{name}/prompts` and
-`bundles/{name}/resources` ([BND-31](../../../../specs/bundles/spec.md)), `endpoints`, `auth`,
+([UPS-16](../upstreams/spec.md)), `bundles/{name}/tools`, `bundles/{name}/prompts` and
+`bundles/{name}/resources` ([BND-31](../bundles/spec.md)), `endpoints`, `auth`,
 `users`, `audit-records`, `config`, and the read-only profile list at `profiles`
-([EP-14](../../../../specs/endpoints/spec.md)), plus action routes (e.g. `upstreams/{name}:refresh-tools`,
+([EP-14](../endpoints/spec.md)), plus action routes (e.g. `upstreams/{name}:refresh-tools`,
 `upstreams/{name}:probe`, `upstreams:inspect`, `endpoints/{name}:rename`, `api-keys/{id}:deactivate`). `:probe`
 contacts the upstream now — connects, negotiates the protocol, records `connection_state` and counts toward
 `health_status` — without re-listing its tools, and returns the outcome. It SHALL also serve `me` (caller identity
 for the UI: kind, email, `is_admin` — answers 200 for any active signed-in session, admin or not, so the UI can render
-its "no access" page ([UI-2](../../../../specs/admin-ui/spec.md)); service keys get their key identity), and
+its "no access" page ([UI-2](../admin-ui/spec.md)); service keys get their key identity), and
 `me/endpoints` — the catalogue for that same audience: every enabled endpoint accepting `oauth`, with its connection
 URL and the bundle's description, so a signed-in non-admin finds what to connect an MCP client to without any
 privileged call.
@@ -45,7 +45,7 @@ privileged call.
 ### Requirement: MGMT-4 Registrar use case
 `PUT /api/v1/upstreams/{name}` SHALL be a **config-only upsert** — create-or-update by name, idempotent, returning the
 canonical server representation including its current tool cache (the tools discovered so far; empty for a server not
-yet discovered). It SHALL never block on probing the upstream ([UPS-2](../../../../specs/upstreams/spec.md)
+yet discovered). It SHALL never block on probing the upstream ([UPS-2](../upstreams/spec.md)
 allows registering not-yet-started servers; discovery runs in the background), so a discovery loop can converge by
 repeatedly PUTting desired state. The DTO tolerates an optional `transport` field but SHALL accept only
 `streamable-http` — anything else is a 422 whose message names the field and the one supported value — so registrar

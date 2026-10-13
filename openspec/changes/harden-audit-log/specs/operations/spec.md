@@ -3,8 +3,8 @@
 ### Requirement: OPS-2 Denied calls are audited
 Denied calls (disabled or unknown tool, metering deny, and a `tools/call` whose credential is valid but not entitled to
 the endpoint) SHALL be audited with `status=denied` and the reason; auth failures and rate-limit rejections SHALL NOT be
-audit records ([EP-18](../../../../specs/endpoints/spec.md)) — they go to logs and to the exported metrics
-([OPS-9](../../../../specs/operations/spec.md)).
+audit records ([EP-18](../endpoints/spec.md)) — they go to logs and to the exported metrics
+([OPS-9](../operations/spec.md)).
 
 #### Scenario: Metering denies a call
 - **WHEN** the metering hook denies a call with reason `insufficient_credits`
@@ -103,7 +103,7 @@ value on every run; `0` SHALL disable purging.
 - **THEN** exactly one of them runs the delete
 
 ### Requirement: OPS-6 Querying the audit log
-`GET /api/v1/audit-records` ([MGMT-5](../../../../specs/management/spec.md)) SHALL list records newest first,
+`GET /api/v1/audit-records` ([MGMT-5](../management/spec.md)) SHALL list records newest first,
 paginated, with filters for time range, endpoint, bundle, server, tool, caller (`user_id`, `api_key_id`), status and
 idempotency key. `GET /api/v1/audit-records:export` SHALL return the whole filtered result as CSV, with the same
 filters, including caller columns. The admin UI SHALL offer an audit page filtering by time range, endpoint, bundle,
@@ -128,7 +128,7 @@ server, tool, caller and status, whose CSV export downloads the whole filtered r
 - **THEN** the response is `text/csv` and contains exactly the records the list route returns for `status=error`
 
 ### Requirement: OPS-7 Reconciliation source
-The audit log is the metering **reconciliation source** ([PROT-26](../../../../specs/protocol/spec.md)): for every
+The audit log is the metering **reconciliation source** ([PROT-26](../protocol/spec.md)): for every
 invocation whose pre-call hook succeeded, the gateway SHALL submit an audit record with a terminal status (`success`,
 `error` or `denied`) once the invocation ends, carrying the invocation's metering idempotency key. An invocation whose
 record cannot be written SHALL be identifiable as lost: every overflow, given-up write and shutdown loss is logged with

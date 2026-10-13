@@ -4,11 +4,11 @@
 A handshake-era session SHALL bind lazily, on its first call to each member server, to one upstream session for that
 server, and record the binding in the session record: the server name, the upstream session id the upstream issued
 (none for a modern-era upstream, which has no sessions), and the binding's identity key
-([AUTH-31](../../../../specs/auth/spec.md)). Later requests of the session to that server, on any replica,
+([AUTH-31](../auth/spec.md)). Later requests of the session to that server, on any replica,
 use the bound upstream session (SES-5). When the server forwards caller headers
-([AUTH-31](../../../../specs/auth/spec.md)), uses `per_user` upstream OAuth
-([UPS-26](../../../../specs/upstreams/spec.md)) or delegated tokens
-([AUTH-32](../../../../specs/auth/spec.md)), the binding is keyed by the caller's identity and MUST never
+([AUTH-31](../auth/spec.md)), uses `per_user` upstream OAuth
+([UPS-26](../upstreams/spec.md)) or delegated tokens
+([AUTH-32](../auth/spec.md)), the binding is keyed by the caller's identity and MUST never
 be shared across identities. A binding's upstream session serves only the session that bound it; requests that carry
 no binding — modern-era requests and discovery — use pooled upstream sessions, which for an identity-free server MAY be
 shared between callers and for any other server are keyed by the caller's identity. A modern-era request records no
@@ -41,12 +41,12 @@ binding.
 When an upstream answers 404 for the upstream session a request names, or the transport to it is lost, the gateway SHALL
 re-initialize the upstream session, rebind (updating the session record's binding) and retry the in-flight request
 **once**, reusing the call's metering idempotency key without a second pre-call
-([PROT-26](../../../../specs/protocol/spec.md)). A `tools/call` is retried only when the upstream did not run it — a 404
+([PROT-26](../protocol/spec.md)). A `tools/call` is retried only when the upstream did not run it — a 404
 for its session, or a connection that failed before the request was sent; read-only requests are retried on any
 transport loss. When the retry fails too, or the upstream is unreachable, fails with an exception or exceeds the call's
 timeout, the gateway SHALL answer a structured MCP error (code `-32000`) rather than an HTTP failure, record the call as
 an error in the audit log, and count the failure toward the server's health status
-([UPS-4](../../../../specs/upstreams/spec.md)).
+([UPS-4](../upstreams/spec.md)).
 
 #### Scenario: Upstream restarted between calls
 - **GIVEN** a handshake session bound to server `echo`, and `echo` restarted since, forgetting its sessions
@@ -113,9 +113,9 @@ connection opened for that call alone and closed after it. Upstream sessions are
 - **THEN** each replica closes idle sessions above the new cap within the propagation budget
 
 ### Requirement: SES-9 Config changes invalidate pooled sessions
-A configuration change to a server ([UPS-6](../../../../specs/upstreams/spec.md)) SHALL invalidate its pooled
+A configuration change to a server ([UPS-6](../upstreams/spec.md)) SHALL invalidate its pooled
 upstream sessions on every replica via the invalidation event stream
-([sessions](../../../../specs/sessions/spec.md)): each replica closes that server's idle transports at
+([sessions](../sessions/spec.md)): each replica closes that server's idle transports at
 once and in-use ones when their call ends, and a binding made under the previous configuration is re-established on its
 next use instead of reused.
 
@@ -131,7 +131,7 @@ next use instead of reused.
 
 ### Requirement: SES-21 Server invalidation tears down pooled transports
 A `server` invalidation event SHALL additionally tear down that server's pooled upstream transports on every replica
-([SES-9](../../../../specs/sessions/spec.md)), riding the same event stream and within the SES-19 budget. A
+([SES-9](../sessions/spec.md)), riding the same event stream and within the SES-19 budget. A
 replica that resubscribes after a gap SHALL tear down all its pooled upstream transports, as it flushes its config
 caches (SES-18), since it may have missed a server event.
 

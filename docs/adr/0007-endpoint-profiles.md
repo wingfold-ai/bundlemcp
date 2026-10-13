@@ -1,6 +1,7 @@
 # ADR-0007: Endpoint profiles; ChatGPT via annotation re-writing
 
-**Status:** accepted · **Date:** 2026-07-02
+**Status:** accepted · **Date:** 2026-07-02 · **Amended by:**
+[ADR-0046](0046-profiles-as-registered-presets-and-tool-pipeline-stages.md)
 
 ## Context
 

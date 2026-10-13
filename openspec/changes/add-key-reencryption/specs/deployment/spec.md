@@ -1,13 +1,13 @@
 ## MODIFIED Requirements
 
 ### Requirement: DEP-9 Token encryption key rotation
-The upstream-token encryption key ([ARC-18](../../../../specs/architecture/spec.md)) MUST be provisioned via
+The upstream-token encryption key ([ARC-18](../architecture/spec.md)) MUST be provisioned via
 `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` (ordered list — first encrypts, all decrypt) enabling rotation: add the new key
 first; a stored value under an older key is re-encrypted under the first key when it is next read or written, and a
 periodic background job re-encrypts the rest; the gateway reports how many stored values still depend on an older key,
 and the old key is dropped once that is zero. Losing all keys invalidates stored upstream connections (documented
-consequence, [UPS-29](../../../../specs/upstreams/spec.md) re-connect path). Implemented with `MultiFernet`
-([ADR-0017](../../../../../docs/adr/0017-upstream-oauth-encryption.md)).
+consequence, [UPS-29](../upstreams/spec.md) re-connect path). Implemented with `MultiFernet`
+([ADR-0017](../../../docs/adr/0017-upstream-oauth-encryption.md)).
 
 #### Scenario: Old ciphertext still decrypts after rotation
 - **GIVEN** a token encrypted under key `old`

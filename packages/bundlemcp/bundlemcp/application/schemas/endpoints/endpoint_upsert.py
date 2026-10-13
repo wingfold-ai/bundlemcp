@@ -40,7 +40,7 @@ class EndpointUpsert(BaseModel):
     )
 
     @model_validator(mode="after")
-    def auth_and_profile_rules(self) -> "EndpointUpsert":
+    def auth_mode_rules(self) -> "EndpointUpsert":
         modes = set(self.auth_modes)
         if not modes:
             raise ValueError("auth_modes must not be empty (EP-3)")
@@ -49,12 +49,5 @@ class EndpointUpsert(BaseModel):
                 raise ValueError("'none' is only valid alone (EP-3)")
             if not self.allow_unauthenticated:
                 raise ValueError("'none' requires allow_unauthenticated=true (EP-3)")
-        # the profile × auth-mode matrix
-        if self.profile == EndpointProfile.CLAUDE and modes != {EndpointAuthMode.OAUTH}:
-            raise ValueError("claude profile requires auth_modes == ['oauth'] (EP-15)")
-        if self.profile == EndpointProfile.CHATGPT and not modes & {
-            EndpointAuthMode.OAUTH,
-            EndpointAuthMode.API_KEY,
-        }:
-            raise ValueError("chatgpt profile requires oauth or api_key (EP-15)")
+        # a profile's own rule is checked by the endpoint service against the profile catalogue
         return self

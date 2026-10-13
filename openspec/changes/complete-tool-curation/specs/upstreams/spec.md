@@ -4,7 +4,7 @@
 Sync is hash-based: the gateway MUST compute a stable hash per tool definition and rewrite a cached definition only when
 its hash changed (metamcp's `tools-sync-cache` behavior). A discovery run in which no tool is new, changed, vanished or
 reappeared MUST NOT write any cached tool, so the common case is write-free. A new, changed, vanished or reappearing
-tool counts as a change of the tool set ([BND-7](../../../../specs/bundles/spec.md)); an unchanged tool does not.
+tool counts as a change of the tool set ([BND-7](../bundles/spec.md)); an unchanged tool does not.
 
 #### Scenario: Unchanged definition is not rewritten
 - **WHEN** discovery sees a tool whose definition hash equals the cached `schema_hash`

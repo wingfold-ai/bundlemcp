@@ -2,7 +2,7 @@
 
 ### Requirement: EP-8 Rename requires force
 Renaming an endpoint changes its public URL and breaks every connected client. Renames MUST be rejected unless the
-request carries an explicit `force` flag (mirror of [UPS-5](../../../../specs/upstreams/spec.md)); the
+request carries an explicit `force` flag (mirror of [UPS-5](../upstreams/spec.md)); the
 rejection message spells out the consequence. The UI offers the rename only in its danger zone and spells out the
 consequence **before** the attempt: it shows the current and the resulting public URL, states that every connected
 client stops working until it is reconfigured, and enables the rename only once the admin has acknowledged that

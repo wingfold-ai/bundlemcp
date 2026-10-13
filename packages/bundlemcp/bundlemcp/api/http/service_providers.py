@@ -19,6 +19,7 @@ from bundlemcp.application.management.bundle_resource_service import BundleResou
 from bundlemcp.application.management.bundle_service import BundleService
 from bundlemcp.application.management.config_service import ConfigService
 from bundlemcp.application.management.endpoint_service import EndpointService
+from bundlemcp.application.management.profile_service import ProfileService
 from bundlemcp.application.management.server_inspection_service import ServerInspectionService
 from bundlemcp.application.management.server_json_importer import ServerJsonImporter
 from bundlemcp.application.management.server_service import ServerService
@@ -69,8 +70,12 @@ def get_bundle_resource_service(uow: UnitOfWorkProvider) -> BundleResourceServic
     return BundleResourceService(uow)
 
 
-def get_endpoint_service(uow: UnitOfWorkProvider) -> EndpointService:
-    return EndpointService(uow)
+def get_endpoint_service(request: Request, uow: UnitOfWorkProvider) -> EndpointService:
+    return EndpointService(uow, profiles=request.app.state.container.profiles)
+
+
+def get_profile_service(request: Request) -> ProfileService:
+    return ProfileService(request.app.state.container.profiles)
 
 
 def get_api_key_service(request: Request, uow: UnitOfWorkProvider) -> ApiKeyService:
@@ -120,6 +125,7 @@ BundleResourceServiceProvider = Annotated[
     BundleResourceService, Depends(get_bundle_resource_service)
 ]
 EndpointServiceProvider = Annotated[EndpointService, Depends(get_endpoint_service)]
+ProfileServiceProvider = Annotated[ProfileService, Depends(get_profile_service)]
 ApiKeyServiceProvider = Annotated[ApiKeyService, Depends(get_api_key_service)]
 UserServiceProvider = Annotated[UserService, Depends(get_user_service)]
 ConfigServiceProvider = Annotated[ConfigService, Depends(get_config_service)]

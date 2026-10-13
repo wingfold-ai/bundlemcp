@@ -90,6 +90,12 @@ Unauthenticated requests receive a 401 with a `WWW-Authenticate` challenge point
 `GET /api/v1/endpoints/profiles` returns the list with a description and, for `chatgpt`, a warning the UI displays on
 the endpoint page.
 
+A profile is applied when the gateway builds the tools an endpoint serves, in this order: tools the bundle disabled
+are removed first, then the profile reshapes what is left, then the bundle's per-tool overrides are applied. Because
+the overrides come last, an explicit annotation override wins over the profile — for example a tool you mark
+`readOnlyHint: false` stays marked that way on a `chatgpt` endpoint. `tools/list` and `tools/call` use the same result,
+so a tool that is not listed cannot be called either.
+
 ::: warning The chatgpt profile changes what clients are told, not what tools do
 A tool that deletes records is still called and still deletes. Only the annotations shown to ChatGPT say
 `readOnlyHint: true`. The audit log records every call normally.

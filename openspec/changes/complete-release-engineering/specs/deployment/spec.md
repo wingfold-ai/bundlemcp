@@ -27,7 +27,7 @@ on demand.
 CI (GitHub Actions) MUST run on every pull request: `ruff`, `rumdl`, the import contracts (`lint-imports`), `pytest`,
 the generated-OpenAPI drift check, the frontend typecheck (`npm run typecheck`) and the frontend build, the docs build
 and documentation consistency checks, LikeC4 model validation
-([DOC-10](../../../../specs/documentation/spec.md)), OpenSpec validation, Docker builds of both images, and
+([DOC-10](../documentation/spec.md)), OpenSpec validation, Docker builds of both images, and
 the integration suite against the compose stack. A single `ci-passed` job fails unless every other job succeeded.
 
 #### Scenario: Any failing gate blocks the branch
@@ -44,7 +44,7 @@ Images (`gateway`, `web`) MUST publish to ghcr.io on every push to `main`, tagge
 deployed stack pulls) and `:<commit-sha>` (to pin or roll back to an exact build). Releases SHALL publish on tags: a
 `v<major>.<minor>.<patch>` tag publishes both images as `:<major>.<minor>.<patch>` and creates a release whose notes
 come from the changelog's entry for that version. Every release's notes SHALL state the metering-hook protocol version
-([PROT-27](../../../../specs/protocol/spec.md)) and call it out when it changed since the previous release.
+([PROT-27](../protocol/spec.md)) and call it out when it changed since the previous release.
 
 #### Scenario: Push to main publishes both images
 - **WHEN** a commit lands on `main`

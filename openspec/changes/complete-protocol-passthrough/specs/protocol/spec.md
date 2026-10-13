@@ -3,8 +3,8 @@
 ### Requirement: PROT-3 Cancellation
 A cancellation MUST reach the upstream call it targets even when it arrives at a different replica than the one
 holding the in-flight upstream request — routed via the RESP-store pub/sub keyed by routing key + request id
-([SES-13](../../../../specs/sessions/spec.md)). A cancelled call SHALL end its upstream request and be
-reported to the metering post-call hook with outcome `cancelled` ([PROT-26](../../../../specs/protocol/spec.md)). The
+([SES-13](../sessions/spec.md)). A cancelled call SHALL end its upstream request and be
+reported to the metering post-call hook with outcome `cancelled` ([PROT-26](../protocol/spec.md)). The
 signals are:
 
 - `notifications/cancelled` naming the request id — in the handshake era on the same session; in the modern era from
@@ -38,12 +38,12 @@ signals are:
 ### Requirement: PROT-11 Capability aggregation
 The bundle's capability advertisement (the `initialize` result for handshake clients, the `server/discover` result for
 modern clients) SHALL be computed without contacting any member, from the bundle's own prompts and resources and from
-the per-server `capabilities` snapshot captured at discovery ([UPS-22](../../../../specs/upstreams/spec.md)) of
+the per-server `capabilities` snapshot captured at discovery ([UPS-22](../upstreams/spec.md)) of
 its enabled members, and SHALL advertise a notification only when the gateway delivers it:
 
 - `tools` always, with `listChanged: true` — the gateway supports tools even with zero members;
 - `prompts` and `resources` when the bundle owns one
-  ([bundles](../../../../specs/bundles/spec.md)) or at least one member advertises
+  ([bundles](../bundles/spec.md)) or at least one member advertises
   it; each with `listChanged: true` when the bundle owns one, or when a member advertises `listChanged` for it and the
   gateway delivers members' list changes to clients;
 - `resources.subscribe: true` only when at least one member supports it and the gateway delivers members'
@@ -77,7 +77,7 @@ Every modern result SHALL carry `resultType` (`"complete"`, or `"input_required"
 info in `_meta`. `tools/list`, `prompts/list`, `resources/list`, `resources/templates/list`, `resources/read` and
 `server/discover` carry `ttlMs` and `cacheScope`: list results are `public` with a runtime-configurable TTL
 (`list_cache_ttl_ms`, default 5 min), invalidated by `listChanged`, except that a `tools/list` containing a tool
-presented to this caller only — a `__connect_account` tool ([UPS-27](../../../../specs/upstreams/spec.md)) — is
+presented to this caller only — a `__connect_account` tool ([UPS-27](../upstreams/spec.md)) — is
 `private`; `resources/read` of a member resource forwards the upstream's hint when it gave one and is otherwise
 `ttlMs: 0`, `private`, while a resource the bundle itself serves is hinted like a list. Error codes follow the modern
 table: resource-not-found is `-32602` (it is `-32002` for handshake clients, and a modern upstream's `-32602` is mapped
