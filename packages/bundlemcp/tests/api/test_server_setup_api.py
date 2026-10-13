@@ -132,7 +132,7 @@ async def test_srv11_inspect_reports_a_ready_server(engine, redis):
         http,
         _,
     ):
-        resp = await http.post("/api/v1/servers:inspect", json={"url": "http://weather:8000/mcp"})
+        resp = await http.post("/api/v1/upstreams:inspect", json={"url": "http://weather:8000/mcp"})
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["connection_state"] == "ready"
@@ -144,7 +144,7 @@ async def test_srv11_inspect_reports_a_ready_server(engine, redis):
 
 async def test_srv15_a_server_json_becomes_a_draft(service_client):
     resp = await service_client.post(
-        "/api/v1/servers:from-server-json",
+        "/api/v1/upstreams:from-server-json",
         json={
             "document": {
                 "name": "io.github.acme/weather",
@@ -164,7 +164,7 @@ async def test_srv15_a_server_json_becomes_a_draft(service_client):
 
 async def test_srv14_a_denied_forward_header_is_rejected_on_write(service_client):
     resp = await service_client.put(
-        "/api/v1/servers/s",
+        "/api/v1/upstreams/s",
         json={"name": "s", "url": "http://s/mcp", "forward_headers": {"cookie": "cookie"}},
     )
     assert resp.status_code == 422
@@ -172,7 +172,7 @@ async def test_srv14_a_denied_forward_header_is_rejected_on_write(service_client
 
 async def test_fwd7_forwarding_authorization_is_reported(service_client):
     resp = await service_client.put(
-        "/api/v1/servers/s",
+        "/api/v1/upstreams/s",
         json={
             "name": "s",
             "url": "http://s/mcp",

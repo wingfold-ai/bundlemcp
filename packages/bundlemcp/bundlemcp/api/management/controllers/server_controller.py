@@ -1,4 +1,4 @@
-"""Server registry routes, including upstream OAuth client configuration."""
+"""Upstream server registry routes, including upstream OAuth client configuration."""
 
 from fastapi import HTTPException, status
 
@@ -28,8 +28,8 @@ from bundlemcp.application.schemas import (
 
 
 class ServerController(ManagementController):
-    prefix = "/servers"
-    tags = ("servers",)
+    prefix = "/upstreams"  # SRV-16
+    tags = ("upstreams",)
 
     @route.get("")
     async def list_servers(

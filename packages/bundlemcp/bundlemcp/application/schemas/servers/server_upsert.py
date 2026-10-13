@@ -9,7 +9,7 @@ from bundlemcp.domain.shared.resource_names import ServerName
 
 
 class ServerUpsert(BaseModel):
-    """Body for POST /servers and PUT /servers/{name}."""
+    """Body for POST /upstreams and PUT /upstreams/{name}."""
 
     name: ServerName = Field(
         description="Unique server name: letters, digits, underscores and hyphens, without a "
@@ -38,7 +38,7 @@ class ServerUpsert(BaseModel):
         "'upstream_oauth' (the gateway holds OAuth tokens from the server's authorization "
         "server) or 'delegated_token' (each call carries a short-lived token the gateway "
         "issues for the caller, valid only at this server, which the server verifies through "
-        "the gateway's introspection endpoint). Run POST /servers:inspect to learn which one "
+        "the gateway's introspection endpoint). Run POST /upstreams:inspect to learn which one "
         "a server needs",
     )
     identity_mode: IdentityMode = Field(

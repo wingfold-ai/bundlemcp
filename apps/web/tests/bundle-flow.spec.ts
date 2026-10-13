@@ -1,5 +1,5 @@
 import { test, expect, given, when, then } from "./gherkin";
-import { STORAGE } from "./flows";
+import { withUpstream, STORAGE } from "./flows";
 import { testTitle } from "./spec-map";
 
 test.use({ storageState: STORAGE });
@@ -69,26 +69,29 @@ test(testTitle("E2E-06"), async ({ page, steps }) => {
   ]);
 });
 
-// The composition grid reads what the seeded bundles already contain, so it
-// needs no fixture of its own.
+// The composition grid reads what the seeded demo bundle contains; one extra
+// upstream, in no bundle, gives it a non-member to show.
 test(testTitle("E2E-15"), async ({ page, steps }) => {
-  await steps.play([
-    given("the admin on the composition grid", { req: "UI-1" }, async () => {
-      await page.goto("/bundles/matrix");
-      await expect(page.getByTestId("matrix-table")).toBeVisible();
-    }),
-    then("a bundle's member server is marked and a non-member is not", { req: "BND-4" }, async () => {
-      await expect(page.getByTestId("matrix-demo-echo").locator("span[aria-label]")).toBeVisible();
-      await expect(page.getByTestId("matrix-demo-hyperframes")).toHaveText("·");
-    }),
-    then("each row counts its servers and each column its bundles", { req: "BND-4" }, async () => {
-      // The seeded demo bundle holds exactly the echo server; the per-server
-      // total spans every bundle in the database, so it is only ever asserted
-      // to be positive — other scenarios add and remove bundles over echo.
-      await expect(page.getByTestId("matrix-count-demo")).toHaveText("1");
-      await expect(page.getByTestId("matrix-total-echo")).toHaveText(/^[1-9]\d*$/);
-    }),
-  ]);
+  const outsider = { name: "e2e-outsider", url: "http://echo-mcp:9000/mcp" };
+  await withUpstream(outsider, () =>
+    steps.play([
+      given("the admin on the composition grid", { req: "UI-1" }, async () => {
+        await page.goto("/bundles/matrix");
+        await expect(page.getByTestId("matrix-table")).toBeVisible();
+      }),
+      then("a bundle's member upstream is marked and a non-member is not", { req: "BND-4" }, async () => {
+        await expect(page.getByTestId("matrix-demo-echo").locator("span[aria-label]")).toBeVisible();
+        await expect(page.getByTestId(`matrix-demo-${outsider.name}`)).toHaveText("·");
+      }),
+      then("each row counts its upstreams and each column its bundles", { req: "BND-4" }, async () => {
+        // The seeded demo bundle holds echo and oauth-demo; the per-upstream
+        // total spans every bundle in the database, so it is only ever asserted
+        // to be positive — other scenarios add and remove bundles over echo.
+        await expect(page.getByTestId("matrix-count-demo")).toHaveText("2");
+        await expect(page.getByTestId("matrix-total-echo")).toHaveText(/^[1-9]\d*$/);
+      }),
+    ]),
+  );
 });
 
 // The catalogue entry an administrator writes, read back on the catalogue page.

@@ -26,7 +26,7 @@ features:
     linkText: Bundles and curation
   - icon: 🎯
     title: Per-client endpoints
-    details: Expose the same bundle several times, each with its own auth modes, client profile and rate limits. claude.ai gets OAuth, ChatGPT gets re-annotated tools, scripts get an API key.
+    details: Expose the same bundle several times, each with its own sign-in method, client profile and rate limits. claude.ai gets OAuth, ChatGPT gets re-annotated tools, scripts get an API key.
     link: /manage/endpoints
     linkText: Endpoints
   - icon: 🔐
@@ -36,7 +36,7 @@ features:
     linkText: Connect claude.ai
   - icon: ♻️
     title: Restarts are non-events
-    details: Configuration lives in Postgres, live sessions in Valkey. Any replica serves any session, so you can roll out new versions and scale out without dropping clients.
+    details: Nothing a request needs is kept in a single process's memory. Any replica serves any session, so you can roll out new versions and scale out without dropping clients.
     link: /self-hosting/deploy
     linkText: Deploy it
   - icon: 🛠️
@@ -94,6 +94,7 @@ An MCP SDK builds that envelope for you — the headers and `_meta` above are
 what a hand-rolled client has to send. See
 [Request envelope](/integrate/http-surface#request-envelope).
 
-Then open the admin UI at `localhost:3000`, register your own servers, and
-[connect claude.ai](/connect/claude) with an OAuth endpoint. The whole path is
-in the [Quickstart](/guide/quickstart).
+Then open the admin UI at `localhost:3000` and register your own upstream
+servers. To try it from claude.ai or ChatGPT, `deploy/stack.sh up` puts the
+same stack behind a tunnel ([Local, tunnel or production](/self-hosting/setups)).
+The whole path is in the [Quickstart](/guide/quickstart).

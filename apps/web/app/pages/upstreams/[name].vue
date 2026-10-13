@@ -26,7 +26,7 @@ const hdrRows = ref<{ key: string; val: string }[]>([]);
 const saving = ref(false);
 
 async function loadServer() {
-  const { data, error, response } = await api.GET("/api/v1/servers/{name}", {
+  const { data, error, response } = await api.GET("/api/v1/upstreams/{name}", {
     params: { path: { name: serverName.value } },
   });
   if (error) {
@@ -87,7 +87,7 @@ async function saveServer() {
   }
   saving.value = true;
   try {
-    const { error } = await api.PUT("/api/v1/servers/{name}", {
+    const { error } = await api.PUT("/api/v1/upstreams/{name}", {
       params: { path: { name: serverName.value } },
       body: {
         name: serverName.value,
@@ -118,7 +118,7 @@ const refreshResult = ref("");
 const refreshing = ref(false);
 
 async function loadTools() {
-  const { data, error } = await api.GET("/api/v1/servers/{name}/tools", {
+  const { data, error } = await api.GET("/api/v1/upstreams/{name}/tools", {
     params: { path: { name: serverName.value }, query: { offset: 0, limit: 200 } },
   });
   if (error) {
@@ -133,7 +133,7 @@ async function refreshTools() {
   refreshResult.value = "";
   refreshing.value = true;
   try {
-    const { data, error } = await api.POST("/api/v1/servers/{name}:refresh-tools", {
+    const { data, error } = await api.POST("/api/v1/upstreams/{name}:refresh-tools", {
       params: { path: { name: serverName.value } },
     });
     if (error) {
@@ -160,7 +160,7 @@ const upSaving = ref(false);
 const upConnecting = ref(false);
 
 async function loadUpstreamStatus() {
-  const { data, error } = await api.GET("/api/v1/servers/{name}/upstream-oauth", {
+  const { data, error } = await api.GET("/api/v1/upstreams/{name}/upstream-oauth", {
     params: { path: { name: serverName.value } },
   });
   if (error) return; // status is optional; missing config is not a page error
@@ -175,7 +175,7 @@ async function saveUpstream() {
   errorMsg.value = "";
   upSaving.value = true;
   try {
-    const { error } = await api.PUT("/api/v1/servers/{name}/upstream-oauth", {
+    const { error } = await api.PUT("/api/v1/upstreams/{name}/upstream-oauth", {
       params: { path: { name: serverName.value } },
       body: {
         client_id: upClientId.value.trim(),
@@ -201,7 +201,7 @@ async function connectAsClient() {
   errorMsg.value = "";
   upConnecting.value = true;
   try {
-    const { error } = await api.POST("/api/v1/servers/{name}/upstream-oauth:connect", {
+    const { error } = await api.POST("/api/v1/upstreams/{name}/upstream-oauth:connect", {
       params: { path: { name: serverName.value } },
     });
     if (error) {
@@ -216,7 +216,7 @@ async function connectAsClient() {
 
 async function disconnectUpstream() {
   errorMsg.value = "";
-  const { error } = await api.DELETE("/api/v1/servers/{name}/upstream-oauth/token", {
+  const { error } = await api.DELETE("/api/v1/upstreams/{name}/upstream-oauth/token", {
     params: { path: { name: serverName.value } },
   });
   if (error) {
@@ -247,7 +247,7 @@ async function renameServer() {
     errorMsg.value = 'Server name must not contain "__"';
     return;
   }
-  const { error } = await api.POST("/api/v1/servers/{name}:rename", {
+  const { error } = await api.POST("/api/v1/upstreams/{name}:rename", {
     params: {
       path: { name: serverName.value },
       query: { new_name: newName, force: renameForce.value },
@@ -257,20 +257,20 @@ async function renameServer() {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await navigateTo(`/servers/${newName}`);
+  await navigateTo(`/upstreams/${newName}`);
 }
 
 async function deleteServer() {
   if (!window.confirm(`Delete server "${serverName.value}"?`)) return;
   errorMsg.value = "";
-  const { error } = await api.DELETE("/api/v1/servers/{name}", {
+  const { error } = await api.DELETE("/api/v1/upstreams/{name}", {
     params: { path: { name: serverName.value } },
   });
   if (error) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await navigateTo("/servers");
+  await navigateTo("/upstreams");
 }
 
 onMounted(async () => {
@@ -661,7 +661,7 @@ onMounted(async () => {
           >
         </form>
         <UButton size="sm" color="error" data-testid="delete-server" @click="deleteServer"
-          >Delete server</UButton
+          >Delete upstream</UButton
         >
       </div>
     </template>

@@ -45,7 +45,7 @@ Endpoint-kind API keys are refused here; only `service` keys manage the gateway.
 **Resources are addressed by name.** Servers, bundles and endpoints use their unique name in the path, not an id. Ids
 still exist and appear in responses; API keys, users and consents are addressed by id.
 
-**`PUT` is an idempotent upsert.** `PUT /api/v1/servers/{name}` creates the server if it is missing and updates it
+**`PUT` is an idempotent upsert.** `PUT /api/v1/upstreams/{name}` creates the server if it is missing and updates it
 otherwise; the path name and the body `name` must match. Repeating the call with the same body changes nothing. This is
 what lets a discovery loop converge by repeatedly putting desired state, and it is why bootstrap files share the same
 schemas.
@@ -55,14 +55,14 @@ schemas.
 
 **Top-level collections are paginated; nested ones are not.** `offset` and `limit` query parameters, default 50, maximum
 500, with the shape `{"items": [...], "total": n, "offset": o, "limit": l}`, ordered by creation time then id, so paging
-is stable while resources are added. That covers `/servers`, `/servers/{name}/tools`, `/bundles`, `/endpoints`,
+is stable while resources are added. That covers `/upstreams`, `/upstreams/{name}/tools`, `/bundles`, `/endpoints`,
 `/api-keys`, `/users` and `/audit-records`.
 
 These return a **bare JSON array** with no envelope, so a client that unwraps `.items` unconditionally breaks on them:
 
 | Route | Returns |
 |---|---|
-| `GET /bundles/{name}/servers` | `[BundleMemberRead]` |
+| `GET /bundles/{name}/upstreams` | `[BundleMemberRead]` |
 | `GET /bundles/{name}/tools` | `[BundleToolRead]` |
 | `GET /endpoints/profiles` | `[EndpointProfileRead]` |
 | `GET /users/{id}/consents` | `[ConsentRead]` |
@@ -94,20 +94,23 @@ and never returned; key values appear once, in the creation response.
 
 ## Routes
 
-### Servers
+### Upstream servers
+
+Upstream servers live under `/upstreams` (the short form of *upstream servers*), bundle members under
+`/bundles/{name}/upstreams`.
 
 | Method | Path | |
 |---|---|---|
-| `GET` | `/servers` | List. |
-| `GET` | `/servers/{name}` | Read, including health and capabilities. |
-| `PUT` | `/servers/{name}` | Upsert; probes and discovers tools, never blocks on a failed probe. |
-| `DELETE` | `/servers/{name}` | Delete with tools and memberships. |
-| `POST` | `/servers/{name}:rename?new_name=&force=` | Rename. |
-| `POST` | `/servers/{name}:refresh-tools` | Re-probe and re-discover; returns counts. |
-| `GET` | `/servers/{name}/tools` | The cached tools. |
-| `GET` | `/servers/{name}/upstream-oauth` | Upstream OAuth status. |
-| `PUT` | `/servers/{name}/upstream-oauth` | Set the upstream OAuth client. |
-| `DELETE` | `/servers/{name}/upstream-oauth/token` | Disconnect the shared account. |
+| `GET` | `/upstreams` | List. |
+| `GET` | `/upstreams/{name}` | Read, including health and capabilities. |
+| `PUT` | `/upstreams/{name}` | Upsert; probes and discovers tools, never blocks on a failed probe. |
+| `DELETE` | `/upstreams/{name}` | Delete with tools and memberships. |
+| `POST` | `/upstreams/{name}:rename?new_name=&force=` | Rename. |
+| `POST` | `/upstreams/{name}:refresh-tools` | Re-probe and re-discover; returns counts. |
+| `GET` | `/upstreams/{name}/tools` | The cached tools. |
+| `GET` | `/upstreams/{name}/upstream-oauth` | Upstream OAuth status. |
+| `PUT` | `/upstreams/{name}/upstream-oauth` | Set the upstream OAuth client. |
+| `DELETE` | `/upstreams/{name}/upstream-oauth/token` | Disconnect the shared account. |
 
 ### Bundles
 
@@ -117,9 +120,9 @@ and never returned; key values appear once, in the creation response.
 | `GET` | `/bundles/{name}` | Read. |
 | `PUT` | `/bundles/{name}` | Upsert name and description. |
 | `DELETE` | `/bundles/{name}` | Delete, together with its endpoints. |
-| `GET` | `/bundles/{name}/servers` | Members with health. |
-| `PUT` | `/bundles/{name}/servers/{server_name}` | Add or update a membership (`enabled`). |
-| `DELETE` | `/bundles/{name}/servers/{server_name}` | Remove a membership. |
+| `GET` | `/bundles/{name}/upstreams` | Members with health. |
+| `PUT` | `/bundles/{name}/upstreams/{server_name}` | Add or update a membership (`enabled`). |
+| `DELETE` | `/bundles/{name}/upstreams/{server_name}` | Remove a membership. |
 | `GET` | `/bundles/{name}/tools` | Every tool with its curation and presented name. |
 | `PUT` | `/bundles/{name}/tools/{tool_id}` | Enable, disable, override. |
 
@@ -165,7 +168,7 @@ The upsert semantics make a reconciling registrar short. In pseudocode:
 
 ```python
 for container in discover_mcp_containers():
-    put(f"/api/v1/servers/{container.name}", {
+    put(f"/api/v1/upstreams/{container.name}", {
         "name": container.name,
         "url": container.url,
         "description": container.labels.get("description"),
@@ -173,7 +176,7 @@ for container in discover_mcp_containers():
     })
 put("/api/v1/bundles/fleet", {"name": "fleet", "description": "Every discovered server"})
 for container in discover_mcp_containers():
-    put(f"/api/v1/bundles/fleet/servers/{container.name}", {"enabled": True})
+    put(f"/api/v1/bundles/fleet/upstreams/{container.name}", {"enabled": True})
 put("/api/v1/endpoints/fleet", {
     "name": "fleet", "bundle_name": "fleet", "profile": "claude", "auth_modes": ["oauth"],
 })

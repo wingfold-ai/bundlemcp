@@ -53,9 +53,10 @@ Users whose email appears in `BUNDLEMCP_ADMIN_EMAILS` get admin rights. The list
 removing an address demotes that person at their next login and adding one promotes them the same way.
 
 Everyone else can still log in, as a **user**: they see the catalogue of bundles and endpoints, authorise MCP clients
-for those endpoints, and connect their own accounts on per-user upstream servers. They see no management pages, and
-the management API answers 401 to them outside the `/api/v1/me/…` routes
-([status codes](/integrate/management-api#authentication)). See [Roles and identity](/guide/roles-and-identity).
+for those endpoints, and connect their own accounts on per-user upstream servers. They see no management pages, and the
+management API answers 401 to them outside the `/api/v1/me/…` routes
+([status codes](/integrate/management-api#authentication)). See
+[Administrators and users](/guide/authentication#administrators-and-users).
 
 ## Sessions
 

@@ -1,0 +1,113 @@
+# Maintainers' bootstrap: everything in seed.yaml plus the private MCP fleet
+# (`--profile fleet`, images on a private registry). Selected with
+# BUNDLEMCP_SEED_FILE=seed.fleet.yaml in deploy/.env (deploy/TESTING.md).
+# Keep the part above the fleet entries identical to seed.yaml.
+upstreams:
+  - name: echo
+    description: Demo echo MCP server
+    url: http://echo-mcp:9000/mcp
+
+  # An OAuth-protected upstream (examples/oauth-demo-mcp) reached on the
+  # gateway's own loopback, where the compose stack runs it as a sidecar.
+  # per_user: every caller connects their own account at the demo's login form
+  # (demo_user / demo_password); discovery borrows the first connected account
+  # to list its tools. The client is the public client the demo pre-registers
+  # (BOOT-9).
+  - name: oauth-demo
+    description: >
+      OAuth-protected demo upstream (the MCP python-sdk simple-auth example).
+      Until you connect your account, the bundle offers a tool that returns the
+      connect link; sign in there with demo_user / demo_password.
+    url: http://localhost:9000/mcp
+    auth_mode: upstream_oauth
+    identity_mode: per_user
+    upstream_oauth:
+      client_id: bundlemcp
+
+  - name: seo-psi
+    description: PageSpeed Insights MCP
+    url: http://seo-psi:8000/mcp
+
+  - name: seo-gsc
+    description: >
+      Google Search Console MCP. Verifies the forwarded bearer via RFC 7662
+      introspection against this gateway; users connect their Google account
+      on the server's own /connect page (http://localhost:8001/connect).
+    url: http://seo-gsc:8000/mcp
+    # FWD-1/FWD-4: pass the gateway-issued bearer through so seo-gsc can
+    # introspect it and resolve the per-user Google token.
+    forward_headers:
+      authorization: authorization
+    # Discovery has no caller bearer; the static header (overridden by the
+    # forwarded one at call time) lets tool discovery pass seo-gsc's
+    # introspection (OAS-5 api_key introspection). Dev key — override the
+    # whole seed for real deployments.
+    static_headers:
+      authorization: Bearer bmcp_sk_devservicekey000000000000000000000000
+
+  - name: dataforseo
+    description: DataForSEO MCP (server-side static credentials)
+    url: http://dataforseo:3000/mcp
+
+  - name: hyperframes
+    description: HyperFrames HTML-to-video MCP (per-user via X-MCP-User)
+    url: http://hyperframes:8080/mcp
+    send_identity_header: true
+
+bundles:
+  - name: demo
+    description: Demo bundle - the echo server plus an OAuth-protected upstream
+    upstreams:
+      - echo
+      - oauth-demo
+
+  - name: seo
+    description: SEO toolkit - PageSpeed, Search Console, DataForSEO
+    upstreams:
+      - seo-psi
+      - seo-gsc
+      - dataforseo
+
+  - name: media
+    description: Media generation - HyperFrames rendering
+    upstreams:
+      - hyperframes
+
+endpoints:
+  - name: demo
+    bundle_name: demo
+    profile: default
+    auth_modes:
+      - api_key
+
+  # The URL to paste into claude.ai / Claude Desktop (<public url>/claude/mcp):
+  # the claude profile requires oauth only, so every caller is a signed-in user
+  # and can connect their own oauth-demo account.
+  - name: claude
+    bundle_name: demo
+    profile: claude
+    auth_modes:
+      - oauth
+
+  # The same bundle for a ChatGPT connector (<public url>/chatgpt/mcp).
+  - name: chatgpt
+    bundle_name: demo
+    profile: chatgpt
+    auth_modes:
+      - oauth
+
+  # oauth is listed so seo-gsc's introspection path works (API keys are not
+  # introspectable OAuth tokens); api_key still serves psi/dataforseo callers.
+  - name: seo
+    bundle_name: seo
+    profile: default
+    auth_modes:
+      - oauth
+      - api_key
+
+  - name: media
+    bundle_name: media
+    profile: default
+    auth_modes:
+      - oauth
+      - api_key

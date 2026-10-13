@@ -10,7 +10,7 @@ test(testTitle("E2E-03"), async ({ page, steps }) => {
   page.on("dialog", (d) => d.accept());
 
   await steps.play([
-    given("the admin on the servers page", () => page.goto("/servers")),
+    given("the admin on the servers page", () => page.goto("/upstreams")),
     when("checking the echo-mcp URL before registering it", { req: "SRV-11" }, async () => {
       await page.getByTestId("create-url").fill("http://echo-mcp:9000/mcp");
       await page.getByTestId("create-inspect").click();
@@ -24,7 +24,7 @@ test(testTitle("E2E-03"), async ({ page, steps }) => {
     when(`registering it as "${name}"`, { req: "SRV-2" }, async () => {
       await page.getByTestId("create-name").fill(name);
       await page.getByTestId("create-submit").click();
-      await page.waitForURL(new RegExp(`/servers/${name}$`));
+      await page.waitForURL(new RegExp(`/upstreams/${name}$`));
     }),
     when("refreshing tools so discovery probes the live upstream", { req: "DISC-1" }, async () => {
       await page.getByTestId("refresh-tools").click();
@@ -34,7 +34,7 @@ test(testTitle("E2E-03"), async ({ page, steps }) => {
     }),
     then("deleting the server removes it from the list", { req: "SRV-2" }, async () => {
       await page.getByTestId("delete-server").click();
-      await page.waitForURL(/\/servers$/);
+      await page.waitForURL(/\/upstreams$/);
       await expect(page.getByTestId(`row-${name}`)).toHaveCount(0);
     }),
   ]);
@@ -42,7 +42,7 @@ test(testTitle("E2E-03"), async ({ page, steps }) => {
 
 test(testTitle("E2E-04"), async ({ page, steps }) => {
   await steps.play([
-    given("the admin on the servers page", () => page.goto("/servers")),
+    given("the admin on the servers page", () => page.goto("/upstreams")),
     when("submitting a server name containing '__'", { req: "UI-4" }, async () => {
       await page.getByTestId("create-url").fill("http://x/mcp");
       await page.getByTestId("create-manual").click();

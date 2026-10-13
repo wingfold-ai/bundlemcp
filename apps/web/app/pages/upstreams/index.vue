@@ -10,7 +10,7 @@ const errorMsg = ref("");
 const { data: servers, refresh } = await useAsyncData<ServerRead[]>(
   "servers-list",
   async () => {
-    const { data, error } = await api.GET("/api/v1/servers", {
+    const { data, error } = await api.GET("/api/v1/upstreams", {
       params: { query: { offset: 0, limit: 100 } },
     });
     if (error) {
@@ -25,13 +25,13 @@ const { data: servers, refresh } = await useAsyncData<ServerRead[]>(
 /** A new server opens on its own page, where OAuth connect and tools live. */
 async function onCreated(name: string) {
   await refresh();
-  await navigateTo(`/servers/${name}`);
+  await navigateTo(`/upstreams/${name}`);
 }
 </script>
 
 <template>
   <div class="space-y-6">
-    <h1 class="text-lg font-semibold">Servers</h1>
+    <h1 class="text-lg font-semibold">Upstream servers</h1>
 
     <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
 
@@ -53,7 +53,7 @@ async function onCreated(name: string) {
           <tr v-for="s in servers" :key="s.name" :data-testid="`row-${s.name}`">
             <td class="whitespace-nowrap">
               <NuxtLink
-                :to="`/servers/${s.name}`"
+                :to="`/upstreams/${s.name}`"
                 class="inline-flex items-center gap-1.5 underline"
                 :data-testid="`open-${s.name}`"
                 ><UIcon name="i-lucide-server" class="size-4 text-muted" />{{ s.name }}</NuxtLink
@@ -143,7 +143,7 @@ async function onCreated(name: string) {
             <td class="text-muted"><TimestampText :value="s.updated_at" /></td>
           </tr>
           <tr v-if="servers.length === 0">
-            <td colspan="8" class="text-muted">No servers registered.</td>
+            <td colspan="8" class="text-muted">No upstream servers registered.</td>
           </tr>
         </tbody>
       </table>

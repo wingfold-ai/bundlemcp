@@ -22,6 +22,7 @@ from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
     InMemoryUnitOfWorkFactory,
 )
+from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
 
 
@@ -110,14 +111,16 @@ async def test_bootstrap_discovers_its_servers_after_the_commit(uow):
     """BOOT-7/DISC-1: every bootstrapped server is probed, and only once it is committed."""
     document = BootstrapDocument.model_validate(
         {
-            "servers": [
+            "upstreams": [
                 {"name": "echo", "url": "http://echo/mcp"},
                 {"name": "weather", "url": "http://weather/mcp"},
             ]
         }
     )
     discovery = CommitAwareDiscovery(uow)
-    await BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery).apply(document)
+    await BootstrapRunner(
+        InMemoryUnitOfWorkFactory(uow), discovery, cipher=None, connections=NoUpstreamConnections()
+    ).apply(document)
     assert discovery.probes == [("echo", 1), ("weather", 1)]
 
 
@@ -125,13 +128,18 @@ async def test_failed_bootstrap_probes_nothing(uow):
     """BOOT-7: a document that does not land schedules no discovery."""
     document = BootstrapDocument.model_validate(
         {
-            "servers": [{"name": "echo", "url": "http://echo/mcp"}],
+            "upstreams": [{"name": "echo", "url": "http://echo/mcp"}],
             "endpoints": [{"name": "ep", "bundle_name": "missing"}],
         }
     )
     discovery = CommitAwareDiscovery(uow)
     with pytest.raises(NotFoundError):
-        await BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery).apply(document)
+        await BootstrapRunner(
+            InMemoryUnitOfWorkFactory(uow),
+            discovery,
+            cipher=None,
+            connections=NoUpstreamConnections(),
+        ).apply(document)
     assert discovery.probes == []
 
 
@@ -189,10 +197,12 @@ async def test_unchanged_upsert_retries_a_server_whose_last_probe_failed(uow):
 async def test_reapplied_bootstrap_does_not_probe_working_servers(uow):
     """BOOT-7/SRV-2: a gateway restart that re-applies the same document wakes no upstream."""
     document = BootstrapDocument.model_validate(
-        {"servers": [{"name": "echo", "url": "http://echo/mcp"}]}
+        {"upstreams": [{"name": "echo", "url": "http://echo/mcp"}]}
     )
     discovery = CommitAwareDiscovery(uow)
-    runner = BootstrapRunner(InMemoryUnitOfWorkFactory(uow), discovery)
+    runner = BootstrapRunner(
+        InMemoryUnitOfWorkFactory(uow), discovery, cipher=None, connections=NoUpstreamConnections()
+    )
     await runner.apply(document)
     await _mark_reachable(uow, "echo")
     await runner.apply(document)
@@ -203,12 +213,17 @@ async def test_bootstrap_document_lands_in_one_commit(uow):
     """BOOT-2: the whole document is applied inside one atomic scope."""
     document = BootstrapDocument.model_validate(
         {
-            "servers": [{"name": "echo", "url": "http://echo/mcp"}],
-            "bundles": [{"name": "demo", "servers": ["echo"]}],
+            "upstreams": [{"name": "echo", "url": "http://echo/mcp"}],
+            "bundles": [{"name": "demo", "upstreams": ["echo"]}],
             "endpoints": [{"name": "ep", "bundle_name": "demo"}],
         }
     )
-    await BootstrapRunner(InMemoryUnitOfWorkFactory(uow), NoopToolDiscovery()).apply(document)
+    await BootstrapRunner(
+        InMemoryUnitOfWorkFactory(uow),
+        NoopToolDiscovery(),
+        cipher=None,
+        connections=NoUpstreamConnections(),
+    ).apply(document)
     assert uow.committed == 1
     assert await uow.endpoints.by_name("ep") is not None
     assert len(await uow.memberships.for_bundle((await uow.bundles.by_name("demo")).id)) == 1

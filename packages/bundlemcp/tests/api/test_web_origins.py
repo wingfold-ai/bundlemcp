@@ -47,11 +47,13 @@ async def test_web_origin_passes_csrf_check(env):
     await _login(http, provider)
     body = {"name": "s1", "url": "http://s1/mcp"}
 
-    ok = await http.put("/api/v1/servers/s1", json=body, headers={"Origin": WEB_ORIGIN})
+    ok = await http.put("/api/v1/upstreams/s1", json=body, headers={"Origin": WEB_ORIGIN})
     assert ok.status_code == 200
 
     # non-allowlisted origins are still rejected
-    bad = await http.put("/api/v1/servers/s1", json=body, headers={"Origin": "http://evil.example"})
+    bad = await http.put(
+        "/api/v1/upstreams/s1", json=body, headers={"Origin": "http://evil.example"}
+    )
     assert bad.status_code == 403
 
 
@@ -59,7 +61,7 @@ async def test_cors_preflight_for_web_origin(env):
     """SEC-4: CORS allowlist is exactly the configured web origin(s), with credentials."""
     http, _provider = env
     resp = await http.options(
-        "/api/v1/servers",
+        "/api/v1/upstreams",
         headers={
             "Origin": WEB_ORIGIN,
             "Access-Control-Request-Method": "PUT",
@@ -70,7 +72,7 @@ async def test_cors_preflight_for_web_origin(env):
     assert resp.headers["access-control-allow-credentials"] == "true"
 
     denied = await http.options(
-        "/api/v1/servers",
+        "/api/v1/upstreams",
         headers={
             "Origin": "http://evil.example",
             "Access-Control-Request-Method": "PUT",
@@ -131,7 +133,7 @@ async def test_me_for_non_admin_session(env):
     assert me.json()["is_admin"] is False
 
     # but the management API itself stays closed to non-admins
-    denied = await http.get("/api/v1/servers")
+    denied = await http.get("/api/v1/upstreams")
     assert denied.status_code == 401
 
 
@@ -142,9 +144,9 @@ async def test_origin_must_match_exactly(env):
     body = {"name": "s1", "url": "http://s1/mcp"}
 
     for origin in (f"{PUBLIC_URL}.evil.test", f"{WEB_ORIGIN}.evil.test", "http://gw:8080"):
-        bad = await http.put("/api/v1/servers/s1", json=body, headers={"Origin": origin})
+        bad = await http.put("/api/v1/upstreams/s1", json=body, headers={"Origin": origin})
         assert bad.status_code == 403, origin
-    ok = await http.put("/api/v1/servers/s1", json=body, headers={"Origin": PUBLIC_URL + "/"})
+    ok = await http.put("/api/v1/upstreams/s1", json=body, headers={"Origin": PUBLIC_URL + "/"})
     assert ok.status_code == 200
 
 
@@ -155,10 +157,10 @@ async def test_referer_must_sit_under_an_allowed_origin(env):
     body = {"name": "s1", "url": "http://s1/mcp"}
 
     ok = await http.put(
-        "/api/v1/servers/s1", json=body, headers={"Referer": f"{WEB_ORIGIN}/servers/s1"}
+        "/api/v1/upstreams/s1", json=body, headers={"Referer": f"{WEB_ORIGIN}/servers/s1"}
     )
     assert ok.status_code == 200
     bad = await http.put(
-        "/api/v1/servers/s1", json=body, headers={"Referer": f"{WEB_ORIGIN}.evil.test/servers"}
+        "/api/v1/upstreams/s1", json=body, headers={"Referer": f"{WEB_ORIGIN}.evil.test/servers"}
     )
     assert bad.status_code == 403

@@ -16,7 +16,8 @@ from test_oauth_flow import _drive_login_and_consent, _pkce  # noqa: TID251
 
 # Every test here drives the fleet (seo-psi, seo-gsc, dataforseo,
 # hyperframes), which ships as private GHCR images. CI cannot pull those, so it
-# runs `-m "not fleet"`; locally the full compose stack makes them available.
+# runs `-m "not fleet"`; locally the full compose stack makes them available,
+# started with BUNDLEMCP_SEED_FILE=seed.fleet.yaml so the fleet is registered.
 pytestmark = pytest.mark.fleet
 
 
@@ -40,7 +41,7 @@ def test_seo_bundle_discovers_gsc_tools():
     # force a fresh discovery pass in case the boot-time probe raced seo-gsc
     svc = {"Authorization": f"Bearer {SERVICE_KEY}"}
     refresh = httpx.post(
-        f"{GATEWAY_URL}/api/v1/servers/seo-gsc:refresh-tools", headers=svc, timeout=60
+        f"{GATEWAY_URL}/api/v1/upstreams/seo-gsc:refresh-tools", headers=svc, timeout=60
     )
     refresh.raise_for_status()
     result = refresh.json()

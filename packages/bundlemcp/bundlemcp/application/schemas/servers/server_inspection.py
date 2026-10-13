@@ -42,5 +42,5 @@ class ServerInspection(BaseModel):
     )
     suggestion: ServerUpsert = Field(
         description="A registration derived from what was found: submit it to PUT "
-        "/servers/{name} as is, adding the credential headers the server needs"
+        "/upstreams/{name} as is, adding the credential headers the server needs"
     )

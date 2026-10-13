@@ -1,5 +1,5 @@
 <script setup lang="ts">
-await navigateTo("/servers", { replace: true });
+await navigateTo("/upstreams", { replace: true });
 </script>
 
 <template>
