@@ -199,7 +199,7 @@ async def test_bootstrap_applies_resources_before_the_prompts_that_embed_them(uo
         connections=NoUpstreamConnections(),
     )
     await runner.apply(document)
-    await runner.apply(document)  # MGMT-9: applying twice changes nothing
+    await runner.apply(document)  # applying twice changes nothing
     assert [p.name for p in uow.bundle_prompts.rows] == ["plot"]
     assert [r.name for r in uow.bundle_resources.rows] == ["guides/style"]
 

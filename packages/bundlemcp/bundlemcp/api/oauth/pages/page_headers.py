@@ -1,6 +1,6 @@
 """Hardening headers for the browser-facing auth pages."""
 
-# SEC-6: every directive but form-action is the same on every page.
+# every directive but form-action is the same on every page.
 _PAGE_POLICY = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"
 
 

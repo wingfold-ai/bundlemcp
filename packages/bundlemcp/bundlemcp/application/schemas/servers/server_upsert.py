@@ -45,13 +45,13 @@ class ServerUpsert(BaseModel):
         default=IdentityMode.SHARED,
         description="Whether all callers share one upstream identity or each gets their own",
     )
-    send_identity_header: bool | None = Field(  # UPS-13
+    send_identity_header: bool | None = Field(
         default=None,
         description="Whether the calling user's identity is sent to the server as X-MCP-User. "
         "Omitted on create, it is on for a server on the gateway's own network and off for "
         "any public host; omitted on update, the stored value is kept",
     )
-    protocol_mode: str | None = Field(  # UPS-10
+    protocol_mode: str | None = Field(
         default=None,
         pattern=r"^(auto|legacy|\d{4}-\d{2}-\d{2})$",
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
@@ -60,12 +60,12 @@ class ServerUpsert(BaseModel):
         "revision date such as '2026-07-28' to pin that revision. Omitted on create it is "
         "'auto'; omitted on update, the stored value is kept",
     )
-    transport: Literal["streamable-http"] | None = Field(  # MGMT-4
+    transport: Literal["streamable-http"] | None = Field(
         default=None,
         description="Upstream transport. Only streamable-http is supported; the field exists "
         "so payloads that state it explicitly are accepted",
     )
-    force: bool = Field(  # UPS-5
+    force: bool = Field(
         default=False,
         description="Confirm a rename that would otherwise be rejected, accepting that bundles "
         "and tool names derived from the old name change with it",
@@ -74,7 +74,7 @@ class ServerUpsert(BaseModel):
     @field_validator("forward_headers")
     @classmethod
     def forwardable(cls, v: dict[str, str]) -> dict[str, str]:
-        # UPS-14 / AUTH-28: refused at write time, not only skipped at call time
+        # refused at write time, not only skipped at call time
         refused = sorted(name for pair in v.items() for name in pair if not is_forwardable(name))
         if refused:
             raise ValueError(f"headers that are never forwarded: {', '.join(refused)}")

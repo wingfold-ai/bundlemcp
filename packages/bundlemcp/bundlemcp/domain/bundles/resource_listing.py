@@ -9,7 +9,7 @@ class ResourceListing(BaseModel):
     """What a client learns about a bundle resource before reading it: everything but its
     content."""
 
-    name: BundleResourceName = Field(  # BND-23
+    name: BundleResourceName = Field(
         description="Resource name, unique in its bundle; '/' separates folders, as in "
         "'guides/style'"
     )

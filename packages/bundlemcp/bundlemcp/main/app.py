@@ -61,19 +61,19 @@ def create_app(
         title="bundlemcp",
         version="0.1.0",
         lifespan=lifespan,
-        openapi_url=f"{API_PREFIX}/openapi.json",  # MGMT-3
+        openapi_url=f"{API_PREFIX}/openapi.json",
         docs_url=f"{API_PREFIX}/docs",
     )
     app.add_exception_handler(ServiceError, service_error_handler)
     app.add_exception_handler(OAuthError, oauth_error_handler)
     app.add_exception_handler(AuthorizationRedirectError, authorization_redirect_handler)
-    app.add_exception_handler(LockedOut, locked_out_handler)  # EP-20
-    # SES-14: Valkey still unreachable after the client's retries
+    app.add_exception_handler(LockedOut, locked_out_handler)
+    # Valkey still unreachable after the client's retries
     app.add_exception_handler(StoreConnectionError, live_state_unavailable_handler)
     app.add_exception_handler(StoreTimeoutError, live_state_unavailable_handler)
 
     if settings.web_origins:
-        # SEC-4: credentials-enabled CORS for exactly the web app's origin(s)
+        # credentials-enabled CORS for exactly the web app's origin(s)
         app.add_middleware(
             CORSMiddleware,
             allow_origins=[o.rstrip("/") for o in settings.web_origins],
@@ -86,7 +86,7 @@ def create_app(
     for controller in (
         ServerController(),
         BundleController(),
-        BundlePromptController(),  # BND-31
+        BundlePromptController(),
         BundleResourceController(),
         EndpointController(),
         ApiKeyController(),
@@ -106,7 +106,7 @@ def create_app(
         UpstreamConnectController(),  # the upstreams spec connect flow
     ):
         controller.mount(app)
-    UserController().mount(app, prefix=API_PREFIX)  # /api/v1/users (AUTH-20, AUTH-11)
+    UserController().mount(app, prefix=API_PREFIX)  # /api/v1/users
     HealthController().mount(app)
-    McpEndpointController().mount(app)  # public /{endpoint}/mcp (EP-1)
+    McpEndpointController().mount(app)  # public /{endpoint}/mcp
     return app

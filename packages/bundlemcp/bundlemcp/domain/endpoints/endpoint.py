@@ -11,7 +11,7 @@ from bundlemcp.domain.shared.clock import utcnow
 
 class Endpoint(BaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="Identifier of the endpoint")
-    name: str = Field(  # EP-1
+    name: str = Field(
         description="Unique endpoint name; it forms the public URL path segment",
     )
     bundle_id: uuid.UUID = Field(

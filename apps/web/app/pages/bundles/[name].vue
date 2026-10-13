@@ -13,7 +13,7 @@ const bundleName = computed(() => String(route.params.name));
 
 const errorMsg = ref("");
 const notFound = ref(false);
-// BND-31: a resource change refreshes the embed choices the prompts card offers
+// a resource change refreshes the embed choices the prompts card offers
 const promptsCard = ref<{ load: () => Promise<void> } | null>(null);
 
 // ---- meta card ----
@@ -510,7 +510,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- The bundle's own context (BND-31) -->
+      <!-- The bundle's own context -->
       <BundlePrompts ref="promptsCard" :bundle-name="bundleName" />
       <BundleResources :bundle-name="bundleName" @changed="promptsCard?.load()" />
 

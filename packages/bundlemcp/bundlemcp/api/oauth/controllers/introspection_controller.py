@@ -19,7 +19,7 @@ class IntrospectionController(Controller):
     include_in_schema = False
 
     def __init__(self) -> None:
-        super().__init__(dependencies=[Depends(IntrospectionAuth())])  # AUTH-5 / UPS-31
+        super().__init__(dependencies=[Depends(IntrospectionAuth())])
 
     @route.post("/introspect", response_model_exclude_none=True)
     async def introspect(

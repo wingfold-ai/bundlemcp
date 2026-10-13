@@ -1,7 +1,7 @@
-# bundlemcp dev/reference stack (ARC-13). TLS is the operator's proxy concern
-# in production (DEP-3); here the gateway is exposed directly.
+# bundlemcp dev/reference stack. TLS is the operator's proxy concern
+# in production; here the gateway is exposed directly.
 #
-# Egress note (SEC-2): compose service hostnames resolve to private IPs, which
+# Egress note: compose service hostnames resolve to private IPs, which
 # the default egress policy allows; loopback/metadata ranges stay blocked.
 #
 # Profiles: the core stack (postgres, valkey, keycloak, echo-mcp, oauth-demo,
@@ -10,7 +10,7 @@
 # quick tunnel) or `--profile ngrok` adds a reverse proxy plus a tunnel so
 # claude.ai, ChatGPT or Claude Desktop can reach the stack. deploy/stack.sh
 # drives that, since the gateway needs the tunnel's URL as BUNDLEMCP_PUBLIC_URL
-# before it boots (DEP-1).
+# before it boots.
 #
 # Data: Postgres lives in the `pgdata` volume, so it survives stop/start and
 # `down`/`up`; `down -v` (deploy/stack.sh rebuild) starts empty and the seed
@@ -118,7 +118,7 @@ services:
   # Google Search Console MCP (sibling seo-improve-mcp repo -> GHCR). Does its
   # own per-user Google OAuth at /connect + /google/callback (host port 8001 so
   # Google can redirect), and verifies the gateway-forwarded bearer via RFC 7662
-  # introspection against this stack's gateway (AUTH-30). Requires real Google
+  # introspection against this stack's gateway. Requires real Google
   # OAuth client credentials in deploy/.env — see .env.example.
   seo-gsc:
     image: ${SEO_GSC_IMAGE:-ghcr.io/mhoegger/seo-gsc-mcp:latest}
@@ -166,7 +166,7 @@ services:
       - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
 
   # HyperFrames MCP (HTML-to-video, sibling hyperframes-mcp repo -> GHCR).
-  # Identifies callers by the gateway-injected X-MCP-User header (AUTH-29).
+  # Identifies callers by the gateway-injected X-MCP-User header.
   hyperframes:
     image: ${HYPERFRAMES_IMAGE:-ghcr.io/mhoegger/hyperframes-mcp:latest}
     profiles: [fleet]
@@ -197,7 +197,7 @@ services:
       context: ..
       dockerfile: apps/gateway/Dockerfile
     restart: unless-stopped
-    # DEP-3: the image's own HEALTHCHECK polls /readyz; declared here too so
+    # the image's own HEALTHCHECK polls /readyz; declared here too so
     # `depends_on: service_healthy` and `compose up --wait` see it
     healthcheck:
       test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=3).status == 200 else 1)"]
@@ -226,9 +226,9 @@ services:
       BUNDLEMCP_WEB_ORIGINS: '["http://localhost:3000"]'
       # dev-only key (rotate for anything real): upstream OAuth token encryption
       BUNDLEMCP_TOKEN_ENCRYPTION_KEYS: ${BUNDLEMCP_TOKEN_ENCRYPTION_KEYS:-["Uqw2PEJomK66Xa6lD-TmIU75wHfWRU6T1n9jpYqjv80="]}
-      # DEP-2: the tunnel profiles' proxy forwards X-Forwarded-* from the compose network
+      # the tunnel profiles' proxy forwards X-Forwarded-* from the compose network
       BUNDLEMCP_TRUSTED_PROXIES: '["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]'
-      # SEC-2: the oauth-demo sidecar answers on this container's loopback. A
+      # the oauth-demo sidecar answers on this container's loopback. A
       # production gateway never allows its own loopback.
       BUNDLEMCP_EGRESS_ALLOW_CIDRS: '["127.0.0.0/8","::1/128"]'
     volumes:

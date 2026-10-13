@@ -102,7 +102,7 @@ async def _register_client(http) -> str:
     )
     assert resp.status_code == 201, resp.text
     body = resp.json()
-    assert "client_secret" not in body  # public client by default (AUTH-2)
+    assert "client_secret" not in body  # public client by default
     return body["client_id"]
 
 
@@ -118,7 +118,7 @@ async def _authorize(http, client_id, challenge, resource, expect_consent=True) 
     }
     resp = await http.get("/oauth/authorize", params=params)
     if expect_consent:
-        assert resp.status_code == 200  # consent page (AUTH-11)
+        assert resp.status_code == 200  # consent page
         assert "Authorize access" in resp.text
         token = resp.text.split('name="token" value="')[1].split('"')[0]
         resp = await http.post("/oauth/consent", data={"token": token, "action": "approve"})
@@ -443,7 +443,7 @@ async def test_introspection_requires_service_key(oauth_env):
     assert body["aud"] == f"{PUBLIC_URL}/ep1/mcp"
     assert body["email"] == "alice@example.com"
 
-    # RFC 7662 client auth (AUTH-5 "client credentials"): the service key may
+    # RFC 7662 client auth ("client credentials"): the service key may
     # arrive as the HTTP Basic client secret — what introspecting upstreams send.
     import base64
 
@@ -463,8 +463,8 @@ async def test_introspection_requires_service_key(oauth_env):
     )
     assert denied.status_code == 401
 
-    # gateway API keys introspect as active with the AUTH-29 identity format,
-    # so introspecting upstreams can serve api_key callers (AUTH-30)
+    # gateway API keys introspect as active with the identity format,
+    # so introspecting upstreams can serve api_key callers
     key_introspect = await http.post(
         "/oauth/introspect",
         data={"token": SERVICE_KEY},
@@ -1035,7 +1035,7 @@ def test_malformed_allow_list_entries_are_refused_at_startup():
             hermetic_settings(dcr_allowed_redirect_uris=[bad])
 
 
-# Consent page CSP (SEC-6): browsers apply form-action to the redirect that answers a form
+# Consent page CSP: browsers apply form-action to the redirect that answers a form
 # post, so the consent page admits its own authorization's redirect URI and nothing else.
 
 SAME_ORIGIN_POLICY = (

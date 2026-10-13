@@ -143,7 +143,7 @@ def test_full_oauth_happy_path():
         body = introspect.json()
         assert body["active"] is True
         assert body["aud"] == resource
-        # AUTH-5 / PROT-24: the Keycloak subject travels beside the gateway's own user id.
+        # the Keycloak subject travels beside the gateway's own user id.
         # Keycloak's `sub` is the user's id in the realm, a UUID that is not the gateway's.
         assert body["oidc_iss"].endswith("/realms/bundlemcp")
         assert str(uuid.UUID(body["oidc_sub"])) == body["oidc_sub"]

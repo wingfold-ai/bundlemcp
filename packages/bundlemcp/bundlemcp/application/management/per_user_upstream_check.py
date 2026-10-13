@@ -20,7 +20,6 @@ class PerUserUpstreamCheck:
         self, bundle_id: uuid.UUID, auth_modes: Sequence[EndpointAuthMode]
     ) -> None:
         """An endpoint taking no credentials may not expose a per-user upstream."""
-        # UPS-30
         members = await self._members(bundle_id)
         if not PerUserUpstreamPolicy.endpoint_may_expose(auth_modes, members):
             raise ConflictError(
@@ -30,7 +29,6 @@ class PerUserUpstreamCheck:
 
     async def ensure_membership_allowed(self, bundle_id: uuid.UUID, server: McpServer) -> None:
         """A per-user upstream may not join a bundle an anonymous endpoint already exposes."""
-        # UPS-30
         endpoints = await self._uow.endpoints.for_bundle(bundle_id)
         if not PerUserUpstreamPolicy.server_may_join(server, endpoints):
             raise ConflictError(
@@ -40,7 +38,6 @@ class PerUserUpstreamCheck:
 
     async def ensure_identity_switch_allowed(self, server: McpServer) -> None:
         """A member server may not become per-user while an anonymous endpoint exposes it."""
-        # UPS-30
         for membership in await self._uow.memberships.for_server(server.id):
             endpoints = await self._uow.endpoints.for_bundle(membership.bundle_id)
             if not PerUserUpstreamPolicy.server_may_join(server, endpoints):

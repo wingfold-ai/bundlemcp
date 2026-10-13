@@ -75,7 +75,7 @@ async def test_catalogue_lists_enabled_oauth_endpoints_for_non_admins(env):
             "profile": "claude",
             "bundle_name": "b1",
             "bundle_description": "Tools",
-            "bundle_overview": "Everything about b1.",  # BND-11
+            "bundle_overview": "Everything about b1.",
         }
     ]
 

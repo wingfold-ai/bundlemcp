@@ -50,7 +50,7 @@ class UpstreamConnectFlow:
             meta = UpstreamMetadata(**cached)
         else:
             meta = await self._provider.discover(server.url)
-        if not meta.resource:  # UPS-36: remembered before resources were recorded
+        if not meta.resource:  # remembered before resources were recorded
             meta = meta.model_copy(update={"resource": canonical_resource(server.url)})
         return meta
 
@@ -68,13 +68,12 @@ class UpstreamConnectFlow:
         if not resource_scopes:
             try:
                 resource_scopes = (await self._provider.discover(server.url)).resource_scopes
-            except NeedsConnect:  # UPS-25
+            except NeedsConnect:
                 resource_scopes = []
         return meta.model_copy(
             update={"resource_scopes": resource_scopes, "step_up_scopes": config.step_up_scopes}
         ).authorization_scope
 
-    # UPS-37
     async def ensure_client(self, server: McpServer, redirect_uri: str) -> UpstreamClientConfig:
         """The client this gateway uses at the server's authorization server, obtaining one.
 
@@ -106,14 +105,14 @@ class UpstreamConnectFlow:
         return await self._tokens.save_registration(server.id, registration, meta, identification)
 
     async def begin(self, server: McpServer, redirect_uri: str, state: str) -> AuthorizeStart:
-        # UPS-25/27: PKCE S256 connect
+        # PKCE S256 connect
         pkce = PkcePair.generate()
         config = await self.ensure_client(server, redirect_uri)
         if config.grant == UpstreamGrant.CLIENT_CREDENTIALS:
             raise NeedsConnect(server.name, "client_credentials_client")
         meta = await self.metadata(server)
         if config.issuer is not None and meta.issuer is not None and config.issuer != meta.issuer:
-            # UPS-37: an admin-stored client is never presented to another issuer
+            # an admin-stored client is never presented to another issuer
             raise NeedsConnect(server.name, "client_issuer_mismatch")
         url = self._provider.authorize_url(
             meta,
@@ -123,7 +122,7 @@ class UpstreamConnectFlow:
             code_challenge=pkce.challenge,
             scope=await self._requested_scope(server, meta, config),
         )
-        # UPS-32: record the issuer now, from validated metadata, never from the callback
+        # record the issuer now, from validated metadata, never from the callback
         return AuthorizeStart(
             url=url,
             code_verifier=pkce.verifier,
@@ -152,7 +151,6 @@ class UpstreamConnectFlow:
         )
         await self._tokens.save(server.id, user_id, tokens)
 
-    # UPS-35
     async def grant_client_credentials(self, server: McpServer) -> str:
         """Obtain and store the shared token of a client-credentials client."""
         config = await self._tokens.client_config(server.id)

@@ -6,7 +6,7 @@ gateway's is the floor of the handshake window: revisions older than it are
 never negotiated, however long the SDK keeps them.
 """
 
-# PROT-12 (handshake negotiation), PROT-22 (revisions tracked from the SDK).
+# Handshake negotiation, and the revisions tracked from the SDK.
 
 import mcp_types.version as sdk_versions
 from mcp_types.version import is_version_at_least

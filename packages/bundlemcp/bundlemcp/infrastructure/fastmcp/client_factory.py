@@ -18,10 +18,10 @@ from bundlemcp.infrastructure.fastmcp.response_observer import ResponseObserver
 
 # (server, extra_headers, *, observer, **handlers) -> Client. `handlers` carries
 # the elicitation_handler / sampling_handler / roots / log_handler used to relay a
-# server's requests for client input (PROT-4, PROT-18); it is empty unless the
+# server's requests for client input; it is empty unless the
 # downstream client advertised the capability. `observer` receives every HTTP
-# response the MCP client could not use (UPS-12). The client negotiates the MCP
-# revision per server from `server.protocol_mode` (UPS-10, PROT-21).
+# response the MCP client could not use. The client negotiates the MCP
+# revision per server from `server.protocol_mode`.
 ClientFactory = Callable[..., Client]
 
 
@@ -33,7 +33,7 @@ def default_client_factory(settings: Settings) -> ClientFactory:
         observer: ResponseLog | None = None,
         **handlers: Any,
     ) -> Client:
-        check_url_allowed(server.url, settings)  # SEC-1
+        check_url_allowed(server.url, settings)
         headers = {**server.static_headers, **extra_headers}
         auth = ResponseObserver(observer) if observer is not None else None
         return Client(

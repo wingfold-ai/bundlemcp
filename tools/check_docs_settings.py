@@ -9,8 +9,9 @@ Three checks, all currently green, kept green cheaply:
 2. Every requirement ID the documentation cites (``UPS-1``, ``EP-3``, …) resolves
    to a requirement in ``openspec/`` — a main spec, or a change not yet archived.
 3. No requirement ID appears in a docstring or a Pydantic ``description``. The
-   convention is that IDs belong in ``#`` comments, test names and error
-   messages, because docstrings and descriptions are read by people — and, for
+   convention is that IDs belong only in test names, test docstrings and error
+   messages (never in code comments, which check_spec_ids.py enforces),
+   because docstrings and descriptions are read by people — and, for
    ``schemas/`` and ``Settings``, published to API consumers — who cannot look an
    ID up. Alembic revision docstrings are exempt: the text is the revision
    message, which names the change the ID belongs to.

@@ -198,7 +198,7 @@ def oauth_server(uow, identity_mode=IdentityMode.SHARED) -> McpServer:
     return server
 
 
-# --- inspection (UPS-11) -----------------------------------------------------------------
+# --- inspection -----------------------------------------------------------------
 
 
 async def test_ups11_an_open_server_is_ready_and_named_after_itself(uow):
@@ -211,7 +211,7 @@ async def test_ups11_an_open_server_is_ready_and_named_after_itself(uow):
     assert result.suggestion.name == "weather"
     assert result.suggestion.description == "Forecasts"
     assert result.suggestion.auth_mode == ServerAuthMode.NONE
-    assert result.suggestion.send_identity_header is False  # UPS-13: a public host
+    assert result.suggestion.send_identity_header is False  # a public host
 
 
 async def test_ups11_a_taken_name_is_not_suggested_twice(uow):
@@ -295,7 +295,7 @@ async def test_ups11_an_sse_url_is_explained(uow):
     assert len(probe.seen) == 1  # no /mcp guess for an explicit transport path
 
 
-# --- server.json import (UPS-15) ---------------------------------------------------------
+# --- server.json import ---------------------------------------------------------
 
 
 def test_ups15_a_server_json_draft_carries_the_declared_headers():
@@ -337,7 +337,7 @@ def test_ups15_a_local_only_or_sse_only_document_is_reported():
     assert sse_only.url is None and "sse" in sse_only.problems[0]
 
 
-# --- registration rules (UPS-1, UPS-10, UPS-13, UPS-14) ------------------------------------
+# --- registration rules ------------------------------------
 
 
 async def test_ups13_identity_header_defaults_by_network_and_is_kept_on_update(uow):
@@ -409,7 +409,7 @@ async def test_ups35_a_client_credentials_client_needs_a_secret_and_a_shared_ser
         )
 
 
-# --- discovery records the connection state (UPS-12) -------------------------------------
+# --- discovery records the connection state -------------------------------------
 
 
 async def test_ups12_discovery_records_what_each_probe_found(uow):
@@ -441,7 +441,7 @@ async def test_ups12_a_refused_key_is_not_mistaken_for_oauth(uow):
     assert result.connection_state == ConnectionState.CREDENTIAL_REQUIRED
 
 
-# --- how the gateway identifies itself upstream (UPS-25, UPS-37) ----------------------------
+# --- how the gateway identifies itself upstream ----------------------------
 
 
 async def test_ups25_a_metadata_document_is_preferred_over_registration(uow):
@@ -499,7 +499,7 @@ async def test_ups37_an_admin_client_is_never_replaced(uow):
     assert provider.registered == 0
 
 
-# --- step-up and client credentials (UPS-34, UPS-35) ---------------------------------------
+# --- step-up and client credentials ---------------------------------------
 
 
 async def test_ups34_demanded_scopes_are_requested_at_the_next_connect(uow):
@@ -534,7 +534,7 @@ async def test_ups35_client_credentials_obtain_the_shared_token_without_a_browse
         await service.build_authorize(server, CALLBACK, "state")
 
 
-# --- delegated tokens (AUTH-32) --------------------------------------------------------------
+# --- delegated tokens --------------------------------------------------------------
 
 
 async def test_auth32_a_delegated_server_gets_a_token_bound_to_it():

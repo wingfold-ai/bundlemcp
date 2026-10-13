@@ -1,4 +1,4 @@
-// BND-20: the gateway's placeholder rule, mirrored for the preview. One pass over
+// the gateway's placeholder rule, mirrored for the preview. One pass over
 // the text: a substituted value is never scanned again, and an argument with no
 // value becomes the empty string, exactly as prompts/get renders it.
 const PLACEHOLDER = /\{\{([a-zA-Z0-9_-]+)\}\}/g;

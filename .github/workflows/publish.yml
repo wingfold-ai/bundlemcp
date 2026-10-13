@@ -1,4 +1,4 @@
-# Publish the gateway and web images to GHCR (DEP-11). Deployed by the
+# Publish the gateway and web images to GHCR. Deployed by the
 # vm-stack repo's `bundlemcp` stack, which pulls :latest on every converge.
 name: Publish images
 
@@ -32,7 +32,7 @@ jobs:
           context: .
           file: apps/${{ matrix.image }}/Dockerfile
           push: true
-          # :latest is what vm-stack deploys; :<sha> records the commit (DEP-11).
+          # :latest is what vm-stack deploys; :<sha> records the commit.
           tags: |
             ghcr.io/${{ github.repository_owner }}/bundlemcp-${{ matrix.image }}:latest
             ghcr.io/${{ github.repository_owner }}/bundlemcp-${{ matrix.image }}:${{ github.sha }}

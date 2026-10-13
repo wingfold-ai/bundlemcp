@@ -20,10 +20,10 @@ from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import UpstreamOAuthNotConfigured
 
-DEFAULT_MAX_ATTEMPTS = 3  # UPS-4: consecutive failures before health_status=error
+DEFAULT_MAX_ATTEMPTS = 3  # consecutive failures before health_status=error
 NOT_CONNECTED = "upstream not connected"
 SWEEP_PAGE_SIZE = 100
-# one hanging upstream must not hold up a sweep of every other server (UPS-23)
+# one hanging upstream must not hold up a sweep of every other server
 PROBE_TIMEOUT_SECONDS = 60
 
 log = structlog.get_logger(__name__)
@@ -107,8 +107,8 @@ class DiscoveryService:
             try:
                 headers = await self._headers(server)
             except (NeedsConnect, UpstreamOAuthNotConfigured):
-                # UPS-17: nothing to probe with yet, which is not an upstream failure
-                server.connection_state = ConnectionState.ACCOUNT_REQUIRED  # UPS-12
+                # nothing to probe with yet, which is not an upstream failure
+                server.connection_state = ConnectionState.ACCOUNT_REQUIRED
                 uow.servers.add(server)
                 if announce:
                     await self._announce(uow, server)
@@ -133,12 +133,12 @@ class DiscoveryService:
             except Exception as exc:
                 return await self._record_failure(uow, server, str(exc), ConnectionState.ERROR)
 
-            # UPS-22: snapshot the upstream's advertised capabilities for PROT-11,
-            # and the revision negotiated with it (UPS-10).
+            # snapshot the upstream's advertised capabilities for capability aggregation,
+            # and the revision negotiated with it.
             if seen.capabilities is not None:
                 server.capabilities = seen.capabilities
             server.protocol_version = seen.protocol_version
-            server.connection_state = ConnectionState.READY  # UPS-12
+            server.connection_state = ConnectionState.READY
             uow.servers.add(server)
 
             existing = {t.name: t for t in await uow.tools.for_server(server.id)}
@@ -147,7 +147,7 @@ class DiscoveryService:
                 uow.tools.add(row)
             await self._record_success(uow, server)
             if changed or announce:
-                await self._announce(uow, server)  # BND-7: clients re-list the bundle
+                await self._announce(uow, server)  # clients re-list the bundle
             await uow.commit()
             return DiscoveryResult(
                 discovered=len(seen.tools), changed=changed, connection_state=ConnectionState.READY
@@ -215,7 +215,7 @@ class DiscoveryService:
     ) -> DiscoveryResult:
         count = self._failures.get(server.id, 0) + 1
         self._failures[server.id] = count
-        # UPS-20: every failure is observable, not only the one that flips health
+        # every failure is observable, not only the one that flips health
         log.warning(
             "discovery.failed",
             server=server.name,
@@ -223,11 +223,11 @@ class DiscoveryService:
             state=state.value,
             error=error[:200],
         )
-        server.connection_state = state  # UPS-12: recorded on every probe
+        server.connection_state = state  # recorded on every probe
         if count >= self._max_attempts and server.health_status != HealthStatus.ERROR:
             server.health_status = HealthStatus.ERROR
             server.last_error = error[:500]
-            log.warning("discovery.server_marked_error", server=server.name)  # UPS-4
+            log.warning("discovery.server_marked_error", server=server.name)
         uow.servers.add(server)
         await uow.commit()
         return DiscoveryResult(error=error, connection_state=state)
@@ -235,6 +235,6 @@ class DiscoveryService:
     async def _record_success(self, uow: UnitOfWork, server: McpServer) -> None:
         self._failures.pop(server.id, None)
         if server.health_status != HealthStatus.OK:
-            server.health_status = HealthStatus.OK  # UPS-4 self-heal
+            server.health_status = HealthStatus.OK  # self-heal
             server.last_error = None
             uow.servers.add(server)

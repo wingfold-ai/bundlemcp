@@ -52,7 +52,7 @@ class ValkeyRateLimiter:
         return RateResult(allowed=False, retry_after=window - (now % window), remaining=0)
 
     def _fail(self, scope: str, window: int, fail_closed: bool) -> RateResult:
-        # EP-21: availability over throttling — fail open (or closed on request), loudly.
+        # availability over throttling — fail open (or closed on request), loudly.
         self._counters.inc(RATE_LIMIT_FAIL_OPEN)
         log.warning("ratelimit.redis_unavailable", scope=scope, fail_closed=fail_closed)
         if fail_closed:

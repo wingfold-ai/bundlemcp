@@ -132,7 +132,7 @@ async def test_connect_flow_stores_encrypted_token(engine, redis):
         assert loc.startswith("https://idp/a?state=")
         state = loc.split("state=")[1].split("&")[0]
 
-        # callback exchanges + stores (UPS-32: iss matches the recorded issuer)
+        # callback exchanges + stores (iss matches the recorded issuer)
         cb = await http.get(
             "/oauth/upstream/callback",
             params={"code": "xyz", "state": state, "iss": "https://idp"},

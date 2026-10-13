@@ -68,7 +68,7 @@ async def test_prompt_round_trip(client):
     [
         ("prompts/other", PROMPT, "must match"),
         ("prompts/a__b", {**PROMPT, "name": "a__b"}, "__"),
-        ("prompts/plot", PROMPT, "guides/style"),  # BND-20: resource not there yet
+        ("prompts/plot", PROMPT, "guides/style"),  # resource not there yet
         ("prompts/plot", {**PROMPT, "messages": []}, "messages"),
         ("resources/x", {"name": "x", "content": "", "mime_type": "image/png"}, "mime_type"),
     ],

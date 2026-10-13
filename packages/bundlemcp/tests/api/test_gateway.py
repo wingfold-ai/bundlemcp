@@ -487,7 +487,7 @@ async def test_metering_unavailable_follows_gateway_policy(engine, redis, fail_o
         assert [o for _, o, _ in hook.post_calls] == [MeterOutcome.RESULT]
     else:
         assert body["error"]["message"] == "metering_unavailable"
-        # PROT-26 (#89): the refused call is reported as no_result under the same key
+        # #89: the refused call is reported as no_result under the same key
         assert hook.post_calls == [(key, MeterOutcome.NO_RESULT, 0)]
 
 
@@ -663,7 +663,7 @@ async def test_audit_records_written(gateway):
     say_b = {"name": "echo__say", "arguments": {"text": "b"}}
     await _rpc(http, "main", session, "tools/call", say_b)
 
-    # audit is async (OPS-3) — drain the queue
+    # audit is async — drain the queue
     await app.state.container.audit.drain()
     async with app.state.container.session_factory() as db:
         records = (await db.execute(select(AuditRecordRow))).scalars().all()
@@ -698,7 +698,7 @@ async def test_endpoint_limit_trips_with_retry_after(gateway):
     third = await _rpc(http, "main", session, "tools/call", call)
     assert third.status_code == 429
     assert int(third.headers["Retry-After"]) > 0
-    # EP-18: a rejection is a metric, not an upstream call
+    # a rejection is a metric, not an upstream call
     assert len(hook.pre_calls) == 2
     assert app.state.container.counters.get("rate_limit_rejections") == 1
 
@@ -869,7 +869,7 @@ async def test_identity_header_injected_and_spoof_stripped(engine, redis):
             },
         )
         assert captured["X-MCP-User"].startswith("api_key:")  # injected, not "spoofed"
-        assert captured["x-tenant"] == "tenant-42"  # AUTH-27 mapping
+        assert captured["x-tenant"] == "tenant-42"  # mapping
 
 
 async def test_store_unreachable_answers_503_not_500(gateway, redis, monkeypatch):

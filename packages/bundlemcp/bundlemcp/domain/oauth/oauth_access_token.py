@@ -19,11 +19,11 @@ class OAuthAccessToken(BaseModel):
     user_id: uuid.UUID = Field(
         description="User who authorized it",
     )
-    endpoint_id: uuid.UUID = Field(  # AUTH-10
+    endpoint_id: uuid.UUID = Field(
         description="Endpoint the token is valid for. A token presented to any other endpoint "
         "is rejected as the wrong audience",
     )
-    family_id: uuid.UUID = Field(  # AUTH-4, RFC 9700 section 4.14.2
+    family_id: uuid.UUID = Field(  # RFC 9700 section 4.14.2
         default_factory=uuid.uuid4,
         description="Groups every pair descended from one authorization grant through refresh "
         "rotation. A replayed refresh token revokes the whole family",

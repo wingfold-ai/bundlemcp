@@ -12,7 +12,7 @@ from redis.asyncio.retry import Retry
 from redis.backoff import ExponentialWithJitterBackoff
 from redis.exceptions import ConnectionError, TimeoutError
 
-# SES-14: a pooled connection that died with a restarted Valkey is replaced
+# a pooled connection that died with a restarted Valkey is replaced
 # inside the same command. Two retries cover the dead connection plus one
 # refused connect while the store comes back; the cap keeps a request that
 # still fails from stalling.

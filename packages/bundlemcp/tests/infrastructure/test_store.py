@@ -33,7 +33,7 @@ async def test_session_roundtrip_and_delete(redis):
     assert loaded is not None
     assert loaded.endpoint_name == "ep"
 
-    await store.delete("s1")  # SES-4
+    await store.delete("s1")
     assert await store.load("s1") is None
 
 

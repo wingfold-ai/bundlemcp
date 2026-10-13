@@ -80,7 +80,9 @@ See [overview](openspec/README.md) and [architecture](openspec/specs/architectur
 
 - Ruff (line length 100), full type hints, `pydantic-settings` with `BUNDLEMCP_` env prefix.
 - Docstrings never reference spec numbers or requirement IDs — they must explain the behavior standalone, or be omitted.
-  Requirement-ID cross-references belong in inline `#` comments, test names/docstrings, and error messages only.
+  Requirement codes (`BND-5`) appear only in test names and test docstrings, which say what a test verifies, and in
+  error messages — never in code comments: a comment explains the code in its own words. `tools/check_spec_ids.py`
+  fails on a code in a comment.
 - Never log or return secrets/tokens/header values (operations spec, ARC-18).
 - **Pydantic everywhere, no `dataclasses`.** Every structured value is a `BaseModel` (SQLModel for the row classes);
   `X | None` only where `None` is really reachable. The config recipes, the `@runtime_checkable` rule for `Protocol`
@@ -90,7 +92,7 @@ See [overview](openspec/README.md) and [architecture](openspec/specs/architectur
 
 - Every model field carries a `description`; on `schemas/` DTOs and `Settings` it is published API surface (OpenAPI, the
   generated TS client, operators), so write those for a reader without the source. Constraints and defaults belong in
-  `Field`, requirement IDs stay in `#` comments:
+  `Field`, requirement codes stay out of both:
 
 @.claude/docs/pydantic-fields.md
 

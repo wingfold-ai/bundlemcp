@@ -34,7 +34,7 @@ class CallOutcome(BaseModel):
     @property
     def meter_outcome(self) -> MeterOutcome:
         """How the metering hook is told this call ended."""
-        # PROT-26: the hook, not the gateway, decides what an error result costs
+        # the hook, not the gateway, decides what an error result costs
         if self.result is not None and self.status is CallStatus.ERROR:
             return MeterOutcome.TOOL_ERROR  # the tool ran and reported isError
         if self.result is not None:

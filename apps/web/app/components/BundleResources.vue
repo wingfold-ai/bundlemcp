@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The documents a bundle itself serves (BND-23, BND-31): list, edit one at a
+ * The documents a bundle itself serves: list, edit one at a
  * time, and preview Markdown as a client would render it.
  */
 import type { components } from "~~/types/api";

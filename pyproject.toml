@@ -53,7 +53,7 @@ select = [
     "I",   # isort
     "UP",  # pyupgrade
     "B",   # bugbear
-    "T20", # no print statements (OPS-8: structured logging only)
+    "T20", # no print statements (structured logging only)
 ]
 
 [tool.pytest.ini_options]

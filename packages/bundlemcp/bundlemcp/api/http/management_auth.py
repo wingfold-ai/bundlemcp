@@ -51,7 +51,7 @@ class ManagementAuth:
 
     @staticmethod
     def _check_origin(request: Request, settings: Settings) -> None:
-        # SEC-4: cookie-authenticated mutations require an Origin/Referer
+        # cookie-authenticated mutations require an Origin/Referer
         # matching the gateway itself or an allowlisted web-app origin. An
         # Origin is an origin and must match exactly; a Referer is a URL and
         # must sit under one. A plain prefix test would let

@@ -44,7 +44,7 @@ class UpstreamConnectController(Controller):
     def _redirect_uri(settings: Settings) -> str:
         return f"{settings.public_base}/oauth/upstream/callback"
 
-    # UPS-25 (CIMD)
+    # client ID metadata document
     @route.get("/client.json")
     async def client_document(self, settings: SettingsProvider) -> Response:
         """The gateway's own OAuth client metadata document.
@@ -89,7 +89,7 @@ class UpstreamConnectController(Controller):
         if as_ == "me":
             user_id = user.id  # the connecting user owns the token
         else:
-            # a shared connection is an admin action (UPS-26/27)
+            # a shared connection is an admin action
             if not user.is_admin:
                 raise HTTPException(403, "admin required to establish the shared connection")
             if server.is_per_user:
@@ -148,7 +148,7 @@ class UpstreamConnectController(Controller):
         pending = await states.take(state)  # single-use (CSRF)
         if pending is None:
             raise HTTPException(400, "invalid or expired connect state")
-        # UPS-32 (RFC 9207 section 2.4): checked before the code is redeemed and
+        # issuer identification (RFC 9207 section 2.4): checked before the code is redeemed and
         # before any error the response carries is acted on.
         if iss:
             if pending.issuer is None or iss != pending.issuer:
@@ -172,7 +172,7 @@ class UpstreamConnectController(Controller):
         log.info(
             "upstream_oauth.connected", server=server.name, per_user=pending.user_id is not None
         )
-        # UPS-17: the new token may be the first that can list the server's tools, and
+        # the new token may be the first that can list the server's tools, and
         # the connecting user's tool list changes either way, so their bundles re-list
         await discovery.schedule_probe(server.id, announce=True)
         html = PAGE_TEMPLATES.get_template("connected.html").render(server_name=server.name)

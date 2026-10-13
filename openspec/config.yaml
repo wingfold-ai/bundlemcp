@@ -12,7 +12,7 @@ context: |
   their codes is openspec/slices.json (also shown as a table in openspec/README.md under "Slices
   and codes", and with every requirement on the docs site's Requirements page,
   docs/reference/requirements.md). Requirements are coded <slice code>-<n> (BND-5, SES-11, ...);
-  tests and code comments cite these codes. A code is never reused or renumbered.
+  tests cite these codes in their names and docstrings. A code is never reused or renumbered.
   tools/check_spec_ids.py enforces all of this in CI.
 
 rules:
@@ -33,7 +33,8 @@ rules:
     - Respect the layer rules in CLAUDE.md (domain, application, infrastructure, api, main) and
       name which layer each new piece lives in.
   tasks:
-    - Tests cite the requirement IDs they verify, in their names or docstrings.
+    - Tests cite the requirement codes they verify, in their names or docstrings; code comments
+      never cite a code.
     - "The final group runs the gates: uv run pytest -q, uv run ruff check ., uv run rumdl check .,
       uv run lint-imports, the four tools/check_*.py scripts, cd apps/web && npm run openapi when
       a DTO or route changed, python3 tools/check_spec_ids.py, and openspec validate --all --strict."

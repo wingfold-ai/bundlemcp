@@ -1,4 +1,4 @@
-# Password gate while the site is private (DOC-6). The publish workflow
+# Password gate while the site is private. The publish workflow
 # prepends this to the site's .htaccess when the DOCS_AUTH_USER and
 # DOCS_AUTH_PASSWORD secrets are set, filling in their Basic encoding. Only
 # HTTPS requests are challenged, so a password never travels unencrypted:

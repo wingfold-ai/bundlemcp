@@ -64,7 +64,7 @@ async def test_upstream_oauth_client_is_applied_with_the_server(engine, redis):
         server = (await db.execute(select(McpServerRow))).scalar_one()
         client = (await db.execute(select(UpstreamOAuthClientRow))).scalar_one()
     assert client.server_id == server.id and client.client_id == "bundlemcp"
-    assert "shh" not in (client.client_secret_encrypted or "")  # ARC-18: ciphertext only
+    assert "shh" not in (client.client_secret_encrypted or "")  # ciphertext only
     assert cipher.decrypt(client.client_secret_encrypted) == "shh"
 
 
@@ -80,7 +80,7 @@ async def test_upstream_oauth_client_needs_encryption_keys(engine, redis):
     with pytest.raises(PreconditionError):
         await runner.apply(BootstrapDocument(**OAUTH_DOC))
     async with session_factory(engine)() as db:
-        assert (await db.execute(select(McpServerRow))).first() is None  # MGMT-9: all or nothing
+        assert (await db.execute(select(McpServerRow))).first() is None  # all or nothing
 
 
 async def test_apply_is_idempotent(engine, redis):
@@ -94,7 +94,7 @@ async def test_apply_is_idempotent(engine, redis):
     )
 
     await runner.apply(doc)
-    await runner.apply(doc)  # MGMT-9: second run is a no-op
+    await runner.apply(doc)  # second run is a no-op
 
     async with factory() as db:
         assert len((await db.execute(select(McpServerRow))).scalars().all()) == 1

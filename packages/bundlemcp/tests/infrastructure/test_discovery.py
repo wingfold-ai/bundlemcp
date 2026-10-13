@@ -30,7 +30,7 @@ def _units(engine, redis) -> SqlAlchemyUnitOfWorkFactory:
 
 def factory_for(upstream: FastMCP):
     def factory(server, extra_headers, *, observer=None):
-        return Client(upstream, mode=server.protocol_mode)  # UPS-10
+        return Client(upstream, mode=server.protocol_mode)
 
     return factory
 

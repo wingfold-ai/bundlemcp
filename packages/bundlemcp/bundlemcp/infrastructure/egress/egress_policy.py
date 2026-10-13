@@ -55,10 +55,10 @@ def check_url_allowed(url: str, settings: Settings) -> None:
 
     for addr in _resolve(parsed.hostname):
         if any(addr in net for net in allow):
-            continue  # explicit allow wins (SEC-2)
+            continue  # explicit allow wins
         for net in _ALWAYS_BLOCKED:
             if addr in net:
-                log.warning("egress.denied", url=url, blocked=str(net))  # SEC-3
+                log.warning("egress.denied", url=url, blocked=str(net))
                 raise EgressDenied(url, f"address {addr} is in blocked range {net}")
         for net in deny:
             if addr in net:

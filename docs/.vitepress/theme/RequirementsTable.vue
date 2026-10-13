@@ -25,7 +25,7 @@ const data = ref<Ledger>({
 
 const sliceByCode = computed(() => new Map(data.value.slices.map((s) => [s.code, s])));
 
-// ?slice=BND&status=proposed opens the page filtered; #BND-5 jumps to one requirement.
+// ?slice=BND&status=proposed opens the page filtered; #<code> jumps to one requirement.
 onMounted(async () => {
   try {
     const res = await fetch(withBase("/requirements.json"));

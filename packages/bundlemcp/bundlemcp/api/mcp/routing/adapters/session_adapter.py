@@ -53,9 +53,9 @@ class SessionMcpAdapter:
             return rejected.response
 
         assert request_ctx.session is not None
-        await self._sessions.touch(request_ctx.session.session_id)  # SES-1 (+ PROT-8)
+        await self._sessions.touch(request_ctx.session.session_id)
         if message.is_response:
-            # PROT-4: client reply to server->client request
+            # client reply to server->client request
             if message.id is not None:
                 await self._signals.reply(str(message.id), message.body())
             return Response(status_code=202)
@@ -74,14 +74,14 @@ class SessionMcpAdapter:
         except RequestRejected as rejected:
             return rejected.response
         assert request_ctx.session is not None
-        await self._sessions.delete(request_ctx.session.session_id)  # SES-4
+        await self._sessions.delete(request_ctx.session.session_id)
         return Response(status_code=204)
 
     async def _admit_session(self, ctx: EndpointContext, endpoint_name: str) -> RequestContext:
         """Load the handshake session the request names, or reject the request."""
         session_id = ctx.request.headers.get(SESSION_HEADER, "")
         if not session_id:
-            # PROT-13: neither era's opening — tell a dual-era client what to do.
+            # neither era's opening — tell a dual-era client what to do.
             supported = self._dialects.modern_versions + self._dialects.handshake_versions
             raise RequestRejected(
                 rpc_error(
@@ -94,14 +94,14 @@ class SessionMcpAdapter:
                     data={"supported": supported},
                 )
             )
-        # SES-2/SES-3: everything but initialize requires a live session record
+        # everything but initialize requires a live session record
         record = await self._sessions.load(session_id)
         dialect = self._dialects.handshake(record.protocol_version) if record else None
         if (
             record is None
             or dialect is None
             or record.endpoint_name != endpoint_name
-            or not record.is_owned_by(ctx.identity)  # SES-3a: indistinguishable from unknown
+            or not record.is_owned_by(ctx.identity)  # indistinguishable from unknown
         ):
             raise RequestRejected(JSONResponse({"error": "session not found"}, status_code=404))
         return self._session_context(ctx, record, dialect)

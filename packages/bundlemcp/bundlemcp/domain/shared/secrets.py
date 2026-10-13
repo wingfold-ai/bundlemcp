@@ -9,10 +9,10 @@ import hashlib
 import hmac
 import secrets
 
-API_KEY_PREFIX = "bmcp_sk_"  # AUTH-22
-ACCESS_TOKEN_PREFIX = "bmcp_at_"  # AUTH-4
+API_KEY_PREFIX = "bmcp_sk_"
+ACCESS_TOKEN_PREFIX = "bmcp_at_"
 REFRESH_TOKEN_PREFIX = "bmcp_rt_"
-DELEGATED_TOKEN_PREFIX = "bmcp_dt_"  # AUTH-32
+DELEGATED_TOKEN_PREFIX = "bmcp_dt_"
 
 
 def generate_token(prefix: str) -> str:

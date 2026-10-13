@@ -45,24 +45,24 @@ class McpServerRow(SQLModel, table=True):
         sa_type=String,
         description="Whether callers share one upstream identity or each gets their own",
     )
-    send_identity_header: bool = Field(  # AUTH-29
+    send_identity_header: bool = Field(
         default=True,
         description="Whether the calling user's identity is forwarded upstream",
     )
-    capabilities: dict = Field(  # UPS-22, source for PROT-11 aggregation
+    capabilities: dict = Field(  # source for capability aggregation
         default_factory=dict,
         sa_column=Column(JSON, nullable=False, server_default=text("'{}'")),
         description="What the server advertised at its last probe. A key is present exactly "
         "when that capability was advertised",
     )
-    protocol_mode: str = Field(  # UPS-10
+    protocol_mode: str = Field(
         default="auto",
         sa_type=String,
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
         "probes server/discover and falls back to the initialize handshake, 'legacy' always "
         "uses the handshake, and a revision date pins that revision",
     )
-    protocol_version: str | None = Field(  # UPS-10
+    protocol_version: str | None = Field(
         default=None,
         description="MCP revision negotiated at the last successful probe, absent until then",
     )
@@ -72,7 +72,7 @@ class McpServerRow(SQLModel, table=True):
         description="Result of the most recent probe: ok, error or unknown",
     )
     last_error: str | None = Field(default=None, description="Why the last probe failed, if it did")
-    connection_state: ConnectionState = Field(  # UPS-12
+    connection_state: ConnectionState = Field(
         default=ConnectionState.UNKNOWN,
         sa_column=Column(String, nullable=False, server_default=text("'unknown'")),
         description="What the last probe found out about the upstream, classified from its "

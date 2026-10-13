@@ -204,7 +204,7 @@ class BundleService(NamedResourceService[Bundle, BundleRead]):
     async def _ensure_override_name_free(
         self, bundle: Bundle, tool_id: uuid.UUID, override_name: str
     ) -> None:
-        # BND-14: override names unique within the bundle vs other overrides
+        # override names unique within the bundle vs other overrides
         if await self._curations.override_name_taken(
             bundle.id, override_name, except_tool_id=tool_id
         ):

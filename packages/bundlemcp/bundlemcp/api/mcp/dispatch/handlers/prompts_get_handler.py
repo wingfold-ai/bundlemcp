@@ -27,12 +27,12 @@ class PromptsGetHandler:
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         presented = message.param("name", "")
-        parsed = PresentedName.parse(presented)  # BND-2 first-`__`
+        parsed = PresentedName.parse(presented)  # split on the first `__`
         if parsed is None:
-            # BND-26: a name without `__` is the bundle's own; it never reaches a member
+            # a name without `__` is the bundle's own; it never reaches a member
             return await self._bundle_prompt(ctx, message, presented)
         server = ctx.view.servers.get(parsed.server)
-        # BND-8: a member that never advertised prompts is not asked (ADR-0043)
+        # a member that never advertised prompts is not asked (ADR-0043)
         if server is None or not server.advertises(ServerCapability.PROMPTS):
             return rpc_error(message.id, INVALID_PARAMS, f"unknown prompt: {presented}")
         arguments = message.param("arguments")
@@ -54,7 +54,7 @@ class PromptsGetHandler:
         if listing is None:
             return rpc_error(message.id, INVALID_PARAMS, f"unknown prompt: {name}")
         supplied = _arguments(message.param("arguments"))
-        if missing := listing.missing_arguments(supplied):  # BND-21
+        if missing := listing.missing_arguments(supplied):
             return rpc_error(
                 message.id, INVALID_PARAMS, f"missing required argument: {', '.join(missing)}"
             )

@@ -32,7 +32,7 @@ class ClientRegistrationRequest(BaseModel):
         description="Response types the client intends to use",
     )
     scope: str = Field(default="mcp", description="Space-separated scopes requested")
-    application_type: ApplicationType | None = Field(  # AUTH-2
+    application_type: ApplicationType | None = Field(
         default=None,
         description="'web' for a browser-hosted client, 'native' for an installed one; MCP "
         "clients registering dynamically state it so redirect URIs are validated accordingly",

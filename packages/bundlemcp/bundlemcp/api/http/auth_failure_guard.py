@@ -24,7 +24,7 @@ class AuthFailureGuard:
 
     async def locked_out(self, request: Request) -> RateResult:
         """The request's client standing before any credential is looked at."""
-        # EP-20: the guard has to come first, or a locked-out scanner still
+        # the guard has to come first, or a locked-out scanner still
         # has every guess evaluated and a lucky one still answered.
         return await self._limiter.locked_out(client_ip(request, self._settings))
 

@@ -131,7 +131,7 @@ test(testTitle("E2E-16"), async ({ page, steps }) => {
     then("the tools the bundle serves are listed with their descriptions", { req: "BND-11" }, async () => {
       await expect(page.getByTestId("catalogue-tools")).toBeVisible();
       const echoTool = page.getByTestId("catalogue-tool-echo__echo");
-      // BND-11: the reader gets the title and the description, not the wire name
+      // the reader gets the title and the description, not the wire name
       await expect(echoTool).toContainText("Echo");
       await expect(echoTool).toContainText("Return the text unchanged.");
       await expect(echoTool).not.toContainText("echo__echo");

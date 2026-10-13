@@ -37,14 +37,14 @@ class ToolsCallHandler:
             connect = self._connect_prompts.resolve(ctx.view, presented_name)
             if connect is not None:
                 return self._connect_account(ctx, message, connect)
-            # BND-13: disabled/unknown tools are rejected on call, not just hidden
+            # disabled/unknown tools are rejected on call, not just hidden
             audit = AuditContext.for_request(ctx, presented_name)
             self._support.audit.record(
                 audit.record(AuditStatus.DENIED, denied_reason="unknown_or_disabled_tool")
             )
             return rpc_error(message.id, INVALID_PARAMS, f"Unknown tool: {presented_name}")
         if ctx.era is ProtocolEra.STATELESS:
-            # PROT-15: every Mcp-Param-* header must agree with the argument it mirrors.
+            # every Mcp-Param-* header must agree with the argument it mirrors.
             rejection = validate_mcp_param_headers(
                 tool.input_schema,
                 message.param("arguments", {}),
@@ -62,7 +62,6 @@ class ToolsCallHandler:
                 return await self._retry(ctx, message, tool)
         return await ToolCall(self._support, ctx, message, tool).run()
 
-    # UPS-27
     def _connect_account(
         self, ctx: RequestContext, message: JsonRpcMessage, tool: ConnectAccountTool
     ) -> Response:
@@ -76,7 +75,6 @@ class ToolsCallHandler:
         return rpc_result(message.id, ctx.shape(result))
 
     async def _retry(self, ctx: RequestContext, message: JsonRpcMessage, tool) -> Response:
-        # PROT-18
         """The client is answering an earlier input_required result."""
         cipher = self._support.state_cipher
         if cipher is None:

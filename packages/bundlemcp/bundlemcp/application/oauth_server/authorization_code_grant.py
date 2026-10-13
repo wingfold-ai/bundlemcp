@@ -37,7 +37,7 @@ class AuthorizationCodeGrant:
             raise OAuthError(OAuthErrorCode.INVALID_GRANT, "redirect_uri mismatch")
         if not code.proves_possession(request.code_verifier):
             raise OAuthError(OAuthErrorCode.INVALID_GRANT, "PKCE verification failed")
-        # AUTH-3: the burn is a compare-and-set, so two concurrent redemptions
+        # the burn is a compare-and-set, so two concurrent redemptions
         # that both read an unused code cannot both be issued a pair.
         if not await self._codes.burn(code.code_hash):
             raise OAuthError(OAuthErrorCode.INVALID_GRANT)

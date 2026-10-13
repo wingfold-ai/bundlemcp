@@ -67,7 +67,7 @@ async def test_cross_instance_invalidation(engine, redis: FakeRedis):
             resp = await http_a.put("/api/v1/config/call_timeout", json={"value": 90})
             assert resp.status_code == 200
 
-            # B's cache must be flushed by the invalidation event (SES-19 budget)
+            # B's cache must be flushed by the invalidation event (within the propagation budget)
             for _ in range(50):
                 if await rc_b.get("call_timeout") == 90.0:
                     break

@@ -10,13 +10,13 @@ from bundlemcp.domain.shared.clock import utcnow
 class ApiKey(BaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="Identifier of the key")
     name: str = Field(description="Human-readable label, shown in listings")
-    key_hash: str = Field(  # AUTH-22
+    key_hash: str = Field(
         description="Hash of the secret. The secret itself is never stored",
     )
     key_prefix: str = Field(
         description="Leading characters of the secret, enough to recognise which key this is"
     )
-    kind: ApiKeyKind = Field(  # AUTH-23
+    kind: ApiKeyKind = Field(
         default=ApiKeyKind.ENDPOINT,
         description="'endpoint' keys call MCP endpoints; 'service' keys call the management API",
     )
@@ -40,7 +40,7 @@ class ApiKey(BaseModel):
 
     def reaches(self, endpoint_id: uuid.UUID) -> bool:
         """Whether the key may call this endpoint; an unscoped key reaches every one."""
-        # AUTH-23: scope and kind are orthogonal, so a scoped service key is scoped too
+        # scope and kind are orthogonal, so a scoped service key is scoped too
         if self.endpoint_ids:
             return str(endpoint_id) in self.endpoint_ids
         return True

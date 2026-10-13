@@ -14,7 +14,7 @@ class UpstreamTokens(BaseModel):
         description="Lifetime of the access token in seconds, as issued",
     )
     scope: str | None = Field(default=None, description="Scopes the token was granted")
-    account_hint: str | None = Field(  # UPS-29
+    account_hint: str | None = Field(
         default=None,
         description="Masked account or email identifying which upstream account this is, "
         "so a user can tell their connections apart",

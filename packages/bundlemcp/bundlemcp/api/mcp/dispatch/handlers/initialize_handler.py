@@ -22,7 +22,7 @@ class InitializeHandler:
 
     async def handle(self, ctx: EndpointContext, message: JsonRpcMessage) -> Response:
         requested = message.params.get("protocolVersion")
-        dialect = self._dialects.negotiate_handshake(requested)  # PROT-12
+        dialect = self._dialects.negotiate_handshake(requested)
         if dialect is None:
             return rpc_error(message.id, INVALID_PARAMS, self._unsupported(requested))
         record = SessionRecord(
@@ -33,10 +33,10 @@ class InitializeHandler:
             protocol_version=dialect.version,
             client_capabilities=message.param("capabilities", {}),
         )
-        await self._sessions.create(record)  # SES-1
+        await self._sessions.create(record)
         result = {
             "protocolVersion": dialect.version,
-            "capabilities": aggregate_capabilities(ctx.view),  # PROT-11
+            "capabilities": aggregate_capabilities(ctx.view),
             "serverInfo": server_info(ctx.view.bundle.name),
         }
         if ctx.view.bundle.description:

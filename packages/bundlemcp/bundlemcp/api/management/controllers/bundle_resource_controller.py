@@ -10,7 +10,7 @@ from bundlemcp.application.schemas import BundleResourceRead, BundleResourceUpse
 
 
 class BundleResourceController(ManagementController):
-    # BND-31; `{name:path}` because a resource name may contain '/' folders (BND-23)
+    # `{name:path}` because a resource name may contain '/' folders
     prefix = "/bundles/{bundle}/resources"
     tags = ("bundles",)
 

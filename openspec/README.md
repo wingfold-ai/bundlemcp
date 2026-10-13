@@ -20,7 +20,7 @@ The specifications are kept with [OpenSpec](https://github.com/Fission-AI/OpenSp
 | `requirements-baseline.json` | Frozen dates for the requirements that predate OpenSpec; later dates come from `changes/archive/`. |
 
 Requirements are written `### Requirement: <code>-<n> <Short name>`, with at least one `#### Scenario:`. The code
-(`UPS-1`, `EP-3`, …) is stable: tests and code comments cite it, and it is never reused. See [Slices and
+(`UPS-1`, `EP-3`, …) is stable: tests cite it in their names and docstrings, and it is never reused. See [Slices and
 codes](#slices-and-codes).
 
 ## Making a change

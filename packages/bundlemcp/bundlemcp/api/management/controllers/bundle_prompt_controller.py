@@ -10,7 +10,6 @@ from bundlemcp.application.schemas import BundlePromptRead, BundlePromptUpsert, 
 
 
 class BundlePromptController(ManagementController):
-    # BND-31
     prefix = "/bundles/{bundle}/prompts"
     tags = ("bundles",)
 

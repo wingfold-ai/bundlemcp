@@ -28,7 +28,7 @@ const creating = ref(false);
 async function createBundle() {
   errorMsg.value = "";
   const name = createName.value.trim();
-  // UI-4: client-side validation before submit
+  // client-side validation before submit
   if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
     errorMsg.value = "Name must match ^[a-zA-Z0-9_-]+$";
     return;

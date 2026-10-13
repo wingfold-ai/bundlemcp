@@ -28,7 +28,7 @@ from bundlemcp.application.schemas import (
 
 
 class ServerController(ManagementController):
-    prefix = "/upstreams"  # UPS-16
+    prefix = "/upstreams"
     tags = ("upstreams",)
 
     @route.get("")
@@ -85,7 +85,7 @@ class ServerController(ManagementController):
     async def refresh_tools(self, name: str, service: ServerServiceProvider) -> DiscoveryResult:
         return await service.refresh_tools(name)
 
-    # --- upstream OAuth client config + status (UPS-25/29) ---
+    # --- upstream OAuth client config + status ---
 
     @route.put("/{name}/upstream-oauth")
     async def set_upstream_oauth(

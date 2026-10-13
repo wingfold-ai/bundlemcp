@@ -40,7 +40,7 @@ class RefreshTokenGrant:
             raise OAuthError(OAuthErrorCode.INVALID_GRANT)
         if not current.is_refreshable_at(self._clock.now()):
             raise OAuthError(OAuthErrorCode.INVALID_GRANT)
-        # AUTH-4 rotation as a compare-and-set: a concurrent rotation of the same
+        # refresh-token rotation as a compare-and-set: a concurrent rotation of the same
         # token is a replay too, and it is refused the same way.
         if not await self._tokens.revoke_unless_revoked(current.id):
             await self._revoke_family(current)

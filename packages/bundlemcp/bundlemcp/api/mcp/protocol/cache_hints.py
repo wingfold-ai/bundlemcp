@@ -1,6 +1,6 @@
 """The cache hints the gateway can honestly give."""
 
-# PROT-16: how long a client may keep a tools/prompts/resources list.
+# how long a client may keep a tools/prompts/resources list.
 
 from typing import Any
 
@@ -23,7 +23,6 @@ class CacheHints:
 
     async def for_bundle_resource(self) -> CacheHint:
         """A bundle's own resource reads the same for every caller, so it caches like a list."""
-        # BND-29
         return await self.for_list()
 
     @staticmethod

@@ -21,7 +21,6 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         self._discovery = discovery
         self._policy = PerUserUpstreamCheck(uow)
 
-    # UPS-13
     async def upsert(self, body: ServerUpsert) -> ServerRead:
         """Config-only upsert by natural key; idempotent; never blocks on probing.
 
@@ -49,18 +48,18 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         if body.static_headers:  # write-only merge: empty dict keeps existing secrets
             server.static_headers = body.static_headers
         server.forward_headers = body.forward_headers
-        # UPS-1: none vs static_headers is whatever the stored headers say
+        # none vs static_headers is whatever the stored headers say
         server.auth_mode = body.auth_mode.settled(has_static_headers=bool(server.static_headers))
         server.identity_mode = body.identity_mode
         if body.send_identity_header is not None:
             server.send_identity_header = body.send_identity_header
         if body.protocol_mode is not None:
-            server.protocol_mode = body.protocol_mode  # UPS-10
+            server.protocol_mode = body.protocol_mode
         if not created:
             await self._policy.ensure_identity_switch_allowed(server)
             await self._ensure_grant_allows_identity(server)
         read = await self._save(server, name=body.name, created=created)
-        # UPS-2: validate + discover best-effort; never blocks the API response. An
+        # validate + discover best-effort; never blocks the API response. An
         # unchanged re-apply to a working server stays off the upstream (ADR-0043).
         if previous_inputs != server.discovery_inputs or not server.last_probe_succeeded:
             await self._discovery.schedule_probe(server.id)

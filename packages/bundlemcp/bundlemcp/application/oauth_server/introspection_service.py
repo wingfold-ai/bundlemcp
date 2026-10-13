@@ -37,7 +37,7 @@ class TokenIntrospectionService:
     async def introspect(self, token: str) -> IntrospectionResponse:
         if self._delegated is not None:
             delegated = await self._delegated.resolve(token)
-            if delegated is not None:  # AUTH-32 / AUTH-5
+            if delegated is not None:
                 return IntrospectionResponse(
                     active=True,
                     sub=delegated.sub,
@@ -52,8 +52,8 @@ class TokenIntrospectionService:
                 )
         row = await self._tokens.by_access_hash(self._hasher.digest(token))
         if row is None:
-            # AUTH-30: forwarded bearers may be gateway API keys, not OAuth tokens —
-            # report them with the AUTH-29 identity format so introspecting
+            # forwarded bearers may be gateway API keys, not OAuth tokens —
+            # report them with the `api_key:<id>` subject so introspecting
             # upstreams can serve api_key callers too.
             key = await self._auth.resolve_api_key(token)
             if key is None:

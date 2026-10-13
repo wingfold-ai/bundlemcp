@@ -16,10 +16,10 @@ class ServerDiscoverHandler:
         self._cache_hints = cache_hints
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
-        # PROT-14: versions from the registry, capabilities from the discovery snapshots.
+        # versions from the registry, capabilities from the discovery snapshots.
         result = {
             "supportedVersions": self._dialects.modern_versions,
-            "capabilities": aggregate_capabilities(ctx.view),  # PROT-11
+            "capabilities": aggregate_capabilities(ctx.view),
         }
         if ctx.view.bundle.description:
             result["instructions"] = ctx.view.bundle.description

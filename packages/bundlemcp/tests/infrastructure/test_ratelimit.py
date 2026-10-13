@@ -47,7 +47,7 @@ async def test_fail_open_on_redis_error():
     counters = InProcessCounters()
     rl = ValkeyRateLimiter(BoomRedis(), counters)
     res = await rl.check("s", 1, 100)
-    assert res.allowed is True  # EP-21 fail-open
+    assert res.allowed is True  # fail-open
     assert counters.get(RATE_LIMIT_FAIL_OPEN) == 1
 
 

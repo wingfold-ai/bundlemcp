@@ -11,9 +11,9 @@ from typing import Annotated
 from pydantic import AfterValidator, StringConstraints, TypeAdapter
 
 NAME_PATTERN = r"^[a-zA-Z0-9_-]+$"
-# Server names additionally must not contain "__" (ARC-19, BND-2), and neither may
-# bundle prompt names (BND-19).
-# A bundle resource name may be organised in folders: segments joined by "/" (BND-23).
+# Server names additionally must not contain "__", and neither may
+# bundle prompt names.
+# A bundle resource name may be organised in folders: segments joined by "/".
 BUNDLE_RESOURCE_NAME_PATTERN = r"^[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)*$"
 RESERVED_ENDPOINT_NAMES = {
     "api",

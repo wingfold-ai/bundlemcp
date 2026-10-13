@@ -60,8 +60,8 @@ up() {
       ;;
     quick)
       profiles=(--profile tunnel)
-      # The tunnel decides the public URL, and the gateway needs it at boot
-      # (DEP-1), so it starts first and the rest follow once the URL is known.
+      # The tunnel decides the public URL, and the gateway needs it at boot,
+      # so it starts first and the rest follow once the URL is known.
       compose "${profiles[@]}" up -d tunnel
       public_url=""
       for _ in $(seq 1 60); do

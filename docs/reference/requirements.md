@@ -13,7 +13,7 @@ import RequirementsTable from "../.vitepress/theme/RequirementsTable.vue";
 bundlemcp's behaviour is specified as requirements, each with a stable code such as `BND-5`. The prefix names the
 **slice** the requirement belongs to: `BND` is bundles, `UPS` upstream servers, `SES` sessions. There are 13
 slices, each one area of the gateway.
-Tests and code comments cite these codes, so a code here leads to the code that implements it.
+Tests cite these codes in their names, so a code here leads to the tests that verify it.
 
 - **Active** requirements describe what the gateway does today.
 - **Proposed** ones are specified but not built yet; each links the change that would build it.

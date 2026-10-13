@@ -40,13 +40,13 @@ def sync_tools(
             )
             changed += 1
             continue
-        if row.schema_hash != digest:  # UPS-18: write only on change
+        if row.schema_hash != digest:  # write only on change
             row.title = seen.title
             row.description = seen.description
             row.input_schema = seen.input_schema
             row.annotations = seen.annotations
             row.schema_hash = digest
             changed += 1
-        row.last_seen_at = now  # UPS-19: vanished tools keep old last_seen_at
+        row.last_seen_at = now  # vanished tools keep old last_seen_at
         staged.append(row)
     return staged, changed

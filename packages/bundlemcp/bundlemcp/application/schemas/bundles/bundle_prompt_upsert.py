@@ -12,7 +12,7 @@ class BundlePromptUpsert(BaseModel):
     bundle, and to the model.
     """
 
-    name: PromptName = Field(  # BND-19
+    name: PromptName = Field(
         description="Prompt name, unique in the bundle: letters, digits, underscores and "
         "hyphens, never '__'. Clients see it unprefixed, unlike a member server's prompts"
     )
@@ -20,11 +20,11 @@ class BundlePromptUpsert(BaseModel):
     description: str | None = Field(
         default=None, description="What the prompt is for, shown when a user picks a prompt"
     )
-    arguments: list[PromptArgument] = Field(  # BND-18
+    arguments: list[PromptArgument] = Field(
         default_factory=list,
         description="Arguments the prompt takes; each message text may refer to one as {{name}}",
     )
-    messages: list[PromptMessage] = Field(  # BND-18, BND-20, BND-34
+    messages: list[PromptMessage] = Field(
         min_length=1,
         description="Messages of the prompt, in conversation order; together at most 64 KiB "
         "of text. Not secret: served to every caller of the bundle and to the model",

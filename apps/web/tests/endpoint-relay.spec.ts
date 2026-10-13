@@ -42,7 +42,7 @@ test(testTitle("E2E-07"), async ({ page, request, steps }) => {
     when(`calling POST /${endpoint}/mcp as an external MCP client`, { req: "EP-1" }, async () => {
       const mcp = await openMcp(request, endpoint, key);
       expect(await mcp.listTools()).toContain("echo__echo");
-      // EP-3: api_key auth accepts the bearer and the call relays to upstream.
+      // api_key auth accepts the bearer and the call relays to upstream.
       expect(await mcp.callTool("echo__echo", { text: "relay-e2e" })).toContain("relay-e2e");
     }),
     then("the tool call appears in the audit log", { req: "OPS-1" }, async () => {

@@ -1,6 +1,6 @@
 """A stateless client's retry for a call parked on some replica."""
 
-# PROT-18: the resume half of park and resume.
+# the resume half of park and resume.
 
 import asyncio
 from typing import Any
@@ -54,7 +54,7 @@ class ResumedCall:
             first = await asyncio.wait_for(queue.get(), timeout=self._support.resume_grace)
         except TimeoutError:
             registry.unregister_resume(self._state.correlation_id, queue)
-            # SES-16: the parking replica is gone; re-run so the client still gets a result.
+            # the parking replica is gone; re-run so the client still gets a result.
             log.warning(
                 "mrtr.park_lost", tool=self._state.presented_tool, sub=self._ctx.identity.sub
             )

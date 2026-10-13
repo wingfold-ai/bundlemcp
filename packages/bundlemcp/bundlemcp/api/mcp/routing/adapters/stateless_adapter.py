@@ -59,7 +59,7 @@ class StatelessMcpAdapter:
         return await self._methods.dispatch(request_ctx, message)
 
     def _admit_stateless(self, ctx: EndpointContext, message: JsonRpcMessage) -> RequestContext:
-        # PROT-13 (era from the envelope), PROT-15 (headers mirror the body)
+        # the era comes from the envelope, and the headers mirror the body
         """Validate the per-request envelope and mirrored headers."""
         route = classify_inbound_request(
             message.body(),
@@ -74,7 +74,7 @@ class StatelessMcpAdapter:
                 _rejection(message, INVALID_PARAMS, "unsupported protocol version", None)
             )
         log_level = message.meta.get(LOG_LEVEL_META_KEY)
-        if log_level is not None and log_level not in LOG_LEVELS:  # PROT-20
+        if log_level is not None and log_level not in LOG_LEVELS:
             raise RequestRejected(
                 _rejection(message, INVALID_PARAMS, f"unknown log level {log_level!r}", None)
             )
@@ -86,6 +86,6 @@ class StatelessMcpAdapter:
             dialect=dialect,
             client_capabilities=dict(capabilities) if isinstance(capabilities, Mapping) else {},
             log_level=log_level,
-            routing_key=uuid.uuid4().hex,  # SES-15: no session, a per-request key
+            routing_key=uuid.uuid4().hex,  # no session, a per-request key
             session=None,
         )

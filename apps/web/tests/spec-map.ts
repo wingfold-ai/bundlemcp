@@ -46,7 +46,7 @@ function allRequirements(): Map<string, Requirement> {
     if (!existsSync(file)) continue;
     const lines = readFileSync(file, "utf8").split("\n");
     lines.forEach((line, i) => {
-      // Requirements look like: `### Requirement: EP-1 Endpoint URL`
+      // Requirements look like: `### Requirement: <CODE>-<n> Short name`
       const m = line.match(/^### Requirement: ([A-Za-z]+-[0-9a-z]+)\s*(.*)$/);
       if (!m) return;
       const [, id, rawTitle] = m;

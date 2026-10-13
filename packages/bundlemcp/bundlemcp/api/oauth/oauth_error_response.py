@@ -31,7 +31,7 @@ def authorization_error_location(exc: AuthorizationRedirectError) -> str:
     if exc.state:
         params["state"] = exc.state
     # Merged into a redirect URI that may carry its own query; iss is set
-    # exactly once on error responses too (AUTH-14).
+    # exactly once on error responses too.
     return build_client_redirect(exc.redirect_uri, params, iss=exc.issuer)
 
 

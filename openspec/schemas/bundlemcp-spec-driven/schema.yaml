@@ -106,7 +106,7 @@ artifacts:
         openspec/slices.json).
       - MODIFIED and REMOVED keep the exact existing header, code included. To change only the
         short name use RENAMED; the code itself never changes.
-      - Tests and code comments cite the code, so state behaviour per code: one behaviour, one code.
+      - Tests cite the code in their names or docstrings (never in code comments), so state behaviour per code: one behaviour, one code.
       - Requirement dates are not written by hand: archiving the change dates every requirement it
         adds or modifies (the archive folder's date), and the docs site's Requirements page shows it.
 

@@ -8,16 +8,14 @@ from bundlemcp.domain.oauth.pkce import pkce_verifies
 
 
 class OAuthAuthorizationCode(BaseModel):
-    code_hash: str = Field(  # AUTH-8
-        description="Hash of the code; the code itself is never stored"
-    )
+    code_hash: str = Field(description="Hash of the code; the code itself is never stored")
     client_id: str = Field(
         description="Client the code was issued to",
     )
     user_id: uuid.UUID = Field(
         description="User who authorized it",
     )
-    endpoint_id: uuid.UUID = Field(  # AUTH-10
+    endpoint_id: uuid.UUID = Field(
         description="Endpoint the resulting token will be valid for",
     )
     redirect_uri: str = Field(
@@ -30,7 +28,7 @@ class OAuthAuthorizationCode(BaseModel):
         description="How the challenge was derived; only S256 is accepted",
     )
     expires_at: datetime = Field(description="When the code expires")
-    used: bool = Field(  # AUTH-3
+    used: bool = Field(
         default=False,
         description="Whether the code has been redeemed. A code works exactly once",
     )

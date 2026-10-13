@@ -35,7 +35,7 @@ class OAuthClientRow(SQLModel, table=True):
         default="none", description="How the client authenticates at the token endpoint"
     )
     scope: str = Field(default="mcp", description="Space-separated scopes the client may request")
-    application_type: str | None = Field(  # AUTH-2
+    application_type: str | None = Field(
         default=None,
         description="'web' or 'native' as the client registered itself; absent when it did not "
         "say or was described by a metadata document",
@@ -45,7 +45,7 @@ class OAuthClientRow(SQLModel, table=True):
         sa_column=timestamp_column(),
         description="When the client registered",
     )
-    last_used_at: datetime | None = Field(  # SEC-8
+    last_used_at: datetime | None = Field(
         default=None,
         sa_column=timestamp_column(),
         description="When the client last obtained a token. Clients that never used one are "

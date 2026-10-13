@@ -4,7 +4,7 @@ from bundlemcp.domain.bundles.listed_tool import ListedTool
 from bundlemcp.domain.bundles.presented_name import PresentedName
 from bundlemcp.domain.servers.mcp_server import McpServer
 
-CONNECT_ACCOUNT_TOOL = "connect_account"  # UPS-27: presented as `<server>__connect_account`
+CONNECT_ACCOUNT_TOOL = "connect_account"  # presented as `<server>__connect_account`
 
 
 class ConnectAccountTool(ListedTool):

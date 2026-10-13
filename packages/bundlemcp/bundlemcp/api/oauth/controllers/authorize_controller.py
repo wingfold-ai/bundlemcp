@@ -40,7 +40,7 @@ class AuthorizeController(Controller):
         if pending.state:
             params["state"] = pending.state
         # A registered redirect URI may carry its own query; the parameters are
-        # merged into it, and iss (AUTH-14, RFC 9207) is set exactly once.
+        # merged into it, and iss (RFC 9207) is set exactly once.
         return build_client_redirect(pending.redirect_uri, params, iss=issuer)
 
     @staticmethod
@@ -69,11 +69,11 @@ class AuthorizeController(Controller):
         user: CurrentSessionUserProvider,
     ) -> Response:
         if user is None:
-            # AUTH-3: needs an authenticated human — bounce through OIDC login.
+            # needs an authenticated human — bounce through OIDC login.
             # The client must still be genuine before anyone is sent anywhere.
             if not await service.client_is_registered(query):
                 raise HTTPException(400, "unknown client or redirect_uri")
-            # Build the return URL from public_url (DEP-1), never the incoming Host.
+            # Build the return URL from public_url, never the incoming Host.
             return_url = f"{settings.public_base}{request.url.path}"
             if request.url.query:
                 return_url += f"?{request.url.query}"
@@ -101,7 +101,7 @@ class AuthorizeController(Controller):
             consent_action="/oauth/consent",
             user_email=user.email or str(user.id),
         )
-        # SEC-6: Approve and Deny are answered with a redirect to this client
+        # Approve and Deny are answered with a redirect to this client
         headers = page_headers(form_redirect_source=form_action_source(pending.redirect_uri))
         return HTMLResponse(html, headers=headers)
 

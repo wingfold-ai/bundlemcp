@@ -17,10 +17,16 @@ the conventions behind ``### Requirement: BND-5 Self-reference guard`` are enfor
    ``check_docs_settings.py``.)
 6. Every requirement in the main specs has a date: either in ``requirements-baseline.json``
    or from the archived change that added it.
+7. No code comment cites a requirement code. Tests cite codes in their names and docstrings,
+   error messages may carry one, but a comment explains the code in its own words.
 """
 
+import io
+import pathlib
 import re
+import subprocess
 import sys
+import tokenize
 
 from spec_ledger import (
     CHANGES,
@@ -49,6 +55,49 @@ CITATION_ROOTS = [
 CITATION_SUFFIXES = {".py", ".ts", ".vue", ".mjs", ".json", ".yml", ".yaml", ".toml", ".md", ""}
 IGNORED = {"node_modules", ".nuxt", ".output", "dist", "__pycache__", ".venv"}
 CITATION = re.compile(r"\b([A-Z]{2,5})-([0-9]+[a-z]?)\b")
+
+
+HASH_COMMENT_FILES = {".yml", ".yaml", ".toml", ".sh", ".example", ".htaccess", ".cfg", ".ini"}
+SLASH_COMMENT_FILES = {".ts", ".mts", ".js", ".mjs", ".vue", ".c4", ".css"}
+SLASH_COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/|<!--.*?-->", re.S)
+
+
+def comments(path: pathlib.Path, text: str) -> list[tuple[int, str]]:
+    """``(line, comment)`` for every comment in a source file; strings and docstrings excluded."""
+    if path.suffix == ".py":
+        found: list[tuple[int, str]] = []
+        try:
+            for tok in tokenize.generate_tokens(io.StringIO(text).readline):
+                if tok.type == tokenize.COMMENT:
+                    found.append((tok.start[0], tok.string))
+        except (tokenize.TokenError, SyntaxError):
+            pass
+        return found
+    if path.suffix in SLASH_COMMENT_FILES:
+        # a "//" inside a string or URL is not told apart; "https://" is skipped explicitly
+        return [
+            (text.count("\n", 0, m.start()) + 1, m.group(0))
+            for m in SLASH_COMMENT.finditer(text)
+            if not text[max(0, m.start() - 1) : m.start()] == ":"
+        ]
+    if path.suffix in HASH_COMMENT_FILES or path.name == "Dockerfile":
+        found = []
+        for n, line in enumerate(text.split("\n"), 1):
+            if m := re.search(r"(?:^|\s)(#(?!!).*)$", line):
+                found.append((n, m.group(1)))
+        return found
+    return []
+
+
+def tracked_sources() -> list[pathlib.Path]:
+    listed = subprocess.run(
+        ["git", "ls-files", "-co", "--exclude-standard"], cwd=ROOT, capture_output=True, text=True
+    ).stdout.split()
+    return [
+        ROOT / f
+        for f in listed
+        if not f.startswith(("openspec/", ".claude/")) and IGNORED.isdisjoint(pathlib.Path(f).parts)
+    ]
 
 
 def main() -> int:
@@ -143,6 +192,23 @@ def main() -> int:
                         problems.append(f"{where}: cites {code}, a retired code")
                     elif code not in defined:
                         problems.append(f"{where}: cites {code}, which no spec or change defines")
+
+    for path in tracked_sources():
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text()
+        except UnicodeDecodeError:
+            continue
+        if not CITATION.search(text):
+            continue
+        for n, comment in comments(path, text):
+            cited = [m.group(0) for m in CITATION.finditer(comment) if m.group(1) in known_prefixes]
+            if cited:
+                problems.append(
+                    f"{path.relative_to(ROOT)}:{n}: a comment cites {', '.join(cited)} — say what "
+                    "the code does instead; only tests and error messages carry codes"
+                )
 
     for entry in build_ledger()["requirements"]:
         if entry["status"] == "active" and not (

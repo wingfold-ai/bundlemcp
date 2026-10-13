@@ -32,14 +32,14 @@ class HeaderForwarding:
         """
         extra: dict[str, str] = {}
         for client_header, upstream_header in server.forward_headers.items():
-            if not is_forwardable(client_header):  # AUTH-28: also refused at write time (UPS-14)
+            if not is_forwardable(client_header):  # also refused at write time
                 continue
             value = client_headers.get(client_header)
             if value is not None:
                 extra[upstream_header] = value
         # client-supplied identity header is always stripped; gateway injects its own
         extra.pop(IDENTITY_HEADER, None)
-        subject = identity.subject_for(self._identity_subject)  # AUTH-29
+        subject = identity.subject_for(self._identity_subject)
         if server.send_identity_header and subject is not None:
             extra[IDENTITY_HEADER] = subject
         return extra

@@ -23,8 +23,8 @@ On some models the description is also *published*, which raises the bar for how
 For these, assume a reader who cannot see the source. For internal models — a result object, a view struct, a wiring
 container — the audience is the next maintainer, so the description can be shorter, but it is still required.
 
-Keep `#` comments for what a description cannot carry: requirement IDs, and notes aimed at whoever edits the line rather
-than whoever reads the field.
+Keep `#` comments for what a description cannot carry: notes aimed at whoever edits the line rather than whoever reads
+the field. Requirement codes go in neither; the tests that verify the behaviour cite them.
 
 ## What a good description says
 
@@ -80,11 +80,11 @@ default appears in the schema alongside them. `default_factory` for mutable defa
 ## No requirement IDs in descriptions
 
 The rule that keeps spec numbers out of docstrings applies with more force here: descriptions are published to API
-consumers and to operators. `UPS-5` means nothing to either. Keep the ID in an adjacent `#` comment and write the
-description in plain terms.
+consumers and to operators. `UPS-5` means nothing to either. Write the description in plain terms; the requirement code
+belongs in the name or docstring of the test that verifies the field, not in a comment beside it.
 
 ```python
-force: bool = Field(  # UPS-5 rename acknowledgement
+force: bool = Field(
     default=False,
     description="Confirm a rename that would otherwise be rejected as ambiguous",
 )

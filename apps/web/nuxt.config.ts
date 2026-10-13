@@ -1,5 +1,5 @@
 // Admin UI (the admin-ui spec). SPA: the gateway owns all state; this app is an optional
-// container (UI-5) talking to /api/v1 with the admin session cookie.
+// container talking to /api/v1 with the admin session cookie.
 export default defineNuxtConfig({
   ssr: false,
   modules: ["@nuxt/ui"],

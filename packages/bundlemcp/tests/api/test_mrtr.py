@@ -238,7 +238,7 @@ async def test_passthrough_forwards_the_upstreams_input_required(env):
     )
     assert final["result"]["content"][0]["text"] == "hi Ada"
     assert final["result"]["resultType"] == "complete"
-    # PROT-26: both legs are one invocation to the hook; post_call only when it ended
+    # both legs are one invocation to the hook; post_call only when it ended
     assert len(hook.pre) == 2 and hook.pre[0] == hook.pre[1]
     assert hook.post == ["result"]
     assert await _audit_statuses(app) == ["input_required", "success"]

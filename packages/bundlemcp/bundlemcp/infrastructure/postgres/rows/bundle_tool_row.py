@@ -22,10 +22,10 @@ class BundleToolRow(SQLModel, table=True):
         sa_column=Column(ForeignKey("tools.id", ondelete="CASCADE"), index=True),
         description="Tool being curated",
     )
-    enabled: bool = Field(  # BND-12
+    enabled: bool = Field(
         default=True, description="Whether the tool is served through this bundle"
     )
-    override_name: str | None = Field(  # BND-14
+    override_name: str | None = Field(
         default=None, description="Replacement name clients see instead of 'server__tool'"
     )
     override_title: str | None = Field(

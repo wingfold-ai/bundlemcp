@@ -43,7 +43,6 @@ class BundlePromptService(BundleContentService):
 
     async def catalogue(self, bundle_id: uuid.UUID) -> list[CataloguePromptRead]:
         """The bundle's own prompts as a person browsing the catalogue sees them."""
-        # BND-36
         return [
             CataloguePromptRead(name=p.name, title=p.title, description=p.description)
             for p in await self._prompts.listings(bundle_id)
@@ -59,16 +58,14 @@ class BundlePromptService(BundleContentService):
         listings = await self._prompts.listings(bundle.id)
         resources = await self._uow.bundle_resources.listings(bundle.id)
         try:
-            prompt.check_references({resource.name for resource in resources})  # BND-20
-            self._limits.check_prompt(  # BND-33
-                prompt, prompts_after=len(listings) + (existing is None)
-            )
+            prompt.check_references({resource.name for resource in resources})
+            self._limits.check_prompt(prompt, prompts_after=len(listings) + (existing is None))
         except BundleContentRejected as exc:
             raise InvalidInputError(str(exc)) from None
         self._prompts.add(prompt)
         await self._commit(bundle, "created" if existing is None else "updated")
         await self._uow.refresh(prompt)
-        # BND-34: content is configuration, so it is logged by size, never by value
+        # content is configuration, so it is logged by size, never by value
         log.info(
             "bundle_prompt.saved", bundle=bundle.name, prompt=prompt.name, bytes=prompt.text_bytes
         )

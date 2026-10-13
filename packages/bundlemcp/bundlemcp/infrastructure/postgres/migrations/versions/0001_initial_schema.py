@@ -292,7 +292,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_oauth_consents_user_id"), "oauth_consents", ["user_id"], unique=False)
 
-    if op.get_bind().dialect.name == "postgresql":  # ARC-19
+    if op.get_bind().dialect.name == "postgresql":
         op.create_check_constraint(
             "ck_mcp_servers_name",
             "mcp_servers",

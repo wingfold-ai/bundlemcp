@@ -48,7 +48,7 @@ class BootstrapRunner:
         cipher: SecretCipher | None,
         connections: UpstreamConnectionRegistry,
     ) -> None:
-        # cipher is None exactly when no token encryption keys are configured (DEP-9)
+        # cipher is None exactly when no token encryption keys are configured
         self._units = units
         self._discovery = discovery
         self._cipher = cipher
@@ -67,20 +67,20 @@ class BootstrapRunner:
             endpoints = EndpointService(uow)
             for server in doc.upstreams:
                 await servers.upsert(server)
-                if server.upstream_oauth is not None:  # MGMT-16
+                if server.upstream_oauth is not None:
                     await upstream_clients.set_client(server.name, server.upstream_oauth)
             for bundle in doc.bundles:
                 await bundles.upsert(bundle)
                 for server_name in bundle.upstreams:
                     await bundles.set_member(bundle.name, server_name, BundleServerUpdate())
-                # BND-32: resources first, since a prompt may embed one
+                # resources first, since a prompt may embed one
                 for resource in bundle.resources:
                     await bundle_resources.upsert(bundle.name, resource)
                 for prompt in bundle.prompts:
                     await bundle_prompts.upsert(bundle.name, prompt)
             for endpoint in doc.endpoints:
                 await endpoints.upsert(endpoint)
-        # UPS-17 / MGMT-14: a probe opens its own unit of work, so it must not
+        # a probe opens its own unit of work, so it must not
         # start before the document's transaction has committed the servers.
         await probes.release()
 
@@ -92,7 +92,7 @@ class BootstrapRunner:
         """
         documents: dict[str, BootstrapDocument] = {}
         try:
-            if settings.bootstrap_file:  # MGMT-8
+            if settings.bootstrap_file:
                 documents["file"] = load_document(settings.bootstrap_file)
             if settings.bootstrap:
                 documents["inline"] = parse_document(settings.bootstrap)

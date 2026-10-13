@@ -16,7 +16,6 @@ class TokenPurgeService:
 
     async def purge_expired(self) -> int:
         """Delete expired codes, long-expired token pairs and never-used clients."""
-        # AUTH-8 / SEC-8
         now = self._clock.now()
         removed = await self._uow.authorization_codes.purge_expired(expired_before=now)
         removed += await self._uow.oauth_tokens.purge_expired(

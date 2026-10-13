@@ -63,9 +63,9 @@ class UpstreamCall:
         resume: ResumeInputs | None,
     ) -> None:
         # handle is None when the client sent no request id, so nothing can cancel it;
-        # session is None for a modern-era client, which has none to bind to (SES-15);
+        # session is None for a modern-era client, which has none to bind to;
         # raw_input_required asks for the upstream's own input_required result instead
-        # of letting the client library resolve it through the relay (PROT-18
+        # of letting the client library resolve it through the relay (
         # passthrough); resume carries a retry's answers for the upstream
         self._client_factory = client_factory
         self._sessions = sessions
@@ -86,10 +86,10 @@ class UpstreamCall:
         self._last_activity = self._started
         self._timeout_reason: str | None = None
         self._cancelled = False
-        self.responses = ResponseLog()  # UPS-12: what the upstream answered below MCP
+        self.responses = ResponseLog()  # what the upstream answered below MCP
 
     async def _progress(self, progress: float, total: float | None, message: str | None) -> None:
-        self._last_activity = self._loop.time()  # PROT-2: reset the idle window
+        self._last_activity = self._loop.time()  # reset the idle window
         if self._on_progress is not None:
             await self._on_progress(progress, total, message)
 
@@ -99,7 +99,7 @@ class UpstreamCall:
             self._tool.server, self._headers, observer=self.responses, **handlers
         )
         async with client:
-            if self._session is not None:  # SES-6 bookkeeping, handshake sessions only
+            if self._session is not None:  # binding bookkeeping, handshake sessions only
                 await self._sessions.set_binding(
                     self._session.session_id,
                     UpstreamBinding(
@@ -107,7 +107,7 @@ class UpstreamCall:
                         identity_key=self._session.identity.sub,
                     ),
                 )
-            # PROT-20: a modern upstream emits log messages only when asked per request.
+            # a modern upstream emits log messages only when asked per request.
             meta = {LOG_LEVEL_META_KEY: self._log_level} if self._log_level is not None else None
             if not self._raw_input_required:
                 return await client.call_tool_mcp(
@@ -148,7 +148,7 @@ class UpstreamCall:
     async def _canceller(self, task: asyncio.Task[Any]) -> None:
         if self._handle is None:
             return
-        await self._handle.cancel_event.wait()  # PROT-3 (may be set cross-replica)
+        await self._handle.cancel_event.wait()  # may be set from another replica
         self._cancelled = True
         task.cancel()
 
@@ -160,7 +160,7 @@ class UpstreamCall:
             result = await task
             if isinstance(result, InputRequiredResult):
                 return CallOutcome(status=CallStatus.INPUT_REQUIRED, input_required=result)
-            status = CallStatus.ERROR if result.is_error else CallStatus.SUCCESS  # PROT-26
+            status = CallStatus.ERROR if result.is_error else CallStatus.SUCCESS
             return CallOutcome(status=status, result=result)
         except asyncio.CancelledError:
             if self._cancelled:

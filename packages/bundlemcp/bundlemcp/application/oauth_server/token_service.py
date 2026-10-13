@@ -44,7 +44,7 @@ class OAuthTokenService:
         client = await self._clients.authenticate(credentials)
         if client is None:
             raise OAuthError(OAuthErrorCode.INVALID_CLIENT)
-        client.last_used_at = self._clock.now()  # SEC-8 stale-client purge signal
+        client.last_used_at = self._clock.now()  # stale-client purge signal
         self._client_rows.add(client)
         grant = self._grants.get(request.grant_type)
         if grant is None:

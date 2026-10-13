@@ -189,7 +189,7 @@ async def test_tools_list_is_stateless_and_cacheable(http):
 async def test_tools_call_returns_shaped_result(http):
     resp = await _modern(http, "tools/call", {"name": "echo__say", "arguments": {"text": "hi"}})
     assert resp.status_code == 200, resp.text
-    assert resp.headers["content-type"].startswith("text/event-stream")  # PROT-19
+    assert resp.headers["content-type"].startswith("text/event-stream")
     result = _message(resp)["result"]
     assert result["content"][0]["text"] == "echo:hi"
     assert result["resultType"] == "complete"

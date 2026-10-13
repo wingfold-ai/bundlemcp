@@ -56,7 +56,7 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_bundle_resources_bundle_id"), "bundle_resources", ["bundle_id"], unique=False
     )
-    if op.get_bind().dialect.name == "postgresql":  # BND-19, BND-23
+    if op.get_bind().dialect.name == "postgresql":
         op.create_check_constraint(
             "ck_bundle_prompts_name",
             "bundle_prompts",
