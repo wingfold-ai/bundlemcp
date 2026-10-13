@@ -734,6 +734,60 @@ async def test_subscriptions_listen_acknowledges_and_relays_list_changed(relay_e
     assert event["params"]["_meta"][SUBSCRIPTION_ID_META_KEY] == 7
 
 
+async def test_bundle_prompt_write_reaches_the_get_stream(relay_env):
+    """BPR-11: a handshake client hears that the prompt list changed, not the tool list."""
+    http, app, base_url = relay_env
+    session = await _initialize(http)
+
+    async def write_prompt():
+        await asyncio.sleep(0.3)  # let the stream register first
+        async with AsyncClient(
+            base_url=base_url, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
+        ) as admin:
+            resp = await admin.put(
+                "/api/v1/bundles/main/prompts/hello",
+                json={"name": "hello", "messages": [{"role": "user", "text": "Hi"}]},
+            )
+            assert resp.status_code == 200, resp.text
+
+    writer = asyncio.create_task(write_prompt())
+    event = await _read_stream_until(
+        http, session, lambda e: e.get("method", "").endswith("/list_changed")
+    )
+    await writer
+    assert event["method"] == "notifications/prompts/list_changed"
+
+
+async def test_subscriptions_listen_relays_bundle_resource_changes(relay_env):
+    """BPR-11, PROT-17: prompt and resource list changes are acknowledged and delivered."""
+    http, app, base_url = relay_env
+    acknowledged = asyncio.Event()
+
+    async def write_resource():
+        await asyncio.wait_for(acknowledged.wait(), timeout=5)
+        async with AsyncClient(
+            base_url=base_url, headers={"Authorization": f"Bearer {SERVICE_KEY}"}
+        ) as admin:
+            resp = await admin.put(
+                "/api/v1/bundles/main/resources/guide", json={"name": "guide", "content": "x"}
+            )
+            assert resp.status_code == 200, resp.text
+
+    writer = asyncio.create_task(write_resource())
+    ack, event = await _listen_until(
+        http,
+        lambda e: e.get("method") == "notifications/resources/list_changed",
+        filter_={"promptsListChanged": True, "resourcesListChanged": True},
+        acknowledged=acknowledged,
+    )
+    await writer
+    assert ack["params"]["notifications"] == {
+        "promptsListChanged": True,
+        "resourcesListChanged": True,
+    }
+    assert event["params"]["_meta"][SUBSCRIPTION_ID_META_KEY] == 7
+
+
 async def test_subscriptions_listen_cross_instance(relay_env, engine, redis):
     """PROT-17 + SES-13: a listen stream on replica B hears a change made through A."""
     http_a, app_a, base_a = relay_env

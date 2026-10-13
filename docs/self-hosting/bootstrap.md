@@ -53,6 +53,23 @@ bundles:
     upstreams:
       - weather
       - notes
+    resources:                          # documents the bundle serves itself
+      - name: guides/planning
+        title: How we plan a week
+        content: |
+          # Planning
+          Check the forecast before suggesting outdoor plans.
+    prompts:                            # resources first: a prompt may embed one
+      - name: plan-week
+        description: Plan the coming week
+        arguments:
+          - name: city
+            required: true
+        messages:
+          - role: user
+            text: "Plan my week in {{city}}."
+          - role: user
+            resource: guides/planning
 
 endpoints:
   - name: assistant
@@ -75,7 +92,7 @@ The entries use exactly the same schemas as the management API's `PUT` routes:
 | List | Schema | Notes |
 |---|---|---|
 | `upstreams` | the upstream server upsert body plus an optional `upstream_oauth` block | See [Upstream servers](/manage/servers) for every field. `upstream_oauth` is the pre-registered client the gateway presents to an OAuth-protected server (`client_id`, and optionally `client_secret`, `authorization_url`, `token_url`, `grant_type`), as the server's upstream OAuth client route takes it. It needs token encryption keys; without them the document does not apply. |
-| `bundles` | the bundle upsert body plus `upstreams`, a list of member names | Members are added with `enabled: true`. Tool-level curation is not part of the document; set it through the API afterwards. |
+| `bundles` | the bundle upsert body plus `upstreams`, a list of member names, and `prompts` and `resources`, lists of the bundle's own prompt and resource upsert bodies | Members are added with `enabled: true`. Prompts and resources are created or replaced by name; resources are applied first, so a prompt can embed one. See [the bundle's own prompts and documents](/manage/bundles#bundle-prompts-and-documents). Tool-level curation is not part of the document; set it through the API afterwards. |
 | `endpoints` | the endpoint upsert body | Profile and auth-mode rules are validated as on the API. |
 
 An unknown key, in the document or in a bundle entry, makes the document invalid instead of being ignored, so a typo

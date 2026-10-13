@@ -23,12 +23,18 @@ from bundlemcp.application.contracts.live_state.stream_registry import (
     STREAM_CLOSING,
     StreamRegistry,
 )
+from bundlemcp.application.serving.list_changed_notifier import (
+    PROMPTS_LIST_CHANGED,
+    RESOURCES_LIST_CHANGED,
+    TOOLS_LIST_CHANGED,
+)
 from bundlemcp.application.serving.stream_key import StreamKey
 
 # PROT-17: what the gateway can deliver between calls without a standing upstream
-# connection (ADR-0012). Prompt/resource list changes and resource updates are
-# not acknowledged, which the protocol defines as "not supported".
-TOOLS_LIST_CHANGED = "notifications/tools/list_changed"
+# connection (ADR-0012). The tool list, and the bundle's own prompts and resources
+# (BPR-11), change only on a gateway write; a member's prompt or resource changes,
+# and resource updates, would need that connection, so they are not acknowledged,
+# which the protocol defines as "not supported".
 
 
 class SubscriptionsListenHandler:
@@ -43,7 +49,9 @@ class SubscriptionsListenHandler:
         except ValidationError as exc:
             return rpc_error(message.id, INVALID_PARAMS, f"invalid filter: {exc}", status=400)
         honoured = SubscriptionFilter(
-            tools_list_changed=True if requested.tools_list_changed else None
+            tools_list_changed=True if requested.tools_list_changed else None,
+            prompts_list_changed=True if requested.prompts_list_changed else None,
+            resources_list_changed=True if requested.resources_list_changed else None,
         )
         key = StreamKey(
             endpoint_name=ctx.view.endpoint.name,
@@ -66,7 +74,15 @@ class SubscriptionsListenHandler:
         queue: asyncio.Queue,
     ) -> AsyncIterator[str]:
         tag = {SUBSCRIPTION_ID_META_KEY: subscription_id}
-        allowed = {TOOLS_LIST_CHANGED} if honoured.tools_list_changed else set()
+        allowed = {
+            method
+            for method, wanted in (
+                (TOOLS_LIST_CHANGED, honoured.tools_list_changed),
+                (PROMPTS_LIST_CHANGED, honoured.prompts_list_changed),
+                (RESOURCES_LIST_CHANGED, honoured.resources_list_changed),
+            )
+            if wanted
+        }
         try:
             # The acknowledgement is always first and names only what will follow.
             yield sse_data(

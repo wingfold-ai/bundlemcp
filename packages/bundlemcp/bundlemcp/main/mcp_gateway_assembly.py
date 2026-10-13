@@ -43,6 +43,7 @@ from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
 from bundlemcp.application.metering.metering_hook import MeteringHook
+from bundlemcp.application.serving.bundle_content_reader import BundleContentReader
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.application.upstream_oauth.account_connect_prompts import AccountConnectPrompts
@@ -109,6 +110,7 @@ class McpGatewayAssembly(BaseModel):
             self.signals,
             self.runtime_config,
         )
+        content = BundleContentReader(self.unit_of_work_factory)  # BPR-8
         tool_calls = ToolsCallHandler(
             ToolCallSupport(
                 metering=self.metering,
@@ -136,11 +138,11 @@ class McpGatewayAssembly(BaseModel):
                 ),
                 "tools/call": RateLimited(tool_calls, gate, tool_call=True),
                 "prompts/list": PromptsListHandler(fanout, cache_hints),
-                "prompts/get": PromptsGetHandler(fanout),
+                "prompts/get": PromptsGetHandler(fanout, content),
                 "completion/complete": CompletionHandler(fanout),
                 "resources/list": ResourcesListHandler(fanout, cache_hints),
                 "resources/templates/list": ResourceTemplatesListHandler(fanout, cache_hints),
-                "resources/read": ResourcesReadHandler(fanout),
+                "resources/read": ResourcesReadHandler(fanout, content, cache_hints),
                 "resources/subscribe": ResourcesSubscribeHandler(),
                 "resources/unsubscribe": ResourcesSubscribeHandler(),
                 "logging/setLevel": LoggingSetLevelHandler(self.sessions),

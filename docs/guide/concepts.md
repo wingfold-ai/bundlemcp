@@ -76,13 +76,13 @@ you ask for it, and periodically.
 and hands the answer back unchanged: prompt names are prefixed with the server name, exactly like tool names; resource
 addresses are passed on as they are. Only servers that said they offer prompts or resources are asked.
 
-::: info Planned: prompts and resources of the bundle's own
-The same upstream server often serves very different bundles. A Python-execution server might sit in a bundle for
-drawing charts and in one for bookkeeping. Today the server's own prompts and resources are the same in both. A planned
-change lets each bundle add its own — chart conventions in one, rounding and currency rules in the other — so the same
-tools come with context for the bundle's purpose. The design is in review in
-[pull request #99](https://github.com/wingfold-ai/bundlemcp/pull/99).
-:::
+**A bundle can also bring prompts and resources of its own.** The same upstream server often serves very different
+bundles: a Python-execution server might sit in one bundle for drawing charts and in another for bookkeeping. Its tools
+are identical in both, so what tells the model how to use them for *this* bundle is context — chart conventions in one,
+rounding and currency rules in the other. You write that context on the bundle, as prompts and as documents, and the
+gateway serves it itself, before the members' own: a bundle prompt's name has no server prefix, and a bundle document
+is read as `bundle://resources/<name>`. Serving it never contacts an upstream. See
+[Bundles: the bundle's own prompts and documents](../manage/bundles.md#bundle-prompts-and-documents).
 
 ## Bundles
 

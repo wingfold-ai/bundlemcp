@@ -65,8 +65,8 @@ Every tool of a member is presented as `<server_name>__<tool_name>`. Because ser
 gateway splits a presented name on the first `__` to find the owning server, and the pair is always unique. The
 `weather` server's `forecast` tool is `weather__forecast` in every bundle.
 
-Prompts follow the same rule. Resources are keyed by URI, which is passed through unchanged; on a collision the first
-enabled member wins.
+A member's prompts follow the same rule. Its resources are keyed by URI, which is passed through unchanged; on a
+collision the first enabled member wins. The bundle's own prompts and resources are named differently; see below.
 
 ## Curating tools
 
@@ -99,10 +99,99 @@ if you accept that ChatGPT may then refuse it.
 The bundle page in the UI shows the same table with enable toggles and inline override editing, and flags tools that are
 overridden or stale.
 
+## The bundle's own prompts and documents {#bundle-prompts-and-documents}
+
+Tools come from the members, but the context that tells a model how to use them for this bundle's purpose — worked
+examples, a house style, the conventions of the domain — is written on the bundle itself. A bundle can own **prompts**
+(message templates a user picks in their client) and **resources** (documents the client reads into the conversation).
+The gateway stores them with the bundle and serves them without contacting any upstream, so they cost nothing for an
+upstream that scales to zero, and a bundle with no members at all can still serve them.
+
+The bundle's `description` stays the short note sent on every session; prompts and resources hold the longer material a
+client pulls in when it needs it.
+
+::: warning Not secret
+Every caller of every endpoint of the bundle can read its prompts and resources, and so can the model. Never put a
+credential or anything private in them.
+:::
+
+### Resources
+
+```bash
+curl -s -X PUT $API/bundles/charts/resources/guides/style -H "$AUTH" -H "Content-Type: application/json" -d '{
+  "name": "guides/style",
+  "title": "House chart style",
+  "mime_type": "text/markdown",
+  "content": "# House style\n\n- Revenue is always blue.\n- Label every axis, with units."
+}'
+```
+
+A resource name may be organised in folders with `/`, as above. Clients read it as `bundle://resources/<name>` — here
+`bundle://resources/guides/style`. The URI carries no bundle name, so renaming the bundle does not change it. The
+content is text: `text/markdown` (the default), `text/plain`, `text/csv`, `application/json` or `application/yaml`.
+
+### Prompts
+
+```bash
+curl -s -X PUT $API/bundles/charts/prompts/plot -H "$AUTH" -H "Content-Type: application/json" -d '{
+  "name": "plot",
+  "title": "Plot a series",
+  "description": "Draw one series in the house style",
+  "arguments": [
+    {"name": "series", "required": true},
+    {"name": "kind", "values": ["bar", "line", "area"]}
+  ],
+  "messages": [
+    {"role": "user", "text": "Plot {{series}} as a {{kind}} chart."},
+    {"role": "user", "resource": "guides/style"}
+  ]
+}'
+```
+
+- **Names have no server prefix.** Clients see `plot`, not `something__plot`. A bundle prompt name may not contain `__`,
+  so it can never collide with a member's prefixed prompt.
+- **Placeholders are plain substitution.** `{{series}}` is replaced with the value the client supplies; an optional
+  argument left out becomes the empty string, and a missing required one is refused with an error naming it. There are
+  no expressions or loops, and a value is inserted as written, never expanded again.
+- **A message can embed a resource** of the same bundle instead of carrying text; the client receives the document in
+  full.
+- **`values` are completions.** A client that offers completion suggests them as the user types (case-insensitive
+  prefix match).
+
+A write is rejected, with a message saying why, when a placeholder names an argument that is not declared or a message
+embeds a resource the bundle does not have. A resource a prompt embeds cannot be deleted until the prompt stops
+embedding it.
+
+### Routes and limits
+
+| Method | Route | |
+|---|---|---|
+| `GET` | `/bundles/{name}/prompts`, `/bundles/{name}/resources` | Paginated, in name order. |
+| `GET` `PUT` `DELETE` | `/bundles/{name}/prompts/{prompt}` | `PUT` creates or replaces by name. |
+| `GET` `PUT` `DELETE` | `/bundles/{name}/resources/{resource}` | The resource name may contain `/`. |
+
+A bundle holds at most **100 prompts** and **200 resources**, a prompt at most **64 KiB** of message text, a resource at
+most **256 KiB**, and all of a bundle's resources together at most **4 MiB**. A write over a limit is refused with a
+message naming it; nothing is truncated.
+
+The bundle page in the admin UI edits both, previews a prompt rendered with sample arguments, and previews a resource as
+Markdown. The catalogue lists them by title and description, so a user sees what context the bundle offers before
+connecting it. A [bootstrap document](../self-hosting/bootstrap.md) can carry them inside the bundle entry.
+
+### What a client sees
+
+`prompts/list` and `resources/list` return the bundle's own entries first, in name order, then the members'. A
+`prompts/get` for a name without `__`, and a `resources/read` of a `bundle:` URI, are answered by the bundle alone: an
+unknown one is not found, and no member is asked. A member resource whose URI happens to use the `bundle:` scheme is
+hidden behind the bundle's own. Endpoint profiles do not rewrite bundle prompts or resources, and reading them is not
+written to the audit log, which records tool calls.
+
 ## Changes are live
 
-Membership, enable flags and overrides take effect for new requests immediately, on every replica, without a restart.
-Sessions that support it receive a `notifications/tools/list_changed` so the client refreshes its tool list.
+Membership, enable flags, overrides, prompts and resources take effect for new requests immediately, on every replica,
+without a restart. Sessions that support it receive a `notifications/tools/list_changed` so the client refreshes its
+tool list, and a `notifications/prompts/list_changed` or `notifications/resources/list_changed` when the bundle's own
+prompts or resources change.
 
 ## Renaming and deleting
 

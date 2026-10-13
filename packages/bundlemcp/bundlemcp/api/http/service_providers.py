@@ -14,6 +14,8 @@ from bundlemcp.application.auth.auth_service import AuthService
 from bundlemcp.application.auth.caller_resolver import CallerResolver
 from bundlemcp.application.management.api_key_service import ApiKeyService
 from bundlemcp.application.management.audit_service import AuditService
+from bundlemcp.application.management.bundle_prompt_service import BundlePromptService
+from bundlemcp.application.management.bundle_resource_service import BundleResourceService
 from bundlemcp.application.management.bundle_service import BundleService
 from bundlemcp.application.management.config_service import ConfigService
 from bundlemcp.application.management.endpoint_service import EndpointService
@@ -57,6 +59,14 @@ def get_upstream_oauth_config_service(
 
 def get_bundle_service(uow: UnitOfWorkProvider) -> BundleService:
     return BundleService(uow)
+
+
+def get_bundle_prompt_service(uow: UnitOfWorkProvider) -> BundlePromptService:
+    return BundlePromptService(uow)
+
+
+def get_bundle_resource_service(uow: UnitOfWorkProvider) -> BundleResourceService:
+    return BundleResourceService(uow)
 
 
 def get_endpoint_service(uow: UnitOfWorkProvider) -> EndpointService:
@@ -105,6 +115,10 @@ UpstreamOAuthConfigServiceProvider = Annotated[
     UpstreamOAuthConfigService, Depends(get_upstream_oauth_config_service)
 ]
 BundleServiceProvider = Annotated[BundleService, Depends(get_bundle_service)]
+BundlePromptServiceProvider = Annotated[BundlePromptService, Depends(get_bundle_prompt_service)]
+BundleResourceServiceProvider = Annotated[
+    BundleResourceService, Depends(get_bundle_resource_service)
+]
 EndpointServiceProvider = Annotated[EndpointService, Depends(get_endpoint_service)]
 ApiKeyServiceProvider = Annotated[ApiKeyService, Depends(get_api_key_service)]
 UserServiceProvider = Annotated[UserService, Depends(get_user_service)]

@@ -16,14 +16,17 @@
 
 - No metamcp-migration importer — manual migration for the primary user
   ([roadmap](../../spec/README.md)).
-- Prompts/resources are uncurated live passthrough (BND-8, [ADR-0021](../adr/0021-mcp-surface-completion.md)) —
-  implemented, but by design no per-bundle curation like tools have.
+- A member's prompts/resources are uncurated live passthrough (BND-8, [ADR-0021](../adr/0021-mcp-surface-completion.md))
+  — by design no per-bundle curation like tools have, which would need prompt/resource discovery (BPR-20, optional). A
+  bundle adds context of its own instead: prompts and resources authored on the bundle and served without upstream
+  contact ([ADR-0044](../adr/0044-bundle-owned-prompts-and-resources.md)).
 - **Upstream→client push between calls is pooling-dependent** ([ADR-0021](../adr/0021-mcp-surface-completion.md)):
   `resources/subscribe` updates, PROT-7 upstream log push, and PROT-10 upstream `list_changed` outside an active call
   need a persistent upstream connection that the per-call model (ADR-0012) lacks. Advertised + delivered within an
   active-call window; full between-call push lands with connection pooling (SES-8).
-- `subscriptions/listen` acknowledges only `toolsListChanged` ([PROT-17](../../spec/32-protocol-passthrough.md)) —
-  prompt/resource list-changed and resource subscriptions wait for the same pooling.
+- `subscriptions/listen` delivers prompt/resource list changes only for the bundle's own entries
+  ([PROT-17](../../spec/32-protocol-passthrough.md), BPR-11) — a member's list changes and resource subscriptions wait
+  for the same pooling.
 - Protocol extensions (Tasks, MCP Apps) are not proxied and not advertised (PROT-11).
 - Single scope in OAuth; audience-only binding (OAS-10) — fine-grained scopes deferred.
 - Inspector covers tools only (spec/53 out-of-scope list).

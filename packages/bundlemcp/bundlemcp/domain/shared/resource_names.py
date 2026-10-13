@@ -11,7 +11,10 @@ from typing import Annotated
 from pydantic import AfterValidator, StringConstraints, TypeAdapter
 
 NAME_PATTERN = r"^[a-zA-Z0-9_-]+$"
-# Server names additionally must not contain "__" (DOM-4, BND-2).
+# Server names additionally must not contain "__" (DOM-4, BND-2), and neither may
+# bundle prompt names (BPR-2).
+# A bundle resource name may be organised in folders: segments joined by "/" (BPR-6).
+BUNDLE_RESOURCE_NAME_PATTERN = r"^[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)*$"
 RESERVED_ENDPOINT_NAMES = {
     "api",
     "oauth",
@@ -36,6 +39,12 @@ def _server_name(value: str) -> str:
     return value
 
 
+def _prompt_name(value: str) -> str:
+    if "__" in value:
+        raise ValueError("bundle prompt names must not contain '__' (BPR-2)")
+    return value
+
+
 def _endpoint_name(value: str) -> str:
     if value.lower() in RESERVED_ENDPOINT_NAMES:
         raise ValueError(f"'{value}' is a reserved endpoint name (EP-1)")
@@ -45,6 +54,8 @@ def _endpoint_name(value: str) -> str:
 ResourceName = Annotated[str, _pattern]
 ServerName = Annotated[str, _pattern, AfterValidator(_server_name)]
 EndpointName = Annotated[str, _pattern, AfterValidator(_endpoint_name)]
+PromptName = Annotated[str, _pattern, AfterValidator(_prompt_name)]
+BundleResourceName = Annotated[str, StringConstraints(pattern=BUNDLE_RESOURCE_NAME_PATTERN)]
 
 server_name = TypeAdapter(ServerName)
 endpoint_name = TypeAdapter(EndpointName)

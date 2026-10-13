@@ -3,6 +3,10 @@
 from bundlemcp.api.management.controllers.api_key_controller import ApiKeyController
 from bundlemcp.api.management.controllers.audit_controller import AuditController
 from bundlemcp.api.management.controllers.bundle_controller import BundleController
+from bundlemcp.api.management.controllers.bundle_prompt_controller import BundlePromptController
+from bundlemcp.api.management.controllers.bundle_resource_controller import (
+    BundleResourceController,
+)
 from bundlemcp.api.management.controllers.config_controller import ConfigController
 from bundlemcp.api.management.controllers.endpoint_controller import EndpointController
 from bundlemcp.api.management.controllers.management_controller import ManagementController
@@ -14,6 +18,8 @@ __all__ = [
     "ApiKeyController",
     "AuditController",
     "BundleController",
+    "BundlePromptController",
+    "BundleResourceController",
     "ConfigController",
     "EndpointController",
     "ManagementController",

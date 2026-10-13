@@ -1,9 +1,20 @@
-"""Telling live streams that the tool surface they see has changed."""
+"""Telling live streams that a list they see has changed."""
 
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
 from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
 
-LIST_CHANGED = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
+TOOLS_LIST_CHANGED = "notifications/tools/list_changed"
+PROMPTS_LIST_CHANGED = "notifications/prompts/list_changed"
+RESOURCES_LIST_CHANGED = "notifications/resources/list_changed"
+
+# Which list a change to each kind of record alters; the event key names a bundle,
+# except for an endpoint change, whose key names the endpoint.
+_CHANGED_LIST = {
+    "bundle": TOOLS_LIST_CHANGED,  # BND-7
+    "endpoint": TOOLS_LIST_CHANGED,
+    "bundle_prompt": PROMPTS_LIST_CHANGED,  # BPR-11
+    "bundle_resource": RESOURCES_LIST_CHANGED,
+}
 
 
 class ListChangedNotifier:
@@ -18,10 +29,11 @@ class ListChangedNotifier:
         self._registry = registry
 
     async def on_invalidation(self, event: InvalidationEvent) -> None:
-        # BND-7
-        if event.entity_type not in ("bundle", "endpoint"):
+        method = _CHANGED_LIST.get(event.entity_type)
+        if method is None:
             return
+        notification = {"jsonrpc": "2.0", "method": method}
         for key in self._registry.broadcast_streams():
-            affected = key.bundle_name if event.entity_type == "bundle" else key.endpoint_name
+            affected = key.endpoint_name if event.entity_type == "endpoint" else key.bundle_name
             if affected == event.key:
-                self._registry.deliver_local(key.stream_id, LIST_CHANGED)
+                self._registry.deliver_local(key.stream_id, notification)

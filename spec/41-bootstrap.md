@@ -33,7 +33,8 @@ layer, CI, or any operator can stand up a fully configured gateway from config a
   servers' tools without a manual refresh. A failed probe is recorded on the server ([SRV-4](10-server-registry.md)) and
   never fails the bootstrap, strict or not; a document that does not land probes nothing.
 - **BOOT-8 Key names.** The document lists upstream servers under `upstreams`, and a bundle lists its members under
-  `upstreams` ([SRV-16](10-server-registry.md)). An unknown key in the document or in a bundle entry — a typo, or the
+  `upstreams` ([SRV-16](10-server-registry.md)), and its own prompts and resources under `prompts` and `resources`
+  ([BPR-15](17-bundle-prompts-resources.md)). An unknown key in the document or in a bundle entry — a typo, or the
   former name `servers` — makes the document invalid (BOOT-4 applies) rather than being ignored, so an outdated document
   fails loudly instead of quietly provisioning nothing.
 - **BOOT-9** A server entry MAY carry an `upstream_oauth` block — the pre-registered client the gateway presents to the

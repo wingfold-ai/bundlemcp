@@ -23,6 +23,7 @@ Playwright test title, the recording filename, and this table.
 | E2E-15 | The composition grid shows which bundles hold which servers | `tests/bundle-flow.spec.ts` | [`12-bundles.md`](../../../spec/12-bundles.md) | BND-4, UI-1 | `E2E-15__12-bundles__bundle-server-composition-grid.webm` |
 | E2E-16 | A bundle's catalogue overview and tool list are written by an admin and read by a user | `tests/bundle-flow.spec.ts` | [`12-bundles.md`](../../../spec/12-bundles.md) | BND-11, BND-6 | `E2E-16__12-bundles__bundle-catalogue-overview-and-tools.webm` |
 | E2E-17 | Approving or denying consent in a browser reaches the client's redirect URI on another origin | `tests/oauth-consent.spec.ts` | [`70-security.md`](../../../spec/70-security.md) | SEC-6, OAS-11, OAS-2 | `E2E-17__70-security__oauth-consent-reaches-client-redirect.webm` |
+| E2E-18 | An admin writes a bundle's own resource and prompt, previews both, and cannot orphan the prompt | `tests/bundle-flow.spec.ts` | [`17-bundle-prompts-resources.md`](../../../spec/17-bundle-prompts-resources.md) | BPR-14, BND-6, BPR-6, BPR-3 | `E2E-18__17-bundle-prompts-resources__bundle-own-prompts-and-resources.webm` |
 
 ## Requirements referenced
 
@@ -59,3 +60,6 @@ Playwright test title, the recording filename, and this table.
 | BND-11 | `12-bundles.md` | A bundle also has an overview: a long-form, admin-managed description written for the person browsing the catalogue, separate from description because that o… |
 | SEC-6 | `70-security.md` | OAuth browser pages (authorize, consent, upstream connect) carry standard hardening headers: a CSP of default-src 'none'; style-src 'unsafe-inline'; frame-an… |
 | OAS-2 | `20-oauth-server.md` | (RFC 7591): POST /oauth/register, open registration, public clients (token_endpoint_auth_method: none) by default, redirect URIs validated (https or localhos… |
+| BPR-14 | `17-bundle-prompts-resources.md` | Bundle prompts and resources are managed by admins only, through the management API under the bundle — GET, PUT (idempotent upsert by name) and DELETE on /ap… |
+| BPR-6 | `17-bundle-prompts-resources.md` | A bundle has zero or more bundle resources. Each has a name (natural key (bundle, name), matching ^[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)$ so it can be organised i… |
+| BPR-3 | `17-bundle-prompts-resources.md` | A message has a role (user or assistant) and content that is either text or a reference to one of the same bundle's resources (BPR-6), which prompts/get embe… |

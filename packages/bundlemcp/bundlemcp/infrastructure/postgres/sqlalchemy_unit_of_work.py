@@ -15,7 +15,13 @@ from bundlemcp.infrastructure.postgres.audit_repository import SqlAlchemyAuditRe
 from bundlemcp.infrastructure.postgres.authorization_code_repository import (
     SqlAlchemyAuthorizationCodeRepository,
 )
+from bundlemcp.infrastructure.postgres.bundle_prompt_repository import (
+    SqlAlchemyBundlePromptRepository,
+)
 from bundlemcp.infrastructure.postgres.bundle_repository import SqlAlchemyBundleRepository
+from bundlemcp.infrastructure.postgres.bundle_resource_repository import (
+    SqlAlchemyBundleResourceRepository,
+)
 from bundlemcp.infrastructure.postgres.config_entry_repository import (
     SqlAlchemyConfigEntryRepository,
 )
@@ -83,6 +89,14 @@ class SqlAlchemyUnitOfWork:
     @cached_property
     def curations(self) -> SqlAlchemyCurationRepository:
         return SqlAlchemyCurationRepository(self._session)
+
+    @cached_property
+    def bundle_prompts(self) -> SqlAlchemyBundlePromptRepository:
+        return SqlAlchemyBundlePromptRepository(self._session)
+
+    @cached_property
+    def bundle_resources(self) -> SqlAlchemyBundleResourceRepository:
+        return SqlAlchemyBundleResourceRepository(self._session)
 
     @cached_property
     def endpoints(self) -> SqlAlchemyEndpointRepository:

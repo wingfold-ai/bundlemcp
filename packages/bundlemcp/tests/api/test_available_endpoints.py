@@ -123,3 +123,47 @@ async def test_catalogue_tools_are_refused_for_a_bundle_with_no_oauth_endpoint(e
 async def test_catalogue_tools_require_a_signed_in_caller(env):
     http, _provider = env
     assert (await http.get("/api/v1/me/bundles/b1/tools")).status_code == 401
+
+
+async def test_catalogue_lists_the_bundles_own_prompts_and_resources(env):
+    """BPR-19: a signed-in person sees what context a bundle offers before connecting it,
+    and only for a bundle they could connect to."""
+    http, provider = env
+    web = {"Origin": WEB_ORIGIN}
+    await _login(http, provider, sub="a", email="admin@example.com")
+    for name in ("keyed", "open"):
+        await http.put(f"/api/v1/bundles/{name}", json={"name": name}, headers=web)
+        await http.put(
+            f"/api/v1/bundles/{name}/resources/guides/style",
+            json={"name": "guides/style", "title": "House style", "content": "Use blue."},
+            headers=web,
+        )
+        await http.put(
+            f"/api/v1/bundles/{name}/prompts/plot",
+            json={
+                "name": "plot",
+                "description": "Plot a series",
+                "messages": [{"role": "user", "text": "Plot it"}],
+            },
+            headers=web,
+        )
+    await http.put(
+        "/api/v1/endpoints/keyed-ep",
+        json={"name": "keyed-ep", "bundle_name": "keyed", "auth_modes": ["api_key"]},
+        headers=web,
+    )
+    await http.put(
+        "/api/v1/endpoints/open-ep",
+        json={"name": "open-ep", "bundle_name": "open", "auth_modes": ["oauth"]},
+        headers=web,
+    )
+
+    await _login(http, provider, sub="u2", email="user@example.com")
+    prompts = await http.get("/api/v1/me/bundles/open/prompts")
+    resources = await http.get("/api/v1/me/bundles/open/resources")
+    assert prompts.json() == [{"name": "plot", "title": None, "description": "Plot a series"}]
+    assert resources.json() == [
+        {"name": "guides/style", "title": "House style", "description": None}
+    ]
+    for kind in ("prompts", "resources"):
+        assert (await http.get(f"/api/v1/me/bundles/keyed/{kind}")).status_code == 404

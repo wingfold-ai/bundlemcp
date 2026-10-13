@@ -234,7 +234,7 @@ An upstream that scales to zero when idle — a Deployment behind the KEDA HTTP 
 | Contacts the upstream | Does not |
 |---|---|
 | `tools/call` for one of its tools | `initialize`, `server/discover`, `tools/list` (served from the tool cache) |
-| `prompts/*`, `resources/*` and `completion/complete`, but only for a server that advertised `prompts`, `resources` or `completions` when it was last discovered | The same methods for a server that did not advertise them |
+| `prompts/*`, `resources/*` and `completion/complete`, but only for a server that advertised `prompts`, `resources` or `completions` when it was last discovered | The same methods for a server that did not advertise them, and for the bundle's own prompts and resources |
 | Creating a server, or an update that changes how it is reached, or one to a server whose last probe failed | Re-applying an unchanged definition (API or bootstrap file) to a working server |
 | The periodic refresh, every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds | A gateway restart |
 | `:refresh-tools`, `:inspect`, and completing an upstream OAuth connect | |
@@ -248,7 +248,8 @@ To keep idle upstreams at zero:
   settings in it wakes that server once on the next start.
 - **Expect servers that serve prompts or resources to be woken by clients that list them.** Many clients, claude.ai
   among them, list prompts and resources right after connecting. Those lists are read live from every server that
-  advertises them.
+  advertises them. Context a bundle needs only for its own purpose can be written on the bundle instead, as
+  [its own prompts and documents](/manage/bundles#bundle-prompts-and-documents), which wake nothing.
 
 ## Backups
 

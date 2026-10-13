@@ -4,6 +4,8 @@ entities is the repositories' job."""
 
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
 from bundlemcp.infrastructure.postgres.rows.audit_record_row import AuditRecordRow
+from bundlemcp.infrastructure.postgres.rows.bundle_prompt_row import BundlePromptRow
+from bundlemcp.infrastructure.postgres.rows.bundle_resource_row import BundleResourceRow
 from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
 from bundlemcp.infrastructure.postgres.rows.bundle_server_row import BundleServerRow
 from bundlemcp.infrastructure.postgres.rows.bundle_tool_row import BundleToolRow
@@ -24,6 +26,8 @@ from bundlemcp.infrastructure.postgres.rows.user_row import UserRow
 __all__ = [
     "ApiKeyRow",
     "AuditRecordRow",
+    "BundlePromptRow",
+    "BundleResourceRow",
     "BundleRow",
     "BundleServerRow",
     "BundleToolRow",
