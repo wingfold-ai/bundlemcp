@@ -8,13 +8,13 @@ class PromptListing(BaseModel):
     """What a client learns about a bundle prompt before asking for it: everything but its
     messages."""
 
-    name: PromptName = Field(  # BPR-2
+    name: PromptName = Field(
         description="Prompt name, unique in its bundle: letters, digits, underscores and "
         "single hyphens, never '__'"
     )
     title: str | None = Field(default=None, description="Human-readable title")
     description: str | None = Field(default=None, description="What the prompt is for")
-    arguments: list[PromptArgument] = Field(  # BPR-1
+    arguments: list[PromptArgument] = Field(
         default_factory=list, description="Arguments the prompt takes, in display order"
     )
 

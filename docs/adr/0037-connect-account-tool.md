@@ -10,8 +10,8 @@ connect URL, returned when the user calls one of that server's tools. That assum
 On a live deployment they did not. A bundle's tools come from the discovery cache, and discovery probed upstreams with
 static headers only, so an OAuth-protected server listed nothing. With no tools listed there was nothing to call, no
 error, and no URL: the user could never connect, so discovery could never succeed. Fixing discovery to send a connected
-account's token (spec 23 UPO-9) breaks the loop only after the first user connects; the first user, and every later user
-of a per-user server, still needs a way in that does not depend on the server's own tools.
+account's token (spec 23 UPS-33) breaks the loop only after the first user connects; the first user, and every later
+user of a per-user server, still needs a way in that does not depend on the server's own tools.
 
 ## Decision drivers
 

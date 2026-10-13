@@ -32,7 +32,7 @@ class ModernDialect:
     def shape_result(
         self, result: dict[str, Any], *, server_info: dict[str, Any], cache_hint: CacheHint | None
     ) -> dict[str, Any]:
-        # PROT-16: resultType is required; the gateway names itself, not the
+        # resultType is required; the gateway names itself, not the
         # upstream that produced the payload.
         shaped = dict(result)
         shaped.setdefault("resultType", "complete")

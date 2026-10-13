@@ -21,11 +21,11 @@ class BundleView(BaseModel):
     tools: list[PresentedTool] = Field(
         description="Enabled tools as presented to the client, curated and transformed"
     )
-    prompts: list[PromptListing] = Field(  # BPR-8
+    prompts: list[PromptListing] = Field(
         default_factory=list,
         description="The bundle's own prompts in name order, without their messages",
     )
-    resources: list[ResourceListing] = Field(  # BPR-8
+    resources: list[ResourceListing] = Field(
         default_factory=list,
         description="The bundle's own resources in name order, without their content",
     )

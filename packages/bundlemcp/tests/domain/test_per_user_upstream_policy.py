@@ -1,4 +1,4 @@
-"""The per-user-upstream rule (UPO-6) as a pure decision over entities."""
+"""The per-user-upstream rule (UPS-30) as a pure decision over entities."""
 
 from bundlemcp.domain.endpoints.endpoint import Endpoint
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode

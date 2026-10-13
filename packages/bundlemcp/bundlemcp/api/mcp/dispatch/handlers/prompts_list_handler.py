@@ -23,11 +23,11 @@ class PromptsListHandler:
 
     @staticmethod
     def _prefixed(server: McpServer, entry: dict[str, Any]) -> dict[str, Any]:
-        entry["name"] = PresentedName(server=server.name, name=entry["name"]).text  # BND-8
+        entry["name"] = PresentedName(server=server.name, name=entry["name"]).text
         return entry
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
-        # BPR-9: the bundle's own first, in name order; their names have no `__`,
+        # the bundle's own first, in name order; their names have no `__`,
         # so they cannot collide with a prefixed member prompt
         prompts = [prompt_entry(prompt) for prompt in ctx.view.prompts]
         prompts += await self._fanout.merged(

@@ -1,4 +1,4 @@
-"""Audit-records listing API (AUD-6: filters + API-5 pagination)."""
+"""Audit-records listing API (OPS-6: filters + MGMT-5 pagination)."""
 
 from datetime import UTC, datetime
 
@@ -44,7 +44,7 @@ async def client(service_client: AsyncClient, engine: AsyncEngine) -> AsyncClien
 
 
 async def test_list_audit_records_paged(client: AsyncClient):
-    """AUD-6/API-5: paginated list, newest first."""
+    """OPS-6/MGMT-5: paginated list, newest first."""
     resp = await client.get("/api/v1/audit-records")
     assert resp.status_code == 200
     page = resp.json()
@@ -53,7 +53,7 @@ async def test_list_audit_records_paged(client: AsyncClient):
 
 
 async def test_audit_filters(client: AsyncClient):
-    """AUD-6: endpoint/status/tool/time filters narrow the result."""
+    """OPS-6: endpoint/status/tool/time filters narrow the result."""
     by_status = (await client.get("/api/v1/audit-records", params={"status": "denied"})).json()
     assert by_status["total"] == 1
     assert by_status["items"][0]["denied_reason"] == "tool disabled"

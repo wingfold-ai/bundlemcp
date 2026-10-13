@@ -138,7 +138,7 @@ PACKAGE_ROOTS = (
     "packages/",
     "apps/",
     "deploy/",
-    "spec/",
+    "openspec/",
     "docs/",
     "tests/",
     ".claude/",

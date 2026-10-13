@@ -21,8 +21,8 @@ You do not need all of it before your first change. The first four are the orien
 touch the thing they describe.
 
 1. [`README.md`](README.md) — what this is and where things are.
-2. [`spec/00-overview.md`](spec/00-overview.md) — the product in one file, and [`spec/README.md`](spec/README.md)'s
-   decision log, which records what was deliberately left out. Read the log before proposing a feature.
+2. [`openspec/README.md`](openspec/README.md) — the product in one file, the capability index, and the decision log,
+   which records what was deliberately left out. Read the log before proposing a feature.
 3. [`packages/bundlemcp/README.md`](packages/bundlemcp/README.md) — the layer map. This is the most useful single
    document for finding your way around, and it is the authoritative description of what each package holds.
 4. [`docs/arc42/04-solution-strategy.md`](docs/arc42/04-solution-strategy.md) and
@@ -39,11 +39,12 @@ touch the thing they describe.
    pre-ADR-0033 layout; trust
    [ADR-0035](docs/adr/0035-front-controller-protocol-adapters-and-admission-pipeline.md) where they disagree.
 
-The four corpora and what each is for:
+The corpora and what each is for:
 
 | Where | Question it answers | Rule |
 |---|---|---|
-| `spec/` | **What** must be true, with testable requirement IDs | Normative. New behaviour starts here |
+| `openspec/specs/` | **What** is true today, with testable requirement IDs | Normative. Changed only by archiving a change |
+| `openspec/changes/` | **What will change** — proposal, delta specs, design, tasks | New behaviour starts here |
 | `docs/arc42/` | **Why** it is built this way, current state | Rationale, not requirements |
 | `docs/adr/` | **When and why not** — one decision each, with alternatives | Append-only |
 | `.claude/docs/` | **How to write it** — conventions | Loaded into every AI session, so keep it true |
@@ -100,19 +101,23 @@ python3 tools/check_docs_links.py       # relative links and heading anchors
 python3 tools/check_docs_symbols.py     # the living docs name no dead symbols
 python3 tools/check_docs_settings.py    # env vars and requirement IDs are real
 python3 tools/check_adr_graph.py        # ADR statuses and indexes agree
+python3 tools/check_spec_ids.py         # requirement codes are well-formed, unique and real
+openspec validate --all --strict        # specs and changes are well-formed
 ```
 
 And in the pull request:
 
-- [ ] **Spec first** if behaviour changes: update [`spec/`](spec/README.md) in the same PR and keep requirement IDs
-      (`SRV-1`, `EP-3`, …) stable.
-- [ ] **An ADR in the same PR** if the change makes or reverses an architectural decision (`spec/62` ADOC-5). Use
+- [ ] **A change proposal first** if behaviour changes: `openspec/changes/<change>/` with proposal, delta specs, design
+      (when not obvious) and tasks — see [openspec/README.md](openspec/README.md#making-a-change). Keep requirement IDs
+      (`UPS-1`, `EP-3`, …) stable. Archive the change into `openspec/specs/` once it is implemented, and keep
+      `openspec validate --all --strict` passing.
+- [ ] **An ADR in the same PR** if the change makes or reverses an architectural decision (DOC-11). Use
       [ADR-0034](docs/adr/0034-pydantic-entities-and-row-classes.md) as the template — real alternatives with real
       reasons, and honest trade-offs.
 - [ ] **A rename ADR also updates the docs that name the symbol**, including `.claude/docs/` and `docs/arc42/`. This is
       the step that has been missed before, which is what `tools/check_docs_symbols.py` now catches.
 - [ ] **Update the LikeC4 model** if the structure changed (`npx likec4 validate docs/likec4`).
-- [ ] **Docs in the same PR** as the behaviour they describe (`spec/61` DOC-5).
+- [ ] **Docs in the same PR** as the behaviour they describe (DOC-5).
 - [ ] Tests reference the requirement ID they verify, in the name or docstring.
 - [ ] No `Co-Authored-By: Claude` trailer and no AI attribution line — see
       [`.claude/docs/git-attribution.md`](.claude/docs/git-attribution.md).
@@ -171,7 +176,7 @@ uv run alembic revision --autogenerate -m "bundle overview"
 Autogenerate sees the table because `infrastructure/postgres/migrations/env.py` imports the whole `rows` package; a row
 class that nothing imports is invisible to it.
 
-Migrations must be **backward compatible one release back** (`spec/71` DEP-4/5), because a rolling deploy runs old and
+Migrations must be **backward compatible one release back** (DEP-4/5), because a rolling deploy runs old and
 new replicas against the same schema. In practice: add nullable columns or columns with defaults, and split a rename
 into add–backfill–drop across two releases. Every replica runs `alembic upgrade head` on boot, guarded by a Postgres
 advisory lock, so concurrent starts are safe.
@@ -209,7 +214,7 @@ files.
 
 ## Where to ask
 
-Open an issue. If it is about a decision rather than a defect, check the [spec decision log](spec/README.md) and the
+Open an issue. If it is about a decision rather than a defect, check the [spec decision log](openspec/README.md) and the
 [ADR index](docs/adr/README.md) first — a surprising number of "why not X" questions are answered there, with the
 reason.
 

@@ -1,4 +1,4 @@
-"""Token encryption tests (DOM-3, DEP-9 rotation)."""
+"""Token encryption tests (ARC-18, DEP-9 rotation)."""
 
 import pytest
 from bundlemcp.application.contracts.secret_cipher import DecryptionError

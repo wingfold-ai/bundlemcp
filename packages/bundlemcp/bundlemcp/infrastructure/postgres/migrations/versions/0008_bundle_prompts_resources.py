@@ -1,4 +1,4 @@
-"""Add bundle_prompts and bundle_resources (BPR-1, BPR-6).
+"""Add bundle_prompts and bundle_resources (BND-18, BND-23).
 
 Prompts and resources authored on a bundle and served by the gateway itself.
 Both belong to their bundle and go with it.
@@ -56,7 +56,7 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_bundle_resources_bundle_id"), "bundle_resources", ["bundle_id"], unique=False
     )
-    if op.get_bind().dialect.name == "postgresql":  # BPR-2, BPR-6
+    if op.get_bind().dialect.name == "postgresql":
         op.create_check_constraint(
             "ck_bundle_prompts_name",
             "bundle_prompts",

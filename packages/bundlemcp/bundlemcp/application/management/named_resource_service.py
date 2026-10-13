@@ -81,6 +81,6 @@ class NamedResourceService[TEntity, TRead: EntityRead]:
         entity = await self._by_name(name)
         if entity is None:
             return
-        await self._repo.delete(entity)  # DOM-2: the database cascades dependants
+        await self._repo.delete(entity)  # the database cascades dependants
         self._invalidate(name, "deleted")
         await self._uow.commit()

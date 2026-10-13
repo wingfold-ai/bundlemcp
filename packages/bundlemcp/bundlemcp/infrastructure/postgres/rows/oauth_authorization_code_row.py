@@ -12,7 +12,7 @@ from bundlemcp.infrastructure.postgres.utc_datetime import timestamp_column
 class OAuthAuthorizationCodeRow(SQLModel, table=True):
     __tablename__ = "oauth_authorization_codes"
 
-    code_hash: str = Field(  # OAS-8
+    code_hash: str = Field(
         primary_key=True, description="Hash of the code; the code itself is never stored"
     )
     client_id: str = Field(
@@ -23,7 +23,7 @@ class OAuthAuthorizationCodeRow(SQLModel, table=True):
         sa_column=Column(ForeignKey("users.id", ondelete="CASCADE")),
         description="User who authorized it",
     )
-    endpoint_id: uuid.UUID = Field(  # OAS-10
+    endpoint_id: uuid.UUID = Field(
         sa_column=Column(ForeignKey("endpoints.id", ondelete="CASCADE")),
         description="Endpoint the resulting token will be valid for",
     )
@@ -36,7 +36,7 @@ class OAuthAuthorizationCodeRow(SQLModel, table=True):
         default="S256", description="How the challenge was derived; only S256 is accepted"
     )
     expires_at: datetime = Field(sa_column=timestamp_column(), description="When the code expires")
-    used: bool = Field(  # OAS-3
+    used: bool = Field(
         default=False,
         description="Whether the code has been redeemed. A code works exactly once",
     )

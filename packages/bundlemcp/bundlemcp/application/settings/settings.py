@@ -10,7 +10,7 @@ class Settings(BaseModel):
     """Deploy-time configuration, as every layer reads it; the loader that fills it from the
     environment lives in infrastructure."""
 
-    # Stores (ARC-7/ARC-8)
+    # Stores
     database_url: str = Field(
         default="postgresql+asyncpg://bundlemcp:bundlemcp@localhost:5432/bundlemcp",
         description="Async SQLAlchemy connection string for the Postgres that holds "
@@ -22,20 +22,20 @@ class Settings(BaseModel):
         "rate-limit counters and cross-replica signalling",
     )
 
-    public_url: AnyHttpUrl = Field(  # DEP-1
+    public_url: AnyHttpUrl = Field(
         default=AnyHttpUrl("http://localhost:8000"),
         description="Externally reachable base URL of this gateway. The OAuth issuer, "
         "discovery metadata, redirect URIs and cookie scope all derive from it, so it "
         "must match what clients actually reach — never the internal listen address",
     )
-    trusted_proxies: list[str] = Field(  # DEP-2
+    trusted_proxies: list[str] = Field(
         default=[],
         description="CIDRs of reverse proxies whose X-Forwarded-* headers are honoured. "
         "Requests from anywhere else use the socket peer address, so a wrong value here "
         "makes per-client rate limits and audit records attribute to the proxy",
     )
 
-    # Admin auth (spec 21)
+    # Admin auth (the auth spec)
     oidc_discovery_url: str | None = Field(
         default=None,
         description="OIDC issuer's discovery document URL; admin login is disabled when unset. "
@@ -53,26 +53,26 @@ class Settings(BaseModel):
         description="Email addresses granted admin rights, re-evaluated at every login",
     )
 
-    web_origins: list[str] = Field(  # SEC-4, UI-5
+    web_origins: list[str] = Field(
         default=[],
         description="Browser origins allowed to call the management API with credentials. "
         "They also pass the CSRF origin check on cookie-authenticated mutations. "
         "Empty means same-origin only, which is what an API-only deployment wants",
     )
 
-    egress_allow_cidrs: list[str] = Field(  # SEC-2
+    egress_allow_cidrs: list[str] = Field(
         default=[],
         description="CIDRs outbound requests may resolve to; empty allows anything not denied. "
         "Checked first and overrides every other rule, including the built-in loopback and "
         "cloud-metadata blocks, so keep it as narrow as the host you mean to reach",
     )
-    egress_deny_cidrs: list[str] = Field(  # SEC-2
+    egress_deny_cidrs: list[str] = Field(
         default=[],
         description="CIDRs outbound requests may never resolve to, evaluated after the allow "
         "list, so an allow entry covering the same address wins",
     )
 
-    discovery_refresh_interval: int = Field(  # DISC-7
+    discovery_refresh_interval: int = Field(
         default=1800,
         ge=0,
         description="Seconds between re-reading every upstream server's tool list, so tools "
@@ -80,14 +80,14 @@ class Settings(BaseModel):
         "show up without a manual refresh. One replica refreshes per interval. 0 disables it",
     )
 
-    token_encryption_keys: list[str] = Field(  # DEP-9
+    token_encryption_keys: list[str] = Field(
         default=[],
         description="Keys for encrypting stored upstream OAuth tokens. The first encrypts and "
         "all of them decrypt, so rotation means prepending a key and keeping the old one. "
         "Servers using upstream OAuth cannot be used while this is empty",
     )
 
-    metering_hook: str | None = Field(  # MID-3
+    metering_hook: str | None = Field(
         default=None,
         description="Import path 'module:attribute' of the billing hook consulted around every "
         "tool call; unset installs a no-op hook",
@@ -97,7 +97,7 @@ class Settings(BaseModel):
         description="Whether a tool call proceeds when the metering hook itself fails. "
         "False denies the call, which is the safe default for a paid deployment",
     )
-    metering_http_url: str | None = Field(  # MID-6
+    metering_http_url: str | None = Field(
         default=None,
         pattern=r"^https?://",
         description="URL of a metering hook that runs out of process, consulted over HTTP "
@@ -119,7 +119,7 @@ class Settings(BaseModel):
         "the call is treated as unanswered and, by default, denied",
     )
 
-    identity_subject: IdentitySubject = Field(  # FWD-3
+    identity_subject: IdentitySubject = Field(
         default=IdentitySubject.INTERNAL,
         description="Which identifier the X-MCP-User header names a signed-in user by: "
         "'internal' sends the gateway's own user id, stable only within this gateway's "
@@ -128,7 +128,7 @@ class Settings(BaseModel):
         "it changes the key upstream servers see for every existing user",
     )
 
-    # Auth-failure limiter (RATE-5): gateway-wide, per client IP.
+    # Auth-failure limiter: gateway-wide, per client IP.
     auth_failure_limit: int = Field(
         default=20,
         ge=1,
@@ -140,8 +140,8 @@ class Settings(BaseModel):
         description="Seconds the auth-failure count is retained before the lockout lifts",
     )
 
-    # Client registration with the gateway's OAuth server (spec 20, SEC-8)
-    dcr_allowed_redirect_uris: list[str] = Field(  # OAS-2, OAS-13
+    # Client registration with the gateway's OAuth server
+    dcr_allowed_redirect_uris: list[str] = Field(
         default_factory=list,
         description="Redirect URIs OAuth clients may register or declare in a client metadata "
         "document. Each entry is an exact URI, compared character for character, or a URI "
@@ -150,7 +150,7 @@ class Settings(BaseModel):
         "path and query. Empty accepts any https URI, or http on localhost. Registrations "
         "whose redirect URIs are all listed are exempt from the per-IP registration limit",
     )
-    dcr_rate_limit: int = Field(  # OAS-12
+    dcr_rate_limit: int = Field(
         default=10,
         ge=1,
         le=100_000,
@@ -158,13 +158,13 @@ class Settings(BaseModel):
         "shared egress, such as a hosted AI client registering from its own servers, every "
         "user of that client shares this budget",
     )
-    dcr_rate_window: int = Field(  # OAS-12
+    dcr_rate_window: int = Field(
         default=3600,
         ge=1,
         le=86_400,
         description="Seconds in the per-IP registration window",
     )
-    dcr_max_unused_clients: int = Field(  # SEC-8
+    dcr_max_unused_clients: int = Field(
         default=1000,
         ge=1,
         le=1_000_000,
@@ -174,13 +174,13 @@ class Settings(BaseModel):
         "Applies to every registration, allow-listed or not",
     )
 
-    # Bootstrap (spec 41)
+    # Bootstrap (the management spec)
     bootstrap_file: str | None = Field(
         default=None,
         description="Path to a declarative document (YAML or JSON) of servers, bundles and "
         "endpoints applied at startup; applying it twice changes nothing",
     )
-    bootstrap: str | None = Field(  # BOOT-1
+    bootstrap: str | None = Field(
         default=None,
         description="The same document inline as JSON, for a compose file or a secret store "
         "that cannot mount a file. Applied after the file when both are set",
@@ -190,13 +190,13 @@ class Settings(BaseModel):
         description="Whether a failed bootstrap refuses startup. True belongs in CI and "
         "production; false logs and continues, which suits local development",
     )
-    initial_service_key: str | None = Field(  # BOOT-3
+    initial_service_key: str | None = Field(
         default=None,
         description="Value of a service API key provisioned on first boot when no service key "
         "exists yet, so the management API is reachable headlessly. Ignored once one exists",
     )
 
-    legacy_protocol_enabled: bool = Field(  # PROT-13
+    legacy_protocol_enabled: bool = Field(
         default=True,
         description="Whether the session-era MCP revisions (2025-03-26 through 2025-11-25, "
         "which open with an initialize handshake and hold a session) are still served. Switch "
@@ -229,7 +229,7 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def _one_metering_hook(self) -> "Settings":
-        # MID-6: one hook per deployment, in-process or over HTTP
+        # one hook per deployment, in-process or over HTTP
         if self.metering_hook and self.metering_http_url:
             raise ValueError(
                 "set BUNDLEMCP_METERING_HOOK or BUNDLEMCP_METERING_HTTP_URL, not both"

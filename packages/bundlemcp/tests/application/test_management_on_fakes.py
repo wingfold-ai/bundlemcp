@@ -32,7 +32,7 @@ def uow() -> InMemoryUnitOfWork:
 
 
 async def test_server_upsert_is_idempotent_and_publishes_invalidation(uow):
-    """SRV-1/STP-1: the second upsert updates in place and each commit announces the change."""
+    """UPS-1/SES-17: the second upsert updates in place and each commit announces the change."""
     servers = ServerService(uow, discovery=NoopToolDiscovery())
     first = await servers.upsert(ServerUpsert(name="echo", url="http://echo/mcp"))
     second = await servers.upsert(
@@ -45,7 +45,7 @@ async def test_server_upsert_is_idempotent_and_publishes_invalidation(uow):
 
 
 async def test_rename_of_a_bundle_member_needs_force(uow):
-    """SRV-5: renaming a member changes client-visible tool names, so it must be acknowledged."""
+    """UPS-5: renaming a member changes client-visible tool names, so it must be acknowledged."""
     servers = ServerService(uow, discovery=NoopToolDiscovery())
     bundles = BundleService(uow)
     await servers.upsert(ServerUpsert(name="echo", url="http://echo/mcp"))
@@ -58,7 +58,7 @@ async def test_rename_of_a_bundle_member_needs_force(uow):
 
 
 async def test_anonymous_endpoint_cannot_expose_a_per_user_upstream(uow):
-    """UPO-6 at the endpoint edge, checked through the ports alone."""
+    """UPS-30 at the endpoint edge, checked through the ports alone."""
     servers = ServerService(uow, discovery=NoopToolDiscovery())
     bundles = BundleService(uow)
     endpoints = EndpointService(uow)
@@ -108,7 +108,7 @@ class CommitAwareDiscovery:
 
 
 async def test_bootstrap_discovers_its_servers_after_the_commit(uow):
-    """BOOT-7/DISC-1: every bootstrapped server is probed, and only once it is committed."""
+    """MGMT-14/UPS-17: every bootstrapped server is probed, and only once it is committed."""
     document = BootstrapDocument.model_validate(
         {
             "upstreams": [
@@ -125,7 +125,7 @@ async def test_bootstrap_discovers_its_servers_after_the_commit(uow):
 
 
 async def test_failed_bootstrap_probes_nothing(uow):
-    """BOOT-7: a document that does not land schedules no discovery."""
+    """MGMT-14: a document that does not land schedules no discovery."""
     document = BootstrapDocument.model_validate(
         {
             "upstreams": [{"name": "echo", "url": "http://echo/mcp"}],
@@ -151,7 +151,7 @@ async def _mark_reachable(uow: InMemoryUnitOfWork, name: str) -> None:
 
 
 async def test_unchanged_upsert_of_a_working_server_does_not_probe(uow):
-    """SRV-2: re-applying the same config to a reachable server stays off the upstream."""
+    """UPS-2: re-applying the same config to a reachable server stays off the upstream."""
     discovery = CommitAwareDiscovery(uow)
     servers = ServerService(uow, discovery=discovery)
     body = ServerUpsert(name="echo", url="http://echo/mcp", forward_headers={"x-a": "x-a"})
@@ -174,7 +174,7 @@ async def test_unchanged_upsert_of_a_working_server_does_not_probe(uow):
     ],
 )
 async def test_upsert_that_changes_discovery_inputs_probes(uow, change):
-    """SRV-2: a change to how the upstream is reached is probed again."""
+    """UPS-2: a change to how the upstream is reached is probed again."""
     discovery = CommitAwareDiscovery(uow)
     servers = ServerService(uow, discovery=discovery)
     body = ServerUpsert(name="echo", url="http://echo/mcp")
@@ -185,7 +185,7 @@ async def test_upsert_that_changes_discovery_inputs_probes(uow, change):
 
 
 async def test_unchanged_upsert_retries_a_server_whose_last_probe_failed(uow):
-    """SRV-2: re-applying a config still retries a server that was never reached."""
+    """UPS-2: re-applying a config still retries a server that was never reached."""
     discovery = CommitAwareDiscovery(uow)
     servers = ServerService(uow, discovery=discovery)
     body = ServerUpsert(name="echo", url="http://echo/mcp")
@@ -195,7 +195,7 @@ async def test_unchanged_upsert_retries_a_server_whose_last_probe_failed(uow):
 
 
 async def test_reapplied_bootstrap_does_not_probe_working_servers(uow):
-    """BOOT-7/SRV-2: a gateway restart that re-applies the same document wakes no upstream."""
+    """MGMT-14/UPS-2: a gateway restart that re-applies the same document wakes no upstream."""
     document = BootstrapDocument.model_validate(
         {"upstreams": [{"name": "echo", "url": "http://echo/mcp"}]}
     )
@@ -210,7 +210,7 @@ async def test_reapplied_bootstrap_does_not_probe_working_servers(uow):
 
 
 async def test_bootstrap_document_lands_in_one_commit(uow):
-    """BOOT-2: the whole document is applied inside one atomic scope."""
+    """MGMT-9: the whole document is applied inside one atomic scope."""
     document = BootstrapDocument.model_validate(
         {
             "upstreams": [{"name": "echo", "url": "http://echo/mcp"}],

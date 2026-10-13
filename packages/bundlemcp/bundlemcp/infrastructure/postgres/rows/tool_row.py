@@ -37,10 +37,10 @@ class ToolRow(SQLModel, table=True):
         sa_column=Column(JSON),
         description="MCP tool annotations such as read-only and destructive hints",
     )
-    schema_hash: str = Field(  # DISC-2
+    schema_hash: str = Field(
         description="Hash of the definition, so an unchanged tool costs no write on re-probe"
     )
-    last_seen_at: datetime = Field(  # DISC-3
+    last_seen_at: datetime = Field(
         default_factory=utcnow,
         sa_column=timestamp_column(),
         description="When the tool was last reported. A stale value means it has disappeared "

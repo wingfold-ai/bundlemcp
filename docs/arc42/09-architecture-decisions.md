@@ -2,7 +2,7 @@
 
 Decisions are recorded as ADRs in [`../adr/`](../adr/README.md) — MADR-style (Status / Context / Decision drivers /
 Decision / Alternatives considered / Consequences), append-only, written in the same PR as the change they govern
-([ADOC-2/ADOC-5](../../spec/62-architecture-documentation.md)).
+([DOC-8/DOC-11](../../openspec/specs/documentation/spec.md)).
 
 | ADR | Decision | Status | Consequence in one line |
 |---|---|---|---|
@@ -17,7 +17,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0009](../adr/0009-endpoint-bound-tokens-consent.md) | Consent + endpoint-bound tokens | accepted | Token confined to one endpoint; extra consent step |
 | [0010](../adr/0010-single-workspace.md) | Single workspace | accepted | Simple model; no intra-instance tenanting |
 | [0011](../adr/0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge (spike outcome) | accepted (amended by 0027, 0029, 0035) | Redis-backed sessions work; we own server-side protocol compliance |
-| [0012](../adr/0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | accepted (amended by 0030) | Trivially correct identity isolation; pooling awaits OBS-6 data |
+| [0012](../adr/0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | accepted (amended by 0030) | Trivially correct identity isolation; pooling awaits OPS-13 data |
 | [0013](../adr/0013-service-key-auth-first.md) | Service-key auth first | accepted (OIDC sessions have since shipped) | Headless management from day one; OIDC sessions now also shipped |
 | [0014](../adr/0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB tokens | accepted (amended by 0028, 0031, 0036) | claude.ai connectable without the UI; no introspect self-call |
 | [0015](../adr/0015-keycloak-dev-idp.md) | Keycloak as the dev IdP | accepted | Integration tests prove real federation; heavier compose |
@@ -30,7 +30,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0022](../adr/0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | accepted | Permissively-licensed store; redis-py client unchanged; RESP-generic |
 | [0023](../adr/0023-import-contracts-and-shared-providers.md) | Import contracts enforce layer direction | accepted (amended by 0025, 0033) | Layering is checked in CI, not by review |
 | [0024](../adr/0024-value-objects-and-rich-entities.md) | Value objects at the edge; behavior on entities | accepted | No tuples or dicts cross layers; rules live once; typed columns |
-| [0025](../adr/0025-repository-unit-of-work-and-container.md) | Repository per entity, unit of work per request, typed container | accepted (amended by 0033) | Queries written once; invalidation after commit; atomic bootstrap; UPO-6 at all three edges |
+| [0025](../adr/0025-repository-unit-of-work-and-container.md) | Repository per entity, unit of work per request, typed container | accepted (amended by 0033) | Queries written once; invalidation after commit; atomic bootstrap; UPS-30 at all three edges |
 | [0026](../adr/0026-controllers.md) | Controllers own an HTTP surface | accepted (amended by 0027, 0028) | Auth attached once per surface; the app factory lists surfaces |
 | [0027](../adr/0027-mcp-edge-method-handlers.md) | Method registry in the MCP edge; tool call as a pipeline object | accepted (amended by 0029, 0035) | One handler class per JSON-RPC method; credentials and rendering written once |
 | [0028](../adr/0028-oauth-server-as-services.md) | OAuth server as services with grant strategies | accepted (amended by 0036) | Thin OAuth controllers; typed single-use browser state; token store split by job |
@@ -53,4 +53,4 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0045](../adr/0045-upstreams-on-the-published-surface.md) | Rename `servers` to `upstreams` in API paths, document keys and UI, without aliases | accepted | One name for one thing; done before anyone depends on the old names |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
-[spec decision log](../../spec/README.md).
+[spec decision log](../../openspec/README.md).

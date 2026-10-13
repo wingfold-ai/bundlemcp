@@ -1,4 +1,4 @@
-"""Upstream OAuth call-path tests (spec 23: UPO-2/3/4/6) — bearer attach + refresh + connect error.
+"""Upstream OAuth call-path tests (UPS-26/27/28/30) — bearer attach + refresh + connect error.
 
 Uses an injected client factory that inspects the Authorization header the
 gateway attaches, so the whole path is hermetic (no loopback upstream needed).
@@ -170,7 +170,7 @@ async def _save_token(engine, redis, provider, server_id, user_id, tokens):
 
 
 async def test_shared_bearer_attached(engine: AsyncEngine, redis):
-    """UPO-2: shared token attached as Bearer to the upstream call."""
+    """UPS-26: shared token attached as Bearer to the upstream call."""
     srv = await _seed(engine)
     factory = BearerCapturingFactory()
     provider = FakeUpstreamProvider()
@@ -190,7 +190,7 @@ async def test_shared_bearer_attached(engine: AsyncEngine, redis):
 
 
 async def test_missing_token_returns_connect_error(engine, redis):
-    """UPO-3: no token -> structured connect-URL error, upstream never called."""
+    """UPS-27: no token -> structured connect-URL error, upstream never called."""
     await _seed(engine)
     factory = BearerCapturingFactory()
     async with _running(engine, redis, factory, FakeUpstreamProvider()) as http:
@@ -203,7 +203,7 @@ async def test_missing_token_returns_connect_error(engine, redis):
 
 
 async def test_near_expiry_refreshes_then_attaches(engine, redis):
-    """UPO-4: proactive refresh before the call; refreshed bearer attached."""
+    """UPS-28: proactive refresh before the call; refreshed bearer attached."""
     srv = await _seed(engine)
     factory = BearerCapturingFactory()
     provider = FakeUpstreamProvider()
@@ -224,7 +224,7 @@ async def test_near_expiry_refreshes_then_attaches(engine, redis):
 
 
 async def test_reactive_retry_on_upstream_error(engine, redis):
-    """UPO-4: a 401 despite a fresh token forces a refresh and one retry."""
+    """UPS-28: a 401 despite a fresh token forces a refresh and one retry."""
     srv = await _seed(engine)
     factory = BearerCapturingFactory(reject={"Bearer stale"})  # first bearer rejected
     provider = FakeUpstreamProvider()

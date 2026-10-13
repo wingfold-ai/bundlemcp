@@ -78,7 +78,7 @@ function stepHtml(s: Step): string {
     s.keyword +
     "</span>";
   const spec = s.req
-    ? '<span style="color:#8b949e;font-weight:400"> — spec/' +
+    ? '<span style="color:#8b949e;font-weight:400"> — openspec/specs/' +
       esc(requirement(s.req).spec) +
       "</span>"
     : "";

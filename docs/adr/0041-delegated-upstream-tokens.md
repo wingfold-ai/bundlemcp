@@ -1,6 +1,6 @@
 # ADR-0041: Delegated tokens replace token passthrough for identity-aware upstreams
 
-**Status:** accepted · **Date:** 2026-09-24 · **Amends:** spec 24 (FWD-4)
+**Status:** accepted · **Date:** 2026-09-24 · **Amends:** spec 24 (AUTH-30)
 
 ## Context
 
@@ -17,7 +17,7 @@ introspection authority its upstreams already use, so it can perform that exchan
 ## Decision drivers
 
 - The upstream must be able to verify the caller without holding the caller's credential.
-- Keep the existing introspection contract (FWD-4, OAS-5) so an upstream changes as little as possible.
+- Keep the existing introspection contract (AUTH-30, AUTH-5) so an upstream changes as little as possible.
 - No Postgres schema change; no state a request depends on outside Valkey/Postgres (spec 30).
 
 ## Decision

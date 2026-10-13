@@ -9,11 +9,11 @@ from bundlemcp.domain.shared.clock import utcnow
 class Bundle(BaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="Identifier of the bundle")
     name: str = Field(description="Unique bundle name")
-    description: str | None = Field(  # BND-1
+    description: str | None = Field(
         default=None,
         description="Free-text note about the bundle, served to clients as MCP instructions",
     )
-    overview: str | None = Field(  # BND-11
+    overview: str | None = Field(
         default=None,
         description="Long-form description of the bundle for people browsing the "
         "catalogue: what it is for, what the tools can do, and anything a user must set "

@@ -1,4 +1,4 @@
-// UI-2: every route requires a signed-in user. Anonymous visitors go to the
+// every route requires a signed-in user. Anonymous visitors go to the
 // gateway OIDC login; signed-in non-admins only ever see the catalogue.
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return;

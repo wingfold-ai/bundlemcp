@@ -40,7 +40,7 @@ class InProcessStreamRegistry:
         for _key, queue in self._streams.values():
             queue.put_nowait(STREAM_CLOSING)
 
-    # --- in-flight calls (PROT-3) ---
+    # --- in-flight calls ---
 
     def register_call(self, routing_key: str, request_id: str) -> CallHandle:
         handle = CallHandle(routing_key=routing_key, request_id=request_id)
@@ -57,7 +57,7 @@ class InProcessStreamRegistry:
         handle.cancel_event.set()
         return True
 
-    # --- correlation replies (PROT-4) ---
+    # --- correlation replies ---
 
     def register_reply(self, correlation_id: str) -> asyncio.Future:
         future: asyncio.Future = asyncio.get_running_loop().create_future()
@@ -74,7 +74,7 @@ class InProcessStreamRegistry:
         future.set_result(payload)
         return True
 
-    # --- a modern client's retry, waiting for the parked call's events (PROT-18) ---
+    # --- a modern client's retry, waiting for the parked call's events ---
 
     def register_resume(self, correlation_id: str) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue()

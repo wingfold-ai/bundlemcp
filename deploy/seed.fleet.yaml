@@ -12,7 +12,6 @@ upstreams:
   # per_user: every caller connects their own account at the demo's login form
   # (demo_user / demo_password); discovery borrows the first connected account
   # to list its tools. The client is the public client the demo pre-registers
-  # (BOOT-9).
   - name: oauth-demo
     description: >
       OAuth-protected demo upstream (the MCP python-sdk simple-auth example).
@@ -34,13 +33,13 @@ upstreams:
       introspection against this gateway; users connect their Google account
       on the server's own /connect page (http://localhost:8001/connect).
     url: http://seo-gsc:8000/mcp
-    # FWD-1/FWD-4: pass the gateway-issued bearer through so seo-gsc can
+    # pass the gateway-issued bearer through so seo-gsc can
     # introspect it and resolve the per-user Google token.
     forward_headers:
       authorization: authorization
     # Discovery has no caller bearer; the static header (overridden by the
     # forwarded one at call time) lets tool discovery pass seo-gsc's
-    # introspection (OAS-5 api_key introspection). Dev key — override the
+    # introspection (api_key introspection). Dev key — override the
     # whole seed for real deployments.
     static_headers:
       authorization: Bearer bmcp_sk_devservicekey000000000000000000000000

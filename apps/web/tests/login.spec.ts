@@ -15,7 +15,7 @@ test(testTitle("E2E-01"), async ({ page, steps }) => {
         await expect(page.getByTestId(`row-${name}`)).toBeVisible();
       }
     }),
-    then("each server shows the MCP revision it negotiated, or a dash when unprobed", { req: "SRV-10" }, async () => {
+    then("each server shows the MCP revision it negotiated, or a dash when unprobed", { req: "UPS-10" }, async () => {
       // echo answers anyone, so its probe completes; oauth-demo is only probed
       // once a user has connected an account to it.
       await expect(page.getByTestId("protocol-echo")).toContainText(/^\d{4}-\d{2}-\d{2}$/);

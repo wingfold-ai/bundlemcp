@@ -16,14 +16,14 @@ per-call middleware. Options: the official low-level `mcp` python-sdk, FastMCP (
 ## Decision drivers
 
 - Built-in proxying, server composition, and middleware hooks map directly onto bundles and the middleware chain
-  ([spec/31](../../spec/31-middleware.md)).
+  ([spec/31](../../openspec/specs/protocol/spec.md)).
 - Latest-stable policy (ARC-1) favors the actively developed major version.
 
 ## Decision
 
 FastMCP v3 (≥3.4) is the base framework; drop to the low-level SDK only where externalized session state
-([spec/30](../../spec/30-session-management.md)) or bidirectional relaying
-([spec/32](../../spec/32-protocol-passthrough.md)) demands it.
+([spec/30](../../openspec/specs/sessions/spec.md)) or bidirectional relaying
+([spec/32](../../openspec/specs/protocol/spec.md)) demands it.
 
 ## Alternatives considered
 

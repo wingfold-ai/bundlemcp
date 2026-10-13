@@ -62,7 +62,6 @@ class ApiKeyService:
 
         Returns whether a key was created.
         """
-        # BOOT-3
         existing = await self._keys.any_of_kind(ApiKeyKind.SERVICE)
         if existing is not None:
             return False

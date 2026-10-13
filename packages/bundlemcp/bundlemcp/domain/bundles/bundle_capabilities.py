@@ -7,14 +7,12 @@ from bundlemcp.domain.bundles.bundle_view import BundleView
 
 
 def aggregate_capabilities(view: BundleView) -> dict[str, Any]:
-    # PROT-11 (aggregation rule), DISC-6 (the snapshot it reads)
     """Advertise a capability if the bundle itself provides it or an enabled member does.
 
     A member's source is its discovery-time capabilities snapshot, so initialize
     never fans out to members. The gateway always supports tools. A bundle that
     owns prompts or resources serves them with no member at all.
     """
-    # BPR-10
     caps: dict[str, Any] = {"tools": {"listChanged": True}}
     has_prompts = bool(view.prompts)
     has_resources = bool(view.resources)

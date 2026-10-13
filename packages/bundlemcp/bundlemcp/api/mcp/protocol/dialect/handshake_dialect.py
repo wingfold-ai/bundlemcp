@@ -9,7 +9,7 @@ from bundlemcp.api.mcp.protocol.dialect.client_methods import client_methods
 from bundlemcp.api.mcp.protocol.dialect.era import ProtocolEra
 from bundlemcp.api.mcp.protocol.dialect.neutral_error import NeutralError
 
-# PROT-16: resource-not-found kept its pre-2026 number for handshake clients.
+# resource-not-found kept its pre-2026 number for handshake clients.
 RESOURCE_NOT_FOUND_HANDSHAKE = -32002
 
 

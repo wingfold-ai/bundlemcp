@@ -10,9 +10,9 @@ RESOURCES_LIST_CHANGED = "notifications/resources/list_changed"
 # Which list a change to each kind of record alters; the event key names a bundle,
 # except for an endpoint change, whose key names the endpoint.
 _CHANGED_LIST = {
-    "bundle": TOOLS_LIST_CHANGED,  # BND-7
+    "bundle": TOOLS_LIST_CHANGED,
     "endpoint": TOOLS_LIST_CHANGED,
-    "bundle_prompt": PROMPTS_LIST_CHANGED,  # BPR-11
+    "bundle_prompt": PROMPTS_LIST_CHANGED,
     "bundle_resource": RESOURCES_LIST_CHANGED,
 }
 

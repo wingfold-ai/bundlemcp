@@ -66,7 +66,7 @@ class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
                     profile=endpoint.profile,
                     bundle_name=bundle.name if bundle else "",
                     bundle_description=bundle.description if bundle else None,
-                    bundle_overview=bundle.overview if bundle else None,  # BND-11
+                    bundle_overview=bundle.overview if bundle else None,
                 )
             )
         return sorted(entries, key=lambda e: e.name)

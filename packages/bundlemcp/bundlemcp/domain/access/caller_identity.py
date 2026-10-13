@@ -8,7 +8,7 @@ from bundlemcp.domain.access.identity_subject import IdentitySubject
 from bundlemcp.domain.access.user import User
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 
-API_KEY_SUBJECT_PREFIX = "api_key:"  # FWD-3 identity format for key-authenticated callers
+API_KEY_SUBJECT_PREFIX = "api_key:"  # the subject of key-authenticated callers
 
 
 class CallerIdentity(BaseModel):
@@ -26,7 +26,7 @@ class CallerIdentity(BaseModel):
         default=None, description="Email of the authenticated user, when the issuer supplied one"
     )
     api_key_id: str | None = Field(default=None, description="API key used, when one was")
-    # Defaults keep records written before these fields existed readable (DEP-6).
+    # Defaults keep records written before these fields existed readable.
     oidc_issuer: str | None = Field(
         default=None,
         description="Identity provider that authenticated the user, when OAuth was used",

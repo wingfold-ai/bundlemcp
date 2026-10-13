@@ -18,6 +18,6 @@ class ApiKeyAuthenticator:
             authorization=request.headers.get("authorization"),
             x_api_key=request.headers.get("x-api-key"),
         )
-        if key is None or not key.reaches(view.endpoint.id):  # KEY-2
+        if key is None or not key.reaches(view.endpoint.id):
             return None
         return CallerIdentity.with_api_key(key.id)

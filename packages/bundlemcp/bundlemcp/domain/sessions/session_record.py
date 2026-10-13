@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from bundlemcp.domain.access.caller_identity import CallerIdentity
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
 
-SESSION_RECORD_VERSION = 2  # DEP-6: bump only with cross-release read compat
+SESSION_RECORD_VERSION = 2  # bump only with cross-release read compat
 
 
 class SessionRecord(BaseModel):
@@ -30,7 +30,7 @@ class SessionRecord(BaseModel):
         description="What the client advertised it supports, which decides the relay handlers "
         "attached to upstream calls",
     )
-    log_level: str | None = Field(  # PROT-7
+    log_level: str | None = Field(
         default=None,
         description="Minimum level of upstream log messages the client asked for with "
         "logging/setLevel; None until it asks",

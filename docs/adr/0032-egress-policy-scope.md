@@ -12,7 +12,7 @@ request carries the gateway's pre-registered client secret. A compromised upstre
 receive the secret, or name a metadata service address and use the gateway as a proxy.
 
 The OIDC relying party made the same requests, against operator-configured URLs, and the client-metadata fetcher for
-OAS-13 was written with the check from the start.
+AUTH-13 was written with the check from the start.
 
 ## Decision drivers
 
@@ -42,7 +42,7 @@ _Not recorded at the time of the decision._
 
 - The upstream client secret cannot be redirected to a blocked address, and discovery cannot reach link-local or
   loopback ranges.
-- Together with the issuer binding of UPO-8, an upstream that swaps its authorization server after the connect began is
+- Together with the issuer binding of UPS-32, an upstream that swaps its authorization server after the connect began is
   refused at the callback.
 
 ### Trade-offs

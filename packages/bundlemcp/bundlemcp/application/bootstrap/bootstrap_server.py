@@ -7,7 +7,7 @@ class BootstrapServer(ServerUpsert):
     """A server in a bootstrap document, with the upstream OAuth client the API
     sets through a separate route."""
 
-    upstream_oauth: UpstreamOAuthConfig | None = Field(  # BOOT-9
+    upstream_oauth: UpstreamOAuthConfig | None = Field(
         default=None,
         description="The pre-registered OAuth client the gateway presents to this server's "
         "authorization server. Needs token encryption keys; omit it for a server that is not "

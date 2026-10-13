@@ -7,14 +7,14 @@ service + DTO layer moved from `api/` to the library level), [ADR-0026](0026-con
 
 The management-API routers (`packages/bundlemcp/bundlemcp/api/routers/`) had grown logic-heavy: each route handler mixed
 HTTP concerns (paths, status codes, auth deps) with the business logic itself — queries, upsert semantics, invariant
-checks (SRV-5, TM-3, UPO-6), invalidation publishing, and secret encryption. `schemas.py` was a single 245-line module
-holding every DTO, and several DTOs (`UpstreamOAuthConfig`, `UserRead`, `ConsentRead`, `ConfigValue`) were defined
-inside router modules. This made the business rules hard to find, hard to test in isolation, and each router file a
-mixed-altitude read.
+checks (UPS-5, BND-14, UPS-30), invalidation publishing, and secret encryption. `schemas.py` was a single 245-line
+module holding every DTO, and several DTOs (`UpstreamOAuthConfig`, `UserRead`, `ConsentRead`, `ConfigValue`) were
+defined inside router modules. This made the business rules hard to find, hard to test in isolation, and each router
+file a mixed-altitude read.
 
 ## Decision drivers
 
-- Routers become a readable API surface (route → service call), while invariants like SRV-5/TM-3/UPO-6 live in one
+- Routers become a readable API surface (route → service call), while invariants like UPS-5/BND-14/UPS-30 live in one
   grep-able place per resource.
 - Framework-free services can be unit-tested without an HTTP client and reused by non-HTTP callers (bootstrap, future
   CLI/jobs).

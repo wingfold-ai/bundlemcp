@@ -1,4 +1,4 @@
-"""Store-layer tests: session records (SES-1/2/3/4, SES-1a) and invalidation (STP-1)."""
+"""Store-layer tests: session records (SES-1/2/3/4, SES-1a) and invalidation (SES-17)."""
 
 import asyncio
 import json
@@ -33,7 +33,7 @@ async def test_session_roundtrip_and_delete(redis):
     assert loaded is not None
     assert loaded.endpoint_name == "ep"
 
-    await store.delete("s1")  # SES-4
+    await store.delete("s1")
     assert await store.load("s1") is None
 
 

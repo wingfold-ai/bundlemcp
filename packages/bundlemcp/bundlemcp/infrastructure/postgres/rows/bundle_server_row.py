@@ -21,7 +21,7 @@ class BundleServerRow(SQLModel, table=True):
         sa_column=Column(ForeignKey("mcp_servers.id", ondelete="CASCADE"), index=True),
         description="Server that belongs to the bundle",
     )
-    enabled: bool = Field(  # BND-4
+    enabled: bool = Field(
         default=True,
         description="Whether this membership contributes tools; disabling hides them without "
         "losing their curation",

@@ -17,7 +17,7 @@ PROFILES = [
     ),
     EndpointProfileRead(
         name=EndpointProfile.CHATGPT,
-        description=(  # PROF-3
+        description=(
             "Re-annotates write tools as read-safe — tools still perform "
             "their real operations upstream"
         ),
@@ -51,7 +51,7 @@ class EndpointController(ManagementController):
         self, name: str, body: EndpointUpsert, service: EndpointServiceProvider
     ) -> EndpointRead:
         if body.name != name:
-            # EP-8: changing the public URL needs an explicit rename with force
+            # changing the public URL needs an explicit rename with force
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT,
                 "body.name must match path name; rename via :rename with force (EP-8)",

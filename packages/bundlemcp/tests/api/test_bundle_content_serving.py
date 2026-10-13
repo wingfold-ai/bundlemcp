@@ -1,4 +1,4 @@
-"""Bundle-owned prompts and resources (spec 17) served over MCP, beside member passthrough.
+"""Bundle-owned prompts and resources served over MCP, beside member passthrough.
 
 The member upstream is in-process FastMCP behind a recording client factory, so
 each test can assert that a bundle-owned request contacted no upstream at all.
@@ -40,7 +40,7 @@ def member_resource() -> str:
 
 @member.resource("bundle://resources/style")
 def impostor() -> str:
-    """A member resource in the bundle's own scheme: shadowed, never served (BPR-7)."""
+    """A member resource in the bundle's own scheme: shadowed, never served (BND-24)."""
     return "member pretending to be the bundle"
 
 
@@ -152,7 +152,7 @@ async def _rpc(http, method: str, params: dict | None = None, endpoint: str = "m
 
 
 async def test_prompts_list_puts_the_bundles_own_first(gateway):
-    """BPR-9: bundle prompts in name order, unprefixed, then the members' prefixed ones."""
+    """BND-26: bundle prompts in name order, unprefixed, then the members' prefixed ones."""
     http, _ = gateway
     prompts = (await _rpc(http, "prompts/list"))["result"]["prompts"]
     assert [p["name"] for p in prompts] == ["about", "plot", "python__greet"]
@@ -165,7 +165,7 @@ async def test_prompts_list_puts_the_bundles_own_first(gateway):
 
 
 async def test_prompts_get_renders_without_contacting_a_member(gateway):
-    """BPR-3, BPR-8: substitution, an embedded resource, and no upstream contact."""
+    """BND-20, BND-25: substitution, an embedded resource, and no upstream contact."""
     http, contacted = gateway
     result = (
         await _rpc(http, "prompts/get", {"name": "plot", "arguments": {"series": "revenue"}})
@@ -185,14 +185,14 @@ async def test_prompts_get_renders_without_contacting_a_member(gateway):
 
 
 async def test_prompts_get_names_the_missing_required_argument(gateway):
-    """BPR-4"""
+    """BND-21"""
     http, _ = gateway
     error = (await _rpc(http, "prompts/get", {"name": "plot"}))["error"]
     assert error["code"] == -32602 and "series" in error["message"]
 
 
 async def test_unknown_unprefixed_prompt_never_falls_through(gateway):
-    """BPR-9: a name without `__` is the bundle's alone; an unknown one asks no member."""
+    """BND-26: a name without `__` is the bundle's alone; an unknown one asks no member."""
     http, contacted = gateway
     error = (await _rpc(http, "prompts/get", {"name": "greet"}))["error"]
     assert error["code"] == -32602
@@ -210,7 +210,7 @@ async def test_member_prompt_still_passes_through(gateway):
 
 
 async def test_resources_list_puts_the_bundles_own_first_and_shadows_its_scheme(gateway):
-    """BPR-9, BPR-7: a member URI in the bundle: scheme is dropped from the list."""
+    """BND-26, BND-24: a member URI in the bundle: scheme is dropped from the list."""
     http, _ = gateway
     resources = (await _rpc(http, "resources/list"))["result"]["resources"]
     assert [r["uri"] for r in resources] == ["bundle://resources/style", "res://member"]
@@ -220,7 +220,7 @@ async def test_resources_list_puts_the_bundles_own_first_and_shadows_its_scheme(
 
 
 async def test_resources_read_serves_the_bundles_own(gateway):
-    """BPR-8, BPR-9: the bundle answers its own scheme; the member impostor is unreachable."""
+    """BND-25, BND-26: the bundle answers its own scheme; the member impostor is unreachable."""
     http, contacted = gateway
     contents = (await _rpc(http, "resources/read", {"uri": "bundle://resources/style"}))["result"][
         "contents"
@@ -232,7 +232,7 @@ async def test_resources_read_serves_the_bundles_own(gateway):
 
 
 async def test_unknown_bundle_uri_is_not_found_without_asking_members(gateway):
-    """BPR-9"""
+    """BND-26"""
     http, contacted = gateway
     error = (await _rpc(http, "resources/read", {"uri": "bundle://resources/nope"}))["error"]
     assert error["code"] == -32002
@@ -240,7 +240,7 @@ async def test_unknown_bundle_uri_is_not_found_without_asking_members(gateway):
 
 
 async def test_completion_answers_from_suggested_values(gateway):
-    """BPR-5: case-insensitive prefix match, answered by the gateway alone."""
+    """BND-22: case-insensitive prefix match, answered by the gateway alone."""
     http, contacted = gateway
     completion = (
         await _rpc(
@@ -268,7 +268,7 @@ async def test_completion_answers_from_suggested_values(gateway):
 
 
 async def test_bundle_without_members_serves_prompts_and_resources(gateway):
-    """BPR-10: an endpoint over a member-less bundle advertises and serves its own content."""
+    """BND-27: an endpoint over a member-less bundle advertises and serves its own content."""
     http, contacted = gateway
     _, result = await _initialize(http, "solo")
     caps = result["capabilities"]
@@ -281,7 +281,7 @@ async def test_bundle_without_members_serves_prompts_and_resources(gateway):
 
 
 async def test_bundle_resource_read_is_publicly_cacheable(gateway):
-    """BPR-12: the same content for every caller, so it carries the list TTL, public."""
+    """BND-29: the same content for every caller, so it carries the list TTL, public."""
     http, _ = gateway
     params = {
         "uri": "bundle://resources/style",

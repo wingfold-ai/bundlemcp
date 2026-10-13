@@ -35,17 +35,17 @@ test(testTitle("E2E-07"), async ({ page, request, steps }) => {
     and(`the bundle exposed as endpoint "${endpoint}"`, { req: "EP-7" }, async () => {
       await createApiKeyEndpoint(page, endpoint, bundle);
     }),
-    and("an API key whose value is shown exactly once", { req: "KEY-1" }, async () => {
+    and("an API key whose value is shown exactly once", { req: "AUTH-22" }, async () => {
       await page.goto("/api-keys");
       key = await createApiKey(page, keyName);
     }),
     when(`calling POST /${endpoint}/mcp as an external MCP client`, { req: "EP-1" }, async () => {
       const mcp = await openMcp(request, endpoint, key);
       expect(await mcp.listTools()).toContain("echo__echo");
-      // EP-3: api_key auth accepts the bearer and the call relays to upstream.
+      // api_key auth accepts the bearer and the call relays to upstream.
       expect(await mcp.callTool("echo__echo", { text: "relay-e2e" })).toContain("relay-e2e");
     }),
-    then("the tool call appears in the audit log", { req: "AUD-1" }, async () => {
+    then("the tool call appears in the audit log", { req: "OPS-1" }, async () => {
       // The audit write can lag the response, so re-apply the filter until the
       // row appears (no fixed sleeps).
       await page.goto("/audit");

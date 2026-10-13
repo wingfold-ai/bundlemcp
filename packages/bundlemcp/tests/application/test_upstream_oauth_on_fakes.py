@@ -1,4 +1,4 @@
-"""Upstream OAuth use cases on the in-memory fakes (spec 23: UPO-1/3, spec 11: DISC-1)."""
+"""Upstream OAuth use cases on the in-memory fakes (UPS-25/27, UPS-17)."""
 
 import uuid
 
@@ -132,7 +132,7 @@ def discovery(uow, tokens, probe) -> DiscoveryService:
 
 
 async def test_per_user_server_is_not_probed_before_anyone_connects(uow):
-    """DISC-1: no account to probe with is reported, never counted as the upstream failing."""
+    """UPS-17: no account to probe with is reported, never counted as the upstream failing."""
     server, _ = seed_member(uow)
     probe = RecordingProbe()
     service = discovery(uow, token_service(uow), probe)
@@ -145,7 +145,7 @@ async def test_per_user_server_is_not_probed_before_anyone_connects(uow):
 
 
 async def test_per_user_server_is_probed_with_a_connected_users_token(uow):
-    """DISC-1/BND-7: a user's token lists the tools, and the server's bundles re-list."""
+    """UPS-17/BND-7: a user's token lists the tools, and the server's bundles re-list."""
     server, bundle = seed_member(uow)
     tokens = token_service(uow)
     user = CallerIdentity.oauth_user(User(oidc_issuer="i", oidc_sub="u", email="u@x")).user_uuid
@@ -164,7 +164,7 @@ async def test_per_user_server_is_probed_with_a_connected_users_token(uow):
 
 
 async def test_a_refused_probe_is_logged_on_the_first_failure(uow):
-    """DISC-4: an upstream refusing the connected user's token shows up at once."""
+    """UPS-20: an upstream refusing the connected user's token shows up at once."""
 
     class RefusingProbe:
         async def probe(self, server, headers):
@@ -190,14 +190,14 @@ async def test_shared_server_is_probed_with_the_shared_token(uow):
 
 
 async def test_announced_discovery_re_lists_bundles_even_without_a_token(uow):
-    """DISC-1: a connect always tells the bundle's clients to list again."""
+    """UPS-17: a connect always tells the bundle's clients to list again."""
     server, bundle = seed_member(uow)
     await discovery(uow, token_service(uow), RecordingProbe()).discover(server.id, announce=True)
     assert [e.key for e in uow.published] == [bundle.name]
 
 
 async def test_connect_registers_the_gateway_once_when_no_client_is_stored(uow):
-    """UPO-1: dynamic registration at the discovered endpoint, remembered for later connects."""
+    """UPS-25: dynamic registration at the discovered endpoint, remembered for later connects."""
     server, _ = seed_member(uow)
     provider = FakeProvider()
     tokens = token_service(uow, provider)
@@ -231,7 +231,7 @@ async def test_without_a_registration_endpoint_the_admin_must_store_a_client(uow
 
 
 async def test_connect_requests_the_scopes_the_resource_asks_for(uow):
-    """UPO-1: the resource's scopes, never the authorization server's whole catalogue."""
+    """UPS-25: the resource's scopes, never the authorization server's whole catalogue."""
     server, _ = seed_member(uow)
     provider = FakeProvider(resource_scopes=["openid"])
     await token_service(uow, provider).build_authorize(server, CALLBACK, "s")
@@ -255,7 +255,7 @@ def remember_client_without_resource_scopes(uow, server: McpServer) -> None:
 
 
 async def test_a_remembered_client_asks_the_resource_for_its_scopes(uow):
-    """UPO-1: the stored catalogue is never requested; the resource is asked again.
+    """UPS-25: the stored catalogue is never requested; the resource is asked again.
 
     seo-mcp's proxy requires `openid`, which Keycloak's defaults leave out, so
     requesting no scope here produced tokens the resource refused.
@@ -268,7 +268,7 @@ async def test_a_remembered_client_asks_the_resource_for_its_scopes(uow):
 
 
 async def test_connect_leaves_the_scope_to_the_server_when_the_resource_names_none(uow):
-    """UPO-1: with no scope named anywhere the server applies the client's defaults."""
+    """UPS-25: with no scope named anywhere the server applies the client's defaults."""
     server, _ = seed_member(uow)
     remember_client_without_resource_scopes(uow, server)
     provider = FakeProvider()
@@ -282,7 +282,7 @@ def view_of(server: McpServer, bundle: Bundle) -> BundleView:
 
 
 async def test_connect_tool_is_offered_until_the_caller_connects(uow):
-    """UPO-3: listed for an unconnected user only; its call hands out the ?as=me link."""
+    """UPS-27: listed for an unconnected user only; its call hands out the ?as=me link."""
     server, bundle = seed_member(uow)
     tokens = token_service(uow)
     prompts = AccountConnectPrompts(UpstreamCredentialResolver(tokens, PUBLIC_BASE))
@@ -300,7 +300,7 @@ async def test_connect_tool_is_offered_until_the_caller_connects(uow):
 
 
 async def test_connect_tool_is_not_offered_to_callers_who_cannot_connect(uow):
-    """UPO-3: an API-key caller has no user to key a connection to."""
+    """UPS-27: an API-key caller has no user to key a connection to."""
     server, bundle = seed_member(uow)
     prompts = AccountConnectPrompts(UpstreamCredentialResolver(token_service(uow), PUBLIC_BASE))
     key_caller = CallerIdentity.with_api_key(uuid.uuid4())

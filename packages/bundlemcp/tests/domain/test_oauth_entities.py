@@ -1,4 +1,4 @@
-"""Rules the OAuth entities decide for themselves (spec 20: OAS-2, OAS-3, OAS-4, OAS-11, OAS-13)."""
+"""Rules the OAuth entities decide for themselves (AUTH-2, AUTH-3, AUTH-4, AUTH-11, AUTH-13)."""
 
 import uuid
 from datetime import timedelta
@@ -27,14 +27,14 @@ CLAUDE_CALLBACK = "https://claude.ai/api/mcp/auth_callback"
 
 
 def test_public_client_has_no_secret_to_verify():
-    """OAS-2: a public client passes on PKCE alone and can never match a secret."""
+    """AUTH-2: a public client passes on PKCE alone and can never match a secret."""
     client = OAuthClient(client_id="c")
     assert client.is_public
     assert not client.verifies_secret("anything", HASHER)
 
 
 def test_confidential_client_verifies_only_its_own_secret():
-    """OAS-4: the presented secret is compared by hash; a missing one never matches."""
+    """AUTH-4: the presented secret is compared by hash; a missing one never matches."""
     client = OAuthClient(
         client_id="c",
         client_secret_hash=HASHER.digest("s3cret"),
@@ -47,14 +47,14 @@ def test_confidential_client_verifies_only_its_own_secret():
 
 
 def test_client_allows_only_the_grants_it_registered():
-    """OAS-4: the registered grant list is what the token endpoint honours."""
+    """AUTH-4: the registered grant list is what the token endpoint honours."""
     client = OAuthClient(client_id="c", grant_types=[GrantType.AUTHORIZATION_CODE])
     assert client.allows_grant(GrantType.AUTHORIZATION_CODE)
     assert not client.allows_grant(GrantType.REFRESH_TOKEN)
 
 
 def test_applying_a_metadata_document_keeps_what_the_gateway_recorded():
-    """OAS-13: the document replaces what the client publishes, never the gateway's own facts."""
+    """AUTH-13: the document replaces what the client publishes, never the gateway's own facts."""
     created = utcnow() - timedelta(days=3)
     client = OAuthClient(client_id=CIMD_URL, created_at=created, last_used_at=created)
     document = ClientIdMetadataDocument(
@@ -91,13 +91,13 @@ def test_applying_a_metadata_document_keeps_what_the_gateway_recorded():
     ],
 )
 def test_metadata_document_check_names_what_is_wrong(document, reason):
-    """OAS-13: a document is refused for its URL, its auth method, or a redirect URI."""
+    """AUTH-13: a document is refused for its URL, its auth method, or a redirect URI."""
     with pytest.raises(InvalidClientMetadataDocument, match=reason):
         document.check(fetched_from=CIMD_URL, allowed=OPEN)
 
 
 def test_metadata_document_ignores_grant_types_the_gateway_does_not_implement():
-    """OAS-13: Claude's published document lists jwt-bearer beside the two grants we issue."""
+    """AUTH-13: Claude's published document lists jwt-bearer beside the two grants we issue."""
     claude_url = "https://claude.ai/oauth/mcp-oauth-client-metadata"
     document = ClientIdMetadataDocument.model_validate(
         {
@@ -119,7 +119,7 @@ def test_metadata_document_ignores_grant_types_the_gateway_does_not_implement():
 
 
 def test_metadata_document_of_only_unknown_grants_leaves_no_code_grant():
-    """OAS-4/OAS-13: nothing usable is left, so the authorize endpoint refuses the client."""
+    """AUTH-4/AUTH-13: nothing usable is left, so the authorize endpoint refuses the client."""
     document = ClientIdMetadataDocument(
         client_id=CIMD_URL,
         redirect_uris=["https://client.example/cb"],
@@ -143,7 +143,7 @@ def _code(pkce: PkcePair) -> OAuthAuthorizationCode:
 
 
 def test_code_binds_client_redirect_and_verifier():
-    """OAS-3: a code is bound to its client, its redirect URI and its PKCE challenge."""
+    """AUTH-3: a code is bound to its client, its redirect URI and its PKCE challenge."""
     pkce = PkcePair.generate()
     code = _code(pkce)
     assert code.issued_to("c") and not code.issued_to("other")
@@ -153,7 +153,7 @@ def test_code_binds_client_redirect_and_verifier():
 
 
 def test_consent_stands_until_revoked():
-    """OAS-11: an active consent skips the screen; a revoked one does not."""
+    """AUTH-11: an active consent skips the screen; a revoked one does not."""
     consent = OAuthConsent(user_id=uuid.uuid4(), client_id="c", endpoint_id=uuid.uuid4())
     assert consent.is_active
     consent.revoke(utcnow())
@@ -161,7 +161,7 @@ def test_consent_stands_until_revoked():
 
 
 def test_metadata_document_redirect_uris_must_be_on_a_configured_allow_list():
-    """OAS-13: a configured allow-list narrows the redirect URIs a document may declare."""
+    """AUTH-13: a configured allow-list narrows the redirect URIs a document may declare."""
     document = ClientIdMetadataDocument(
         client_id=CIMD_URL, redirect_uris=["https://client.example/cb"]
     )
@@ -194,7 +194,7 @@ def test_metadata_document_redirect_uris_must_be_on_a_configured_allow_list():
     ],
 )
 def test_redirect_uri_pattern_matches_exact_uris_and_one_wildcard_label(pattern, uri, expected):
-    """OAS-2: an exact entry compares strings; a wildcard stands for exactly one host label."""
+    """AUTH-2: an exact entry compares strings; a wildcard stands for exactly one host label."""
     assert RedirectUriPattern(pattern=pattern).matches(uri) is expected
 
 
@@ -213,19 +213,19 @@ def test_redirect_uri_pattern_matches_exact_uris_and_one_wildcard_label(pattern,
     ],
 )
 def test_redirect_uri_pattern_refuses_malformed_entries(bad):
-    """OAS-2: only exact URIs and a whole leftmost wildcard label are valid entries."""
+    """AUTH-2: only exact URIs and a whole leftmost wildcard label are valid entries."""
     with pytest.raises(ValueError):
         RedirectUriPattern(pattern=bad)
 
 
 def test_empty_allow_list_permits_everything_and_vouches_for_nothing():
-    """OAS-2/OAS-12: no list keeps today's acceptance and exempts nobody from the IP limit."""
+    """AUTH-2/AUTH-12: no list keeps today's acceptance and exempts nobody from the IP limit."""
     assert OPEN.permits("https://evil.example/cb")
     assert not OPEN.vouches_for(["https://evil.example/cb"])
 
 
 def test_allow_list_vouches_only_when_every_uri_is_listed():
-    """OAS-12: one unlisted redirect URI keeps the registration under the per-IP limit."""
+    """AUTH-12: one unlisted redirect URI keeps the registration under the per-IP limit."""
     allowed = RedirectUriAllowList.of(["https://claude.ai/cb"])
     assert allowed.vouches_for(["https://claude.ai/cb"])
     assert not allowed.vouches_for(["https://claude.ai/cb", "https://evil.example/cb"])
@@ -234,7 +234,7 @@ def test_allow_list_vouches_only_when_every_uri_is_listed():
 
 
 def test_registration_policy_exempts_listed_uris_and_caps_unused_clients():
-    """OAS-12/SEC-8: the per-IP limit spares listed URIs; the unused-client cap spares none."""
+    """AUTH-12/SEC-8: the per-IP limit spares listed URIs; the unused-client cap spares none."""
     policy = RegistrationPolicy(
         allowed_redirect_uris=RedirectUriAllowList.of(["https://claude.ai/cb"]),
         per_ip_limit=10,

@@ -70,9 +70,9 @@ class MemberFanout:
         )
         handlers: dict[str, Any] = {}
         if ctx.era is ProtocolEra.SESSION:
-            # PROT-4: a handshake client's GET stream answers an upstream's requests
+            # a handshake client's GET stream answers an upstream's requests
             # for input on any method. A modern client's requests on prompts/get
-            # and resources/read are not bridged yet (PROT-18 residual).
+            # and resources/read are not bridged yet.
             timeouts = await self._runtime_config.call_timeouts()
             relay = ClientRelay(
                 self._registry,
@@ -95,7 +95,7 @@ class MemberFanout:
     @staticmethod
     def members(ctx: RequestContext, capability: ServerCapability) -> list[McpServer]:
         """The bundle's members that advertise ``capability``, in bundle order."""
-        # BND-8: a member without the capability is not contacted (ADR-0043)
+        # a member without the capability is not contacted (ADR-0043)
         return [server for server in ctx.view.servers.values() if server.advertises(capability)]
 
     async def each(

@@ -1,4 +1,4 @@
-"""Row-level constraints the schema enforces: uniqueness and cascades (spec 02, DOM-1, DOM-2)."""
+"""Row-level constraints the schema enforces: uniqueness and cascades (ARC-16, ARC-17)."""
 
 import pytest
 from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
@@ -26,7 +26,7 @@ async def test_server_name_unique(db):
 
 
 async def test_tool_unique_per_server_and_cascade_delete(db):
-    """DOM-2: deleting a server cascades its tools."""
+    """ARC-17: deleting a server cascades its tools."""
     server = await _mk_server(db)
     db.add(ToolRow(server_id=server.id, name="t1", schema_hash="h1"))
     await db.commit()
@@ -42,7 +42,7 @@ async def test_tool_unique_per_server_and_cascade_delete(db):
 
 
 async def test_bundle_cascade_deletes_mappings(db):
-    """DOM-2: deleting a bundle cascades its mapping rows."""
+    """ARC-17: deleting a bundle cascades its mapping rows."""
     server = await _mk_server(db)
     tool = ToolRow(server_id=server.id, name="t1", schema_hash="h")
     bundle = BundleRow(name="b1")

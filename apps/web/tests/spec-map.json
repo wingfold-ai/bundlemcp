@@ -9,7 +9,7 @@
       "requirements": [
         "UI-2",
         "UI-1",
-        "SRV-10"
+        "UPS-10"
       ]
     },
     {
@@ -27,10 +27,10 @@
       "slug": "server-create-discover-delete",
       "title": "Check a server's URL, register it, discover its tools, delete it",
       "requirements": [
-        "SRV-11",
+        "UPS-11",
         "UI-6",
-        "SRV-2",
-        "DISC-1"
+        "UPS-2",
+        "UPS-17"
       ]
     },
     {
@@ -50,8 +50,8 @@
       "requirements": [
         "BND-6",
         "BND-4",
-        "TM-1",
-        "TM-3",
+        "BND-12",
+        "BND-14",
         "EP-7"
       ]
     },
@@ -61,7 +61,7 @@
       "slug": "bundle-chatgpt-warning",
       "title": "The chatgpt profile warns that write tools are re-annotated",
       "requirements": [
-        "PROF-3"
+        "EP-12"
       ]
     },
     {
@@ -72,10 +72,10 @@
       "requirements": [
         "EP-1",
         "EP-3",
-        "AUD-1",
+        "OPS-1",
         "BND-6",
         "EP-7",
-        "KEY-1"
+        "AUTH-22"
       ],
       "new": true
     },
@@ -85,7 +85,7 @@
       "slug": "endpoint-config-persist",
       "title": "Endpoint rate limit and auth-mode edits persist across reload",
       "requirements": [
-        "RATE-1",
+        "EP-16",
         "EP-3"
       ],
       "new": true
@@ -96,8 +96,8 @@
       "slug": "users-list-and-consents",
       "title": "Users page lists the admin and drills into consents",
       "requirements": [
-        "ADM-6",
-        "OAS-11",
+        "AUTH-20",
+        "AUTH-11",
         "UI-1"
       ],
       "new": true
@@ -108,8 +108,8 @@
       "slug": "api-key-lifecycle",
       "title": "An API key is shown once, then deactivated and deleted",
       "requirements": [
-        "KEY-1",
-        "KEY-4"
+        "AUTH-22",
+        "AUTH-25"
       ]
     },
     {
@@ -118,8 +118,8 @@
       "slug": "runtime-config-edit-reset",
       "title": "A runtime Config value can be edited, persisted and reset",
       "requirements": [
-        "API-1",
-        "DOM-5"
+        "MGMT-1",
+        "ARC-20"
       ]
     },
     {
@@ -128,8 +128,8 @@
       "slug": "gsc-forwarding-status",
       "title": "The UI surfaces header forwarding and flags it as passthrough",
       "requirements": [
-        "FWD-4",
-        "FWD-7"
+        "AUTH-30",
+        "AUTH-33"
       ]
     },
     {
@@ -139,7 +139,7 @@
       "title": "The upstream-OAuth connect link targets the gateway route",
       "requirements": [
         "UI-6",
-        "UPO-1"
+        "UPS-25"
       ]
     },
     {
@@ -149,8 +149,8 @@
       "title": "A signed-in non-admin sees only the endpoint catalogue",
       "requirements": [
         "UI-2",
-        "API-1",
-        "ADM-3"
+        "MGMT-1",
+        "AUTH-17"
       ]
     },
     {
@@ -180,8 +180,8 @@
       "title": "Approving or denying consent in a browser reaches the client's redirect URI on another origin",
       "requirements": [
         "SEC-6",
-        "OAS-11",
-        "OAS-2"
+        "AUTH-11",
+        "AUTH-2"
       ]
     },
     {
@@ -190,10 +190,10 @@
       "slug": "bundle-own-prompts-and-resources",
       "title": "An admin writes a bundle's own resource and prompt, previews both, and cannot orphan the prompt",
       "requirements": [
-        "BPR-14",
+        "BND-31",
         "BND-6",
-        "BPR-6",
-        "BPR-3"
+        "BND-23",
+        "BND-20"
       ]
     }
   ]

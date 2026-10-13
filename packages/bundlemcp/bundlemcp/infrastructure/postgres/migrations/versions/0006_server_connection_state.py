@@ -1,4 +1,4 @@
-"""Add mcp_servers.connection_state (SRV-12).
+"""Add mcp_servers.connection_state (UPS-12).
 
 What the last probe found out about the upstream — ready, a refusal naming
 OAuth, a refusal wanting another credential, not an MCP endpoint, unreachable

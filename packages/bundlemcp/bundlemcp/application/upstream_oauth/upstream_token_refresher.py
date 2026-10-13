@@ -37,7 +37,6 @@ class UpstreamTokenRefresher:
         self._provider = provider
         self._lock = lock
 
-    # UPO-11
     async def access_token(
         self, server: McpServer, user_id: uuid.UUID | None, *, force: bool = False
     ) -> str:
@@ -81,7 +80,7 @@ class UpstreamTokenRefresher:
     async def _refresh_single_flight(
         self, server: McpServer, user_id: uuid.UUID | None, tokens: UpstreamTokens
     ) -> str:
-        # UPO-4: concurrent callers cause exactly one refresh
+        # concurrent callers cause exactly one refresh
         user_key = str(user_id) if user_id is not None else "shared"
         lock_key = REFRESH_LOCK_KEY.format(server_id=server.id, user_key=user_key)
         if not await self._lock.acquire(lock_key, ttl_seconds=REFRESH_LOCK_TTL):
@@ -107,7 +106,7 @@ class UpstreamTokenRefresher:
         self, server: McpServer, user_id: uuid.UUID | None, tokens: UpstreamTokens
     ) -> str:
         if user_id is None and await self._uses_client_credentials(server):
-            return await self._grant(server)  # UPO-11: nothing to refresh, grant again
+            return await self._grant(server)  # nothing to refresh, grant again
         if not tokens.refresh_token:
             await self._tokens.invalidate(server.id, user_id)
             raise NeedsConnect(server.name, "no_refresh_token")

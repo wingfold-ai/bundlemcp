@@ -39,7 +39,7 @@ class UserProvisioningService:
             user = User(oidc_issuer=claims.issuer, oidc_sub=claims.sub)
         user.email = claims.email
         user.display_name = claims.name
-        user.is_admin = self.is_admin(claims)  # ADM-3
+        user.is_admin = self.is_admin(claims)
         if not user.is_active:
             user.is_active = True  # re-login reactivates unless admin-deactivated separately
         self._users.add(user)

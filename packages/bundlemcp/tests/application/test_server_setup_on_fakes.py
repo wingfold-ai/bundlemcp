@@ -1,6 +1,6 @@
 """Guided server setup and upstream credential use cases on the in-memory fakes.
 
-Spec 10 (SRV-1, SRV-10..SRV-15), spec 23 (UPO-1, UPO-10, UPO-11, UPO-13), spec 24 (FWD-6).
+UPS-1, UPS-10..UPS-15, UPS-25, UPS-34, UPS-35, UPS-37, AUTH-32.
 """
 
 import uuid
@@ -198,10 +198,10 @@ def oauth_server(uow, identity_mode=IdentityMode.SHARED) -> McpServer:
     return server
 
 
-# --- inspection (SRV-11) -----------------------------------------------------------------
+# --- inspection -----------------------------------------------------------------
 
 
-async def test_srv11_an_open_server_is_ready_and_named_after_itself(uow):
+async def test_ups11_an_open_server_is_ready_and_named_after_itself(uow):
     probe = ScriptedProbe({"https://weather.example/mcp": ready()})
     result = await inspector(uow, probe).inspect(
         ServerInspectRequest(url="https://weather.example/mcp")
@@ -211,10 +211,10 @@ async def test_srv11_an_open_server_is_ready_and_named_after_itself(uow):
     assert result.suggestion.name == "weather"
     assert result.suggestion.description == "Forecasts"
     assert result.suggestion.auth_mode == ServerAuthMode.NONE
-    assert result.suggestion.send_identity_header is False  # SRV-13: a public host
+    assert result.suggestion.send_identity_header is False  # a public host
 
 
-async def test_srv11_a_taken_name_is_not_suggested_twice(uow):
+async def test_ups11_a_taken_name_is_not_suggested_twice(uow):
     uow.servers.add(McpServer(name="weather", url="http://other/mcp"))
     probe = ScriptedProbe({"https://weather.example/mcp": ready()})
     result = await inspector(uow, probe).inspect(
@@ -223,7 +223,7 @@ async def test_srv11_a_taken_name_is_not_suggested_twice(uow):
     assert result.suggestion.name == "weather-2"
 
 
-async def test_srv11_a_refusal_without_oauth_metadata_asks_for_a_key(uow):
+async def test_ups11_a_refusal_without_oauth_metadata_asks_for_a_key(uow):
     probe = ScriptedProbe({"https://keyed.example/mcp": refused(401, 'Bearer realm="x"')})
     probe.answers["https://keyed.example/mcp"] = ProbeFailure(
         "HTTP 401", state=ConnectionState.CREDENTIAL_REQUIRED
@@ -238,7 +238,7 @@ async def test_srv11_a_refusal_without_oauth_metadata_asks_for_a_key(uow):
     assert "API key" in result.hints[0]
 
 
-async def test_srv11_candidate_headers_are_tried_and_never_echoed(uow):
+async def test_ups11_candidate_headers_are_tried_and_never_echoed(uow):
     probe = ScriptedProbe({"https://keyed.example/mcp": ready()})
     result = await inspector(uow, probe).inspect(
         ServerInspectRequest(url="https://keyed.example/mcp", headers={"x-api-key": "sekrit-value"})
@@ -249,7 +249,7 @@ async def test_srv11_candidate_headers_are_tried_and_never_echoed(uow):
     assert "sekrit-value" not in result.model_dump_json()
 
 
-async def test_srv11_oauth_reports_how_the_gateway_identifies_itself(uow):
+async def test_ups11_oauth_reports_how_the_gateway_identifies_itself(uow):
     probe = ScriptedProbe({"https://api.example/mcp": refused(401, OAUTH_CHALLENGE)})
     provider = Provider(
         client_id_metadata_document_supported=True, grant_types_supported=["client_credentials"]
@@ -266,7 +266,7 @@ async def test_srv11_oauth_reports_how_the_gateway_identifies_itself(uow):
     assert result.suggestion.identity_mode == IdentityMode.PER_USER
 
 
-async def test_srv11_oauth_without_automatic_registration_says_what_to_register(uow):
+async def test_ups11_oauth_without_automatic_registration_says_what_to_register(uow):
     probe = ScriptedProbe({"https://api.example/mcp": refused(401, OAUTH_CHALLENGE)})
     result = await inspector(uow, probe, Provider()).inspect(
         ServerInspectRequest(url="https://api.example/mcp")
@@ -275,7 +275,7 @@ async def test_srv11_oauth_without_automatic_registration_says_what_to_register(
     assert CALLBACK in result.hints[0]
 
 
-async def test_srv11_a_url_missing_its_mcp_path_is_found(uow):
+async def test_ups11_a_url_missing_its_mcp_path_is_found(uow):
     probe = ScriptedProbe({"https://weather.example/mcp": ready()})
     result = await inspector(uow, probe).inspect(
         ServerInspectRequest(url="https://weather.example")
@@ -285,7 +285,7 @@ async def test_srv11_a_url_missing_its_mcp_path_is_found(uow):
     assert result.suggestion.url == "https://weather.example/mcp"
 
 
-async def test_srv11_an_sse_url_is_explained(uow):
+async def test_ups11_an_sse_url_is_explained(uow):
     probe = ScriptedProbe({})
     result = await inspector(uow, probe).inspect(
         ServerInspectRequest(url="https://old.example/sse")
@@ -295,10 +295,10 @@ async def test_srv11_an_sse_url_is_explained(uow):
     assert len(probe.seen) == 1  # no /mcp guess for an explicit transport path
 
 
-# --- server.json import (SRV-15) ---------------------------------------------------------
+# --- server.json import ---------------------------------------------------------
 
 
-def test_srv15_a_server_json_draft_carries_the_declared_headers():
+def test_ups15_a_server_json_draft_carries_the_declared_headers():
     draft = ServerJsonImporter().draft(
         {
             "name": "io.github.acme/weather",
@@ -329,7 +329,7 @@ def test_srv15_a_server_json_draft_carries_the_declared_headers():
     assert draft.problems == []
 
 
-def test_srv15_a_local_only_or_sse_only_document_is_reported():
+def test_ups15_a_local_only_or_sse_only_document_is_reported():
     assert ServerJsonImporter().draft({"name": "x", "packages": [{}]}).problems
     sse_only = ServerJsonImporter().draft(
         {"name": "x", "remotes": [{"type": "sse", "url": "https://x/sse"}]}
@@ -337,10 +337,10 @@ def test_srv15_a_local_only_or_sse_only_document_is_reported():
     assert sse_only.url is None and "sse" in sse_only.problems[0]
 
 
-# --- registration rules (SRV-1, SRV-10, SRV-13, SRV-14) ------------------------------------
+# --- registration rules ------------------------------------
 
 
-async def test_srv13_identity_header_defaults_by_network_and_is_kept_on_update(uow):
+async def test_ups13_identity_header_defaults_by_network_and_is_kept_on_update(uow):
     servers = ServerService(uow, discovery=NoopToolDiscovery())
     internal = await servers.upsert(ServerUpsert(name="gsc", url="http://seo-gsc:8000/mcp"))
     external = await servers.upsert(ServerUpsert(name="lin", url="https://mcp.linear.app/mcp"))
@@ -353,14 +353,14 @@ async def test_srv13_identity_header_defaults_by_network_and_is_kept_on_update(u
     assert kept.send_identity_header is True
 
 
-async def test_srv10_an_update_without_protocol_mode_keeps_the_pin(uow):
+async def test_ups10_an_update_without_protocol_mode_keeps_the_pin(uow):
     servers = ServerService(uow, discovery=NoopToolDiscovery())
     await servers.upsert(ServerUpsert(name="old", url="http://old/mcp", protocol_mode="legacy"))
     kept = await servers.upsert(ServerUpsert(name="old", url="http://old/mcp", description="d"))
     assert kept.protocol_mode == "legacy"
 
 
-async def test_srv1_auth_mode_follows_the_stored_headers(uow):
+async def test_ups1_auth_mode_follows_the_stored_headers(uow):
     servers = ServerService(uow, discovery=NoopToolDiscovery())
     keyed = await servers.upsert(
         ServerUpsert(name="k", url="http://k/mcp", static_headers={"x-api-key": "v"})
@@ -371,12 +371,12 @@ async def test_srv1_auth_mode_follows_the_stored_headers(uow):
     assert again.auth_mode == ServerAuthMode.STATIC_HEADERS
 
 
-def test_srv14_denied_forward_headers_are_refused_at_write_time():
+def test_ups14_denied_forward_headers_are_refused_at_write_time():
     with pytest.raises(ValueError, match="cookie"):
         ServerUpsert(name="s", url="http://s/mcp", forward_headers={"cookie": "cookie"})
 
 
-async def test_upo11_a_client_credentials_server_cannot_become_per_user(uow):
+async def test_ups35_a_client_credentials_server_cannot_become_per_user(uow):
     server = oauth_server(uow)
     config = UpstreamOAuthConfigService(uow, cipher=_cipher(), connections=_Registry())
     await config.set_client(
@@ -397,7 +397,7 @@ async def test_upo11_a_client_credentials_server_cannot_become_per_user(uow):
         )
 
 
-async def test_upo11_a_client_credentials_client_needs_a_secret_and_a_shared_server(uow):
+async def test_ups35_a_client_credentials_client_needs_a_secret_and_a_shared_server(uow):
     oauth_server(uow, IdentityMode.PER_USER)
     config = UpstreamOAuthConfigService(uow, cipher=_cipher(), connections=_Registry())
     with pytest.raises(PreconditionError, match="shared"):
@@ -409,10 +409,10 @@ async def test_upo11_a_client_credentials_client_needs_a_secret_and_a_shared_ser
         )
 
 
-# --- discovery records the connection state (SRV-12) -------------------------------------
+# --- discovery records the connection state -------------------------------------
 
 
-async def test_srv12_discovery_records_what_each_probe_found(uow):
+async def test_ups12_discovery_records_what_each_probe_found(uow):
     server = McpServer(name="api", url="https://api.example/mcp")
     uow.servers.add(server)
     probe = ScriptedProbe({"https://api.example/mcp": refused(401, OAUTH_CHALLENGE)})
@@ -429,7 +429,7 @@ async def test_srv12_discovery_records_what_each_probe_found(uow):
     assert (await uow.servers.get(server.id)).connection_state == ConnectionState.READY
 
 
-async def test_srv12_a_refused_key_is_not_mistaken_for_oauth(uow):
+async def test_ups12_a_refused_key_is_not_mistaken_for_oauth(uow):
     """A server sending a credential that is refused has a bad credential, not OAuth."""
     server = McpServer(name="k", url="https://k.example/mcp", static_headers={"x-api-key": "old"})
     uow.servers.add(server)
@@ -441,10 +441,10 @@ async def test_srv12_a_refused_key_is_not_mistaken_for_oauth(uow):
     assert result.connection_state == ConnectionState.CREDENTIAL_REQUIRED
 
 
-# --- how the gateway identifies itself upstream (UPO-1, UPO-13) ----------------------------
+# --- how the gateway identifies itself upstream ----------------------------
 
 
-async def test_upo1_a_metadata_document_is_preferred_over_registration(uow):
+async def test_ups25_a_metadata_document_is_preferred_over_registration(uow):
     server = oauth_server(uow)
     provider = Provider(
         client_id_metadata_document_supported=True,
@@ -455,7 +455,7 @@ async def test_upo1_a_metadata_document_is_preferred_over_registration(uow):
     assert provider.registered == 0
 
 
-async def test_upo1_registration_is_used_when_no_document_can_be(uow):
+async def test_ups25_registration_is_used_when_no_document_can_be(uow):
     server = oauth_server(uow)
     provider = Provider(
         client_id_metadata_document_supported=True,
@@ -465,14 +465,14 @@ async def test_upo1_registration_is_used_when_no_document_can_be(uow):
     assert provider.client_ids == ["dcr-1"]
 
 
-async def test_upo1_without_either_the_admin_must_store_a_client(uow):
+async def test_ups25_without_either_the_admin_must_store_a_client(uow):
     server = oauth_server(uow)
     with pytest.raises(NeedsConnect) as excinfo:
         await tokens(uow, Provider()).build_authorize(server, CALLBACK, "state")
     assert excinfo.value.reason == "no_client_config"
 
 
-async def test_upo13_a_new_issuer_discards_the_registration_and_its_tokens(uow):
+async def test_ups37_a_new_issuer_discards_the_registration_and_its_tokens(uow):
     server = oauth_server(uow)
     provider = Provider(registration_endpoint="https://as.example/register")
     service = tokens(uow, provider)
@@ -488,7 +488,7 @@ async def test_upo13_a_new_issuer_discards_the_registration_and_its_tokens(uow):
     assert await uow.upstream_tokens.find(server.id, None) is None
 
 
-async def test_upo13_an_admin_client_is_never_replaced(uow):
+async def test_ups37_an_admin_client_is_never_replaced(uow):
     server = oauth_server(uow)
     provider = Provider(registration_endpoint="https://as.example/register")
     config = UpstreamOAuthConfigService(uow, cipher=_cipher(), connections=_Registry())
@@ -499,10 +499,10 @@ async def test_upo13_an_admin_client_is_never_replaced(uow):
     assert provider.registered == 0
 
 
-# --- step-up and client credentials (UPO-10, UPO-11) ---------------------------------------
+# --- step-up and client credentials ---------------------------------------
 
 
-async def test_upo10_demanded_scopes_are_requested_at_the_next_connect(uow):
+async def test_ups34_demanded_scopes_are_requested_at_the_next_connect(uow):
     server = oauth_server(uow)
     provider = Provider(registration_endpoint="https://as.example/register")
     service = tokens(uow, provider)
@@ -513,7 +513,7 @@ async def test_upo10_demanded_scopes_are_requested_at_the_next_connect(uow):
     assert provider.scopes == ["files:read", "files:read files:write"]
 
 
-async def test_upo11_client_credentials_obtain_the_shared_token_without_a_browser(uow):
+async def test_ups35_client_credentials_obtain_the_shared_token_without_a_browser(uow):
     server = oauth_server(uow)
     provider = Provider()
     cipher = _cipher()
@@ -534,10 +534,10 @@ async def test_upo11_client_credentials_obtain_the_shared_token_without_a_browse
         await service.build_authorize(server, CALLBACK, "state")
 
 
-# --- delegated tokens (FWD-6) --------------------------------------------------------------
+# --- delegated tokens --------------------------------------------------------------
 
 
-async def test_fwd6_a_delegated_server_gets_a_token_bound_to_it():
+async def test_auth32_a_delegated_server_gets_a_token_bound_to_it():
     store = InMemoryDelegatedTokenStore()
     clock = ManualClock(datetime(2026, 9, 24, tzinfo=UTC))
     issuer = DelegatedTokenIssuer(

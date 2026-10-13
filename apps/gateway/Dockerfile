@@ -1,4 +1,4 @@
-# bundlemcp gateway (spec 71 DEP-11); build from the repo root:
+# bundlemcp gateway; build from the repo root:
 #   docker build -f apps/gateway/Dockerfile .
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 WORKDIR /app
@@ -19,8 +19,8 @@ COPY apps/gateway/main.py ./main.py
 ENV PATH="/app/.venv/bin:$PATH"
 USER bundlemcp
 EXPOSE 8000
-# DEP-3: the readiness probe is the container's health
+# the readiness probe is the container's health
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=6 \
     CMD ["python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=3).status == 200 else 1)"]
-# DEP-4: migrations run as a dedicated step before serving
+# migrations run as a dedicated step before serving
 CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && python main.py"]

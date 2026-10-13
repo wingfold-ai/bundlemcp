@@ -9,7 +9,7 @@ from bundlemcp.domain.sessions.admin_session import AdminSession
 log = structlog.get_logger(__name__)
 
 ADMIN_SESSION_KEY = "bmcp:adminsession:{session_id}"
-DEFAULT_MAX_AGE = 12 * 3600  # seconds; forces re-login (ADM-6)
+DEFAULT_MAX_AGE = 12 * 3600  # seconds; forces re-login
 
 
 class AdminSessionStore:
@@ -34,7 +34,7 @@ class AdminSessionStore:
         # A stored record that no longer matches the schema is treated as no
         # session, so a rollout that changes the shape logs people out rather
         # than raising mid-request. The id is the bearer credential itself, so
-        # it is never written to the log (DOM-3).
+        # it is never written to the log.
         try:
             return AdminSession.model_validate_json(raw)
         except ValidationError:

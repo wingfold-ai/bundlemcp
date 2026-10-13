@@ -16,12 +16,13 @@ session".
 
 ## Decision
 
-Two-store split (ARC-7/8/9/10 in [spec/01](../../spec/01-architecture.md)): Postgres holds everything durable (config,
-users, tokens, audit); Redis holds everything live (sessions, bindings, rate limits, log ring, pub/sub).
-**No request may depend on process-local state.** A session is data, not an object
-([spec/30](../../spec/30-session-management.md)); cross-replica signaling and config invalidation ride Redis pub/sub
-([spec/32](../../spec/32-protocol-passthrough.md),
-[spec/33](../../spec/33-state-propagation.md)).
+Two-store split (ARC-7/8/9/10 in [spec/01](../../openspec/specs/architecture/spec.md)): Postgres holds everything
+durable (config, users, tokens, audit); Redis holds everything live (sessions, bindings, rate limits, log ring,
+pub/sub). **No request may depend on process-local state.** A session is data, not an object
+([spec/30](../../openspec/specs/sessions/spec.md)); cross-replica signaling and config invalidation ride Redis
+pub/sub
+([spec/32](../../openspec/specs/protocol/spec.md),
+[spec/33](../../openspec/specs/sessions/spec.md)).
 
 ## Alternatives considered
 
@@ -36,6 +37,6 @@ _Not recorded at the time of the decision._
 ### Trade-offs
 
 - Redis becomes availability-critical for live traffic; behavior under outage is explicitly specified (degradation
-  matrix SES-14, RATE-6) instead of hand-waved.
+  matrix SES-14, EP-21) instead of hand-waved.
 - Live streams remain replica-pinned; cross-replica delivery machinery (SES-13) is the price of the model.
 

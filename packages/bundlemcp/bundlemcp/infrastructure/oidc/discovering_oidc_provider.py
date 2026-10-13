@@ -17,7 +17,7 @@ log = structlog.get_logger(__name__)
 Discover = Callable[[], Awaitable[JoseOidcProvider]]
 Clock = Callable[[], float]
 
-# ADM-7: the floor between two discovery attempts a login may trigger, so a
+# the floor between two discovery attempts a login may trigger, so a
 # burst of logins while the IdP is down does not become a burst of fetches.
 LOGIN_RETRY_FLOOR_SECONDS = 5
 # The background loop's backoff while discovery keeps failing.

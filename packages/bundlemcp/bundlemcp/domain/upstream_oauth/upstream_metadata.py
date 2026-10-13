@@ -20,27 +20,27 @@ class UpstreamMetadata(BaseModel):
         description="Scopes the authorization server advertises; its whole catalogue, never "
         "what a client should request",
     )
-    resource_scopes: list[str] = Field(  # UPO-1
+    resource_scopes: list[str] = Field(
         default=[],
         description="Scopes the protected resource asks clients to request: the 'scope' of its "
         "WWW-Authenticate challenge, else the scopes_supported of its resource metadata",
     )
-    issuer: str | None = Field(  # UPO-8
+    issuer: str | None = Field(
         default=None,
         description="The authorization server's issuer identifier from its metadata, which an "
         "'iss' on the authorization response must equal",
     )
-    authorization_response_iss_parameter_supported: bool = Field(  # UPO-8
+    authorization_response_iss_parameter_supported: bool = Field(
         default=False,
         description="Whether the server promises an 'iss' on every authorization response, in "
         "which case a response without one is refused",
     )
-    resource: str | None = Field(  # UPO-12
+    resource: str | None = Field(
         default=None,
         description="The RFC 8707 resource indicator every authorization, token and refresh "
         "request names: the protected resource's identifier or the server's canonical URL",
     )
-    client_id_metadata_document_supported: bool = Field(  # UPO-1
+    client_id_metadata_document_supported: bool = Field(
         default=False,
         description="Whether the server accepts a client metadata document URL as a client id",
     )
@@ -52,7 +52,7 @@ class UpstreamMetadata(BaseModel):
     grant_types_supported: list[str] = Field(
         default=[], description="Grant types the server advertises; empty when it does not say"
     )
-    step_up_scopes: list[str] = Field(  # UPO-10
+    step_up_scopes: list[str] = Field(
         default=[],
         description="Scopes an upstream later asked for with insufficient_scope, requested on "
         "top of the resource scopes at the next connect",

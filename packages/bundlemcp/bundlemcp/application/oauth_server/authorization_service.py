@@ -62,7 +62,7 @@ class AuthorizationService:
                 request.state,
                 code,
                 description,
-                issuer=self._public_base,  # OAS-14
+                issuer=self._public_base,
             )
 
         if request.response_type != ResponseType.CODE:
@@ -71,7 +71,7 @@ class AuthorizationService:
             raise redirect(OAuthErrorCode.UNAUTHORIZED_CLIENT)
         if not request.code_challenge or request.code_challenge_method != CodeChallengeMethod.S256:
             raise redirect(OAuthErrorCode.INVALID_REQUEST, "PKCE S256 code_challenge required")
-        # OAS-10: resolve the endpoint audience from `resource`
+        # resolve the endpoint audience from `resource`
         resource = EndpointResource.parse(self._public_base, request.resource)
         if resource is None:
             raise redirect(

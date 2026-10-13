@@ -17,9 +17,9 @@ entitlements) *around* the gateway and registers servers as public anyway.
 ## Decision
 
 bundlemcp is a **single shared workspace**: every admin sees and manages all servers/bundles/endpoints/keys. No
-ownership columns, no per-resource ACLs ([spec/README](../../spec/README.md) decision log;
-[spec/02](../../spec/02-domain-model.md)). Non-admin users exist only as endpoint consumers (OAuth identities,
-upstream-token owners).
+ownership columns, no per-resource ACLs ([spec/README](../../openspec/README.md) decision log;
+[spec/02](../../openspec/specs/architecture/spec.md)). Non-admin users exist only as endpoint consumers (OAuth
+identities, upstream-token owners).
 
 ## Alternatives considered
 

@@ -1,6 +1,6 @@
-"""The MCP fleet through the gateway: seo + media bundles (BND-*, FWD-*).
+"""The MCP fleet through the gateway: seo + media bundles (BND-*, AUTH-27..33).
 
-Requires the full compose stack. The seo-gsc assertions exercise FWD-1/FWD-4:
+Requires the full compose stack. The seo-gsc assertions exercise AUTH-27/AUTH-30:
 the gateway forwards the caller's bearer, seo-gsc introspects it back against
 this gateway, and — before a Google account is connected — answers tool calls
 with its connect instructions instead of results. Completing the Google consent
@@ -35,8 +35,8 @@ def test_seo_bundle_serves_psi_tools_with_api_key():
 
 
 def test_seo_bundle_discovers_gsc_tools():
-    """OAS-5 api-key introspection lets discovery authenticate against seo-gsc,
-    so its tools appear in the bundle (DISC-1 via the static header)."""
+    """AUTH-5 api-key introspection lets discovery authenticate against seo-gsc,
+    so its tools appear in the bundle (UPS-17 via the static header)."""
     wait_ready(GATEWAY_URL)
     # force a fresh discovery pass in case the boot-time probe raced seo-gsc
     svc = {"Authorization": f"Bearer {SERVICE_KEY}"}
@@ -94,7 +94,7 @@ def _oauth_token_for(endpoint: str) -> str:
 
 
 def test_gsc_tool_call_reaches_gsc_via_forwarded_bearer():
-    """FWD-1/FWD-4/UPO analog: an OAuth caller's bearer is forwarded, seo-gsc
+    """AUTH-27/AUTH-30, the upstream-OAuth analog: an OAuth caller's bearer is forwarded, seo-gsc
     introspects it here, and answers — with connect instructions before the
     Google account is linked, with data after."""
     wait_ready(GATEWAY_URL)
@@ -126,7 +126,7 @@ def test_gsc_tool_call_reaches_gsc_via_forwarded_bearer():
 
 
 def test_media_bundle_initializes_and_identifies_caller():
-    """hyperframes receives X-MCP-User (FWD-3) for api_key callers."""
+    """hyperframes receives X-MCP-User (AUTH-29) for api_key callers."""
     wait_ready(GATEWAY_URL)
     session = initialize(GATEWAY_URL, "media", api_key=SERVICE_KEY)
     listing = mcp_call(GATEWAY_URL, "media", session, "tools/list", api_key=SERVICE_KEY)

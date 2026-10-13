@@ -12,10 +12,10 @@ class BundleTool(BaseModel):
     tool_id: uuid.UUID = Field(
         description="Tool being curated",
     )
-    enabled: bool = Field(  # TM-1
+    enabled: bool = Field(
         default=True, description="Whether the tool is served through this bundle"
     )
-    override_name: str | None = Field(  # TM-3
+    override_name: str | None = Field(
         default=None, description="Replacement name clients see instead of 'server__tool'"
     )
     override_title: str | None = Field(

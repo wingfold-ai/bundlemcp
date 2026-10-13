@@ -1,6 +1,6 @@
 """The identity provider's subject reaches the metering hook, introspection and X-MCP-User.
 
-Spec 31 (MID-1), spec 20 (OAS-5), spec 24 (FWD-3, FWD-6), through the ASGI app with an
+PROT-24, AUTH-5, AUTH-29, AUTH-32, through the ASGI app with an
 OAuth user and an API key calling the same endpoint.
 """
 
@@ -159,7 +159,7 @@ async def _introspect(http, token: str) -> dict:
     return response.json()
 
 
-async def test_mid1_meter_context_carries_the_idp_subject_of_a_user_and_none_for_a_key(
+async def test_prot24_meter_context_carries_the_idp_subject_of_a_user_and_none_for_a_key(
     engine, redis
 ):
     seeded = await _seed(engine, ServerAuthMode.STATIC_HEADERS)
@@ -183,7 +183,7 @@ async def test_mid1_meter_context_carries_the_idp_subject_of_a_user_and_none_for
     )
 
 
-async def test_oas5_a_user_token_introspects_with_the_idp_subject(engine, redis):
+async def test_auth5_a_user_token_introspects_with_the_idp_subject(engine, redis):
     seeded = await _seed(engine, ServerAuthMode.STATIC_HEADERS)
     async with serving(engine, redis, client_factory=RecordingFactory()) as (http, _):
         body = await _introspect(http, USER_TOKEN)
@@ -192,7 +192,7 @@ async def test_oas5_a_user_token_introspects_with_the_idp_subject(engine, redis)
     assert (body["oidc_iss"], body["oidc_sub"]) == (ISSUER, IDP_SUB)
 
 
-async def test_oas5_an_api_key_introspects_without_an_idp_subject(engine, redis):
+async def test_auth5_an_api_key_introspects_without_an_idp_subject(engine, redis):
     seeded = await _seed(engine, ServerAuthMode.STATIC_HEADERS)
     async with serving(engine, redis, client_factory=RecordingFactory()) as (http, _):
         body = await _introspect(http, ENDPOINT_KEY)
@@ -200,7 +200,7 @@ async def test_oas5_an_api_key_introspects_without_an_idp_subject(engine, redis)
     assert "oidc_iss" not in body and "oidc_sub" not in body
 
 
-async def test_oas5_fwd6_a_token_delegated_for_a_user_introspects_with_the_idp_subject(
+async def test_auth5_fwd6_a_token_delegated_for_a_user_introspects_with_the_idp_subject(
     engine, redis
 ):
     seeded = await _seed(engine, ServerAuthMode.DELEGATED_TOKEN)
@@ -225,7 +225,7 @@ async def test_oas5_fwd6_a_token_delegated_for_a_user_introspects_with_the_idp_s
     ("identity_subject", "user_header"),
     [(IdentitySubject.INTERNAL, None), (IdentitySubject.OIDC, IDP_SUB)],
 )
-async def test_fwd3_x_mcp_user_follows_the_identity_subject_setting(
+async def test_auth29_x_mcp_user_follows_the_identity_subject_setting(
     engine, redis, identity_subject, user_header
 ):
     seeded = await _seed(engine, ServerAuthMode.STATIC_HEADERS)
@@ -239,7 +239,7 @@ async def test_fwd3_x_mcp_user_follows_the_identity_subject_setting(
     assert key_headers["X-MCP-User"] == f"api_key:{seeded.key.id}"  # a key is a key either way
 
 
-def test_fwd3_identity_subject_defaults_to_the_internal_user_id(monkeypatch):
+def test_auth29_identity_subject_defaults_to_the_internal_user_id(monkeypatch):
     assert hermetic_settings().identity_subject is IdentitySubject.INTERNAL
     monkeypatch.setenv("BUNDLEMCP_IDENTITY_SUBJECT", "oidc")
     assert hermetic_settings().identity_subject is IdentitySubject.OIDC

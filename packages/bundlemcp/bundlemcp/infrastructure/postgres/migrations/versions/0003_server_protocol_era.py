@@ -1,4 +1,4 @@
-"""Add mcp_servers.protocol_mode and mcp_servers.protocol_version (SRV-10).
+"""Add mcp_servers.protocol_mode and mcp_servers.protocol_version (UPS-10).
 
 ``protocol_mode`` is how the gateway negotiates the MCP revision with the
 upstream; ``protocol_version`` records the revision negotiated at the last

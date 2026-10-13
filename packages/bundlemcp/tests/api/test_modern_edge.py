@@ -1,4 +1,4 @@
-"""The modern-era edge (MCP 2026-07-28, spec 32 PROT-13..16): stateless requests on the
+"""The modern-era edge (MCP 2026-07-28, PROT-13..16): stateless requests on the
 same endpoint that still serves the initialize handshake.
 
 ASGI-transport style like test_gateway: the upstream is an in-process FastMCP
@@ -189,7 +189,7 @@ async def test_tools_list_is_stateless_and_cacheable(http):
 async def test_tools_call_returns_shaped_result(http):
     resp = await _modern(http, "tools/call", {"name": "echo__say", "arguments": {"text": "hi"}})
     assert resp.status_code == 200, resp.text
-    assert resp.headers["content-type"].startswith("text/event-stream")  # PROT-19
+    assert resp.headers["content-type"].startswith("text/event-stream")
     result = _message(resp)["result"]
     assert result["content"][0]["text"] == "echo:hi"
     assert result["resultType"] == "complete"

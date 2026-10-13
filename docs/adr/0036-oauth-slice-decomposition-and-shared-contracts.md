@@ -66,7 +66,7 @@ gone — the enums carry the legal values. `OAuthError` and
 `AuthorizationRedirectError` take an `OAuthErrorCode` and derive the HTTP status
 from it, so no caller passes a status. Registration failures answer per
 RFC 7591 §3.2.2, which means the implicit grant is refused at registration
-rather than stored and refused later (OAS-2).
+rather than stored and refused later (AUTH-2).
 
 **Put the rules on the entities that own them** (ADR-0024): `OAuthClient`
 decides whether it is public, whether a presented secret is its own and which
@@ -74,7 +74,7 @@ grants it registered for; `OAuthAuthorizationCode` answers whether a redemption
 names its client, repeats its redirect URI and proves its PKCE challenge;
 `OAuthConsent` knows whether it still stands; `ClientIdMetadataDocument` checks
 itself against the URL it was fetched from. Registered grant types are now
-honoured at both endpoints (OAS-4).
+honoured at both endpoints (AUTH-4).
 
 **Introduce `Clock`, `SecretHasher` and `SecretGenerator`** as protocols in
 `domain/shared/`, with their production implementations beside them
@@ -82,7 +82,7 @@ honoured at both endpoints (OAS-4).
 `infrastructure/memory/` (`ManualClock`, `SequentialSecretGenerator`). Expiry
 predicates take the instant as an argument — hence `OAuthAccessToken`'s
 `is_usable_at(now)` rather than an `is_usable` property. Token lifetimes become
-the runtime-configurable values OAS-4 always promised, carried by a
+the runtime-configurable values AUTH-4 always promised, carried by a
 `TokenPolicy` value object; the module-level lifetime constants are gone.
 
 **`EndpointResource`** (`domain/endpoints/`) becomes the single owner of the
@@ -134,7 +134,7 @@ dependency (ADR-0026's policy-on-the-base-class rule).
   sleeping. The code-issuer test asserts the exact value a deterministic
   generator produces.
 - Token lifetimes are operator-tunable at runtime, closing the gap between
-  OAS-4 and the code.
+  AUTH-4 and the code.
 - One owner for the endpoint resource identifier, so the RFC 9728 metadata URL
   and the `resource` parameter cannot drift apart.
 

@@ -33,12 +33,12 @@ class OAuthAccessTokenRow(SQLModel, table=True):
         sa_column=Column(ForeignKey("users.id", ondelete="CASCADE"), index=True),
         description="User who authorized it",
     )
-    endpoint_id: uuid.UUID = Field(  # OAS-10
+    endpoint_id: uuid.UUID = Field(
         sa_column=Column(ForeignKey("endpoints.id", ondelete="CASCADE")),
         description="Endpoint the token is valid for. A token presented to any other endpoint "
         "is rejected as the wrong audience",
     )
-    family_id: uuid.UUID = Field(  # OAS-4, RFC 9700 section 4.14.2
+    family_id: uuid.UUID = Field(  # RFC 9700 section 4.14.2
         default_factory=uuid.uuid4,
         index=True,
         description="Groups every pair descended from one authorization grant through refresh "

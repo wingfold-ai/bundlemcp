@@ -10,13 +10,13 @@ from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
 
 log = structlog.get_logger(__name__)
 
-SESSION_KEY = "bmcp:session:{session_id}"  # SES-1 session record (JSON)
+SESSION_KEY = "bmcp:session:{session_id}"  # session record (JSON)
 
 
 class ValkeySessionStore:
     def __init__(self, redis: Redis, *, lifetime_seconds: int | None = 24 * 3600) -> None:
         self._redis = redis
-        self._lifetime = lifetime_seconds  # None = no idle expiry (SES-10)
+        self._lifetime = lifetime_seconds  # None = no idle expiry
 
     def _key(self, session_id: str) -> str:
         return SESSION_KEY.format(session_id=session_id)
@@ -30,7 +30,7 @@ class ValkeySessionStore:
             return None
         record = self._parse(raw)
         if record is None:
-            # DEP-6: an unreadable future/ancient record is treated as expired;
+            # an unreadable future/ancient record is treated as expired;
             # the client re-initializes.
             await self._redis.delete(self._key(session_id))
         return record
@@ -62,7 +62,7 @@ class ValkeySessionStore:
     async def _update(
         self, session_id: str, mutate: Callable[[SessionRecord], None]
     ) -> SessionRecord | None:
-        # SES-1a: concurrent binding updates must not lose one another
+        # concurrent binding updates must not lose one another
         """Apply one change to a record under WATCH-based check-and-set.
 
         ``Redis.transaction`` owns the WATCH, MULTI, EXEC and the retry when the

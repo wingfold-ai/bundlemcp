@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Placeholder: spec 52 live logs backend is not implemented yet.
+// Placeholder: change add-live-logs live logs backend is not implemented yet.
 </script>
 
 <template>
@@ -8,7 +8,7 @@
     <div class="wf-card" data-testid="logs-placeholder">
       <h2 class="font-medium mb-2">Live logs</h2>
       <p class="text-sm text-toned">
-        Specified (spec 52 live logs / spec 53 inspector) — backend endpoints not implemented
+        Specified (change add-live-logs live logs / change add-inspector inspector) — backend endpoints not implemented
         yet; this page is a placeholder.
       </p>
     </div>

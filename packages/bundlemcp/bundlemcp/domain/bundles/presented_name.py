@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
-PRESENTED_NAME_SEPARATOR = "__"  # BND-2: separates the server prefix from the upstream name
+PRESENTED_NAME_SEPARATOR = "__"  # separates the server prefix from the upstream name
 
 
 class PresentedName(BaseModel):

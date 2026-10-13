@@ -52,13 +52,13 @@ class RateLimitGate:
             # down; serve unlimited and say so loudly.
             log.warning("ratelimit.config_malformed", endpoint=endpoint.name)
             return None
-        if not tool_call and not config.include_initialize_list:  # RATE-4
+        if not tool_call and not config.include_initialize_list:
             return None
 
         checks: list[tuple[str, RateRule]] = []
         if config.endpoint is not None:
             checks.append((f"ep:{endpoint.name}:all", config.endpoint))
-        if config.per_client is not None:  # EP-6
+        if config.per_client is not None:
             ip = client_ip(ctx.request, self._settings)
             checks.append(
                 (f"ep:{endpoint.name}:{self._bucket(ctx.identity, ip)}", config.per_client)

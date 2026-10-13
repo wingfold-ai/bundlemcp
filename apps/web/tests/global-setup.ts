@@ -1,7 +1,7 @@
 import { chromium, type FullConfig } from "@playwright/test";
 
 // Sign in once through the real OIDC flow (gateway -> Keycloak -> back) and
-// persist the session for every test (UI-2 exercised by login.spec.ts too).
+// persist the session for every test (also exercised by login.spec.ts).
 export default async function globalSetup(config: FullConfig) {
   const webUrl = process.env.WEB_URL ?? "http://localhost:3000";
   const browser = await chromium.launch();

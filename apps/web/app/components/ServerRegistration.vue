@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Guided server registration (UI-6): start from the URL, let the gateway inspect
+ * Guided server registration: start from the URL, let the gateway inspect
  * it, and ask only what the upstream cannot answer — where the credential
  * comes from — with the detected answer pre-selected.
  */
@@ -95,7 +95,7 @@ function choosePreset(index: number) {
   if (preset?.name) headerName.value = preset.name;
 }
 
-/** Pre-select what the inspection found (UI-6). */
+/** Pre-select what the inspection found. */
 function applyInspection(result: ServerInspection) {
   const suggestion = result.suggestion;
   if (result.suggested_url) url.value = result.suggested_url;
@@ -182,7 +182,7 @@ async function importServerJson() {
 async function create() {
   errorMsg.value = "";
   const trimmed = name.value.trim();
-  // UI-4: client-side validation before submit
+  // client-side validation before submit
   if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
     errorMsg.value = "Name must match ^[a-zA-Z0-9_-]+$";
     return;
@@ -257,7 +257,7 @@ watch([headerName, headerValue, source], () => {
   verified.value = "";
 });
 
-// SRV-13: the same default the gateway derives — on only for its own network
+// the same default the gateway derives — on only for its own network
 watch(url, (value) => {
   if (!identityHeaderTouched.value)
     sendIdentityHeader.value = connectionKind(value).network === "local";

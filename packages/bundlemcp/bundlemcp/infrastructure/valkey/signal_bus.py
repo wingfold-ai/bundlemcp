@@ -14,7 +14,7 @@ from bundlemcp.application.serving.signals.signal_envelope import SignalEnvelope
 
 log = structlog.get_logger("bundlemcp.infrastructure.valkey.signal_bus")
 
-SIGNAL_CHANNEL = "bmcp:signal:{routing_key}"  # SES-13 cross-replica delivery
+SIGNAL_CHANNEL = "bmcp:signal:{routing_key}"  # cross-replica delivery
 SIGNAL_PATTERN = "bmcp:signal:*"
 
 

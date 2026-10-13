@@ -1,4 +1,4 @@
-"""Add oauth_clients.application_type (OAS-2).
+"""Add oauth_clients.application_type (AUTH-2).
 
 Recorded from dynamic client registration so the registration a client made
 is reported back to it in full.

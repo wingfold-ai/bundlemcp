@@ -28,12 +28,12 @@ class EndpointUpsert(BaseModel):
     enabled: bool = Field(
         default=True, description="Whether the endpoint serves requests once saved"
     )
-    allow_unauthenticated: bool = Field(  # EP-3
+    allow_unauthenticated: bool = Field(
         default=False,
         description="Confirms an intentionally open endpoint. Required whenever auth_modes "
         "is ['none'], so an endpoint is never left unauthenticated by accident",
     )
-    force: bool = Field(  # EP-8
+    force: bool = Field(
         default=False,
         description="Confirm a rename that would otherwise be rejected, accepting that clients "
         "using the old name will break",
@@ -49,12 +49,12 @@ class EndpointUpsert(BaseModel):
                 raise ValueError("'none' is only valid alone (EP-3)")
             if not self.allow_unauthenticated:
                 raise ValueError("'none' requires allow_unauthenticated=true (EP-3)")
-        # PROF-6 matrix
+        # the profile × auth-mode matrix
         if self.profile == EndpointProfile.CLAUDE and modes != {EndpointAuthMode.OAUTH}:
-            raise ValueError("claude profile requires auth_modes == ['oauth'] (PROF-6)")
+            raise ValueError("claude profile requires auth_modes == ['oauth'] (EP-15)")
         if self.profile == EndpointProfile.CHATGPT and not modes & {
             EndpointAuthMode.OAUTH,
             EndpointAuthMode.API_KEY,
         }:
-            raise ValueError("chatgpt profile requires oauth or api_key (PROF-6)")
+            raise ValueError("chatgpt profile requires oauth or api_key (EP-15)")
         return self

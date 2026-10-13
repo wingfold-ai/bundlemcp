@@ -1,4 +1,4 @@
-"""The real OIDC provider: discovery, code exchange and ID-token verification (spec 21).
+"""The real OIDC provider: discovery, code exchange and ID-token verification (the auth spec).
 
 test_oidc.py injects a fake provider, so this is the only place the JOSE path
 runs. The IdP is an httpx MockTransport serving a discovery document, a token
@@ -96,7 +96,7 @@ async def _exchange(provider: JoseOidcProvider, nonce: str = "n0nce"):
 
 
 async def test_id_token_decoded_and_claims_validated():
-    """ADM-1: a token signed by the issuer's key for this client yields its claims."""
+    """AUTH-15: a token signed by the issuer's key for this client yields its claims."""
     idp = FakeIdp()
     idp.id_token = idp.sign()
     provider = await _provider(idp)
@@ -123,7 +123,7 @@ async def test_authorize_url_carries_state_and_nonce():
 
 @pytest.mark.parametrize("methods", [None, ["S256"], ["plain", "S256"]])
 async def test_login_sends_pkce_s256(methods):
-    """ADM-1: the authorize request carries an S256 challenge and the exchange its verifier,
+    """AUTH-15: the authorize request carries an S256 challenge and the exchange its verifier,
     whether the issuer lists S256 or lists no challenge methods at all."""
     idp = FakeIdp(**({} if methods is None else {"code_challenge_methods_supported": methods}))
     idp.id_token = idp.sign()
@@ -142,7 +142,7 @@ async def test_login_sends_pkce_s256(methods):
 
 
 async def test_login_omits_pkce_for_an_issuer_without_s256():
-    """ADM-1: an issuer that lists challenge methods without S256 is sent no PKCE at all, since
+    """AUTH-15: an issuer that lists challenge methods without S256 is sent no PKCE at all, since
     it would refuse the challenge; the login still works."""
     idp = FakeIdp(code_challenge_methods_supported=["plain"])
     idp.id_token = idp.sign()

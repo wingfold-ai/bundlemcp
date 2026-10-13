@@ -10,7 +10,7 @@ from bundlemcp.domain.shared.secret_hasher import SecretHasher
 from bundlemcp.domain.shared.secrets import ACCESS_TOKEN_PREFIX, API_KEY_PREFIX
 
 # Coarsen last_used_at writes: skip the UPDATE unless the key has been idle
-# this long, so a busy key isn't written on every request (KEY-4).
+# this long, so a busy key isn't written on every request.
 _LAST_USED_REFRESH_SECONDS = 60
 
 
@@ -35,7 +35,7 @@ class AuthService:
         return None
 
     async def resolve_api_key(self, raw_key: str | None) -> ApiKey | None:
-        # KEY-4: last_used_at is coarsened, so a busy key is not a write per call
+        # last_used_at is coarsened, so a busy key is not a write per call
         """Look up an active key by hash and refresh its coarse last_used_at."""
         if raw_key is None:
             return None
@@ -73,7 +73,7 @@ class AuthService:
         if row is None or not row.is_usable_at(self._clock.now()):
             return None
         if row.endpoint_id != endpoint_id:
-            return None  # EP-3a: audience mismatch
+            return None  # audience mismatch
         user = await self._users.get(row.user_id)
         if user is None or not user.is_active:
             return None

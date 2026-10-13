@@ -21,7 +21,7 @@ test(testTitle("E2E-08"), async ({ page, steps }) => {
       await createApiKeyEndpoint(page, endpoint, bundle);
       await page.goto(`/endpoints/${endpoint}`);
     }),
-    when("setting an endpoint rate limit of 100 requests / 60s", { req: "RATE-1" }, async () => {
+    when("setting an endpoint rate limit of 100 requests / 60s", { req: "EP-16" }, async () => {
       await page.getByTestId("rl-endpoint-limit").fill("100");
       await page.getByTestId("rl-endpoint-window").fill("60");
     }),
@@ -29,7 +29,7 @@ test(testTitle("E2E-08"), async ({ page, steps }) => {
       await page.getByTestId("auth-mode-oauth").check();
       await page.getByTestId("save-endpoint").click();
     }),
-    then("both settings persist across a reload", { req: "RATE-1" }, async () => {
+    then("both settings persist across a reload", { req: "EP-16" }, async () => {
       await page.reload();
       await expect(page.getByTestId("rl-endpoint-limit")).toHaveValue("100");
       await expect(page.getByTestId("rl-endpoint-window")).toHaveValue("60");

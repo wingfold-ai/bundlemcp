@@ -11,12 +11,12 @@ class PromptMessage(BaseModel):
     """One message of a bundle prompt: either text, or one of the bundle's resources."""
 
     role: PromptRole = Field(description="Who speaks the message: 'user' or 'assistant'")
-    text: str | None = Field(  # BPR-3
+    text: str | None = Field(
         default=None,
         description="Message text; may refer to the prompt's arguments as {{argument}}. "
         "Set exactly one of 'text' and 'resource'",
     )
-    resource: BundleResourceName | None = Field(  # BPR-3
+    resource: BundleResourceName | None = Field(
         default=None,
         description="Name of a resource of the same bundle, embedded in full when the prompt "
         "is rendered. Set exactly one of 'text' and 'resource'",

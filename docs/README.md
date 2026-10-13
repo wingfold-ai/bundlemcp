@@ -5,7 +5,7 @@ Two audiences share this folder.
 ## The documentation site (users and operators)
 
 The Markdown pages in `guide/`, `self-hosting/`, `manage/`, `connect/` and `integrate/` plus `index.md` are a
-[VitePress](https://vitepress.dev) site (spec 61). Run it locally:
+[VitePress](https://vitepress.dev) site (the documentation spec). Run it locally:
 
 ```bash
 # from the repository root
@@ -76,4 +76,4 @@ with pan, zoom, click-through navigation and a fullscreen browser. Edit the mode
 | [adr/](adr/README.md) | Architecture decision records, append-only |
 | [likec4/](likec4/) | Diagrams as a LikeC4 model (`npx likec4 validate docs/likec4`) |
 
-These are excluded from the site (`srcExclude` in the config): they link into `spec/` and are read on GitHub.
+These are excluded from the site (`srcExclude` in the config): they link into `openspec/` and are read on GitHub.

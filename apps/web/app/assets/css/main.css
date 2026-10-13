@@ -73,7 +73,7 @@
   @apply text-xs text-muted mt-1;
 }
 
-/* A bundle resource previewed as Markdown (BPR-14); no typography plugin, so the
+/* A bundle resource previewed as Markdown; no typography plugin, so the
    few elements a document uses are styled here. */
 .wf-markdown {
   @apply text-sm space-y-2;

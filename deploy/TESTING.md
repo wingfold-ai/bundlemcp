@@ -51,8 +51,8 @@ cd apps/web && npx playwright test
 
 ## Connecting Google Search Console (one-time, interactive)
 
-seo-gsc runs its own per-user Google OAuth; the gateway forwards your bearer (FWD-1) and seo-gsc introspects it back at
-the gateway (FWD-4, OAS-5). To link a Google account:
+seo-gsc runs its own per-user Google OAuth; the gateway forwards your bearer (AUTH-27) and seo-gsc introspects it back
+at the gateway (AUTH-30, AUTH-5). To link a Google account:
 
 1. Call any `seo-gsc__*` tool through `http://localhost:8000/seo/mcp` with an OAuth bearer (e.g. via the
    `test_gsc_tool_call_reaches_gsc_via_forwarded_bearer` integration test, or claude.ai connected to the `seo`
@@ -61,5 +61,5 @@ the gateway (FWD-4, OAS-5). To link a Google account:
 3. Re-run the tool call — it now returns Search Console data for the connected account. Tokens are stored encrypted
    inside seo-gsc, keyed by the introspected `sub`.
 
-Note: api_key callers introspect as `api_key:<key-id>` (OAS-5), so a Google account can also be linked to an API key
+Note: api_key callers introspect as `api_key:<key-id>` (AUTH-5), so a Google account can also be linked to an API key
 identity the same way.

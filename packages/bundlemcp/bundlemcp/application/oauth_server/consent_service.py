@@ -13,7 +13,6 @@ class ConsentService:
 
     async def is_granted(self, user_id: uuid.UUID, client_id: str, endpoint_id: uuid.UUID) -> bool:
         """Whether an unrevoked consent exists, so the consent screen can be skipped."""
-        # OAS-11
         return await self._consents.active(user_id, client_id, endpoint_id) is not None
 
     async def grant(self, user_id: uuid.UUID, client_id: str, endpoint_id: uuid.UUID) -> None:

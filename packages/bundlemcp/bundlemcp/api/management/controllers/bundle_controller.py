@@ -49,7 +49,7 @@ class BundleController(ManagementController):
     async def delete_bundle(self, name: str, service: BundleServiceProvider) -> None:
         await service.delete(name)
 
-    @route.get("/{name}/upstreams")  # SRV-16
+    @route.get("/{name}/upstreams")
     async def list_members(
         self, name: str, service: BundleServiceProvider
     ) -> list[BundleMemberRead]:
