@@ -21,3 +21,6 @@ docs/.vitepress/cache/
 docs/.vitepress/dist/
 docs/public/likec4-views.js
 docs/brand/.fonts/
+
+# Local compose tweaks (ports, origins); compose merges this file only when it is named with -f
+deploy/docker-compose.override.yml
