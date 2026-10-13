@@ -11,14 +11,22 @@ class InMemoryCurationRepository(InMemoryRepository[BundleTool]):
     async def find(self, bundle_id: uuid.UUID, tool_id: uuid.UUID) -> BundleTool | None:
         return self.first(lambda c: c.bundle_id == bundle_id and c.tool_id == tool_id)
 
+    async def delete_for_tools(self, tool_ids: list[uuid.UUID]) -> int:
+        doomed = self.where(lambda c: c.tool_id in set(tool_ids))
+        for curation in doomed:
+            await self.delete(curation)
+        return len(doomed)
+
     async def override_name_taken(
         self, bundle_id: uuid.UUID, override_name: str, *, except_tool_id: uuid.UUID
     ) -> bool:
         return (
             self.first(
-                lambda c: c.bundle_id == bundle_id
-                and c.override_name == override_name
-                and c.tool_id != except_tool_id
+                lambda c: (
+                    c.bundle_id == bundle_id
+                    and c.override_name == override_name
+                    and c.tool_id != except_tool_id
+                )
             )
             is not None
         )

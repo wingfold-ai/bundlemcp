@@ -57,10 +57,11 @@ and the database check would be lost, and the UI's profile select would need ano
 
 `domain/bundles/tool_pipeline.py` defines a `ToolStage` protocol (`apply(tool, context) -> PresentedTool | None`) and
 the pipeline `[CurationFilter, ProfileStage(preset), OverrideStage]`. `CurationFilter` drops disabled tools (BND-13) and
-— once [complete-tool-curation](../complete-tool-curation/proposal.md) lands — stale ones; `ProfileStage` delegates to
-the endpoint's preset; `OverrideStage` applies the name, title, description and annotation overrides (BND-14, BND-15).
-`bundle_view_loader.py` (application) runs the pipeline per cached tool; the resulting `BundleView.tools` is what both
-`tools/list` and `tools/call` resolve against, so a stage that drops a tool drops it from both.
+— once [complete-tool-curation](../2026-10-13-complete-tool-curation/proposal.md) lands — stale ones; `ProfileStage`
+delegates to the endpoint's preset; `OverrideStage` applies the name, title, description and annotation overrides
+(BND-14, BND-15). `bundle_view_loader.py` (application) runs the pipeline per cached tool; the resulting
+`BundleView.tools` is what both `tools/list` and `tools/call` resolve against, so a stage that drops a tool drops it
+from both.
 
 *Alternative:* apply stages at dispatch time in the `tools/list` and `tools/call` handlers (a true per-method
 middleware chain). Rejected for this change: it duplicates work per request that the composed view does once, and

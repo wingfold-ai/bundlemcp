@@ -6,7 +6,7 @@ from bundlemcp.infrastructure.memory.in_memory_repository import InMemoryReposit
 
 class InMemoryMembershipRepository(InMemoryRepository[BundleServer]):
     async def for_bundle(self, bundle_id: uuid.UUID) -> list[BundleServer]:
-        return self.where(lambda m: m.bundle_id == bundle_id)
+        return sorted(self.where(lambda m: m.bundle_id == bundle_id), key=lambda m: m.position)
 
     async def for_server(self, server_id: uuid.UUID) -> list[BundleServer]:
         return self.where(lambda m: m.server_id == server_id)

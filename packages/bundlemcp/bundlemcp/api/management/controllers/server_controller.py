@@ -1,6 +1,8 @@
 """Upstream server registry routes, including upstream OAuth client configuration."""
 
-from fastapi import HTTPException, status
+from typing import Annotated
+
+from fastapi import HTTPException, Query, status
 
 from bundlemcp.api.http.pagination import PageProvider
 from bundlemcp.api.http.route import route
@@ -82,8 +84,19 @@ class ServerController(ManagementController):
         return await service.list_tools(name, offset=page.offset, limit=page.limit)
 
     @route.post("/{name}:refresh-tools")
-    async def refresh_tools(self, name: str, service: ServerServiceProvider) -> DiscoveryResult:
-        return await service.refresh_tools(name)
+    async def refresh_tools(
+        self,
+        name: str,
+        service: ServerServiceProvider,
+        prune: Annotated[
+            bool,
+            Query(
+                description="Also delete the tools the upstream no longer lists, with their "
+                "curation in every bundle; only done when the probe succeeds"
+            ),
+        ] = False,
+    ) -> DiscoveryResult:
+        return await service.refresh_tools(name, prune=prune)
 
     # --- upstream OAuth client config + status ---
 

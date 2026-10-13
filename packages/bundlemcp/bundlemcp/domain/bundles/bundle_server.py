@@ -16,3 +16,9 @@ class BundleServer(BaseModel):
         description="Whether this membership contributes tools; disabling hides them without "
         "losing their curation",
     )
+    position: int = Field(
+        default=0,
+        ge=0,
+        description="Place of the member in the bundle's member order, lowest first; decides "
+        "which member answers first wherever more than one could",
+    )

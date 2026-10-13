@@ -9,5 +9,5 @@ class NoopToolDiscovery:
     async def schedule_probe(self, server_id: UUID) -> None:
         return None
 
-    async def discover(self, server_id: UUID) -> DiscoveryResult:
+    async def discover(self, server_id: UUID, *, prune: bool = False) -> DiscoveryResult:
         return DiscoveryResult(error="discovery unavailable")

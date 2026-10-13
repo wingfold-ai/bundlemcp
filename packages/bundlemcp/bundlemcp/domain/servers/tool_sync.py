@@ -3,30 +3,47 @@
 import uuid
 from datetime import datetime
 
+from pydantic import BaseModel, Field
+
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.tool import Tool
 from bundlemcp.domain.servers.tool_schema_hash import tool_schema_hash
 
 
+class ToolSync(BaseModel):
+    """What one successful probe changes in a server's cached tools."""
+
+    staged: list[Tool] = Field(
+        default_factory=list,
+        description="Tools to write: new, redefined, vanished or reappeared. Empty when the "
+        "probe saw exactly what is cached",
+    )
+
+    @property
+    def changed(self) -> int:
+        """How many tools changed; each one changes the tool set clients see."""
+        return len(self.staged)
+
+
 def sync_tools(
     server_id: uuid.UUID, existing: dict[str, Tool], probed: list[ProbedTool], now: datetime
-) -> tuple[list[Tool], int]:
-    """Bring the cached tools in line with the probe.
+) -> ToolSync:
+    """Bring the cached tools in line with a successful probe.
 
-    Returns the rows to stage (new and touched) and how many definitions changed.
-    A tool whose definition is unchanged only has its ``last_seen_at`` moved;
-    a tool the probe no longer lists is left as it was, so it goes stale rather
-    than being deleted, keeping its curation. A stale tool is still served.
+    A tool is staged only when it is new, its definition hash moved, the probe
+    no longer lists it (it goes stale) or the probe lists it again (it stops
+    being stale). A probe that saw exactly what is cached stages nothing. A
+    vanished tool is never deleted here: it keeps its curation and is served
+    again with it if it comes back.
     """
-    staged: list[Tool] = []
-    changed = 0
+    sync = ToolSync()
     for seen in probed:
         digest = tool_schema_hash(
             seen.name, seen.title, seen.description, seen.input_schema, seen.annotations
         )
         row = existing.get(seen.name)
         if row is None:
-            staged.append(
+            sync.staged.append(
                 Tool(
                     server_id=server_id,
                     name=seen.name,
@@ -35,18 +52,21 @@ def sync_tools(
                     input_schema=seen.input_schema,
                     annotations=seen.annotations,
                     schema_hash=digest,
-                    last_seen_at=now,
                 )
             )
-            changed += 1
             continue
-        if row.schema_hash != digest:  # write only on change
-            row.title = seen.title
-            row.description = seen.description
-            row.input_schema = seen.input_schema
-            row.annotations = seen.annotations
-            row.schema_hash = digest
-            changed += 1
-        row.last_seen_at = now  # vanished tools keep old last_seen_at
-        staged.append(row)
-    return staged, changed
+        if row.schema_hash == digest and not row.is_stale:
+            continue
+        row.title = seen.title
+        row.description = seen.description
+        row.input_schema = seen.input_schema
+        row.annotations = seen.annotations
+        row.schema_hash = digest
+        row.stale_since = None
+        sync.staged.append(row)
+    listed = {seen.name for seen in probed}
+    for name, row in existing.items():
+        if name not in listed and not row.is_stale:
+            row.stale_since = now
+            sync.staged.append(row)
+    return sync

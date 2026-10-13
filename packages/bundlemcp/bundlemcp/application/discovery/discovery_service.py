@@ -35,10 +35,11 @@ class DiscoveryService:
     A probe opens an MCP session and writes three things to the durable store:
 
     - **Tool definitions** — name, title, description, input schema and
-      annotations into ``Tool``. Writes are hash-gated, so a tool whose
-      definition is unchanged costs nothing; ``last_seen_at`` is touched on
-      every sighting, so a tool that disappears upstream goes stale rather than
-      being deleted, keeping its curation. A stale tool is still served.
+      annotations into ``Tool``. Only a tool that is new, redefined, no longer
+      listed or listed again is written, so a probe that finds nothing new
+      writes no tool. A tool the upstream stops listing goes stale rather than
+      being deleted: it is not served, keeps its curation, and is served again
+      if it comes back. Only an explicit prune deletes it.
     - **Advertised capabilities and protocol revision** — which of tools/
       prompts/resources/completions/logging the server supports, plus its
       listChanged and subscribe flags, taken from whatever the connection
@@ -93,12 +94,16 @@ class DiscoveryService:
         except Exception:  # pragma: no cover - defensive
             log.warning("discovery.probe_failed", server_id=str(server_id), exc_info=True)
 
-    async def discover(self, server_id: uuid.UUID, *, announce: bool = False) -> DiscoveryResult:
+    async def discover(
+        self, server_id: uuid.UUID, *, announce: bool = False, prune: bool = False
+    ) -> DiscoveryResult:
         """Probe now and report how many tools were seen and how many changed.
 
         ``announce`` invalidates the server's bundles even when no tool changed,
         for a change the tool cache does not see, such as a user connecting the
-        account that decides which tools they are offered.
+        account that decides which tools they are offered. ``prune`` deletes the
+        server's stale tools and their curation in every bundle, only once the
+        probe has succeeded.
         """
         async with self._units.open() as uow:
             server = await uow.servers.get(server_id)
@@ -139,18 +144,24 @@ class DiscoveryService:
                 server.capabilities = seen.capabilities
             server.protocol_version = seen.protocol_version
             server.connection_state = ConnectionState.READY
+            now = utcnow()
+            server.last_discovered_at = now
             uow.servers.add(server)
 
             existing = {t.name: t for t in await uow.tools.for_server(server.id)}
-            staged, changed = sync_tools(server.id, existing, seen.tools, utcnow())
-            for row in staged:
+            sync = sync_tools(server.id, existing, seen.tools, now)
+            for row in sync.staged:
                 uow.tools.add(row)
+            pruned = await self._prune(uow, server) if prune else 0
             await self._record_success(uow, server)
-            if changed or announce:
+            if sync.changed or pruned or announce:
                 await self._announce(uow, server)  # clients re-list the bundle
             await uow.commit()
             return DiscoveryResult(
-                discovered=len(seen.tools), changed=changed, connection_state=ConnectionState.READY
+                discovered=len(seen.tools),
+                changed=sync.changed,
+                pruned=pruned,
+                connection_state=ConnectionState.READY,
             )
 
     async def discover_all(self) -> DiscoverySweep:
@@ -187,6 +198,17 @@ class DiscoveryService:
         if self._credentials is None:
             return {}
         return await self._credentials.discovery_headers(server)
+
+    @staticmethod
+    async def _prune(uow: UnitOfWork, server: McpServer) -> int:
+        """Delete the server's stale tools and every bundle's curation of them."""
+        stale = [tool for tool in await uow.tools.for_server(server.id) if tool.is_stale]
+        await uow.curations.delete_for_tools([tool.id for tool in stale])
+        for tool in stale:
+            await uow.tools.delete(tool)
+        if stale:
+            log.info("discovery.pruned", server=server.name, tools=len(stale))
+        return len(stale)
 
     @staticmethod
     async def _announce(uow: UnitOfWork, server: McpServer) -> None:

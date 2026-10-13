@@ -435,6 +435,25 @@
         "title": "AvailableEndpointRead",
         "type": "object"
       },
+      "BundleMemberOrder": {
+        "description": "Body for setting the order of a bundle's member upstreams.",
+        "properties": {
+          "upstreams": {
+            "description": "Every member upstream of the bundle, each exactly once, first member first. The first member in this order answers first wherever more than one could, such as a resource URI two members both list",
+            "items": {
+              "pattern": "^[a-zA-Z0-9_-]+$",
+              "type": "string"
+            },
+            "title": "Upstreams",
+            "type": "array"
+          }
+        },
+        "required": [
+          "upstreams"
+        ],
+        "title": "BundleMemberOrder",
+        "type": "object"
+      },
       "BundleMemberRead": {
         "description": "A server's membership in a bundle.",
         "properties": {
@@ -866,6 +885,19 @@
             "title": "Name",
             "type": "string"
           },
+          "override_annotations": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replacement MCP annotations set on this bundle, such as read-only and destructive hints",
+            "title": "Override Annotations"
+          },
           "override_description": {
             "anyOf": [
               {
@@ -912,6 +944,11 @@
             "title": "Server Name",
             "type": "string"
           },
+          "stale": {
+            "description": "True when the latest successful discovery of the owning server no longer listed the tool. A stale tool is not served but keeps this curation, and is served with it again if the server lists it again",
+            "title": "Stale",
+            "type": "boolean"
+          },
           "title": {
             "anyOf": [
               {
@@ -942,7 +979,9 @@
           "presented_name",
           "override_name",
           "override_title",
-          "override_description"
+          "override_description",
+          "override_annotations",
+          "stale"
         ],
         "title": "BundleToolRead",
         "type": "object"
@@ -1282,7 +1321,7 @@
         "properties": {
           "changed": {
             "default": 0,
-            "description": "Tools written to the cache because their definition hash moved",
+            "description": "Tools whose cached state changed: new, redefined, no longer listed (now stale) or listed again",
             "title": "Changed",
             "type": "integer"
           },
@@ -1308,6 +1347,13 @@
             ],
             "description": "Why the probe failed; None when it succeeded",
             "title": "Error"
+          },
+          "pruned": {
+            "default": 0,
+            "description": "Stale tools deleted, with their curation in every bundle; only a refresh that asks to prune deletes any",
+            "minimum": 0.0,
+            "title": "Pruned",
+            "type": "integer"
           }
         },
         "title": "DiscoveryResult",
@@ -2899,10 +2945,17 @@
             "type": "object"
           },
           "last_seen_at": {
-            "description": "When the tool was last reported by its server. A stale value means the tool has disappeared upstream; endpoints still serve it for now",
-            "format": "date-time",
-            "title": "Last Seen At",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When a successful discovery last listed the tool; for a stale tool, when a discovery first found it missing. Absent only for a server with no recorded successful discovery",
+            "title": "Last Seen At"
           },
           "name": {
             "description": "Tool name as the upstream server reports it",
@@ -2914,6 +2967,11 @@
             "format": "uuid",
             "title": "Server Id",
             "type": "string"
+          },
+          "stale": {
+            "description": "True when the latest successful discovery of the server no longer listed the tool. A stale tool is not served by any endpoint but keeps its curation; it is served again if the server lists it again, and a refresh with prune deletes it",
+            "title": "Stale",
+            "type": "boolean"
           },
           "title": {
             "anyOf": [
@@ -2936,6 +2994,7 @@
           "description",
           "input_schema",
           "annotations",
+          "stale",
           "last_seen_at"
         ],
         "title": "ToolRead",
@@ -4521,6 +4580,63 @@
         ]
       }
     },
+    "/api/v1/bundles/{name}/upstreams:order": {
+      "put": {
+        "description": "Set the order of the bundle's members; the first answers first where several could.",
+        "operationId": "order_members_api_v1_bundles__name__upstreams_order_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundleMemberOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BundleMemberRead"
+                  },
+                  "title": "Response Order Members Api V1 Bundles  Name  Upstreams Order Put",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Order Members",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
     "/api/v1/config": {
       "get": {
         "operationId": "get_config_api_v1_config_get",
@@ -5513,6 +5629,18 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "description": "Also delete the tools the upstream no longer lists, with their curation in every bundle; only done when the probe succeeds",
+            "in": "query",
+            "name": "prune",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Also delete the tools the upstream no longer lists, with their curation in every bundle; only done when the probe succeeds",
+              "title": "Prune",
+              "type": "boolean"
             }
           }
         ],

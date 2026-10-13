@@ -146,11 +146,42 @@ async function addMember() {
   await Promise.all([loadMembers(), loadTools()]);
 }
 
+// the first member answers first wherever more than one could, such as a resource URI
+async function moveMember(index: number, step: -1 | 1) {
+  errorMsg.value = "";
+  const order = members.value.map((m) => m.server_name);
+  const target = index + step;
+  if (target < 0 || target >= order.length) return;
+  [order[index], order[target]] = [order[target]!, order[index]!];
+  const { data, error } = await api.PUT("/api/v1/bundles/{name}/upstreams:order", {
+    params: { path: { name: bundleName.value } },
+    body: { upstreams: order },
+  });
+  if (error) {
+    errorMsg.value = apiErrorMessage(error);
+    return;
+  }
+  members.value = data;
+  await loadTools();
+}
+
 // ---- tool curation card ----
 const tools = ref<BundleToolRead[]>([]);
-const curation = ref<
-  Record<string, { enabled: boolean; override_name: string; override_title: string }>
->({});
+interface CurationRow {
+  enabled: boolean;
+  override_name: string;
+  override_title: string;
+  override_description: string;
+  // edited as JSON text, parsed and checked before it is saved
+  override_annotations: string;
+}
+const curation = ref<Record<string, CurationRow>>({});
+
+function isOverridden(t: BundleToolRead): boolean {
+  return Boolean(
+    t.override_name || t.override_title || t.override_description || t.override_annotations,
+  );
+}
 
 async function loadTools() {
   const { data, error } = await api.GET("/api/v1/bundles/{name}/tools", {
@@ -167,6 +198,10 @@ async function loadTools() {
       enabled: t.enabled,
       override_name: t.override_name ?? "",
       override_title: t.override_title ?? "",
+      override_description: t.override_description ?? "",
+      override_annotations: t.override_annotations
+        ? JSON.stringify(t.override_annotations)
+        : "",
     };
   }
   curation.value = next;
@@ -176,13 +211,28 @@ async function saveCuration(toolId: string) {
   errorMsg.value = "";
   const c = curation.value[toolId];
   if (!c) return;
+  let annotations: Record<string, unknown> | null = null;
+  if (c.override_annotations.trim()) {
+    try {
+      annotations = JSON.parse(c.override_annotations);
+    } catch {
+      annotations = null;
+    }
+    if (annotations === null || typeof annotations !== "object" || Array.isArray(annotations)) {
+      errorMsg.value = 'Override annotations must be a JSON object, e.g. {"readOnlyHint": true}';
+      return;
+    }
+  }
+  // the PUT replaces the whole curation record, so every override is sent, not just the
+  // ones this row edits
   const { error } = await api.PUT("/api/v1/bundles/{name}/tools/{tool_id}", {
     params: { path: { name: bundleName.value, tool_id: toolId } },
     body: {
       enabled: c.enabled,
       override_name: c.override_name || null,
       override_title: c.override_title || null,
-      override_description: null,
+      override_description: c.override_description || null,
+      override_annotations: annotations,
     },
   });
   if (error) {
@@ -356,12 +406,13 @@ onMounted(async () => {
                 <th>URL</th>
                 <th>Health</th>
                 <th>Enabled</th>
+                <th title="The first member answers first where more than one could">Order</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="m in members"
+                v-for="(m, index) in members"
                 :key="m.server_name"
                 :data-testid="`member-${m.server_name}`"
               >
@@ -391,6 +442,26 @@ onMounted(async () => {
                     @change="toggleMember(m, $event)"
                   />
                 </td>
+                <td class="whitespace-nowrap">
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-arrow-up"
+                    aria-label="Move up"
+                    :disabled="index === 0"
+                    :data-testid="`member-up-${m.server_name}`"
+                    @click="moveMember(index, -1)"
+                  />
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-arrow-down"
+                    aria-label="Move down"
+                    :disabled="index === members.length - 1"
+                    :data-testid="`member-down-${m.server_name}`"
+                    @click="moveMember(index, 1)"
+                  />
+                </td>
                 <td>
                   <UButton
                     size="xs"
@@ -403,7 +474,7 @@ onMounted(async () => {
                 </td>
               </tr>
               <tr v-if="members.length === 0">
-                <td colspan="5" class="text-muted">No upstream servers in this bundle.</td>
+                <td colspan="6" class="text-muted">No upstream servers in this bundle.</td>
               </tr>
             </tbody>
           </table>
@@ -434,6 +505,8 @@ onMounted(async () => {
                 <th>Enabled</th>
                 <th>Override name</th>
                 <th>Override title</th>
+                <th>Override description</th>
+                <th>Override annotations</th>
                 <th />
               </tr>
             </thead>
@@ -454,11 +527,21 @@ onMounted(async () => {
                     >member disabled</UBadge
                   >
                   <UBadge
-                    v-else-if="t.override_name || t.override_title || t.override_description"
+                    v-if="t.stale"
+                    icon="i-lucide-ghost"
+                    color="warning"
+                    variant="subtle"
+                    title="The upstream no longer lists this tool, so it is not served; its curation is kept in case it returns"
+                    :data-testid="`stale-${t.tool_id}`"
+                    >stale</UBadge
+                  >
+                  <UBadge
+                    v-if="t.member_enabled && isOverridden(t)"
                     icon="i-lucide-pencil"
                     color="primary"
                     variant="subtle"
                     title="Presented differently in this bundle than the upstream reports it"
+                    :data-testid="`overridden-${t.tool_id}`"
                     >overridden</UBadge
                   >
                 </td>
@@ -489,6 +572,26 @@ onMounted(async () => {
                   />
                 </td>
                 <td>
+                  <textarea
+                    v-if="curation[t.tool_id]"
+                    v-model="curation[t.tool_id]!.override_description"
+                    class="wf-input"
+                    rows="2"
+                    :placeholder="t.description ?? ''"
+                    :data-testid="`override-description-${t.tool_id}`"
+                  />
+                </td>
+                <td>
+                  <textarea
+                    v-if="curation[t.tool_id]"
+                    v-model="curation[t.tool_id]!.override_annotations"
+                    class="wf-input font-mono text-xs"
+                    rows="2"
+                    placeholder='{"readOnlyHint": true}'
+                    :data-testid="`override-annotations-${t.tool_id}`"
+                  />
+                </td>
+                <td>
                   <UButton
                     size="xs"
                     variant="soft"
@@ -499,7 +602,7 @@ onMounted(async () => {
                 </td>
               </tr>
               <tr v-if="tools.length === 0">
-                <td colspan="7" class="text-muted">No tools in this bundle.</td>
+                <td colspan="9" class="text-muted">No tools in this bundle.</td>
               </tr>
             </tbody>
           </table>

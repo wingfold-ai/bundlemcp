@@ -59,9 +59,9 @@ packages/bundlemcp/bundlemcp/
 Key internal seams:
 
 - **Tool pipeline** ([EP-13](../../openspec/specs/endpoints/spec.md),
-  [ADR-0046](../adr/0046-profiles-as-registered-presets-and-tool-pipeline-stages.md)): curation filter → profile →
-  overrides, as ordered stages (`domain/bundles/tool_pipeline.py`) that build the one tool set behind `tools/list` and
-  `tools/call`; each profile is a preset registered in `ProfileCatalog` (`domain/endpoints/profiles/`).
+  [ADR-0046](../adr/0046-profiles-as-registered-presets-and-tool-pipeline-stages.md)): stale filter → curation filter →
+  profile → overrides, as ordered stages (`domain/bundles/tool_pipeline.py`) that build the one tool set behind
+  `tools/list` and `tools/call`; each profile is a preset registered in `ProfileCatalog` (`domain/endpoints/profiles/`).
 - **Call pipeline** ([protocol spec](../../openspec/specs/protocol/spec.md)): metering hook → upstream call → audit; the
   hook is the only sanctioned third-party extension point (`application/metering/metering_hook.py`).
 - **Egress layer** ([SEC-1](../../openspec/specs/security/spec.md)): all gateway-initiated HTTP to admin-supplied URLs

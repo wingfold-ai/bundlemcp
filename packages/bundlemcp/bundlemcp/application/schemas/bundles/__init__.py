@@ -1,3 +1,4 @@
+from bundlemcp.application.schemas.bundles.bundle_member_order import BundleMemberOrder
 from bundlemcp.application.schemas.bundles.bundle_member_read import BundleMemberRead
 from bundlemcp.application.schemas.bundles.bundle_membership_read import BundleMembershipRead
 from bundlemcp.application.schemas.bundles.bundle_prompt_read import BundlePromptRead
@@ -14,6 +15,7 @@ from bundlemcp.application.schemas.bundles.catalogue_tool_read import CatalogueT
 from bundlemcp.application.schemas.bundles.tool_curation_read import ToolCurationRead
 
 __all__ = [
+    "BundleMemberOrder",
     "BundleMemberRead",
     "BundleMembershipRead",
     "BundlePromptRead",

@@ -12,6 +12,10 @@ class ToolDiscovery(Protocol):
         """Probe in the background; the caller never waits for the result."""
         ...
 
-    async def discover(self, server_id: UUID) -> DiscoveryResult:
-        """Probe now and report what was seen."""
+    async def discover(self, server_id: UUID, *, prune: bool = False) -> DiscoveryResult:
+        """Probe now and report what was seen.
+
+        ``prune`` deletes the server's stale tools, and their curation in every
+        bundle, once the probe has succeeded; a failed probe deletes nothing.
+        """
         ...

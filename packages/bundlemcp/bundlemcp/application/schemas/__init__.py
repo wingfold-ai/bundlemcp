@@ -8,6 +8,7 @@ consumers keep importing from ``bundlemcp.application.schemas``.
 from bundlemcp.application.schemas.api_keys import ApiKeyCreate, ApiKeyCreated, ApiKeyRead
 from bundlemcp.application.schemas.audit import AuditRecordRead
 from bundlemcp.application.schemas.bundles import (
+    BundleMemberOrder,
     BundleMemberRead,
     BundleMembershipRead,
     BundlePromptRead,
@@ -69,6 +70,7 @@ __all__ = [
     "AuditRecordRead",
     "AuthorizationServerMetadata",
     "AvailableEndpointRead",
+    "BundleMemberOrder",
     "BundleMemberRead",
     "BundleMembershipRead",
     "BundlePromptRead",

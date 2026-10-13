@@ -9,7 +9,14 @@ class DiscoveryResult(BaseModel):
     discovered: int = Field(default=0, description="Tools the upstream reported in this probe")
     changed: int = Field(
         default=0,
-        description="Tools written to the cache because their definition hash moved",
+        description="Tools whose cached state changed: new, redefined, no longer listed "
+        "(now stale) or listed again",
+    )
+    pruned: int = Field(
+        default=0,
+        ge=0,
+        description="Stale tools deleted, with their curation in every bundle; only a refresh "
+        "that asks to prune deletes any",
     )
     error: str | None = Field(
         default=None,

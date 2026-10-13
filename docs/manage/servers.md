@@ -245,9 +245,10 @@ The negotiated revision is stored as `protocol_version` so you can see which ser
 
 ## Tools and health
 
-`GET /api/v1/upstreams/{name}/tools` lists the cached tools with their input schema, annotations and `last_seen_at`.
-`POST /api/v1/upstreams/{name}:refresh-tools` re-probes and re-discovers; the result reports how many tools were
-discovered and how many definitions changed.
+`GET /api/v1/upstreams/{name}/tools` lists the cached tools with their input schema, annotations, `stale` flag and
+`last_seen_at`. `POST /api/v1/upstreams/{name}:refresh-tools` re-probes and re-discovers; the result reports how many
+tools were discovered and how many changed: new, redefined, gone stale or back again. A discovery that finds exactly
+what is cached writes no tool and tells no client to re-list.
 
 Creating a server probes it in the background. Updating one probes it only when the update changes how the upstream is
 reached — `url`, `static_headers`, `forward_headers`, `auth_mode`, `identity_mode`, `send_identity_header` or
@@ -259,8 +260,23 @@ minutes when the variable is unset, never when it is `0`. A server you registere
 therefore gets its tools without a manual refresh, and a server whose tools change is picked up within one interval. Use
 the refresh endpoint when you do not want to wait.
 
-Tools that disappear upstream stay in the cache, marked by an old `last_seen_at`, so a bundle's curation of them
-survives a temporary outage.
+### Stale tools
+
+A tool that the latest successful discovery no longer listed is **stale**. It stays in the cache with every bundle's
+curation of it, but no endpoint serves it: it is absent from `tools/list`, and a call to it is rejected as an unknown
+tool without reaching the upstream. If a later discovery lists it again it is served again, with its curation. A failed
+probe makes nothing stale, so an outage never hides tools.
+
+Stale tools are flagged in both tool lists and in the UI. To delete them for good, refresh and prune:
+
+```bash
+curl -s -X POST "$API/upstreams/weather:refresh-tools?prune=true" -H "$AUTH"
+```
+
+The probe runs first; only if it succeeds are the server's stale tools deleted, together with their curation in every
+bundle, and the result reports how many in `pruned`. A failed probe deletes nothing. The upstream page offers the same
+as **Refresh & prune** once the server has stale tools, and asks for confirmation with the list of tools it will
+delete.
 
 `health_status` is `ok`, `error` or `unknown`. It turns `error` after 3 consecutive failed discovery probes and returns
 to `ok` on the next successful connection. The runtime setting `server_error_attempts` is meant to change that

@@ -19,6 +19,11 @@ class SqlAlchemyCurationRepository(SqlAlchemyRepository[BundleTool, BundleToolRo
             BundleToolRow.bundle_id == bundle_id, BundleToolRow.tool_id == tool_id
         )
 
+    async def delete_for_tools(self, tool_ids: list[uuid.UUID]) -> int:
+        if not tool_ids:
+            return 0
+        return await self.delete_where(BundleToolRow.tool_id.in_(tool_ids))  # type: ignore[attr-defined]
+
     async def override_name_taken(
         self, bundle_id: uuid.UUID, override_name: str, *, except_tool_id: uuid.UUID
     ) -> bool:

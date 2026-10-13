@@ -44,9 +44,10 @@ far. A no-go closes this change unapplied; BND-37 then stays out of the main spe
 
 ## Impact
 
-- **Depends on** [complete-tool-curation](../complete-tool-curation/proposal.md): it reuses that change's staleness
-  rule and curation UI patterns, and its BND-8 delta already contains that change's member-order edit, so this change
-  must archive **after** complete-tool-curation (or its BND-8 delta be rebased on the main spec at that time).
+- **Depends on** [complete-tool-curation](../archive/2026-10-13-complete-tool-curation/proposal.md): it reuses that
+  change's staleness rule and curation UI patterns, and its BND-8 delta already contains that change's member-order
+  edit, so this change must archive **after** complete-tool-curation (or its BND-8 delta be rebased on the main spec at
+  that time).
 - **Data:** an Alembic migration adds the cached member prompts and resources per server and their per-bundle curation.
 - **API:** `GET/PUT /api/v1/bundles/{name}/member-prompts[/{prompt_id}]` and `…/member-resources[/{resource_id}]`;
   regenerate `apps/web/openapi.json` and `apps/web/types/api.d.ts`.

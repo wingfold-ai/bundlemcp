@@ -16,7 +16,7 @@ class BundleView(BaseModel):
     endpoint: Endpoint = Field(description="Endpoint being served, with its auth and rate limits")
     bundle: Bundle = Field(description="Bundle the endpoint exposes")
     servers: dict[str, McpServer] = Field(
-        description="Enabled member servers, keyed by server name"
+        description="Enabled member servers, keyed by server name, in member order"
     )
     tools: list[PresentedTool] = Field(
         description="Enabled tools as presented to the client, curated and transformed"

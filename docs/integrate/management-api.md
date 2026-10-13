@@ -108,8 +108,8 @@ Upstream servers live under `/upstreams` (the short form of *upstream servers*),
 | `PUT` | `/upstreams/{name}` | Upsert; probes and discovers tools, never blocks on a failed probe. |
 | `DELETE` | `/upstreams/{name}` | Delete with tools and memberships. |
 | `POST` | `/upstreams/{name}:rename?new_name=&force=` | Rename. |
-| `POST` | `/upstreams/{name}:refresh-tools` | Re-probe and re-discover; returns counts. |
-| `GET` | `/upstreams/{name}/tools` | The cached tools. |
+| `POST` | `/upstreams/{name}:refresh-tools?prune=` | Re-probe and re-discover; returns counts. With `prune=true`, a successful probe also deletes the stale tools and their curation. |
+| `GET` | `/upstreams/{name}/tools` | The cached tools, each flagged `stale` when its server no longer lists it. |
 | `GET` | `/upstreams/{name}/upstream-oauth` | Upstream OAuth status. |
 | `PUT` | `/upstreams/{name}/upstream-oauth` | Set the upstream OAuth client. |
 | `DELETE` | `/upstreams/{name}/upstream-oauth/token` | Disconnect the shared account. |
@@ -122,10 +122,11 @@ Upstream servers live under `/upstreams` (the short form of *upstream servers*),
 | `GET` | `/bundles/{name}` | Read. |
 | `PUT` | `/bundles/{name}` | Upsert name and description. |
 | `DELETE` | `/bundles/{name}` | Delete, together with its endpoints. |
-| `GET` | `/bundles/{name}/upstreams` | Members with health. |
-| `PUT` | `/bundles/{name}/upstreams/{server_name}` | Add or update a membership (`enabled`). |
+| `GET` | `/bundles/{name}/upstreams` | Members with health, in member order. |
+| `PUT` | `/bundles/{name}/upstreams:order` | Set the member order; the list names every member once. |
+| `PUT` | `/bundles/{name}/upstreams/{server_name}` | Add or update a membership (`enabled`); a new member is appended. |
 | `DELETE` | `/bundles/{name}/upstreams/{server_name}` | Remove a membership. |
-| `GET` | `/bundles/{name}/tools` | Every tool with its curation and presented name. |
+| `GET` | `/bundles/{name}/tools` | Every tool with its curation, presented name and staleness. |
 | `PUT` | `/bundles/{name}/tools/{tool_id}` | Enable, disable, override. |
 | `GET` | `/bundles/{name}/prompts` | The bundle's own prompts, paginated. |
 | `GET` `PUT` `DELETE` | `/bundles/{name}/prompts/{prompt}` | Read, create or replace, delete one prompt. |
