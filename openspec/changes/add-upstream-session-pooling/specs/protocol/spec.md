@@ -35,12 +35,12 @@ A modern client SHALL open change notifications with one long-lived POST whose r
 notification types acknowledged, each tagged with `_meta["io.modelcontextprotocol/subscriptionId"]` = the request id.
 The gateway honours `toolsListChanged` (BND-7 invalidations and member changes per PROT-10, delivered cross-replica),
 `promptsListChanged` and `resourcesListChanged` for the bundle's own prompts and resources
-([BND-28](../../../../specs/bundles/spec.md)) and for its members' (PROT-10), and
+([BND-28](../bundles/spec.md)) and for its members' (PROT-10), and
 `resourceSubscriptions`: `notifications/resources/updated` for each URI the filter names, relayed from the owning member
 over a pooled upstream session (PROT-23). The stream sends SSE keep-alive comments, ends with a completion result on
 graceful shutdown, and is closed by the client to unsubscribe, which also ends the upstream resource subscriptions it
 held. GET and DELETE on the endpoint without an `Mcp-Session-Id` answer 405
-([EP-1](../../../../specs/endpoints/spec.md)).
+([EP-1](../endpoints/spec.md)).
 
 #### Scenario: Acknowledge and relay
 - **WHEN** a modern client opens `subscriptions/listen` asking for `toolsListChanged` and `resourceSubscriptions`, and
@@ -65,8 +65,8 @@ held. GET and DELETE on the endpoint without an `Mcp-Session-Id` answer 405
 ### Requirement: PROT-10 Upstream list changes
 Upstream `notifications/tools/list_changed`, `notifications/prompts/list_changed` and
 `notifications/resources/list_changed`, received on a pooled upstream session during or between calls, SHALL trigger
-re-discovery of that server ([UPS-17](../../../../specs/upstreams/spec.md)) and be propagated to the connected
-clients of every bundle the server is an enabled member of, per [BND-7](../../../../specs/bundles/spec.md): on the GET
+re-discovery of that server ([UPS-17](../upstreams/spec.md)) and be propagated to the connected
+clients of every bundle the server is an enabled member of, per [BND-7](../bundles/spec.md): on the GET
 stream for handshake clients, on the `subscriptions/listen` stream for modern clients (PROT-17). The same change
 announced to several replicas' sessions MUST trigger one re-discovery, not one per replica.
 

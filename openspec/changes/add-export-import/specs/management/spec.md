@@ -2,9 +2,9 @@
 
 ### Requirement: MGMT-17 Versioned export document
 `GET /api/v1/export` SHALL return a versioned JSON document (`{"version": 1, "upstreams": [...], "bundles": [...],
-"endpoints": [...]}`, keys per [UPS-16](../../../../specs/upstreams/spec.md)) containing all configuration by
+"endpoints": [...]}`, keys per [UPS-16](../upstreams/spec.md)) containing all configuration by
 natural keys. The document MUST validate against the same schema bootstrap consumes
-([MGMT-8](../../../../specs/management/spec.md)), so an export can be used as a bootstrap file unchanged.
+([MGMT-8](../management/spec.md)), so an export can be used as a bootstrap file unchanged.
 
 #### Scenario: Export lists every configured resource by name
 - **GIVEN** upstream `weather`, bundle `b1` with member `weather` and a tool override, and endpoint `b1-api`

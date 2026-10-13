@@ -1,10 +1,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: ARC-11 One gateway container, its routes
-One gateway container SHALL serve: `/{endpoint}/mcp` (public MCP, [endpoints](../../../../specs/endpoints/spec.md)),
-`/oauth/*` + `/.well-known/*` ([auth](../../../../specs/auth/spec.md)), `/api/v1/*` (management,
-[management](../../../../specs/management/spec.md)), `/healthz`, `/readyz` and `/metrics`
-([operations](../../../../specs/operations/spec.md)).
+One gateway container SHALL serve: `/{endpoint}/mcp` (public MCP, [endpoints](../endpoints/spec.md)),
+`/oauth/*` + `/.well-known/*` ([auth](../auth/spec.md)), `/api/v1/*` (management,
+[management](../management/spec.md)), `/healthz`, `/readyz` and `/metrics`
+([operations](../operations/spec.md)).
 
 #### Scenario: Health probes are served by the gateway
 - **WHEN** `GET /healthz` and `GET /readyz` are requested from the gateway

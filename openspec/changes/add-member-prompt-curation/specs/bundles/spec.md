@@ -5,10 +5,10 @@ Resources and prompts of member servers MUST be **passthrough**, curated only as
 [BND-37](../bundles/spec.md) allows (disable an entry, override its title or description); they are
 fetched **live** from members per request, and the discovery cache ([UPS-24](../upstreams/spec.md)) feeds
 curation, never what is served. Only members whose capabilities snapshot
-([UPS-22](../../../../specs/upstreams/spec.md)) advertises the capability a method belongs to are asked —
+([UPS-22](../upstreams/spec.md)) advertises the capability a method belongs to are asked —
 `prompts` for `prompts/*`, `resources` for `resources/*`, `completions` for `completion/complete` — so a member without
 it, or one never successfully discovered, is not contacted and contributes nothing
-([ADR-0043](../../../../../docs/adr/0043-contact-upstreams-only-with-a-reason.md)). Routing rules:
+([ADR-0043](../../../docs/adr/0043-contact-upstreams-only-with-a-reason.md)). Routing rules:
 
 - **Prompts** carry a name, so they are **always prefixed** `<server_name>__<prompt_name>` (BND-2 scheme);
   `prompts/get` and completion prompt-refs de-prefix on the first `__` to find the owning member.
@@ -17,10 +17,10 @@ it, or one never successfully discovered, is not contacted and contributes nothi
   enabled member in member order (BND-1) wins, collisions logged). `resources/read`, `resources/subscribe`, and
   resource-template completions resolve the owning member by **fan-out** — trying enabled members in member order and
   taking the first that owns the URI.
-- Completions are routed per [PROT-9](../../../../specs/protocol/spec.md).
+- Completions are routed per [PROT-9](../protocol/spec.md).
 
 Prompts and resources authored on the bundle itself, served beside this passthrough, are specified in
-[bundles](../../../../specs/bundles/spec.md).
+[bundles](../bundles/spec.md).
 
 #### Scenario: Member prompts are prefixed and de-prefixed
 - **WHEN** member `weather` offers prompt `daily` and a client calls `prompts/list` then `prompts/get` with
@@ -54,7 +54,7 @@ Prompts and resources authored on the bundle itself, served beside this passthro
 
 ### Requirement: BND-37 Member prompt and resource curation
 Member prompts and resources SHALL be curatable per bundle like tools
-([bundles](../../../../specs/bundles/spec.md)): an admin can disable a member's prompt or resource in
+([bundles](../bundles/spec.md)): an admin can disable a member's prompt or resource in
 one bundle, or override its title and description, through the management API and the bundle detail page. The entries
 offered for curation are those cached by discovery ([UPS-24](../upstreams/spec.md)). Curation never changes a
 prompt's name, a resource's URI, prompt messages or resource content, and an entry without curation is served

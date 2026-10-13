@@ -103,7 +103,12 @@ def block(lines: list[str], header_index: int, source: pathlib.Path) -> dict:
             scenarios.append({"name": following.split(":", 1)[1].strip(), "md": []})
             continue
         (scenarios[-1]["md"] if scenarios else body).append(following)
-    folder = source.parent.relative_to(ROOT).as_posix()
+    rel = source.relative_to(ROOT).parts
+    if "changes" in rel and rel[-3] == "specs":
+        # a delta spec links as the main spec it will be merged into
+        folder = f"openspec/specs/{rel[-2]}"
+    else:
+        folder = source.parent.relative_to(ROOT).as_posix()
 
     def absolute(text: str) -> str:
         def link(m: re.Match) -> str:
@@ -114,6 +119,8 @@ def block(lines: list[str], header_index: int, source: pathlib.Path) -> dict:
             parts: list[str] = []
             for part in resolved.split("/"):
                 if part == "..":
+                    if not parts:
+                        return m.group(0)  # climbs out of the repository: leave it as written
                     parts.pop()
                 elif part != ".":
                     parts.append(part)

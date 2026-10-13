@@ -68,10 +68,21 @@ would split one rule across two handlers. It remains open under PROT-25.
 
 ### Write validation and listing ask the catalogue
 
-`EndpointUpsert.auth_and_profile_rules` keeps the EP-3 checks and then calls `catalog.get(self.profile)
-.check_auth_modes(...)`. The profile list moves to `application/management/profile_service.py`
-(`ProfileService.list() -> list[EndpointProfileRead]`), reached through a `get_profile_service` provider; the controller
-handler calls that one method. The route path does not change here.
+The catalogue is a collaborator, not a module-level global: the composition root builds it (`ProfileCatalog.builtin()`,
+or `CompositionOverrides.profiles` in a test) and hands it to the endpoint service, a `ProfileService` and the bundle
+view loader, so a test app can register its own preset (task 2.4).
+
+That decides where the EP-15 rule runs. A Pydantic validator on `EndpointUpsert` cannot receive an injected catalogue,
+so `EndpointService.upsert` calls `profiles.get(body.profile).check_auth_modes(...)` and turns a
+`ProfileRuleViolation` into `InvalidInputError` — still a 422 with the same message. The DTO keeps the
+profile-independent EP-3 rules. Bootstrap goes through the same service, so it is checked too.
+
+*Alternative:* the DTO validator reads a module-level catalogue (the first version of this design). Rejected during
+implementation: it makes the catalogue a global a test or deployment can only replace by patching.
+
+The profile list moves to `application/management/profile_service.py` (`ProfileService.list() ->
+list[EndpointProfileRead]`), reached through a `get_profile_service` provider; the controller handler calls that one
+method. The route path does not change here.
 
 ## Risks / Trade-offs
 

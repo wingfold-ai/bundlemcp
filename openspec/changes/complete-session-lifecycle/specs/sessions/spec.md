@@ -6,11 +6,11 @@ SHALL never create, read or require a session record.
 
 On `initialize`, the gateway SHALL create a session record in the RESP store keyed by the issued `Mcp-Session-Id`
 (`bmcp:session:{id}`): endpoint, bundle, resolved caller identity, negotiated protocol version, the client's advertised
-capabilities, the client's requested log level ([PROT-7](../../../../specs/protocol/spec.md)), the time the
+capabilities, the client's requested log level ([PROT-7](../protocol/spec.md)), the time the
 session was created and the time of its last activity, and a record-schema `version` field
-([DEP-6](../../../../specs/deployment/spec.md)). The record's TTL is the idle session lifetime, the runtime-configurable
+([DEP-6](../deployment/spec.md)). The record's TTL is the idle session lifetime, the runtime-configurable
 `session_lifetime` (SES-10), refreshed together with the last-activity time on every request on the session (a `ping`
-counts — [PROT-8](../../../../specs/protocol/spec.md)).
+counts — [PROT-8](../protocol/spec.md)).
 
 #### Scenario: Initialize writes a record and returns its id
 - **WHEN** a handshake-era client sends `initialize` to `/main/mcp` with an API key
@@ -58,7 +58,7 @@ each session from its next activity.
 ### Requirement: SES-11 Sessions survive shutdown
 Shutting a replica down SHALL be graceful and bounded. On SIGTERM the replica reports not ready, refuses new requests,
 lets in-flight requests finish for at most a configurable drain window (`BUNDLEMCP_SHUTDOWN_DRAIN_SECONDS`), ends every
-open notification stream it holds cleanly (see [PROT-17](../../../../specs/protocol/spec.md)), answers any
+open notification stream it holds cleanly (see [PROT-17](../protocol/spec.md)), answers any
 call still running at the deadline with a structured error and reports it to metering as `cancelled`, then exits. In the
 container image the signal MUST reach the gateway process itself. Session records SHALL persist in the RESP store across
 the shutdown — clients continue on other replicas or after restart without re-initializing.
@@ -111,7 +111,7 @@ notification stream SHALL be registered under a **stream key** — endpoint, bun
 id for handshake clients and the request's routing key for modern ones — so list-changed fan-out selects streams by
 endpoint or bundle without loading a session. Messages that must reach a specific stream or call from another replica —
 cancellations, list-changed notifications, server→client requests and their responses, MRTR resumes and results
-([protocol](../../../../specs/protocol/spec.md)) — SHALL be routed via RESP pub/sub channels
+([protocol](../protocol/spec.md)) — SHALL be routed via RESP pub/sub channels
 (`bmcp:signal:{key}`) keyed by stream id, routing key or correlation id, delivered by the replica holding the target.
 A request for a target with no live holder anywhere SHALL fail fast with a structured error instead of waiting for an
 answer; a notification for such a target is dropped.
@@ -135,9 +135,9 @@ The gateway SHALL behave as follows under these failures:
 
 | Failure | Behavior |
 |---|---|
-| **Redis down** | Requests that need the store → 503 + `Retry-After` (no false 404s); after recovery, records with intact TTLs resume, otherwise clients re-`initialize`. Rate limits per [EP-21](../../../../specs/endpoints/spec.md). Admin UI logins unavailable; `readyz` false. |
+| **Redis down** | Requests that need the store → 503 + `Retry-After` (no false 404s); after recovery, records with intact TTLs resume, otherwise clients re-`initialize`. Rate limits per [EP-21](../endpoints/spec.md). Admin UI logins unavailable; `readyz` false. |
 | **Redis restarted** | Pooled connections that died with the old instance are replaced inside the request (bounded retry with backoff; idle connections are health-checked before reuse), so no request fails only because its connection is stale. A session the restart lost answers the ordinary `404` re-initialize signal, never a `500`. If the store is still unreachable after the retries, the Redis-down row applies. |
-| **Postgres down** | Token and key validation fails closed: a request that needs a credential checked or configuration read answers 503 + `Retry-After` (a JSON-RPC error on MCP endpoints), never 401 for a valid credential and never an unhandled 500. Config mutations answer 503; audit writes are buffered by the in-process audit queue ([OPS-3](../../../../specs/operations/spec.md)); `readyz` false. |
+| **Postgres down** | Token and key validation fails closed: a request that needs a credential checked or configuration read answers 503 + `Retry-After` (a JSON-RPC error on MCP endpoints), never 401 for a valid credential and never an unhandled 500. Config mutations answer 503; audit writes are buffered by the in-process audit queue ([OPS-3](../operations/spec.md)); `readyz` false. |
 | **Single replica dies** | Its pinned streams drop; clients retry/reconnect and any replica serves them (SES-2); in-flight calls on that replica surface to their clients as retryable errors. |
 
 #### Scenario: Store unreachable
@@ -159,8 +159,8 @@ The gateway SHALL behave as follows under these failures:
 ### Requirement: SES-19 Propagation budget
 A config change MUST be effective on all replicas within **2 seconds** under normal operation. Integration tests against
 the compose stack with two gateway replicas SHALL assert this for at least endpoint disable
-([EP-5](../../../../specs/endpoints/spec.md)), API key deactivation ([AUTH-25](../../../../specs/auth/spec.md)) and
-tool disable ([BND-13](../../../../specs/bundles/spec.md)), each changed through one replica and observed through
+([EP-5](../endpoints/spec.md)), API key deactivation ([AUTH-25](../auth/spec.md)) and
+tool disable ([BND-13](../bundles/spec.md)), each changed through one replica and observed through
 the other.
 
 #### Scenario: Runtime config change reaches another replica

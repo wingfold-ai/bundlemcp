@@ -64,8 +64,8 @@ EP-8 has no open decision.
   route).
 - **Docs:** `docs/integrate/management-api.md`, `docs/manage/endpoints.md`, `docs/manage/servers.md`,
   `docs/manage/bundles.md`.
-- **Related changes:** [add-profile-interface](../add-profile-interface/proposal.md) moves the profile list into a
-  service — whichever lands second wires the new route to it. `:probe` counts toward `health_status` through the
-  shared count of [complete-upstream-health](../complete-upstream-health/proposal.md); built earlier, it uses the
-  discovery service's failure recording. [complete-admin-ui](../complete-admin-ui/proposal.md) owns UI-2, which MGMT-1
-  references.
+- **Related changes:** [add-profile-interface](../archive/2026-10-13-add-profile-interface/proposal.md) moves the
+  profile list into a service — whichever lands second wires the new route to it. `:probe` counts toward `health_status`
+  through the shared count of [complete-upstream-health](../complete-upstream-health/proposal.md); built earlier, it
+  uses the discovery service's failure recording. [complete-admin-ui](../complete-admin-ui/proposal.md) owns UI-2, which
+  MGMT-1 references.

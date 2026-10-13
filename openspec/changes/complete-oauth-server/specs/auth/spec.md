@@ -2,19 +2,19 @@
 
 ### Requirement: AUTH-5 Introspection
 `POST /oauth/introspect` (RFC 7662) SHALL return `active`, `sub` (bundlemcp user id, see
-[architecture](../../../../specs/architecture/spec.md) `User`), `client_id`, `exp`, `scope`, and for a user's token the
+[architecture](../architecture/spec.md) `User`), `client_id`, `exp`, `scope`, and for a user's token the
 RFC 7662 §2.2 extension members `oidc_iss` and `oidc_sub` — the issuer and subject of the IdP that authenticated the
 user, which stay stable where the gateway's user id does not. Callable by upstream services; protected against
 anonymous fishing: the caller MUST present either a valid `service`-kind API key
-([AUTH-23](../../../../specs/auth/spec.md)), as a bearer token, in `X-API-Key`, or as the RFC 7662 HTTP-Basic client
+([AUTH-23](../auth/spec.md)), as a bearer token, in `X-API-Key`, or as the RFC 7662 HTTP-Basic client
 secret, or the client credentials (HTTP Basic `client_id`/`client_secret`) of a confidential client an admin has
 authorised for introspection. A registered client that has not been so authorised is refused like an anonymous caller,
 because dynamic client registration is open to anyone. Gateway **API keys** presented as the introspected token are
-reported as `active` with `sub` `api_key:<id>` ([AUTH-29](../../../../specs/auth/spec.md) identity format)
+reported as `active` with `sub` `api_key:<id>` ([AUTH-29](../auth/spec.md) identity format)
 and neither `oidc_iss` nor `oidc_sub`, so introspecting upstreams
-([AUTH-30](../../../../specs/auth/spec.md)) can serve api_key-authenticated callers and tool discovery of
+([AUTH-30](../auth/spec.md)) can serve api_key-authenticated callers and tool discovery of
 such upstreams can authenticate via a static `authorization` header. A **delegated token**
-([AUTH-32](../../../../specs/auth/spec.md)) is reported `active` with its audience server's URL as `aud`,
+([AUTH-32](../auth/spec.md)) is reported `active` with its audience server's URL as `aud`,
 `token_use` `delegated`, and the endpoint it was issued through as `act.sub`; one issued for a user also carries that
 user's `oidc_iss` and `oidc_sub`.
 
@@ -55,8 +55,8 @@ introspect.
 ### Requirement: AUTH-10 Endpoint-bound tokens (RFC 8707)
 The authorize request SHALL carry a `resource` parameter identifying the target endpoint (its canonical
 `/{endpoint_name}/mcp` URL); issued codes and tokens are bound to that endpoint as **audience** (the access token's
-endpoint, [architecture](../../../../specs/architecture/spec.md)) and are accepted **only there**
-([EP-3a](../../../../specs/endpoints/spec.md)). An authorize request without `resource`, or whose `resource` is not a
+endpoint, [architecture](../architecture/spec.md)) and are accepted **only there**
+([EP-3a](../endpoints/spec.md)). An authorize request without `resource`, or whose `resource` is not a
 gateway endpoint, is refused with `invalid_target`; a token is never valid across endpoints. The token endpoint SHALL
 accept a `resource` parameter for both the authorization-code and the refresh grant: when present it MUST name the
 audience of the code or refresh token being redeemed, and any other value is refused with `invalid_target` and issues
@@ -91,7 +91,7 @@ Consent is persisted per `(user, client, endpoint)` and skipped while unrevoked.
 and revoke their own consents (web app + `/api/v1/me/consents`), and admins can revoke any user's consent (UI +
 management API); either revocation also revokes tokens issued under it. A user can neither see nor revoke another
 user's consent through the self-service routes. Consent pages carry the
-[SEC-6](../../../../specs/security/spec.md) hardening headers.
+[SEC-6](../security/spec.md) hardening headers.
 
 #### Scenario: First authorization shows consent
 - **WHEN** a signed-in user authorizes a client for an endpoint for the first time

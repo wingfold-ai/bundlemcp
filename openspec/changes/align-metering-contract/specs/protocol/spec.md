@@ -36,11 +36,12 @@ metering hook's `post_call` receives as its `pre_call` left it.
 Every `tools/list` and `tools/call` SHALL pass through an ordered chain of stages, each receiving the PROT-24 context,
 in this order (list and call variants):
 
-1. tool filter — drops disabled tools / rejects disabled calls ([BND-13](../../../../specs/bundles/spec.md))
-2. overrides — apply/reverse per-bundle overrides ([BND-14](../../../../specs/bundles/spec.md))
-3. profile transform ([EP-13](../../../../specs/endpoints/spec.md))
+1. tool filter — drops disabled tools / rejects disabled calls ([BND-13](../bundles/spec.md))
+2. profile transform ([EP-13](../endpoints/spec.md))
+3. overrides — apply/reverse per-bundle overrides ([BND-14](../bundles/spec.md)), after the profile, so
+   an explicit annotation override wins over the profile's rewrite ([BND-15](../bundles/spec.md))
 4. **metering hook** (calls only; no-op unless configured)
-5. audit ([operations](../../../../specs/operations/spec.md))
+5. audit ([operations](../operations/spec.md))
 
 A stage that rejects a call ends it; the audit stage still records the rejection. The chain and its order are
 bundlemcp's contract regardless of the underlying library.
@@ -80,15 +81,15 @@ The metering hook contract (mirroring the first consumer's existing billing API)
   gateway delivers a post-call `no_result` with `duration_ms` 0 for the same `idempotency_key`, since the hook may
   have debited before it failed to answer. Under fail-open the call proceeds and ends with an ordinary post-call.
 - **Idempotency across retries:** pre-call fires **once per client invocation**. One `idempotency_key` is minted per
-  client invocation; gateway-internal retries ([SES-7](../../../../specs/sessions/spec.md),
-  [UPS-28](../../../../specs/upstreams/spec.md)) reuse it and do NOT re-fire pre-call. A call that spans several
-  requests through Multi Round-Trip Requests ([PROT-18](../../../../specs/protocol/spec.md)) keeps the key
+  client invocation; gateway-internal retries ([SES-7](../sessions/spec.md),
+  [UPS-28](../upstreams/spec.md)) reuse it and do NOT re-fire pre-call. A call that spans several
+  requests through Multi Round-Trip Requests ([PROT-18](../protocol/spec.md)) keeps the key
   sealed in its `requestState`, and none of its later legs — a parked call resumed in place, a pass-through retry or a
   re-run — fires pre-call again. Exactly one post-call is delivered per invocation that had a successful or an
   unanswered pre-call: on its final outcome, or with outcome `no_result` once an invocation paused for client input is
   not retried before its `requestState` expires. A leg that ends in `input_required` delivers none.
 - **Crash reconciliation:** if the gateway dies between pre-call and post-call, no refund fires. The audit log
-  ([operations](../../../../specs/operations/spec.md)) is the reconciliation source: hook consumers can detect debits
+  ([operations](../operations/spec.md)) is the reconciliation source: hook consumers can detect debits
   with no completed audit record and refund out-of-band. This contract is part of the hook documentation.
 - Field mapping to the reference consumer's `MeterRequest`: `sub→sub`, `email→email`, `bundle→bundle_slug`,
   `server→server_name`, `tool→tool_name`, `idempotency_key→idempotency_key`; `endpoint` is bundlemcp-side context the
@@ -142,7 +143,7 @@ chosen per upstream era:
 - **Pass-through** (modern upstream): the upstream's own `InputRequiredResult` is forwarded — `inputRequests`
   verbatim, its `requestState` sealed inside the gateway's — and the retry re-issues the request upstream with the
   client's `inputResponses` and the upstream's state. No gateway state exists between the two requests beyond the
-  metering record of a paused tool call ([PROT-26](../../../../specs/protocol/spec.md)).
+  metering record of a paused tool call ([PROT-26](../protocol/spec.md)).
 - **Park and resume** (handshake upstream): the upstream's server-initiated request is turned into `inputRequests`;
   the in-flight upstream request stays parked on its reply future, bounded by PROT-6; the retry routes the answer to the
   parking replica over the signal bus and the result back to the replica serving the retry. If no replica claims the

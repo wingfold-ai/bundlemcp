@@ -3,10 +3,13 @@
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.domain.bundles.bundle_view import BundleView
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
-from bundlemcp.domain.bundles.tool_presentation import present_tool
+from bundlemcp.domain.bundles.tool_pipeline import ToolPipeline
+from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 
 
-async def load_bundle_view(uow: UnitOfWork, endpoint_name: str) -> BundleView | None:
+async def load_bundle_view(
+    uow: UnitOfWork, endpoint_name: str, profiles: ProfileCatalog
+) -> BundleView | None:
     """Everything needed to serve one endpoint, or None when it is unknown or disabled."""
     endpoint = await uow.endpoints.by_name(endpoint_name)
     if endpoint is None or not endpoint.enabled:
@@ -21,11 +24,10 @@ async def load_bundle_view(uow: UnitOfWork, endpoint_name: str) -> BundleView | 
     server_by_id = {s.id: s for s in enabled_servers.values()}
 
     curation = {c.tool_id: c for c in await uow.curations.for_bundle(bundle.id)}
+    pipeline = ToolPipeline.for_profile(profiles.get(endpoint.profile))
     tools: list[PresentedTool] = []
     for tool in await uow.tools.for_servers(server_by_id):
-        presented = present_tool(
-            server_by_id[tool.server_id], tool, curation.get(tool.id), endpoint.profile
-        )
+        presented = pipeline.present(server_by_id[tool.server_id], tool, curation.get(tool.id))
         if presented is not None:
             tools.append(presented)
     tools.sort(key=lambda t: t.presented_name)

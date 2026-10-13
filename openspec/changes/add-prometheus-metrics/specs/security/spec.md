@@ -1,10 +1,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: SEC-9 Auth-failure rate limiting
-Authentication failures MUST be rate-limited per client IP per [EP-20](../../../../specs/endpoints/spec.md): after
+Authentication failures MUST be rate-limited per client IP per [EP-20](../endpoints/spec.md): after
 the configured number of failures within the window, the IP is locked out until the window lapses. Authentication
 failures and lockout events SHALL be counted in the exported metrics
-([OPS-9](../../../../specs/operations/spec.md)), without the client IP as a label.
+([OPS-9](../operations/spec.md)), without the client IP as a label.
 
 #### Scenario: Credential scan is locked out
 - **WHEN** one IP sends more failed authentications than the configured limit within the window

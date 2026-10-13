@@ -38,7 +38,12 @@ TARGETS = _tracked(
         *DOCS.rglob("*.md"),
         *ROOT.glob("*.md"),
         *(ROOT / ".claude" / "docs").glob("*.md"),
-        *(ROOT / "openspec").rglob("*.md"),
+        *(
+            p
+            for p in (ROOT / "openspec").rglob("*.md")
+            # an archived change is a frozen record of how things stood when it was archived
+            if (ROOT / "openspec" / "changes" / "archive") not in p.parents
+        ),
         *(ROOT / "packages").rglob("README.md"),
         *(ROOT / "deploy").glob("*.md"),
     ]
@@ -73,6 +78,23 @@ def anchors(path: pathlib.Path) -> set[str]:
     return {a for h in HEADING.findall(path.read_text()) for a in slugs(h)}
 
 
+OPENSPEC = ROOT / "openspec"
+
+
+def link_base(source: pathlib.Path) -> pathlib.Path:
+    """The folder a file's relative links resolve against.
+
+    A change's delta spec (``openspec/changes/<change>/specs/<slice>/spec.md``) is
+    written to become part of ``openspec/specs/<slice>/spec.md`` when the change is
+    archived, and the archive copies its text verbatim. Its links are therefore
+    written, and checked, as if the file already lived there.
+    """
+    rel = source.relative_to(ROOT).parts
+    if len(rel) == 6 and rel[:2] == ("openspec", "changes") and rel[3] == "specs":
+        return OPENSPEC / "specs" / rel[4]
+    return source.parent
+
+
 def resolve(source: pathlib.Path, target: str) -> pathlib.Path | None:
     """The file a link points at, or None when it resolves to nothing."""
     if target.startswith("/"):
@@ -80,7 +102,7 @@ def resolve(source: pathlib.Path, target: str) -> pathlib.Path | None:
         # files under docs/public/ are served from the site root.
         candidates = [DOCS / target.lstrip("/"), DOCS / "public" / target.lstrip("/")]
     else:
-        candidates = [source.parent / target]
+        candidates = [link_base(source) / target]
     for base in candidates:
         for candidate in (base, base.with_suffix(".md"), base / "index.md"):
             if candidate.is_file():

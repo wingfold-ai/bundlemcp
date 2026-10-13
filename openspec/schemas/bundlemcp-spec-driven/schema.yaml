@@ -110,6 +110,11 @@ artifacts:
       - Requirement dates are not written by hand: archiving the change dates every requirement it
         adds or modifies (the archive folder's date), and the docs site's Requirements page shows it.
 
+      Links in a delta spec (bundlemcp): write them as they resolve from the main spec the delta will
+      be merged into, `openspec/specs/<slice>/spec.md` — another slice is `../<slice>/spec.md`, the
+      docs are `../../../docs/...`, another change is `../../changes/<change>/proposal.md`. Archiving
+      copies the text verbatim; `tools/check_docs_links.py` checks delta specs from that location.
+
       Format requirements:
       - Each requirement: `### Requirement: <CODE>-<n> <Short name>` followed by description
       - Use SHALL/MUST for normative requirements (avoid should/may)

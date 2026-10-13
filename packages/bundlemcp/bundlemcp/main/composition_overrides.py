@@ -12,6 +12,7 @@ from bundlemcp.application.contracts.upstream.upstream_client_factory import Ups
 from bundlemcp.application.contracts.upstream.upstream_oauth_provider import UpstreamOAuthProvider
 from bundlemcp.application.metering.metering_hook import MeteringHook
 from bundlemcp.application.oauth_server import ClientMetadataFetcher
+from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.shared.secret_generator import SecretGenerator
 
@@ -48,6 +49,9 @@ class CompositionOverrides(BaseModel):
         default=None, description="Billing hook consulted around every tool call"
     )
     counters: Counters | None = Field(default=None, description="Metric sink to record into")
+    profiles: ProfileCatalog | None = Field(
+        default=None, description="Endpoint profiles to register instead of the built-in ones"
+    )
     rate_limiter: RateLimiter | None = Field(
         default=None, description="Fixed-window limiter for endpoint and per-client limits"
     )

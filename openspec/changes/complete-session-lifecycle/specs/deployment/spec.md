@@ -2,7 +2,7 @@
 
 ### Requirement: DEP-7 Restart survival is tested
 Zero-downtime deployment MUST be verified by the integration suite against the compose stack: the restart-under-load
-test of [SES-12](../../../../specs/sessions/spec.md) runs while two gateway replicas are replaced one at a
+test of [SES-12](../sessions/spec.md) runs while two gateway replicas are replaced one at a
 time by a rolling `compose up` of a newly built image. Sessions established before the rollout keep working afterwards
 without re-initializing, and no request sent during it is answered 404 or 500.
 

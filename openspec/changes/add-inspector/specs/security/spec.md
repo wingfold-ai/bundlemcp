@@ -1,14 +1,14 @@
 ## MODIFIED Requirements
 
 ### Requirement: SEC-1 One egress policy for gateway-initiated HTTP
-All gateway-initiated HTTP to admin-supplied URLs (server probes [UPS-2](../../../../specs/upstreams/spec.md),
-server inspection [UPS-11](../../../../specs/upstreams/spec.md), live tool calls, upstream OAuth discovery
-[UPS-25](../../../../specs/upstreams/spec.md), inspector ad-hoc targets [UI-8](../admin-ui/spec.md)) MUST go
+All gateway-initiated HTTP to admin-supplied URLs (server probes [UPS-2](../upstreams/spec.md),
+server inspection [UPS-11](../upstreams/spec.md), live tool calls, upstream OAuth discovery
+[UPS-25](../upstreams/spec.md), inspector ad-hoc targets [UI-8](../admin-ui/spec.md)) MUST go
 through one egress policy layer. The policy also covers every URL a remote party names along the way — the
 authorization server a protected-resource document points at, the token endpoint its metadata names, a client's
-metadata document ([AUTH-13](../../../../specs/auth/spec.md)) — and the operator-configured identity provider
-([AUTH-15](../../../../specs/auth/spec.md)); see
-[ADR-0032](../../../../../docs/adr/0032-egress-policy-scope.md).
+metadata document ([AUTH-13](../auth/spec.md)) — and the operator-configured identity provider
+([AUTH-15](../auth/spec.md)); see
+[ADR-0032](../../../docs/adr/0032-egress-policy-scope.md).
 
 #### Scenario: Remote-named metadata address is refused before fetch
 - **GIVEN** an upstream whose protected-resource document names an authorization server at `http://169.254.169.254/`

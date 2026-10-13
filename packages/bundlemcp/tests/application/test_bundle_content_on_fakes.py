@@ -10,6 +10,7 @@ from bundlemcp.application.management.bundle_service import BundleService
 from bundlemcp.application.schemas import BundlePromptUpsert, BundleResourceUpsert, BundleUpsert
 from bundlemcp.application.serving.bundle_content_reader import BundleContentReader
 from bundlemcp.domain.bundles.bundle_content_limits import BundleContentLimits
+from bundlemcp.domain.endpoints.profiles import ProfileCatalog
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
     InMemoryUnitOfWorkFactory,
@@ -197,6 +198,7 @@ async def test_bootstrap_applies_resources_before_the_prompts_that_embed_them(uo
         NoopToolDiscovery(),
         cipher=None,
         connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
     )
     await runner.apply(document)
     await runner.apply(document)  # applying twice changes nothing

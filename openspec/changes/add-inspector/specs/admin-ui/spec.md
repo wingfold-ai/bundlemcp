@@ -44,9 +44,9 @@ response or error, progress notifications received during a call, and the time e
 
 ### Requirement: UI-10 Traffic is proxied by the management API
 The browser MUST never talk to an inspector target directly: the management API proxies inspector traffic,
-authenticated like every management route ([MGMT-2](../../../../specs/management/spec.md)), so stored secrets stay
+authenticated like every management route ([MGMT-2](../management/spec.md)), so stored secrets stay
 server-side and no target needs CORS. Ad-hoc URL targets MUST pass the egress policy
-([SEC-1, SEC-2](../../../../specs/security/spec.md)).
+([SEC-1, SEC-2](../security/spec.md)).
 
 #### Scenario: Inspector requests need management credentials
 - **WHEN** an inspector route is called without an admin session or service API key
@@ -58,7 +58,7 @@ server-side and no target needs CORS. Ad-hoc URL targets MUST pass the egress po
 
 ### Requirement: UI-11 Inspector calls are attributed
 Inspector calls against **endpoints** SHALL go through the real public path and be audited like any client call
-([OPS-1](../../../../specs/operations/spec.md)). Calls against upstreams and ad-hoc URLs bypass the endpoint context:
+([OPS-1](../operations/spec.md)). Calls against upstreams and ad-hoc URLs bypass the endpoint context:
 they MUST be marked `source=inspector` in the logs and MUST NOT create audit records.
 
 #### Scenario: An endpoint call is audited

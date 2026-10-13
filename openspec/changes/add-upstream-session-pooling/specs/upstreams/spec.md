@@ -2,9 +2,9 @@
 
 ### Requirement: UPS-6 Config changes reach every replica
 A server config change (url/headers/auth) SHALL publish a `server` invalidation event on the config-invalidation event
-stream ([sessions](../../../../specs/sessions/spec.md)) after it commits, and MUST invalidate every
+stream ([sessions](../sessions/spec.md)) after it commits, and MUST invalidate every
 pooled upstream connection and session for that server on every replica
-([SES-9](../../../../specs/sessions/spec.md)), so no pooled connection outlives the change: the next call on
+([SES-9](../sessions/spec.md)), so no pooled connection outlives the change: the next call on
 any replica connects with the committed config.
 
 #### Scenario: Next call uses the new URL

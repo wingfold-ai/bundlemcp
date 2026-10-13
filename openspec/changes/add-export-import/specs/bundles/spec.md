@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: BND-32 Bootstrap carries prompts and resources
-Bootstrap ([management](../../../../specs/management/spec.md)) and export/import
+Bootstrap ([management](../management/spec.md)) and export/import
 ([management](../management/spec.md)) MUST carry each bundle's prompts and resources inside the bundle entry,
 upserted by natural key. An entry absent from the document is not deleted; import keeps
 [MGMT-20](../management/spec.md), so it deletes nothing unless a future `prune=true` says so.
@@ -22,7 +22,7 @@ upserted by natural key. An entry absent from the document is not deleted; impor
 - **THEN** `local-only` still exists
 
 ### Requirement: BND-10 Name is the natural key
-Bundle `name` MUST be the natural key for bootstrap upserts ([MGMT-9](../../../../specs/management/spec.md)) and for
+Bundle `name` MUST be the natural key for bootstrap upserts ([MGMT-9](../management/spec.md)) and for
 export and import ([MGMT-17](../management/spec.md), [MGMT-19](../management/spec.md)): a bundle is created or
 updated by its name, and an imported entry whose name matches no bundle creates a new one. The API offers no rename for
 a bundle; the name in the path and body of `PUT /api/v1/bundles/{name}` must agree, so a different name is a different

@@ -15,6 +15,7 @@ from bundlemcp.application.schemas import (
     ServerUpsert,
 )
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
+from bundlemcp.domain.endpoints.profiles import ProfileCatalog
 from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
@@ -61,7 +62,7 @@ async def test_anonymous_endpoint_cannot_expose_a_per_user_upstream(uow):
     """UPS-30 at the endpoint edge, checked through the ports alone."""
     servers = ServerService(uow, discovery=NoopToolDiscovery())
     bundles = BundleService(uow)
-    endpoints = EndpointService(uow)
+    endpoints = EndpointService(uow, profiles=ProfileCatalog.builtin())
     await servers.upsert(
         ServerUpsert(
             name="gh",
@@ -89,7 +90,9 @@ async def test_anonymous_endpoint_cannot_expose_a_per_user_upstream(uow):
 
 async def test_endpoint_for_unknown_bundle_is_not_found(uow):
     with pytest.raises(NotFoundError):
-        await EndpointService(uow).upsert(EndpointUpsert(name="ep", bundle_name="missing"))
+        await EndpointService(uow, profiles=ProfileCatalog.builtin()).upsert(
+            EndpointUpsert(name="ep", bundle_name="missing")
+        )
 
 
 class CommitAwareDiscovery:
@@ -119,7 +122,11 @@ async def test_bootstrap_discovers_its_servers_after_the_commit(uow):
     )
     discovery = CommitAwareDiscovery(uow)
     await BootstrapRunner(
-        InMemoryUnitOfWorkFactory(uow), discovery, cipher=None, connections=NoUpstreamConnections()
+        InMemoryUnitOfWorkFactory(uow),
+        discovery,
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
     ).apply(document)
     assert discovery.probes == [("echo", 1), ("weather", 1)]
 
@@ -139,6 +146,7 @@ async def test_failed_bootstrap_probes_nothing(uow):
             discovery,
             cipher=None,
             connections=NoUpstreamConnections(),
+            profiles=ProfileCatalog.builtin(),
         ).apply(document)
     assert discovery.probes == []
 
@@ -201,7 +209,11 @@ async def test_reapplied_bootstrap_does_not_probe_working_servers(uow):
     )
     discovery = CommitAwareDiscovery(uow)
     runner = BootstrapRunner(
-        InMemoryUnitOfWorkFactory(uow), discovery, cipher=None, connections=NoUpstreamConnections()
+        InMemoryUnitOfWorkFactory(uow),
+        discovery,
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
     )
     await runner.apply(document)
     await _mark_reachable(uow, "echo")
@@ -223,6 +235,7 @@ async def test_bootstrap_document_lands_in_one_commit(uow):
         NoopToolDiscovery(),
         cipher=None,
         connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
     ).apply(document)
     assert uow.committed == 1
     assert await uow.endpoints.by_name("ep") is not None
