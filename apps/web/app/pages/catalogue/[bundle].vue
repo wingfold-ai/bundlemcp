@@ -3,6 +3,8 @@ import type { components } from "~~/types/api";
 
 type AvailableEndpointRead = components["schemas"]["AvailableEndpointRead"];
 type CatalogueToolRead = components["schemas"]["CatalogueToolRead"];
+type CataloguePromptRead = components["schemas"]["CataloguePromptRead"];
+type CatalogueResourceRead = components["schemas"]["CatalogueResourceRead"];
 
 // One bundle of the catalogue: its endpoints with the URL to paste into an
 // MCP client and the steps for the client each endpoint is shaped for.
@@ -16,25 +18,33 @@ const bundleName = computed(() => String(route.params.bundle));
 
 const endpoints = ref<AvailableEndpointRead[]>([]);
 const tools = ref<CatalogueToolRead[]>([]);
+const prompts = ref<CataloguePromptRead[]>([]);
+const resources = ref<CatalogueResourceRead[]>([]);
 const errorMsg = ref("");
 const copied = ref("");
 
 async function load() {
   // Both requests are started before either is awaited, so they overlap.
   const endpointRequest = api.GET("/api/v1/me/endpoints");
-  const toolRequest = api.GET("/api/v1/me/bundles/{bundle_name}/tools", {
-    params: { path: { bundle_name: bundleName.value } },
-  });
+  const bundlePath = { params: { path: { bundle_name: bundleName.value } } };
+  const toolRequest = api.GET("/api/v1/me/bundles/{bundle_name}/tools", bundlePath);
+  // BPR-19: the context the bundle itself offers
+  const promptRequest = api.GET("/api/v1/me/bundles/{bundle_name}/prompts", bundlePath);
+  const resourceRequest = api.GET("/api/v1/me/bundles/{bundle_name}/resources", bundlePath);
   const { data: endpointData, error: endpointError } = await endpointRequest;
   // A bundle with no endpoint this person can use answers 404 here; the empty
   // endpoint list already says so, so the tool list simply stays empty.
   const { data: toolData } = await toolRequest;
+  const { data: promptData } = await promptRequest;
+  const { data: resourceData } = await resourceRequest;
   if (endpointError) {
     errorMsg.value = apiErrorMessage(endpointError);
     return;
   }
   endpoints.value = (endpointData ?? []).filter((ep) => ep.bundle_name === bundleName.value);
   tools.value = toolData ?? [];
+  prompts.value = promptData ?? [];
+  resources.value = resourceData ?? [];
 }
 await load();
 
@@ -146,6 +156,54 @@ function steps(ep: AvailableEndpointRead): string[] {
               <code v-else class="rounded bg-elevated px-1.5 py-0.5 text-xs">{{ tool.name }}</code>
               <p v-if="tool.description" class="mt-1 text-xs text-toned">{{ tool.description }}</p>
               <p v-else class="mt-1 text-xs text-muted italic">No description published.</p>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div
+        v-if="prompts.length || resources.length"
+        class="space-y-3"
+        data-testid="catalogue-context"
+      >
+        <div>
+          <h2 class="text-sm font-semibold">Prompts and documents</h2>
+          <p class="text-xs text-muted">
+            Context this bundle offers on its own: prompts you can pick in your client, and
+            documents it can read into the conversation.
+          </p>
+        </div>
+        <div class="wf-card space-y-2">
+          <ul class="divide-y divide-default">
+            <li
+              v-for="prompt in prompts"
+              :key="`prompt-${prompt.name}`"
+              class="py-2 first:pt-0 last:pb-0"
+              :data-testid="`catalogue-prompt-${prompt.name}`"
+            >
+              <p class="inline-flex items-center gap-1.5 text-sm" :title="prompt.name">
+                <UIcon name="i-lucide-message-square-text" class="size-4 text-muted" />{{
+                  prompt.title || prompt.name
+                }}
+              </p>
+              <p v-if="prompt.description" class="mt-1 text-xs text-toned">
+                {{ prompt.description }}
+              </p>
+            </li>
+            <li
+              v-for="resource in resources"
+              :key="`resource-${resource.name}`"
+              class="py-2 first:pt-0 last:pb-0"
+              :data-testid="`catalogue-resource-${resource.name}`"
+            >
+              <p class="inline-flex items-center gap-1.5 text-sm" :title="resource.name">
+                <UIcon name="i-lucide-file-text" class="size-4 text-muted" />{{
+                  resource.title || resource.name
+                }}
+              </p>
+              <p v-if="resource.description" class="mt-1 text-xs text-toned">
+                {{ resource.description }}
+              </p>
             </li>
           </ul>
         </div>

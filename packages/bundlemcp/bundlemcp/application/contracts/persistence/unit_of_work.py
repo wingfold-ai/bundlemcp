@@ -8,7 +8,13 @@ from bundlemcp.application.contracts.persistence.audit_repository import AuditRe
 from bundlemcp.application.contracts.persistence.authorization_code_repository import (
     AuthorizationCodeRepository,
 )
+from bundlemcp.application.contracts.persistence.bundle_prompt_repository import (
+    BundlePromptRepository,
+)
 from bundlemcp.application.contracts.persistence.bundle_repository import BundleRepository
+from bundlemcp.application.contracts.persistence.bundle_resource_repository import (
+    BundleResourceRepository,
+)
 from bundlemcp.application.contracts.persistence.config_entry_repository import (
     ConfigEntryRepository,
 )
@@ -52,6 +58,10 @@ class UnitOfWork(Protocol):
     def memberships(self) -> MembershipRepository: ...
     @property
     def curations(self) -> CurationRepository: ...
+    @property
+    def bundle_prompts(self) -> BundlePromptRepository: ...
+    @property
+    def bundle_resources(self) -> BundleResourceRepository: ...
     @property
     def endpoints(self) -> EndpointRepository: ...
     @property

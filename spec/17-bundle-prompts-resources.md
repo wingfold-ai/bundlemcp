@@ -1,6 +1,6 @@
 # 17 — Bundle-owned prompts and resources
 
-**Status:** Draft · **Origin:** new
+**Status:** Accepted · **Origin:** new
 
 ## Summary
 
@@ -23,8 +23,9 @@ material a client pulls in on demand. Rationale and alternatives:
 ### Prompts
 
 - **BPR-1** A bundle has zero or more **bundle prompts**. Each has a `name`, an optional `title` and `description`, a
-  list of `arguments` (each with `name`, optional `description`, `required` flag, and optional `values` — a closed list
-  of suggestions), and an ordered list of `messages`. Natural key: `(bundle, name)`.
+  list of `arguments` (each with `name` matching `^[a-zA-Z0-9_-]+$` so a placeholder can name it, optional
+  `description`, `required` flag, and optional `values` — a closed list of suggestions), and an ordered list of at least
+  one `messages`. Natural key: `(bundle, name)`.
 - **BPR-2** A bundle prompt's `name` matches `^[a-zA-Z0-9_-]+$` and MUST NOT contain `__`. Member prompts are always
   presented as `<server_name>__<prompt_name>` (BND-8), so an unprefixed name can never collide with one, and a name
   without `__` routes to the bundle without a lookup in any member.
@@ -32,7 +33,8 @@ material a client pulls in on demand. Rationale and alternatives:
   of the same bundle's resources (BPR-6), which `prompts/get` embeds as an MCP embedded resource. Text may contain
   `{{argument}}` placeholders. Substitution is plain text replacement, with no expressions, loops or escapes, and the
   substituted value is inserted verbatim, never re-scanned for placeholders. A write is rejected when a placeholder
-  names an undeclared argument or a resource reference names a resource the bundle does not have.
+  names an undeclared argument or a resource reference names a resource the bundle does not have. For the same reason
+  deleting a resource that a prompt embeds is refused (`409`), naming the prompts that embed it.
 - **BPR-4** `prompts/get` for a bundle prompt rejects a missing required argument with `-32602`, naming it. An
   optional argument that is not supplied is substituted with the empty string.
 - **BPR-5** `completion/complete` with a prompt ref to a bundle prompt is answered by the gateway from the argument's
@@ -52,9 +54,12 @@ material a client pulls in on demand. Rationale and alternatives:
 
 ### Serving
 
-- **BPR-8** Bundle prompts and resources are part of the bundle's cached view, loaded from Postgres with its tools, and
-  served without contacting any upstream: `prompts/list`, `prompts/get`, `resources/list`, `resources/read` and
-  completions for bundle prompts never open an upstream connection on their behalf.
+- **BPR-8** Bundle prompts and resources are served from Postgres without contacting any upstream: `prompts/list`,
+  `prompts/get`, `resources/list`, `resources/read` and completions for bundle prompts never open an upstream connection
+  on their behalf. The bundle's view, loaded with its tools on every request, carries their listing — names,
+  descriptions, arguments, MIME types and sizes, never message text or content; `prompts/get` and `resources/read` read
+  the one entry they need by natural key. That keeps up to 4 MiB of content out of every request that does not ask for
+  it.
 - **BPR-9** Merging with member passthrough: `prompts/list` and `resources/list` return the bundle's own entries first,
   in name order, then the member entries per BND-8. `prompts/get` with a name without `__` and `resources/read` with a
   `bundle://` URI are answered by the bundle alone; an unknown one is not-found without falling through to the members.

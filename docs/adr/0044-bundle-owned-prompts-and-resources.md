@@ -1,6 +1,6 @@
 # ADR-0044: Bundles own prompts and resources, served by the gateway
 
-**Status:** proposed · **Date:** 2026-10-12 · **Amends:** [ADR-0021](0021-mcp-surface-completion.md)
+**Status:** accepted · **Date:** 2026-10-12 · **Amends:** [ADR-0021](0021-mcp-surface-completion.md)
 
 ## Context
 
@@ -28,9 +28,10 @@ which a client reads into the conversation. What is missing is a place to author
 
 ## Decision
 
-- **Two new config entities**, `BundlePrompt` and `BundleResource`, stored in Postgres with the bundle and loaded into
-  the cached bundle view next to its tools. They are specified in
-  [spec 17](../../spec/17-bundle-prompts-resources.md).
+- **Two new config entities**, `BundlePrompt` and `BundleResource`, stored in Postgres with the bundle. Their listing
+  — names, descriptions, arguments, sizes — is loaded into the bundle view next to its tools; message text and
+  content are read by name only for the `prompts/get` or `resources/read` that asks for them, because the view is
+  rebuilt on every request. They are specified in [spec 17](../../spec/17-bundle-prompts-resources.md).
 - **Bundle prompts are unprefixed.** Member prompts are always `<server>__<prompt>`, and a bundle prompt name may not
   contain `__`, so the two can never collide and the router knows from the name alone where a prompt lives.
 - **Bundle resources live under `bundle://resources/<name>`.** The URI carries no bundle name, so renaming the bundle
@@ -67,7 +68,8 @@ which a client reads into the conversation. What is missing is a place to author
 **Trade-offs:**
 
 - The gateway now stores and serves content, not only configuration. Size limits per entry and per bundle keep that
-  bounded, but the bundle view a replica caches grows with it.
+  bounded, and only the listing travels with every request; a `prompts/get` or `resources/read` of a bundle entry costs
+  one more query.
 - Anything authored here reaches every caller of the bundle and the model. It is not a place for secrets, and the UI has
   to say so.
 - The `bundle://` scheme is a convention of this gateway; a client that persists URIs ties them to it.

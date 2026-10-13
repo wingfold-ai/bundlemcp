@@ -8,12 +8,20 @@ from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.http.service_providers import (
+    BundlePromptServiceProvider,
+    BundleResourceServiceProvider,
     BundleServiceProvider,
     CallerResolverProvider,
     EndpointServiceProvider,
 )
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
-from bundlemcp.application.schemas import AvailableEndpointRead, CatalogueToolRead, MeRead
+from bundlemcp.application.schemas import (
+    AvailableEndpointRead,
+    CataloguePromptRead,
+    CatalogueResourceRead,
+    CatalogueToolRead,
+    MeRead,
+)
 from bundlemcp.domain.access.api_key import ApiKey
 from bundlemcp.domain.access.user import User
 
@@ -76,3 +84,35 @@ class MeController(Controller):
         # caller, so the reachability check comes before any bundle content.
         bundle_id = await endpoints.reachable_bundle_id(bundle_name)
         return await bundles.catalogue_tools(bundle_id)
+
+    @route.get("/bundles/{bundle_name}/prompts")
+    async def bundle_prompts(
+        self,
+        bundle_name: str,
+        request: Request,
+        callers: CallerResolverProvider,
+        endpoints: EndpointServiceProvider,
+        prompts: BundlePromptServiceProvider,
+    ) -> list[CataloguePromptRead]:
+        """The prompts a bundle itself offers, for a signed-in person reading its catalogue
+        entry."""
+        # BPR-19
+        await self._caller(request, callers)
+        bundle_id = await endpoints.reachable_bundle_id(bundle_name)
+        return await prompts.catalogue(bundle_id)
+
+    @route.get("/bundles/{bundle_name}/resources")
+    async def bundle_resources(
+        self,
+        bundle_name: str,
+        request: Request,
+        callers: CallerResolverProvider,
+        endpoints: EndpointServiceProvider,
+        resources: BundleResourceServiceProvider,
+    ) -> list[CatalogueResourceRead]:
+        """The documents a bundle itself offers, for a signed-in person reading its catalogue
+        entry."""
+        # BPR-19
+        await self._caller(request, callers)
+        bundle_id = await endpoints.reachable_bundle_id(bundle_name)
+        return await resources.catalogue(bundle_id)

@@ -13,7 +13,8 @@ which guarantees automation parity (the application layer's registrar, CI, scrip
 ## Requirements
 
 - **API-1** Base path `/api/v1`; resources: `upstreams`, `upstreams/{id}/tools`, `bundles`,
-  `bundles/{id}/upstreams` ([SRV-16](10-server-registry.md)), `bundles/{id}/tools`, `endpoints`, `api-keys`,
+  `bundles/{id}/upstreams` ([SRV-16](10-server-registry.md)), `bundles/{id}/tools`, `bundles/{id}/prompts` and
+  `bundles/{id}/resources` ([BPR-14](17-bundle-prompts-resources.md)), `endpoints`, `api-keys`,
   `users`, `audit-records`, `config`, `profiles` (read-only, [PROF-5](15-endpoint-profiles.md)), plus action routes
   (e.g. `upstreams/{id}:refresh-tools`, `upstreams/{id}:probe`), and `me` (caller identity for the UI:
   kind, email, `is_admin` — answers 200 for any active signed-in session, admin or not, so the UI can render its "no

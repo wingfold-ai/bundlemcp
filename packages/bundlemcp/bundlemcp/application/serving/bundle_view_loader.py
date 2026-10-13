@@ -1,4 +1,4 @@
-"""Assembling a bundle's presented tool surface for one endpoint."""
+"""Assembling what one endpoint serves: its bundle's tools, prompts and resources."""
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.domain.bundles.bundle_view import BundleView
@@ -29,4 +29,11 @@ async def load_bundle_view(uow: UnitOfWork, endpoint_name: str) -> BundleView | 
         if presented is not None:
             tools.append(presented)
     tools.sort(key=lambda t: t.presented_name)
-    return BundleView(endpoint=endpoint, bundle=bundle, servers=enabled_servers, tools=tools)
+    return BundleView(
+        endpoint=endpoint,
+        bundle=bundle,
+        servers=enabled_servers,
+        tools=tools,
+        prompts=await uow.bundle_prompts.listings(bundle.id),  # BPR-8
+        resources=await uow.bundle_resources.listings(bundle.id),
+    )

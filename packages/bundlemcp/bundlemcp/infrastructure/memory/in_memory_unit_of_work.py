@@ -11,6 +11,12 @@ from bundlemcp.infrastructure.memory.in_memory_audit_repository import InMemoryA
 from bundlemcp.infrastructure.memory.in_memory_authorization_code_repository import (
     InMemoryAuthorizationCodeRepository,
 )
+from bundlemcp.infrastructure.memory.in_memory_bundle_prompt_repository import (
+    InMemoryBundlePromptRepository,
+)
+from bundlemcp.infrastructure.memory.in_memory_bundle_resource_repository import (
+    InMemoryBundleResourceRepository,
+)
 from bundlemcp.infrastructure.memory.in_memory_config_entry_repository import (
     InMemoryConfigEntryRepository,
 )
@@ -54,6 +60,8 @@ class InMemoryUnitOfWork:
         self.bundles = InMemoryRepository[Bundle]()
         self.memberships = InMemoryMembershipRepository()
         self.curations = InMemoryCurationRepository()
+        self.bundle_prompts = InMemoryBundlePromptRepository()
+        self.bundle_resources = InMemoryBundleResourceRepository()
         self.endpoints = InMemoryEndpointRepository()
         self.api_keys = InMemoryApiKeyRepository()
         self.users = InMemoryUserRepository()

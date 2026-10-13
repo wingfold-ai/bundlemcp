@@ -41,10 +41,11 @@ Per-bundle tool state. `bundle_id`, `tool_id`, `enabled` (bool), overrides: `ove
 `override_description`, `override_annotations` (json). Unique `(bundle_id, tool_id)`. Rows exist only where state
 deviates from the default (enabled, no overrides).
 
-### BundlePrompt / BundleResource — [17-bundle-prompts-resources.md](17-bundle-prompts-resources.md) (Draft)
+### BundlePrompt / BundleResource — [17-bundle-prompts-resources.md](17-bundle-prompts-resources.md)
 Content authored on a bundle. `BundlePrompt`: `bundle_id`, `name`, `title`, `description`, `arguments` (json),
 `messages` (json), timestamps; unique `(bundle_id, name)`. `BundleResource`: `bundle_id`, `name`, `title`,
-`description`, `mime_type`, `content` (text), timestamps; unique `(bundle_id, name)`. Both cascade with their bundle
+`description`, `mime_type`, `size_bytes` (derived from `content`, stored so a listing never reads the content),
+`content` (text), timestamps; unique `(bundle_id, name)`. Both cascade with their bundle
 (DOM-2) and are config-class entities (DOM-5).
 
 ### Endpoint — [14-endpoints.md](14-endpoints.md)
@@ -100,7 +101,7 @@ McpServer 1──n Tool
 McpServer n──m Bundle          (BundleServer: enabled)
 Tool      n──m Bundle          (BundleTool: enabled + overrides)
 Bundle    1──n Endpoint        (profile, auth_modes, rate_limit)
-Bundle    1──n BundlePrompt / BundleResource   (Draft, spec 17)
+Bundle    1──n BundlePrompt / BundleResource   (spec 17)
 User      1──n OAuthAccessToken / UpstreamOAuthToken
 Endpoint  1──n AuditRecord (denormalized names retained after deletes)
 ```

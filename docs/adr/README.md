@@ -60,5 +60,5 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0041](0041-delegated-upstream-tokens.md) | Delegated tokens replace token passthrough for identity-aware upstreams | accepted |
 | [0042](0042-http-metering-hook-and-outcome-kinds.md) | The metering hook can run out of process, and reports outcome kinds | accepted |
 | [0043](0043-contact-upstreams-only-with-a-reason.md) | The gateway contacts an upstream only when it has a reason to | accepted |
-| [0044](0044-bundle-owned-prompts-and-resources.md) | Bundles own prompts and resources, served by the gateway | proposed |
+| [0044](0044-bundle-owned-prompts-and-resources.md) | Bundles own prompts and resources, served by the gateway | accepted |
 | [0045](0045-upstreams-on-the-published-surface.md) | The published surface says "upstreams" | accepted |

@@ -38,7 +38,7 @@ Every numbered file is an **atomic spec**: one capability, independently accepta
 | [14-endpoints.md](14-endpoints.md) | Public endpoints, N per bundle, auth modes, one URL for every protocol era |
 | [15-endpoint-profiles.md](15-endpoint-profiles.md) | claude.ai / chatgpt / default profiles |
 | [16-rate-limiting.md](16-rate-limiting.md) | Redis-backed per-endpoint rate limits |
-| [17-bundle-prompts-resources.md](17-bundle-prompts-resources.md) | Prompts and resources authored on a bundle, served without upstream contact (Draft) |
+| [17-bundle-prompts-resources.md](17-bundle-prompts-resources.md) | Prompts and resources authored on a bundle, served without upstream contact |
 
 ### Authentication & identity
 | Spec | Contents |
