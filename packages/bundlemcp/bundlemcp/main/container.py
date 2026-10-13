@@ -34,6 +34,7 @@ from bundlemcp.application.oauth_server import (
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
+from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 from bundlemcp.domain.oauth.registration_policy import RegistrationPolicy
 from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.shared.secret_generator import SecretGenerator
@@ -78,6 +79,9 @@ class AppContainer(BaseModel):
     audit: AuditSink = Field(description="Queued writer for audit records")
     runtime_config: RuntimeConfig = Field(description="Runtime-tunable config, cached per replica")
     counters: Counters = Field(description="In-process metric sink")
+    profiles: ProfileCatalog = Field(
+        description="The registered endpoint profiles every profile decision is taken from"
+    )
     rate_limiter: RateLimiter = Field(description="Fixed-window limits shared by every edge")
     auth_failure_limiter: AuthFailureLimiter = Field(
         description="Per-IP counter of failed authentications"

@@ -21,6 +21,7 @@ from bundlemcp.application.management.upstream_oauth_config_service import (
 )
 from bundlemcp.application.schemas import BundleServerUpdate
 from bundlemcp.application.settings.settings import Settings
+from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 
 log = structlog.get_logger(__name__)
 
@@ -47,12 +48,14 @@ class BootstrapRunner:
         *,
         cipher: SecretCipher | None,
         connections: UpstreamConnectionRegistry,
+        profiles: ProfileCatalog,
     ) -> None:
         # cipher is None exactly when no token encryption keys are configured
         self._units = units
         self._discovery = discovery
         self._cipher = cipher
         self._connections = connections
+        self._profiles = profiles
 
     async def apply(self, doc: BootstrapDocument) -> None:
         probes = ProbesAfterCommit(self._discovery)
@@ -64,7 +67,7 @@ class BootstrapRunner:
             bundles = BundleService(uow)
             bundle_prompts = BundlePromptService(uow)
             bundle_resources = BundleResourceService(uow)
-            endpoints = EndpointService(uow)
+            endpoints = EndpointService(uow, profiles=self._profiles)
             for server in doc.upstreams:
                 await servers.upsert(server)
                 if server.upstream_oauth is not None:

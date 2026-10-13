@@ -36,6 +36,7 @@ from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
+from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 from bundlemcp.domain.oauth.redirect_uri_allow_list import RedirectUriAllowList
 from bundlemcp.domain.oauth.registration_policy import RegistrationPolicy
 from bundlemcp.domain.shared.os_secret_generator import OsSecretGenerator
@@ -172,6 +173,7 @@ class CompositionRoot:
         session_store = ValkeySessionStore(redis)
 
         counters = overrides.counters or InProcessCounters()  # metric seam
+        profiles = overrides.profiles or ProfileCatalog.builtin()
         auth_failure_limiter = overrides.auth_failure_limiter or ValkeyAuthFailureLimiter(
             redis,
             limit=settings.auth_failure_limit,
@@ -199,6 +201,7 @@ class CompositionRoot:
             rate_limiter=rate_limiter,
             auth_failures=auth_failure_guard,
             counters=counters,
+            profiles=profiles,
             clock=clock,
             secret_hasher=hasher,
         ).build()
@@ -209,6 +212,7 @@ class CompositionRoot:
             discovery,
             cipher=cipher,
             connections=upstream_tokens or NoUpstreamConnections(),
+            profiles=profiles,
         ).run(settings)
 
         subscriber = InvalidationSubscriber(redis)  # one subscriber per replica
@@ -251,6 +255,7 @@ class CompositionRoot:
             audit=audit,
             runtime_config=runtime_config,
             counters=counters,
+            profiles=profiles,
             rate_limiter=rate_limiter,
             auth_failure_limiter=auth_failure_limiter,
             auth_failure_guard=auth_failure_guard,

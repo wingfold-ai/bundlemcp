@@ -33,7 +33,10 @@ None.
   (adding a profile is implementing one interface and registering it).
 - `bundles`: BND-13 (disabled-tool enforcement is a stage of that pipeline).
 
-## Open decision
+## Decision
+
+**Decided 2026-10-13 by the maintainer: build** (option 1 below). PROT-25's order was corrected in the
+same branch to the one the code runs and BND-15 needs: curation filter, profile transform, overrides.
 
 **EP-13 and BND-13 — build the stage, or amend the wording.** The original specs said profile transforms and the
 disabled-tool filter are "middleware". What exists is a shared, per-request `BundleView` composed once and used by both

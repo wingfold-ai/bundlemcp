@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: OPS-14 Capped cross-replica log buffer
-Gateway log events (the structured events of [OPS-8](../../../../specs/operations/spec.md) at or above a
+Gateway log events (the structured events of [OPS-8](../operations/spec.md) at or above a
 configurable level threshold, plus connection and session lifecycle events) SHALL be published to a capped stream in
 the RESP store (approximately the newest 10,000 entries), shared by all replicas. Publishing MUST NOT block or fail the
 request that logged the event.
@@ -57,7 +57,7 @@ Durable history is the audit log and the process logs collected by the container
 - **THEN** the live log page shows only events logged after the restart, and the gateway keeps serving
 
 ### Requirement: OPS-17 Same redaction as process logs
-The buffer MUST carry the already-redacted events of [OPS-8](../../../../specs/operations/spec.md), never raw
+The buffer MUST carry the already-redacted events of [OPS-8](../operations/spec.md), never raw
 headers, tokens, secrets or tool arguments; whatever the process log may not contain, the buffer may not contain.
 
 #### Scenario: A credential never reaches the buffer

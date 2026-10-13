@@ -4,39 +4,39 @@
 The admin UI SHALL provide these pages:
 
 - **Upstream servers** — list with health and connection-state badges and the MCP revision negotiated at the last
-  successful probe ([UPS-10](../../../../specs/upstreams/spec.md)); detail: config, secret header editing
+  successful probe ([UPS-10](../upstreams/spec.md)); detail: config, secret header editing
   (write-only — an empty field keeps the stored values), forward-headers, upstream OAuth connect status
-  ([UPS-29](../../../../specs/upstreams/spec.md)), discovered tools with their last-seen time and a *stale* badge on
+  ([UPS-29](../upstreams/spec.md)), discovered tools with their last-seen time and a *stale* badge on
   each tool the last discovery no longer found, a *Refresh tools* action that re-probes the server and reports the
   discovered and changed counts or the connection state it ran into, and a *Refresh & prune* action that additionally
-  removes the stale tools ([UPS-19](../../../../specs/upstreams/spec.md)).
+  removes the stale tools ([UPS-19](../upstreams/spec.md)).
 - **Bundles** — list; detail: member servers (add/remove/enable), tool curation table (enable toggles, inline
   name, title, description and annotation overrides, *stale*, *overridden* and *member disabled* badges —
-  [BND-16](../../../../specs/bundles/spec.md)), the bundle's own prompts and resources
-  ([bundles](../../../../specs/bundles/spec.md)), endpoints of this bundle, and the
-  catalogue overview shown to users ([BND-11](../../../../specs/bundles/spec.md)).
+  [BND-16](../bundles/spec.md)), the bundle's own prompts and resources
+  ([bundles](../bundles/spec.md)), endpoints of this bundle, and the
+  catalogue overview shown to users ([BND-11](../bundles/spec.md)).
 - **Catalogue** — what a signed-in non-admin sees: the bundles they can connect to, each with its overview and the
-  tools it serves ([BND-11](../../../../specs/bundles/spec.md)), and per endpoint the copy-paste URL and setup steps for
+  tools it serves ([BND-11](../bundles/spec.md)), and per endpoint the copy-paste URL and setup steps for
   the client it is shaped for.
 - **Composition** — one grid of bundles against registered servers, marking each membership and whether it is enabled
-  ([BND-4](../../../../specs/bundles/spec.md)). It answers what spans bundles: which bundles a server is used by, and
+  ([BND-4](../bundles/spec.md)). It answers what spans bundles: which bundles a server is used by, and
   which servers are registered but in no bundle, so unreachable through any endpoint.
 - **Endpoints** — list; detail: bundle, profile (with chatgpt-profile warning
-  [EP-12](../../../../specs/endpoints/spec.md)), auth modes, rate limits, connection card (copy-paste URL +
-  per-client setup instructions — [EP-7](../../../../specs/endpoints/spec.md)).
+  [EP-12](../endpoints/spec.md)), auth modes, rate limits, connection card (copy-paste URL +
+  per-client setup instructions — [EP-7](../endpoints/spec.md)).
 - **API keys** — create (one-time value display) with a kind and, for an endpoint-kind key, an endpoint-scope picker
   (no endpoint selected = every endpoint); the list shows each key's kind, scope and active/inactive state, with
-  deactivate, re-activate and delete actions ([auth](../../../../specs/auth/spec.md)).
+  deactivate, re-activate and delete actions ([auth](../auth/spec.md)).
 - **Audit** — filterable table (time range, endpoint, bundle, upstream server, tool, caller and status) + CSV download
-  of the whole filtered result, not only the loaded page ([OPS-6](../../../../specs/operations/spec.md)).
+  of the whole filtered result, not only the loaded page ([OPS-6](../operations/spec.md)).
 - **Users** — list of provisioned users, admin flag display, deactivate action
-  ([AUTH-20](../../../../specs/auth/spec.md)), per-user OAuth consents with revoke
-  ([AUTH-11](../../../../specs/auth/spec.md)).
+  ([AUTH-20](../auth/spec.md)), per-user OAuth consents with revoke
+  ([AUTH-11](../auth/spec.md)).
 - **Settings** — runtime `Config` editing: each key can be saved or reset to its default.
 
 The navigation also carries *Live logs* and *Inspector* entries; both pages are placeholders that state their backend is
-not implemented ([add-live-logs](../../../add-live-logs/proposal.md),
-[add-inspector](../../../add-inspector/proposal.md)).
+not implemented ([add-live-logs](../../changes/add-live-logs/proposal.md),
+[add-inspector](../../changes/add-inspector/proposal.md)).
 
 #### Scenario: Navigation reaches every page
 - **GIVEN** a signed-in admin
@@ -85,7 +85,7 @@ not implemented ([add-live-logs](../../../add-live-logs/proposal.md),
 
 ### Requirement: UI-2 Auth
 Every route of the admin UI MUST require a signed-in user: an anonymous visitor is redirected to the gateway's OIDC
-login ([auth](../../../../specs/auth/spec.md)) and returned to the page they asked for, and a session that
+login ([auth](../auth/spec.md)) and returned to the page they asked for, and a session that
 expires mid-visit sends the browser back through login on the next `401`. A signed-in user without admin rights SHALL
 only reach the catalogue: no management navigation is shown, and a management page opened directly renders a *no
 access* page that says admin rights are required and links to `/catalogue`, without loading any management data.
@@ -156,7 +156,7 @@ shown from the API's response.
 
 ### Requirement: UI-7 Upstream server naming
 Navigation, the list page's title and the detail page's title SHALL say *Upstream servers* / *Upstream server*
-([UPS-16](../../../../specs/upstreams/spec.md)); buttons, empty states, tooltips and error copy MAY use the
+([UPS-16](../upstreams/spec.md)); buttons, empty states, tooltips and error copy MAY use the
 short *upstream*, never a bare *server*. The pages live at `/upstreams` and `/upstreams/{name}`.
 
 #### Scenario: Upstream pages and navigation

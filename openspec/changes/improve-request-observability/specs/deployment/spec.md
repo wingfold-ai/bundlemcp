@@ -3,9 +3,9 @@
 ### Requirement: DEP-2 Trusted proxies decide the client IP
 Trusted-proxy config (`BUNDLEMCP_TRUSTED_PROXIES`, CIDR list): `X-Forwarded-For` MUST be honored only when the direct
 peer is in the list; otherwise it is ignored and the socket peer is the client IP. The client IP used for rate limiting
-([EP-16](../../../../specs/endpoints/spec.md)), the auth-failure lockout, per-IP client-registration limits and
-logging ([OPS-8](../../../../specs/operations/spec.md)) derives from this policy — XFF from untrusted peers is never
-believed ([ADR-0018](../../../../../docs/adr/0018-rate-limiting.md)). When the peer is trusted, the leftmost XFF entry
+([EP-16](../endpoints/spec.md)), the auth-failure lockout, per-IP client-registration limits and
+logging ([OPS-8](../operations/spec.md)) derives from this policy — XFF from untrusted peers is never
+believed ([ADR-0018](../../../docs/adr/0018-rate-limiting.md)). When the peer is trusted, the leftmost XFF entry
 is taken.
 
 #### Scenario: Untrusted peer cannot spoof its IP
@@ -28,7 +28,7 @@ Alembic migrations MUST run as a **dedicated step** (the gateway image's entrypo
 starting the server, or an operator runs it as a one-shot pre-deploy job) guarded by a Postgres advisory lock — N
 replicas starting concurrently never double-run. A replica does not bind its port, and so serves nothing, until the
 migration step has finished. A replica whose database schema is behind the migration head it ships with SHALL report
-`/readyz` not ready ([OPS-10](../../../../specs/operations/spec.md)) until the schema is current.
+`/readyz` not ready ([OPS-10](../operations/spec.md)) until the schema is current.
 
 #### Scenario: Concurrent replicas migrate once
 - **WHEN** two replicas of a newer image start at the same time against the same database

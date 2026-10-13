@@ -1,20 +1,22 @@
-"""Endpoint business logic: CRUD, auth-mode/profile rules, rate-limit config."""
+"""Endpoint business logic: CRUD, the profile's auth-mode rule, rate-limit config."""
 
 import uuid
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
-from bundlemcp.application.errors import ConflictError, NotFoundError
+from bundlemcp.application.errors import ConflictError, InvalidInputError, NotFoundError
 from bundlemcp.application.management.named_resource_service import NamedResourceService
 from bundlemcp.application.management.per_user_upstream_check import PerUserUpstreamCheck
 from bundlemcp.application.schemas import AvailableEndpointRead, EndpointRead, EndpointUpsert
 from bundlemcp.domain.endpoints.endpoint import Endpoint
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
+from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
+from bundlemcp.domain.endpoints.profiles.profile_rule_violation import ProfileRuleViolation
 from bundlemcp.domain.shared.resource_names import endpoint_name as endpoint_name_type
 
 
 class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, *, profiles: ProfileCatalog) -> None:
         super().__init__(
             uow,
             repo=uow.endpoints,
@@ -23,8 +25,13 @@ class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
             label="endpoint",
         )
         self._policy = PerUserUpstreamCheck(uow)
+        self._profiles = profiles
 
     async def upsert(self, body: EndpointUpsert) -> EndpointRead:
+        try:
+            self._profiles.get(body.profile).check_auth_modes(frozenset(body.auth_modes))
+        except ProfileRuleViolation as exc:
+            raise InvalidInputError(str(exc)) from None
         bundle = await self._uow.bundles.by_name(body.bundle_name)
         if bundle is None:
             raise NotFoundError("bundle not found")

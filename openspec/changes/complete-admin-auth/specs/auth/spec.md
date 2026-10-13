@@ -9,7 +9,7 @@ seconds, default 12 hours). The cookie's max age equals that lifetime. Every log
 on the authorize request and the verifier on the code exchange, so an IdP client that enforces PKCE accepts the login.
 Only an IdP whose discovery document lists `code_challenge_methods_supported` without `S256` is sent no PKCE, with a
 warning logged at startup. The cookie is host-only, `SameSite=Lax`, and `Secure` exactly when the public URL is https
-([DEP-1](../../../../specs/deployment/spec.md), [SEC-4](../../../../specs/security/spec.md)).
+([DEP-1](../deployment/spec.md), [SEC-4](../security/spec.md)).
 
 #### Scenario: Login carries PKCE
 - **WHEN** a browser starts `/login` against an IdP that supports `S256`
@@ -62,8 +62,8 @@ answers a signed-in user who is not an admin with 403, and a caller with no vali
 ### Requirement: AUTH-20 Deprovisioning
 Admin sessions SHALL have a max age forcing periodic re-login (IdP re-check). An admin (or the management API) can
 **deactivate a user**, which immediately ends their browser sessions (every request re-checks that the user is
-active) and revokes their issued OAuth tokens ([auth](../../../../specs/auth/spec.md)), consents and
-upstream OAuth tokens ([upstreams](../../../../specs/upstreams/spec.md)). A deactivated user stays
+active) and revokes their issued OAuth tokens ([auth](../auth/spec.md)), consents and
+upstream OAuth tokens ([upstreams](../upstreams/spec.md)). A deactivated user stays
 deactivated when they sign in at the IdP again: the admin login and the OAuth authorize flow refuse them, until an
 admin reactivates the user. Reactivation restores no token, consent or upstream connection. A user deleted or disabled
 at the IdP thus loses access at the latest when their session/token lifetimes force renewal — and immediately when
@@ -92,11 +92,11 @@ deactivated here.
 
 ### Requirement: AUTH-26 Validation path
 Key validation SHALL hash the presented key and look the digest up in Postgres on every request; failed
-authentications feed the auth rate limiter ([EP-20](../../../../specs/endpoints/spec.md)). Because the stored
+authentications feed the auth rate limiter ([EP-20](../endpoints/spec.md)). Because the stored
 value is a digest of a high-entropy generated key, the lookup needs no constant-time comparison: the timing of a
 digest lookup reveals nothing usable about a stored key. A validation cache MAY be added only together with
 invalidation events that evict a deactivated or deleted key from every replica within the propagation budget
-([SES-19](../../../../specs/sessions/spec.md)); without them, no cache is used.
+([SES-19](../sessions/spec.md)); without them, no cache is used.
 
 #### Scenario: Unknown key counts as an auth failure
 - **WHEN** a request presents a `bmcp_sk_…` value whose digest matches no active key

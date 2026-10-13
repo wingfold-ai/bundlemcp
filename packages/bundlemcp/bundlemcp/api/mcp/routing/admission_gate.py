@@ -16,6 +16,7 @@ from bundlemcp.api.mcp.routing.authentication import (
 )
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.serving.bundle_view_loader import load_bundle_view
+from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 
 
 def _carries_credential(request: Request) -> bool:
@@ -32,11 +33,13 @@ class AdmissionGate:
         authentication: EndpointAuthentication,
         auth_failures: AuthFailureGuard,
         public_base: str,
+        profiles: ProfileCatalog,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._authentication = authentication
         self._auth_failures = auth_failures
         self._public_base = public_base
+        self._profiles = profiles
 
     async def parse_envelope(self, request: Request) -> JsonRpcMessage:
         """Parse JSON-RPC envelope in-memory (pure CPU, zero DB connections)."""
@@ -48,7 +51,7 @@ class AdmissionGate:
     async def admit_caller(self, request: Request, endpoint_name: str) -> EndpointContext:
         """Resolve endpoint and authenticate caller via database UnitOfWork."""
         async with self._unit_of_work_factory.open() as uow:
-            view = await load_bundle_view(uow, endpoint_name)
+            view = await load_bundle_view(uow, endpoint_name, self._profiles)
             if view is None:
                 raise RequestRejected(JSONResponse({"error": "not found"}, status_code=404))
             if _carries_credential(request):

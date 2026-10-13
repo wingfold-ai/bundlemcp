@@ -50,8 +50,8 @@ upstream's request for input fails fast and a modern upstream's `input_required`
   through, each stage seeing the PROT-24 context. The alternative is to amend PROT-25 to the fixed pipeline that exists
   (curation, overrides and profile at view composition; metering and audit per call) and to drop the "scratch dict for
   cross-middleware data" from PROT-24, keeping a scratch only between `pre_call` and `post_call`. Decide together with
-  [add-profile-interface](../add-profile-interface/proposal.md), whose EP-13 and BND-13 ask the same question for the
-  profile and filter stages. The delta specifies the chain.
+  [add-profile-interface](../archive/2026-10-13-add-profile-interface/proposal.md), whose EP-13 and BND-13 ask the same
+  question for the profile and filter stages. The delta specifies the chain.
 - **PROT-26: enforce once-per-invocation or make the repeat the contract.** Enforcing it needs a short-lived Valkey
   record per paused invocation (so a retry is recognised and an abandoned invocation can be closed with a `post_call`),
   and takes away the hook's chance to deny a later leg. Making "the same idempotency key, possibly repeated" the

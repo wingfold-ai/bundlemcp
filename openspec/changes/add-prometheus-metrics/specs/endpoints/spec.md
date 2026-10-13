@@ -2,7 +2,7 @@
 
 ### Requirement: EP-18 429 with Retry-After, not audited
 Exceeding a limit MUST return HTTP 429 with `Retry-After`; rejections SHALL be counted in the gateway's exported
-metrics ([OPS-9](../../../../specs/operations/spec.md), labelled by endpoint and by which limit — endpoint-wide or
+metrics ([OPS-9](../operations/spec.md), labelled by endpoint and by which limit — endpoint-wide or
 per-client — was exceeded) but are NOT audit records (audit is tool calls only).
 
 #### Scenario: Limit exceeded

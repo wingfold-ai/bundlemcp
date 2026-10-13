@@ -4,6 +4,7 @@ import pytest
 from bundlemcp.application.bootstrap import BootstrapDocument, BootstrapRunner
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.errors import PreconditionError
+from bundlemcp.domain.endpoints.profiles import ProfileCatalog
 from bundlemcp.infrastructure.crypto.token_cipher import TokenCipher
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
@@ -55,6 +56,7 @@ async def test_upstream_oauth_client_is_applied_with_the_server(engine, redis):
         NoopToolDiscovery(),
         cipher=cipher,
         connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
     )
 
     await runner.apply(BootstrapDocument(**OAUTH_DOC))
@@ -75,7 +77,7 @@ async def test_upstream_oauth_client_needs_encryption_keys(engine, redis):
         SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis),
         NoopToolDiscovery(),
         cipher=None,
-        connections=NoUpstreamConnections(),
+        connections=NoUpstreamConnections(),        profiles=ProfileCatalog.builtin(),
     )
     with pytest.raises(PreconditionError):
         await runner.apply(BootstrapDocument(**OAUTH_DOC))
@@ -91,6 +93,7 @@ async def test_apply_is_idempotent(engine, redis):
         NoopToolDiscovery(),
         cipher=None,
         connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
     )
 
     await runner.apply(doc)
@@ -145,7 +148,11 @@ async def test_inline_json_document_is_applied_after_the_file(engine, redis, tmp
     factory = session_factory(engine)
     units = SqlAlchemyUnitOfWorkFactory(factory, redis)
     await BootstrapRunner(
-        units, NoopToolDiscovery(), cipher=None, connections=NoUpstreamConnections()
+        units,
+        NoopToolDiscovery(),
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
     ).run(settings)
 
     async with factory() as db:
@@ -176,7 +183,11 @@ async def test_fresh_bootstrap_serves_discovered_tools(engine, redis):
     units = SqlAlchemyUnitOfWorkFactory(factory, redis)
     probe = FastMcpUpstreamProbe(factory_for(make_upstream(["ping"])))
     await BootstrapRunner(
-        units, InlineDiscovery(units, probe), cipher=None, connections=NoUpstreamConnections()
+        units,
+        InlineDiscovery(units, probe),
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
     ).apply(BootstrapDocument(**DOC))
 
     async with factory() as db:
@@ -197,9 +208,13 @@ async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis)
     units = SqlAlchemyUnitOfWorkFactory(factory, redis)
     discovery = InlineDiscovery(units, FastMcpUpstreamProbe(failing_factory))
     settings = EnvSettings(_env_file=None, bootstrap=json.dumps(DOC), bootstrap_strict=True)
-    await BootstrapRunner(units, discovery, cipher=None, connections=NoUpstreamConnections()).run(
-        settings
-    )
+    await BootstrapRunner(
+        units,
+        discovery,
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
+    ).run(settings)
 
     async with factory() as db:
         server = (await db.execute(select(McpServerRow))).scalar_one()

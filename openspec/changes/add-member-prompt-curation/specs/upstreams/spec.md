@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: UPS-24 Prompt and resource discovery
-When a discovery probe reaches a server whose capability snapshot ([UPS-22](../../../../specs/upstreams/spec.md))
+When a discovery probe reaches a server whose capability snapshot ([UPS-22](../upstreams/spec.md))
 advertises `prompts` or `resources`, the gateway SHALL also list them and cache, per entry, the prompt name or
 resource URI with its title and description — never prompt messages or resource content — hash-gated like tools
 (UPS-18) and kept, not deleted, when they vanish (UPS-19). The number of cached entries per server and kind is bounded;

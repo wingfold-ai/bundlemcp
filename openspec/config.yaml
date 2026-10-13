@@ -28,6 +28,10 @@ rules:
     - "A new capability is a new slice: add it to openspec/slices.json first, with a code of 2 to 5
       uppercase letters abbreviating the word that distinguishes the slice, and a group."
     - A MODIFIED or REMOVED requirement keeps its ID in the header.
+    - "Write links in a delta spec as they resolve from the main spec it will be merged into
+      (openspec/specs/<slice>/spec.md): another slice is ../<slice>/spec.md, the docs are
+      ../../../docs/..., another change is ../../changes/<change>/proposal.md. Archiving copies the
+      text verbatim, and tools/check_docs_links.py checks delta specs from that location."
     - Specs describe observable behaviour; no class, module or library names.
   design:
     - Respect the layer rules in CLAUDE.md (domain, application, infrastructure, api, main) and
@@ -44,3 +48,5 @@ operations:
     guidance:
       - Before archiving, confirm every task is checked and the gates pass; the main spec must
         describe what is implemented, nothing more.
+      - After archiving, repoint links that named the change's old folder (other changes'
+        ../<change>/proposal.md) to its archive folder, and run python3 tools/check_docs_links.py.

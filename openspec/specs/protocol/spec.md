@@ -391,8 +391,9 @@ original (unprefixed) tool name and the invocation's `idempotency_key`.
 The gateway SHALL apply these steps in this order (list and call variants):
 
 1. tool filter — drops disabled tools / rejects disabled calls ([BND-13](../bundles/spec.md))
-2. overrides — apply/reverse per-bundle overrides ([BND-14](../bundles/spec.md))
-3. profile transform ([EP-13](../endpoints/spec.md))
+2. profile transform ([EP-13](../endpoints/spec.md))
+3. overrides — apply/reverse per-bundle overrides ([BND-14](../bundles/spec.md)), after the profile, so an
+   explicit annotation override wins over the profile's rewrite ([BND-15](../bundles/spec.md))
 4. **metering hook** (calls only; no-op unless configured)
 5. audit ([operations](../operations/spec.md))
 

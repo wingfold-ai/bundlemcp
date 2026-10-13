@@ -5,14 +5,14 @@ Periodic refresh: every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds (default 
 re-run discovery for every registered server, one server at a time. Only one replica refreshes per interval: the run
 takes a shared, self-expiring lease in Valkey, and a replica that finds it held skips that tick. Each run is an
 ordinary discovery, so a changed tool set is announced (BND-7), and failures count toward `health_status` like any other
-probe ([UPS-4](../../../../specs/upstreams/spec.md)): because the failure count is shared by every replica, an
+probe ([UPS-4](../upstreams/spec.md)): because the failure count is shared by every replica, an
 upstream that stays unreachable is marked `error` after `server_error_attempts` refreshes instead of staying `unknown`,
 whichever replica ran each sweep. One server's failure never stops the run for the rest, and every discovery probe is
 bounded (60 s) so a hanging upstream fails instead of stalling the run. This covers the upstreams the other triggers
 miss: one that was unreachable when it was registered, and one whose tools change while no call is open to it.
-Per-call upstream connections ([ADR-0012](../../../../../docs/adr/0012-per-call-upstream-connections.md)) never
-receive a `list_changed` sent between calls ([PROT-10](../../../../specs/protocol/spec.md) residual).
-Rationale and the alternatives weighed: [ADR-0038](../../../../../docs/adr/0038-periodic-tool-refresh.md).
+Per-call upstream connections ([ADR-0012](../../../docs/adr/0012-per-call-upstream-connections.md)) never
+receive a `list_changed` sent between calls ([PROT-10](../protocol/spec.md) residual).
+Rationale and the alternatives weighed: [ADR-0038](../../../docs/adr/0038-periodic-tool-refresh.md).
 
 #### Scenario: One replica sweeps per interval
 - **WHEN** two replicas reach the same refresh tick
