@@ -20,7 +20,7 @@ that meters calls.
 | `created_at` | When the record was written. |
 
 Tool **arguments and results are not stored**. Neither are authentication failures or rate-limit rejections; those go to
-logs and metrics, not the audit log.
+the logs, not the audit log.
 
 Records are written asynchronously after the response, so auditing never adds
 latency to a call. The queue is in-process and bounded: an overflow is logged and
@@ -31,8 +31,8 @@ ledger of record for billing — see
 
 ## Querying
 
-The **Audit** page filters by time range, endpoint, bundle, server, tool, caller and status. The same filters are query
-parameters on the API:
+The **Audit** page filters by time range, endpoint, tool and status, and exports the loaded page as CSV. The API also
+filters by bundle, upstream server and caller, with these query parameters:
 
 ```bash
 curl -s "https://gw.example.com/api/v1/audit-records?endpoint_name=assistant&status=error&created_from=2026-09-01T00:00:00Z&limit=100" \
@@ -47,7 +47,7 @@ curl -s "https://gw.example.com/api/v1/audit-records?endpoint_name=assistant&sta
 | `status` | One of the four statuses. |
 | `offset`, `limit` | Pagination, default 50, maximum 500. |
 
-Results are ordered by creation time and paginated like every other list route, with `items`, `total`, `offset` and
+Results are listed newest first and paginated like every other list route, with `items`, `total`, `offset` and
 `limit`.
 
 ## Retention

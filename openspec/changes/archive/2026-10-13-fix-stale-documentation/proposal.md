@@ -13,12 +13,12 @@ now; the changes that build the missing behaviour update the same text again whe
 Documentation and docstrings only — no behaviour change, so no spec delta (`skip_specs: true`).
 
 - `docs/self-hosting/deploy.md`: drop "Redirects are not followed" (the MCP client follows them, without an egress
-  re-check per hop — say so, until [harden-http-edge](../harden-http-edge/proposal.md) closes it); the admin session
+  re-check per hop — say so, until [harden-http-edge](../../harden-http-edge/proposal.md) closes it); the admin session
   cookie sets no `Domain` (host-only), only `Secure` follows the public URL's scheme.
 - `infrastructure/config/structured_logging.py`: docstrings say stdout; the handler writes stderr. Say stderr (the
-  stream decision itself is in [improve-request-observability](../improve-request-observability/proposal.md)).
+  stream decision itself is in [improve-request-observability](../../improve-request-observability/proposal.md)).
 - `infrastructure/inprocess/counters.py` and `infrastructure/postgres/audit_writer.py`: drop the claimed `/metrics`
-  export ([add-prometheus-metrics](../add-prometheus-metrics/proposal.md) builds it).
+  export ([add-prometheus-metrics](../../add-prometheus-metrics/proposal.md) builds it).
 - `api/mcp/README.md`: replace the deleted modules (`composition.py`, `streams.py`, `signals.py`, `metering.py`,
   `upstream.py`, `_drive_upstream`) with the current ones, and stop claiming `session_lifetime` sets the session TTL
   (it is registered but read by nothing; the TTL is fixed at 24 h).
@@ -30,9 +30,16 @@ Documentation and docstrings only — no behaviour change, so no spec delta (`sk
   claim that upstream `list_changed` is delivered within an active-call window (it is not delivered at all).
 - `docs/manage/audit.md`: the Audit page filters by time range, endpoint, tool and status only (not bundle, server or
   caller); rejections go to logs (there are no metrics yet); the API lists newest first.
+- Docs that state unbuilt behaviour as current: `docs/manage/servers.md`, `configuration.md` and `operations.md`
+  (`server_error_attempts` sets the health threshold — nothing reads it); `docs/manage/bundles.md` (override names
+  checked against prefixed names; self-references rejected); `docs/manage/endpoints.md` and arc42 §10 (an
+  `invalid_token` challenge on audience mismatch); `docs/manage/users.md` (what deactivation revokes, and that it
+  sticks).
+- Docstrings and field descriptions in `tool_sync.py`, `discovery_service.py`, `tool.py`, `tool_read.py` and
+  `tool_row.py` claim a vanished tool stops being served; it is still served.
 - ADR-0013 calls `BUNDLEMCP_INITIAL_SERVICE_KEY` "the MGMT-10 pattern". ADRs are append-only, so it is **left as is**;
-  the bootstrap docs note that MGMT-10's key-in-document form is not built (see
-  [add-bootstrap-api-keys](../add-bootstrap-api-keys/proposal.md)).
+  `docs/self-hosting/bootstrap.md` already says the document carries no API keys (see
+  [add-bootstrap-api-keys](../../add-bootstrap-api-keys/proposal.md)).
 
 ## Capabilities
 
@@ -47,6 +54,6 @@ Documentation and docstrings only — no behaviour change, so no spec delta (`sk
 ## Impact
 
 - Files: the docs, READMEs and docstrings listed above. No code paths, API, schema or settings change.
-- Overlaps by design: [complete-session-lifecycle](../complete-session-lifecycle/proposal.md) rewrites the
+- Overlaps by design: [complete-session-lifecycle](../../complete-session-lifecycle/proposal.md) rewrites the
   `session_lifetime` sentence again when the setting works; the observability and metrics changes rewrite their
   docstrings again when they ship. Land this change first; the later ones edit text that is already true.

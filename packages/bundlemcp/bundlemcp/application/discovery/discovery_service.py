@@ -37,8 +37,8 @@ class DiscoveryService:
     - **Tool definitions** — name, title, description, input schema and
       annotations into ``Tool``. Writes are hash-gated, so a tool whose
       definition is unchanged costs nothing; ``last_seen_at`` is touched on
-      every sighting, so a tool that disappears upstream goes stale and stops
-      being served rather than being deleted, keeping its curation.
+      every sighting, so a tool that disappears upstream goes stale rather than
+      being deleted, keeping its curation. A stale tool is still served.
     - **Advertised capabilities and protocol revision** — which of tools/
       prompts/resources/completions/logging the server supports, plus its
       listChanged and subscribe flags, taken from whatever the connection

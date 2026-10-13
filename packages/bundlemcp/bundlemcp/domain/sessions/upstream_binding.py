@@ -11,6 +11,6 @@ class UpstreamBinding(BaseModel):
     )
     identity_key: str | None = Field(
         default=None,
-        description="Fingerprint of the caller and any forwarded credentials. A change means "
-        "the binding belongs to a different identity and must not be reused",
+        description="The caller's subject when the binding was made. Recorded only: no "
+        "upstream session is reused yet, so nothing reads it",
     )

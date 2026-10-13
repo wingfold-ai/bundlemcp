@@ -2899,7 +2899,7 @@
             "type": "object"
           },
           "last_seen_at": {
-            "description": "When the tool was last reported by its server. A stale value means the tool has disappeared upstream and is no longer served",
+            "description": "When the tool was last reported by its server. A stale value means the tool has disappeared upstream; endpoints still serve it for now",
             "format": "date-time",
             "title": "Last Seen At",
             "type": "string"

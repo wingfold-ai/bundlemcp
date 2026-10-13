@@ -22,16 +22,18 @@
   contact ([ADR-0044](../adr/0044-bundle-owned-prompts-and-resources.md)).
 - **Upstream→client push between calls is pooling-dependent** ([ADR-0021](../adr/0021-mcp-surface-completion.md)):
   `resources/subscribe` updates, PROT-7 upstream log push, and PROT-10 upstream `list_changed` outside an active call
-  need a persistent upstream connection that the per-call model (ADR-0012) lacks. Advertised + delivered within an
-  active-call window; full between-call push lands with connection pooling (SES-8).
+  need a persistent upstream connection that the per-call model (ADR-0012) lacks. None of them is delivered today,
+  neither between calls nor within one: the upstream client registers no handler for an upstream `list_changed`, and
+  `resources.subscribe` is advertised but never pushes an update. Pooling (SES-8, change
+  `add-upstream-session-pooling`) is the prerequisite.
 - `subscriptions/listen` delivers prompt/resource list changes only for the bundle's own entries
   ([PROT-17](../../openspec/specs/protocol/spec.md), BND-28) — a member's list changes and resource
   subscriptions wait for the same pooling.
 - Protocol extensions (Tasks, MCP Apps) are not proxied and not advertised (PROT-11).
 - Single scope in OAuth; audience-only binding (AUTH-10) — fine-grained scopes deferred.
-- Inspector covers tools only (change add-inspector out-of-scope list).
-- Rate limiting ([16](../../openspec/specs/endpoints/spec.md), [ADR-0018](../adr/0018-rate-limiting.md)) uses a
-  fixed-window counter — up to a 2× burst at window edges; a sliding-window log is the noted upgrade. Its
+- There is no built-in inspector yet (change `add-inspector`).
+- Rate limiting ([endpoints spec](../../openspec/specs/endpoints/spec.md), [ADR-0018](../adr/0018-rate-limiting.md))
+  uses a fixed-window counter — up to a 2× burst at window edges; a sliding-window log is the noted upgrade. Its
   rejection/lockout counters are in-process; the Prometheus `/metrics` export is still pending (the operations spec).
 - The `application/contracts/` package holds protocols for in-process objects (`StreamRegistry`, `Counters`) as well as
   for stores; they exist so the MCP edge names no adapter and can be faked, not because a second implementation is

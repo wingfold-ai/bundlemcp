@@ -15,8 +15,8 @@ def sync_tools(
 
     Returns the rows to stage (new and touched) and how many definitions changed.
     A tool whose definition is unchanged only has its ``last_seen_at`` moved;
-    a tool the probe no longer lists is left as it was, so it goes stale and
-    stops being served rather than being deleted, keeping its curation.
+    a tool the probe no longer lists is left as it was, so it goes stale rather
+    than being deleted, keeping its curation. A stale tool is still served.
     """
     staged: list[Tool] = []
     changed = 0
