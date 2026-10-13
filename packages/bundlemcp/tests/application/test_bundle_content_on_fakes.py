@@ -1,4 +1,4 @@
-"""Bundle-owned prompts and resources (spec 17): the management use cases on the fakes."""
+"""Bundle-owned prompts and resources: the management use cases on the fakes."""
 
 import pytest
 from bundlemcp.application.bootstrap.bootstrap_document import BootstrapDocument
@@ -42,7 +42,7 @@ def _resource(name="guides/style", content="# Style", **extra) -> BundleResource
 
 
 async def test_prompt_upsert_is_idempotent_and_announces_a_prompt_change(uow):
-    """BPR-14, BPR-11: upsert by name; each write is announced under the bundle's name."""
+    """BND-31, BND-28: upsert by name; each write is announced under the bundle's name."""
     prompts = BundlePromptService(uow)
     first = await prompts.upsert("charts", _prompt())
     second = await prompts.upsert("charts", _prompt(text="Chart {{series}}."))
@@ -56,14 +56,14 @@ async def test_prompt_upsert_is_idempotent_and_announces_a_prompt_change(uow):
 
 
 async def test_prompt_with_undeclared_placeholder_is_rejected(uow):
-    """BPR-3"""
+    """BND-20"""
     with pytest.raises(InvalidInputError, match="kind"):
         await BundlePromptService(uow).upsert("charts", _prompt(text="{{series}} {{kind}}"))
     assert uow.published == []
 
 
 async def test_prompt_may_embed_only_an_existing_resource(uow):
-    """BPR-3: the embedded resource must already belong to the bundle."""
+    """BND-20: the embedded resource must already belong to the bundle."""
     prompts = BundlePromptService(uow)
     embedding = _prompt(messages=[{"role": "user", "resource": "guides/style"}])
     with pytest.raises(InvalidInputError, match="guides/style"):
@@ -88,7 +88,7 @@ async def test_embedded_resource_cannot_be_deleted(uow):
 
 
 async def test_prompt_count_limit_counts_only_new_names(uow):
-    """BPR-16: replacing an existing prompt never trips the count limit."""
+    """BND-33: replacing an existing prompt never trips the count limit."""
     prompts = BundlePromptService(uow, BundleContentLimits(max_prompts=1))
     await prompts.upsert("charts", _prompt())
     await prompts.upsert("charts", _prompt(text="again {{series}}"))
@@ -97,7 +97,7 @@ async def test_prompt_count_limit_counts_only_new_names(uow):
 
 
 async def test_bundle_resource_total_excludes_the_entry_being_replaced(uow):
-    """BPR-16: the 4 MiB total counts the new content, not the old and the new together."""
+    """BND-33: the 4 MiB total counts the new content, not the old and the new together."""
     resources = BundleResourceService(uow, BundleContentLimits(max_bundle_resource_bytes=10))
     await resources.upsert("charts", _resource(name="a", content="x" * 6))
     await resources.upsert("charts", _resource(name="a", content="y" * 8))
@@ -106,7 +106,7 @@ async def test_bundle_resource_total_excludes_the_entry_being_replaced(uow):
 
 
 async def test_resource_read_carries_uri_and_size(uow):
-    """BPR-6, BPR-7"""
+    """BND-23, BND-24"""
     read = await BundleResourceService(uow).upsert(
         "charts", _resource(content="ü", mime_type="text/plain")
     )
@@ -131,7 +131,7 @@ async def test_delete_is_idempotent(uow):
 
 
 async def test_list_pages_in_name_order(uow):
-    """BPR-14: paginated collection, sorted by name."""
+    """BND-31: paginated collection, sorted by name."""
     prompts = BundlePromptService(uow)
     for name in ("c", "a", "b"):
         await prompts.upsert("charts", _prompt(name=name))
@@ -140,7 +140,7 @@ async def test_list_pages_in_name_order(uow):
 
 
 async def test_catalogue_lists_title_and_description_only(uow):
-    """BPR-19"""
+    """BND-36"""
     await BundlePromptService(uow).upsert("charts", _prompt(title="Plot", description="A chart"))
     await BundleResourceService(uow).upsert("charts", _resource(title="Style guide"))
     bundle = await uow.bundles.by_name("charts")
@@ -155,7 +155,7 @@ async def test_catalogue_lists_title_and_description_only(uow):
 
 
 async def test_reader_renders_with_embedded_resources(uow):
-    """BPR-3, BPR-8: the reader substitutes arguments and fetches what a message embeds."""
+    """BND-20, BND-25: the reader substitutes arguments and fetches what a message embeds."""
     await BundleResourceService(uow).upsert("charts", _resource())
     await BundlePromptService(uow).upsert(
         "charts",
@@ -175,7 +175,7 @@ async def test_reader_renders_with_embedded_resources(uow):
 
 
 async def test_bootstrap_applies_resources_before_the_prompts_that_embed_them(uow):
-    """BPR-15: a bundle entry carries its prompts and resources, upserted by name."""
+    """BND-32: a bundle entry carries its prompts and resources, upserted by name."""
     document = BootstrapDocument.model_validate(
         {
             "bundles": [
@@ -199,12 +199,12 @@ async def test_bootstrap_applies_resources_before_the_prompts_that_embed_them(uo
         connections=NoUpstreamConnections(),
     )
     await runner.apply(document)
-    await runner.apply(document)  # BOOT-2: applying twice changes nothing
+    await runner.apply(document)  # MGMT-9: applying twice changes nothing
     assert [p.name for p in uow.bundle_prompts.rows] == ["plot"]
     assert [r.name for r in uow.bundle_resources.rows] == ["guides/style"]
 
 
 def test_bootstrap_bundle_entry_still_rejects_unknown_keys():
-    """BOOT-8: the new keys are declared; a misspelt one still fails."""
+    """MGMT-15: the new keys are declared; a misspelt one still fails."""
     with pytest.raises(ValueError, match="prompt"):
         BootstrapDocument.model_validate({"bundles": [{"name": "b", "prompt": []}]})

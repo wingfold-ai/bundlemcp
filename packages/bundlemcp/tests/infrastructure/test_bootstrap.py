@@ -1,4 +1,4 @@
-"""Bootstrap tests (spec 41: BOOT-2 idempotent upserts)."""
+"""Bootstrap tests (MGMT-9 idempotent upserts)."""
 
 import pytest
 from bundlemcp.application.bootstrap import BootstrapDocument, BootstrapRunner
@@ -46,7 +46,7 @@ OAUTH_DOC = {
 
 
 async def test_upstream_oauth_client_is_applied_with_the_server(engine, redis):
-    """BOOT-9: a server entry may carry the OAuth client the gateway presents upstream; it
+    """MGMT-16: a server entry may carry the OAuth client the gateway presents upstream; it
     is stored the way the client route stores it, and re-applying changes nothing."""
     factory = session_factory(engine)
     cipher = TokenCipher([Fernet.generate_key().decode()])
@@ -64,12 +64,12 @@ async def test_upstream_oauth_client_is_applied_with_the_server(engine, redis):
         server = (await db.execute(select(McpServerRow))).scalar_one()
         client = (await db.execute(select(UpstreamOAuthClientRow))).scalar_one()
     assert client.server_id == server.id and client.client_id == "bundlemcp"
-    assert "shh" not in (client.client_secret_encrypted or "")  # DOM-3: ciphertext only
+    assert "shh" not in (client.client_secret_encrypted or "")  # ARC-18: ciphertext only
     assert cipher.decrypt(client.client_secret_encrypted) == "shh"
 
 
 async def test_upstream_oauth_client_needs_encryption_keys(engine, redis):
-    """BOOT-9 / DEP-9: without keys the client cannot be stored, so the document does not
+    """MGMT-16 / DEP-9: without keys the client cannot be stored, so the document does not
     apply rather than storing a secret in the clear."""
     runner = BootstrapRunner(
         SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis),
@@ -80,7 +80,7 @@ async def test_upstream_oauth_client_needs_encryption_keys(engine, redis):
     with pytest.raises(PreconditionError):
         await runner.apply(BootstrapDocument(**OAUTH_DOC))
     async with session_factory(engine)() as db:
-        assert (await db.execute(select(McpServerRow))).first() is None  # BOOT-2: all or nothing
+        assert (await db.execute(select(McpServerRow))).first() is None  # MGMT-9: all or nothing
 
 
 async def test_apply_is_idempotent(engine, redis):
@@ -94,7 +94,7 @@ async def test_apply_is_idempotent(engine, redis):
     )
 
     await runner.apply(doc)
-    await runner.apply(doc)  # BOOT-2: second run is a no-op
+    await runner.apply(doc)  # MGMT-9: second run is a no-op
 
     async with factory() as db:
         assert len((await db.execute(select(McpServerRow))).scalars().all()) == 1
@@ -132,7 +132,7 @@ async def test_fleet_seed_extends_the_demo_seed_unchanged():
 
 
 async def test_inline_json_document_is_applied_after_the_file(engine, redis, tmp_path):
-    """BOOT-1: BUNDLEMCP_BOOTSTRAP carries the document inline as JSON; both sources apply."""
+    """MGMT-8: BUNDLEMCP_BOOTSTRAP carries the document inline as JSON; both sources apply."""
     import json
 
     from bundlemcp.infrastructure.config.settings import EnvSettings
@@ -166,7 +166,7 @@ def test_document_version_is_checked():
 
 
 async def test_fresh_bootstrap_serves_discovered_tools(engine, redis):
-    """BOOT-7/DISC-1: after a bootstrap the upstream's tools are cached without a manual refresh."""
+    """MGMT-14/UPS-17: after a bootstrap the upstream's tools are cached with no manual refresh."""
     from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
     from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
 
@@ -184,7 +184,7 @@ async def test_fresh_bootstrap_serves_discovered_tools(engine, redis):
 
 
 async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis):
-    """BOOT-7/BOOT-4: an unreachable upstream is recorded on the server; startup goes on."""
+    """MGMT-14/MGMT-11: an unreachable upstream is recorded on the server; startup goes on."""
     import json
 
     from bundlemcp.domain.servers.connection_state import ConnectionState
@@ -206,8 +206,8 @@ async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis)
     assert server.connection_state != ConnectionState.READY
 
 
-async def test_boot8_unknown_keys_are_rejected():
-    """BOOT-8: an outdated or misspelt key fails the document instead of being ignored."""
+async def test_mgmt15_unknown_keys_are_rejected():
+    """MGMT-15: an outdated or misspelt key fails the document instead of being ignored."""
     import pytest
     from pydantic import ValidationError
 

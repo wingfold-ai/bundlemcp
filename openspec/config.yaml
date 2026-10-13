@@ -1,0 +1,45 @@
+schema: bundlemcp-spec-driven
+
+# Guidance read by every OpenSpec workflow (propose, apply, archive). The product overview,
+# the decision log and the capability index are in openspec/README.md.
+context: |
+  bundlemcp is a self-hostable MCP bundling gateway: Python/FastAPI + FastMCP behind a Nuxt 4
+  admin UI, Postgres for durable state, Valkey for live state. CLAUDE.md and .claude/docs/ hold the
+  coding conventions; docs/arc42 the rationale; docs/adr the decisions.
+  Read the decision log in openspec/README.md before proposing a feature: it lists metamcp features
+  that were deliberately dropped, and they are not to be reintroduced without new evidence.
+  Every capability is a slice with its own requirement-code prefix. The registry of slices and
+  their codes is openspec/slices.json (also shown as a table in openspec/README.md under "Slices
+  and codes", and with every requirement on the docs site's Requirements page,
+  docs/reference/requirements.md). Requirements are coded <slice code>-<n> (BND-5, SES-11, ...);
+  tests and code comments cite these codes. A code is never reused or renumbered.
+  tools/check_spec_ids.py enforces all of this in CI.
+
+rules:
+  proposal:
+    - A change that makes or reverses an architectural decision lists the ADR it adds under Impact
+      (docs/adr, MADR style, append-only).
+    - Name the GitHub issue the change resolves, if there is one.
+  specs:
+    - "Every requirement header is `### Requirement: <CODE>-<n> <Short name>`, where CODE is the
+      slice code from openspec/slices.json for the capability folder the spec is in. A new
+      requirement takes the next free number of that code: check openspec/specs, every open change
+      and the retired codes (python3 tools/spec_ledger.py lists them all)."
+    - "A new capability is a new slice: add it to openspec/slices.json first, with a code of 2 to 5
+      uppercase letters abbreviating the word that distinguishes the slice, and a group."
+    - A MODIFIED or REMOVED requirement keeps its ID in the header.
+    - Specs describe observable behaviour; no class, module or library names.
+  design:
+    - Respect the layer rules in CLAUDE.md (domain, application, infrastructure, api, main) and
+      name which layer each new piece lives in.
+  tasks:
+    - Tests cite the requirement IDs they verify, in their names or docstrings.
+    - "The final group runs the gates: uv run pytest -q, uv run ruff check ., uv run rumdl check .,
+      uv run lint-imports, the four tools/check_*.py scripts, cd apps/web && npm run openapi when
+      a DTO or route changed, python3 tools/check_spec_ids.py, and openspec validate --all --strict."
+
+operations:
+  archive:
+    guidance:
+      - Before archiving, confirm every task is checked and the gates pass; the main spec must
+        describe what is implemented, nothing more.

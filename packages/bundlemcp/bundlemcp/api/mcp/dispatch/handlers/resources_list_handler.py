@@ -22,7 +22,7 @@ class ResourcesListHandler:
         self._cache_hints = cache_hints
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
-        # BPR-9: the bundle's own first, in name order
+        # BND-26: the bundle's own first, in name order
         items = [resource_entry(resource) for resource in ctx.view.resources]
         # BND-8
         for entry in await self._fanout.merged(
@@ -32,7 +32,7 @@ class ResourcesListHandler:
             key="uri",
         ):
             if is_bundle_uri(entry.get("uri", "")):
-                # BPR-7: the bundle answers its own scheme, so a member's is unreachable
+                # BND-24: the bundle answers its own scheme, so a member's is unreachable
                 log.warning("passthrough.bundle_uri_shadowed", uri=entry["uri"])
                 continue
             items.append(entry)

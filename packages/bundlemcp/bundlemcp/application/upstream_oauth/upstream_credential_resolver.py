@@ -25,7 +25,7 @@ class UpstreamCredentialResolver:
         *,
         delegated: DelegatedTokenIssuer | None = None,
     ) -> None:
-        # tokens is None exactly when no encryption keys are configured (spec 23);
+        # tokens is None exactly when no encryption keys are configured (the upstreams spec);
         # delegated is None only where no call is ever made on a caller's behalf
         self._tokens = tokens
         self._public_base = public_base
@@ -39,7 +39,7 @@ class UpstreamCredentialResolver:
         endpoint: str | None = None,
         force_refresh: bool = False,
     ) -> dict[str, str]:
-        if server.uses_delegated_token:  # FWD-6
+        if server.uses_delegated_token:  # AUTH-32
             token = (
                 await self._delegated.issue(server, identity, endpoint=endpoint)
                 if self._delegated is not None
@@ -53,7 +53,7 @@ class UpstreamCredentialResolver:
         user = None
         if server.is_per_user:
             user = identity.user_uuid
-            if user is None:  # UPO-6 guard (should be unreachable)
+            if user is None:  # UPS-30 guard (should be unreachable)
                 raise NeedsConnect(server.name, "per_user_requires_user")
         access = await self._tokens.ensure_access_token(server, user, force=force_refresh)
         return {"Authorization": f"Bearer {access}"}
@@ -83,7 +83,7 @@ class UpstreamCredentialResolver:
             return False
         return not await self._tokens.is_connected(server.id, user)
 
-    # UPO-10
+    # UPS-34
     async def request_step_up(self, server: McpServer, scopes: list[str]) -> None:
         """Have the server's next connect request scopes it demanded."""
         if self._tokens is not None and scopes:

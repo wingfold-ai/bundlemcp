@@ -37,7 +37,7 @@ class ToolsCallHandler:
             connect = self._connect_prompts.resolve(ctx.view, presented_name)
             if connect is not None:
                 return self._connect_account(ctx, message, connect)
-            # TM-2: disabled/unknown tools are rejected on call, not just hidden
+            # BND-13: disabled/unknown tools are rejected on call, not just hidden
             audit = AuditContext.for_request(ctx, presented_name)
             self._support.audit.record(
                 audit.record(AuditStatus.DENIED, denied_reason="unknown_or_disabled_tool")
@@ -62,7 +62,7 @@ class ToolsCallHandler:
                 return await self._retry(ctx, message, tool)
         return await ToolCall(self._support, ctx, message, tool).run()
 
-    # UPO-3
+    # UPS-27
     def _connect_account(
         self, ctx: RequestContext, message: JsonRpcMessage, tool: ConnectAccountTool
     ) -> Response:

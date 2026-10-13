@@ -58,8 +58,8 @@ would have touched domain, application and api alike.
   sink, the secret cipher, the readiness probe, the upstream probe and the upstream client factory. Every contract has
   an in-memory implementation under `infrastructure/memory/`; use-case tests run on those.
 - **Rules move to the domain.** `PerUserUpstreamPolicy` is a pure decision over entities and `PerUserUpstreamCheck` in
-  application loads what it needs; `tool_presentation.present_tool` holds PROF-3 and TM-2/3/4; `tool_sync.sync_tools`
-  holds DISC-2/3; the redirect-URI rule raises a domain error the application translates.
+  application loads what it needs; `tool_presentation.present_tool` holds EP-12 and BND-13/14/15; `tool_sync.sync_tools`
+  holds UPS-18/19; the redirect-URI rule raises a domain error the application translates.
 - **`Settings` is split.** The value model lives in `application/settings/` so every layer may read it;
   `infrastructure/config/settings.py` holds the `pydantic-settings` loader (`EnvSettings`, `get_settings`).
 - **The import contract keys on the layers.** Four contracts: the `layers` order

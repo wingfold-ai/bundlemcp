@@ -19,7 +19,7 @@ class ServerRead(EntityRead):
     name: str = Field(description="Unique server name")
     description: str | None = Field(description="Free-text note about what this server provides")
     url: str = Field(description="Streamable HTTP URL the server is reached at")
-    static_header_names: list[str] = Field(  # SRV-3
+    static_header_names: list[str] = Field(  # UPS-3
         default=[],
         description="Names of the headers sent upstream. Values are write-only and never "
         "leave the API, so only the names appear here",
@@ -37,17 +37,17 @@ class ServerRead(EntityRead):
     send_identity_header: bool = Field(
         description="Whether the calling user's identity is forwarded upstream"
     )
-    capabilities: dict = Field(  # DISC-6
+    capabilities: dict = Field(  # UPS-22
         default={},
         description="What the server advertised at its last probe: which of tools, prompts, "
         "resources, completions and logging it supports, with its listChanged and subscribe flags",
     )
-    protocol_mode: str = Field(  # SRV-10
+    protocol_mode: str = Field(  # UPS-10
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
         "(probe server/discover, fall back to initialize), 'legacy' (always initialize), "
         "or a pinned revision date such as '2026-07-28'",
     )
-    protocol_version: str | None = Field(  # SRV-10
+    protocol_version: str | None = Field(  # UPS-10
         description="MCP revision negotiated at the last successful probe; null until the "
         "server has been reached once"
     )
@@ -55,17 +55,17 @@ class ServerRead(EntityRead):
         description="Result of the most recent probe: ok, error or unknown"
     )
     last_error: str | None = Field(description="Why the last probe failed, if it did")
-    connection_state: ConnectionState = Field(  # SRV-12
+    connection_state: ConnectionState = Field(  # UPS-12
         description="What the last probe found out: ready, oauth_required, account_required, "
         "insufficient_scope, credential_required, not_mcp, unreachable, egress_denied, error, "
         "or unknown before the first probe"
     )
-    configuration_mismatch: str | None = Field(  # SRV-12
+    configuration_mismatch: str | None = Field(  # UPS-12
         default=None,
         description="When the connection state contradicts the configuration, the change "
         "that would fix it; null otherwise",
     )
-    forwards_caller_token: bool = Field(  # FWD-7
+    forwards_caller_token: bool = Field(  # AUTH-33
         default=False,
         description="Whether a forward mapping passes the caller's own authorization header "
         "through to the server (token passthrough)",
@@ -79,7 +79,7 @@ class ServerRead(EntityRead):
         if server is None:
             raise TypeError("ServerRead is built from an McpServer")
         data = {name: getattr(server, name) for name in McpServer.model_fields}
-        data["static_header_names"] = sorted(server.static_headers)  # SRV-3: names only
+        data["static_header_names"] = sorted(server.static_headers)  # UPS-3: names only
         data["configuration_mismatch"] = server.configuration_mismatch
         data["forwards_caller_token"] = server.forwards_caller_token
         return cls.model_validate(data)

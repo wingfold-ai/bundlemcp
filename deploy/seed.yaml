@@ -1,4 +1,4 @@
-# Demo bootstrap (spec 41 / DOC-3): a fresh compose install is never empty.
+# Demo bootstrap (the management spec / DOC-3): a fresh compose install is never empty.
 # Registers the echo-mcp example and an OAuth-protected demo upstream, bundles
 # them, and exposes endpoints. The maintainers' private fleet lives in
 # seed.fleet.yaml (deploy/TESTING.md).
@@ -12,7 +12,7 @@ upstreams:
   # per_user: every caller connects their own account at the demo's login form
   # (demo_user / demo_password); discovery borrows the first connected account
   # to list its tools. The client is the public client the demo pre-registers
-  # (BOOT-9).
+  # (MGMT-16).
   - name: oauth-demo
     description: >
       OAuth-protected demo upstream (the MCP python-sdk simple-auth example).

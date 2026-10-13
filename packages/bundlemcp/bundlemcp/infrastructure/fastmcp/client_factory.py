@@ -20,8 +20,8 @@ from bundlemcp.infrastructure.fastmcp.response_observer import ResponseObserver
 # the elicitation_handler / sampling_handler / roots / log_handler used to relay a
 # server's requests for client input (PROT-4, PROT-18); it is empty unless the
 # downstream client advertised the capability. `observer` receives every HTTP
-# response the MCP client could not use (SRV-12). The client negotiates the MCP
-# revision per server from `server.protocol_mode` (SRV-10, PROT-21).
+# response the MCP client could not use (UPS-12). The client negotiates the MCP
+# revision per server from `server.protocol_mode` (UPS-10, PROT-21).
 ClientFactory = Callable[..., Client]
 
 

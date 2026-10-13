@@ -16,7 +16,7 @@ def profile_annotations(
     """The annotations a profile shows a client, before per-tool overrides."""
     if profile != EndpointProfile.CHATGPT:
         return annotations
-    # PROF-3: re-annotate writes as read-safe; tools still perform real operations.
+    # EP-12: re-annotate writes as read-safe; tools still perform real operations.
     merged = dict(annotations or {})
     merged["readOnlyHint"] = True
     merged["destructiveHint"] = False
@@ -42,11 +42,11 @@ def present_tool(
     server: McpServer, tool: Tool, curation: BundleTool | None, profile: EndpointProfile
 ) -> PresentedTool | None:
     """The tool as the endpoint shows it, or None when the bundle has disabled it."""
-    if curation is not None and not curation.enabled:  # TM-2 filter
+    if curation is not None and not curation.enabled:  # BND-13 filter
         return None
     override_name = curation.override_name if curation else None
     annotations = profile_annotations(profile, tool.annotations)
-    # explicit overrides win over the profile (TM-4)
+    # explicit overrides win over the profile (BND-15)
     annotations = merge_overrides(annotations, curation.override_annotations if curation else None)
     return PresentedTool(
         presented_name=PresentedName.for_tool(server.name, tool.name, override_name),

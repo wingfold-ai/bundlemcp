@@ -11,9 +11,9 @@ view: containers — "bundlemcp — Containers"
 | Block | Responsibility | Spec |
 |---|---|---|
 | **Gateway** (FastAPI + FastMCP v4) | Bundle endpoints (bidirectional MCP proxy), OAuth 2.1 server, management REST API, middleware/metering, bootstrap | 10–33, 40–42 |
-| **Admin Web App** (Nuxt 4) | Management UI; pure client of `/api/v1` with generated types | [60](../../spec/60-admin-ui.md) |
-| **Postgres** | Durable: config, users, tokens, tool cache, audit | [02](../../spec/02-domain-model.md) |
-| **Redis** | Live: sessions, bindings, rate limits, log ring, pub/sub | [30](../../spec/30-session-management.md), [33](../../spec/33-state-propagation.md) |
+| **Admin Web App** (Nuxt 4) | Management UI; pure client of `/api/v1` with generated types | [60](../../openspec/specs/admin-ui/spec.md) |
+| **Postgres** | Durable: config, users, tokens, tool cache, audit | [02](../../openspec/specs/architecture/spec.md) |
+| **Redis** | Live: sessions, bindings, rate limits, log ring, pub/sub | [30](../../openspec/specs/sessions/spec.md), [33](../../openspec/specs/sessions/spec.md) |
 
 ## Level 2 — gateway layers (ARC-6, ADR-0033)
 
@@ -58,10 +58,11 @@ packages/bundlemcp/bundlemcp/
 
 Key internal seams:
 
-- **Middleware chain** ([spec/31](../../spec/31-middleware.md)): filter → overrides → profile → metering hook → audit;
-  the hook is the only sanctioned third-party extension point (`application/metering/metering_hook.py`).
-- **Egress layer** ([SEC-1](../../spec/70-security.md)): all gateway-initiated HTTP to admin-supplied URLs passes one
-  policy module (`infrastructure/egress/egress_policy.py`).
-- **Session store** ([spec/30](../../spec/30-session-management.md)): the only component allowed to touch session
-  records; enforces atomic updates (SES-1a) (`infrastructure/valkey/session_store.py` behind the `SessionStore`
-  contract).
+- **Middleware chain** ([protocol spec](../../openspec/specs/protocol/spec.md)): filter → overrides → profile →
+  metering hook → audit; the hook is the only sanctioned third-party extension point
+  (`application/metering/metering_hook.py`).
+- **Egress layer** ([SEC-1](../../openspec/specs/security/spec.md)): all gateway-initiated HTTP to admin-supplied URLs
+  passes one policy module (`infrastructure/egress/egress_policy.py`).
+- **Session store** ([sessions spec](../../openspec/specs/sessions/spec.md)): the only component
+  allowed to touch session records; enforces atomic updates (SES-1a) (`infrastructure/valkey/session_store.py` behind
+  the `SessionStore` contract).

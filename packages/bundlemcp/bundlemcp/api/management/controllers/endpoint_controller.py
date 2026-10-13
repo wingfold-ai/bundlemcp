@@ -17,7 +17,7 @@ PROFILES = [
     ),
     EndpointProfileRead(
         name=EndpointProfile.CHATGPT,
-        description=(  # PROF-3
+        description=(  # EP-12
             "Re-annotates write tools as read-safe — tools still perform "
             "their real operations upstream"
         ),

@@ -1,4 +1,4 @@
-# Publish the gateway and web images to GHCR (spec 71 DEP-11). Deployed by the
+# Publish the gateway and web images to GHCR (DEP-11). Deployed by the
 # vm-stack repo's `bundlemcp` stack, which pulls :latest on every converge.
 name: Publish images
 

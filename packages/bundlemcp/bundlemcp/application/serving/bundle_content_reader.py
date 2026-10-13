@@ -23,7 +23,7 @@ class BundleContentReader:
     ) -> RenderedPrompt | None:
         """The prompt rendered with these arguments, or None when the bundle has no such
         prompt."""
-        # BPR-3, BPR-8
+        # BND-20, BND-25
         async with self._units.open() as uow:
             prompt = await uow.bundle_prompts.find(bundle_id, name)
             if prompt is None:

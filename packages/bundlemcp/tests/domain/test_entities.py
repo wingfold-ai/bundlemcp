@@ -1,10 +1,10 @@
-"""Entity/constraint tests (spec 02: DOM-1, DOM-2)."""
+"""Entity/constraint tests (ARC-16, ARC-17)."""
 
 import pytest
 
 
 async def test_settings_env_prefix(monkeypatch):
-    """BUNDLEMCP_ env prefix (spec 01 conventions)."""
+    """BUNDLEMCP_ env prefix (the architecture spec conventions)."""
     from bundlemcp.infrastructure.config.settings import EnvSettings
 
     monkeypatch.setenv("BUNDLEMCP_REDIS_URL", "redis://elsewhere:6379/2")
@@ -15,7 +15,7 @@ async def test_settings_env_prefix(monkeypatch):
 
 
 def test_scoped_service_key_reaches_only_its_endpoints():
-    """KEY-2: the endpoint scope applies whatever the key's kind."""
+    """AUTH-23: the endpoint scope applies whatever the key's kind."""
     import uuid
 
     from bundlemcp.domain.access.api_key import ApiKey

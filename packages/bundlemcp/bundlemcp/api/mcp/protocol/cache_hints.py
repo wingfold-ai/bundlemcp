@@ -23,7 +23,7 @@ class CacheHints:
 
     async def for_bundle_resource(self) -> CacheHint:
         """A bundle's own resource reads the same for every caller, so it caches like a list."""
-        # BPR-12
+        # BND-29
         return await self.for_list()
 
     @staticmethod

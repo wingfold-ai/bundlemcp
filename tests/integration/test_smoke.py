@@ -16,7 +16,7 @@ def test_readyz():
 
 
 def test_demo_endpoint_answers_with_api_key():
-    """The seeded demo bundle serves tools over the api_key endpoint (BOOT-6/DOC-3)."""
+    """The seeded demo bundle serves tools over the api_key endpoint (MGMT-13/DOC-3)."""
     wait_ready(GATEWAY_URL)
     session = initialize(GATEWAY_URL, "demo", api_key=SERVICE_KEY)
     tools = mcp_call(GATEWAY_URL, "demo", session, "tools/list", api_key=SERVICE_KEY)
@@ -95,7 +95,7 @@ def test_valkey_restart_costs_one_reinitialize_and_no_500():
     reason="docker CLI required to stop the IdP and restart the gateway",
 )
 def test_gateway_started_without_idp_picks_it_up_without_restart():
-    """ADM-7 (#86): login recovers once the IdP is up; nothing else waits on it."""
+    """AUTH-21 (#86): login recovers once the IdP is up; nothing else waits on it."""
     compose = ["docker", "compose", "-f", "deploy/docker-compose.yml"]
     subprocess.run([*compose, "stop", "keycloak"], check=True)
     try:

@@ -14,7 +14,7 @@ class BundleContentLimits(BaseModel):
     nothing is ever truncated to fit.
     """
 
-    # BPR-16
+    # BND-33
     model_config = ConfigDict(frozen=True)
 
     max_prompts: int = Field(default=100, description="Prompts per bundle")

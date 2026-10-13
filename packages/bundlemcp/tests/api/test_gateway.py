@@ -1,8 +1,8 @@
 """Gateway MCP-serving tests: the full endpoint flow against in-process upstreams.
 
-Covers EP-3 auth, SES-1/2/3/3a/4 sessions, BND-2/3 prefix routing, TM-2/3
-curation, PROF-3 chatgpt re-annotation, MID-2/3 metering, AUD-1/2 audit,
-FWD-2/3 identity forwarding.
+Covers EP-3 auth, SES-1/2/3/3a/4 sessions, BND-2/3 prefix routing, BND-13/14
+curation, EP-12 chatgpt re-annotation, PROT-25/26 metering, OPS-1/2 audit,
+AUTH-28/29 identity forwarding.
 """
 
 from contextlib import asynccontextmanager
@@ -94,7 +94,7 @@ def upstream_factory(server, extra_headers, *, observer=None, **handlers):
 
 
 class RecordingHook:
-    """MID-3 hook double: records contexts, can deny."""
+    """PROT-26 hook double: records contexts, can deny."""
 
     def __init__(self):
         self.pre_calls: list[MeterContext] = []
@@ -409,7 +409,7 @@ async def test_resources_subscribe_accepted(gateway):
 
 
 async def test_call_routes_by_prefix(gateway):
-    """BND-3 + MID-3: success path with metering pre/post."""
+    """BND-3 + PROT-26: success path with metering pre/post."""
     http, app, hook = gateway
     session = await _initialize(http)
 
@@ -428,7 +428,7 @@ async def test_call_routes_by_prefix(gateway):
 
 
 async def test_upstream_iserror_maps_to_tool_error_outcome(gateway):
-    """MID-3: an isError:true result -> post_call outcome tool_error (the tool did run)."""
+    """PROT-26: an isError:true result -> post_call outcome tool_error (the tool did run)."""
     http, app, hook = gateway
     session = await _initialize(http)
 
@@ -440,7 +440,7 @@ async def test_upstream_iserror_maps_to_tool_error_outcome(gateway):
 
 
 async def test_metering_deny_blocks_upstream(gateway):
-    """MID-3: deny -> structured error, no upstream call, audit DENIED."""
+    """PROT-26: deny -> structured error, no upstream call, audit DENIED."""
     http, app, hook = gateway
     session = await _initialize(http)
     hook.deny_reason = "insufficient_credits"
@@ -453,7 +453,7 @@ async def test_metering_deny_blocks_upstream(gateway):
 
 
 class BoomHook:
-    """MID-3 hook double whose pre_call is unavailable."""
+    """PROT-26 hook double whose pre_call is unavailable."""
 
     def __init__(self) -> None:
         self.keys: list[str] = []
@@ -469,7 +469,7 @@ class BoomHook:
 
 @pytest.mark.parametrize("fail_open", [True, False])
 async def test_metering_unavailable_follows_gateway_policy(engine, redis, fail_open):
-    """MID-3: an unavailable hook is allowed or denied by settings, not by the hook object."""
+    """PROT-26: an unavailable hook is allowed or denied by settings, not by the hook object."""
     settings = hermetic_settings(metering_hook_fail_open=fail_open)
     hook = BoomHook()
     async with _running(engine, redis, settings=settings, metering_hook=hook) as (
@@ -487,7 +487,7 @@ async def test_metering_unavailable_follows_gateway_policy(engine, redis, fail_o
         assert [o for _, o, _ in hook.post_calls] == [MeterOutcome.RESULT]
     else:
         assert body["error"]["message"] == "metering_unavailable"
-        # MID-3 (#89): the refused call is reported as no_result under the same key
+        # PROT-26 (#89): the refused call is reported as no_result under the same key
         assert hook.post_calls == [(key, MeterOutcome.NO_RESULT, 0)]
 
 
@@ -595,7 +595,7 @@ async def test_delete_unknown_session_is_not_found(gateway):
 
 
 async def test_disabled_tool_hidden_and_blocked(gateway):
-    """TM-2 in list AND call."""
+    """BND-13 in list AND call."""
     http, app, hook = gateway
     factory = app.state.container.session_factory
     async with factory() as db:
@@ -615,7 +615,7 @@ async def test_disabled_tool_hidden_and_blocked(gateway):
 
 
 async def test_override_rename_routes_back(gateway):
-    """TM-3: override name is presented and maps back to the origin tool."""
+    """BND-14: override name is presented and maps back to the origin tool."""
     http, app, hook = gateway
     factory = app.state.container.session_factory
     async with factory() as db:
@@ -636,7 +636,7 @@ async def test_override_rename_routes_back(gateway):
 
 
 async def test_chatgpt_profile_reannotates(gateway):
-    """PROF-3: chatgpt endpoint presents every tool as read-safe."""
+    """EP-12: chatgpt endpoint presents every tool as read-safe."""
     http, app, hook = gateway
     session = await _initialize(http, endpoint="gpt")
     listing = await _rpc(http, "gpt", session, "tools/list")
@@ -654,7 +654,7 @@ async def test_default_profile_does_not_reannotate(gateway):
 
 
 async def test_audit_records_written(gateway):
-    """AUD-1/AUD-2: success and denied calls produce audit records."""
+    """OPS-1/OPS-2: success and denied calls produce audit records."""
     http, app, hook = gateway
     session = await _initialize(http)
     say_a = {"name": "echo__say", "arguments": {"text": "a"}}
@@ -663,7 +663,7 @@ async def test_audit_records_written(gateway):
     say_b = {"name": "echo__say", "arguments": {"text": "b"}}
     await _rpc(http, "main", session, "tools/call", say_b)
 
-    # audit is async (AUD-3) — drain the queue
+    # audit is async (OPS-3) — drain the queue
     await app.state.container.audit.drain()
     async with app.state.container.session_factory() as db:
         records = (await db.execute(select(AuditRecordRow))).scalars().all()
@@ -687,7 +687,7 @@ async def _set_rate_limit(app, config: dict, endpoint: str = "main") -> None:
 
 
 async def test_endpoint_limit_trips_with_retry_after(gateway):
-    """RATE-1/3: the endpoint limit rejects the (N+1)th call with 429 + Retry-After."""
+    """EP-16/18: the endpoint limit rejects the (N+1)th call with 429 + Retry-After."""
     http, app, hook = gateway
     await _set_rate_limit(app, {"endpoint": {"limit": 2, "window_seconds": 100}})
     session = await _initialize(http)
@@ -698,13 +698,13 @@ async def test_endpoint_limit_trips_with_retry_after(gateway):
     third = await _rpc(http, "main", session, "tools/call", call)
     assert third.status_code == 429
     assert int(third.headers["Retry-After"]) > 0
-    # RATE-3: a rejection is a metric, not an upstream call
+    # EP-18: a rejection is a metric, not an upstream call
     assert len(hook.pre_calls) == 2
     assert app.state.container.counters.get("rate_limit_rejections") == 1
 
 
 async def test_per_client_limit_isolates_callers(gateway):
-    """RATE-1/EP-6: the per-client limit buckets by identity — a second key is unaffected."""
+    """EP-16/EP-6: the per-client limit buckets by identity — a second key is unaffected."""
     http, app, hook = gateway
     await _set_rate_limit(app, {"per_client": {"limit": 1, "window_seconds": 100}})
 
@@ -726,7 +726,7 @@ async def test_per_client_limit_isolates_callers(gateway):
 
 
 async def test_initialize_and_list_exempt_by_default(gateway):
-    """RATE-4: initialize/tools/list are not limited unless opted in."""
+    """EP-19: initialize/tools/list are not limited unless opted in."""
     http, app, hook = gateway
     await _set_rate_limit(app, {"endpoint": {"limit": 1, "window_seconds": 100}})
     # initialize + tools/list any number of times, never a 429
@@ -740,7 +740,7 @@ async def test_initialize_and_list_exempt_by_default(gateway):
 
 
 async def test_include_initialize_list_opt_in(gateway):
-    """RATE-4: with the opt-in flag, initialize also consumes the endpoint budget."""
+    """EP-19: with the opt-in flag, initialize also consumes the endpoint budget."""
     http, app, hook = gateway
     await _set_rate_limit(
         app,
@@ -777,7 +777,7 @@ class BoomRedis:
 
 
 async def test_rate_limit_fails_open_on_redis_error(engine, redis):
-    """RATE-6: a Redis outage never blocks a call (default fail-open)."""
+    """EP-21: a Redis outage never blocks a call (default fail-open)."""
     counters = InProcessCounters()
     async with _running(
         engine, redis, counters=counters, rate_limiter=ValkeyRateLimiter(BoomRedis(), counters)
@@ -791,7 +791,7 @@ async def test_rate_limit_fails_open_on_redis_error(engine, redis):
 
 
 async def test_rate_limit_fail_closed_blocks_on_redis_error(engine, redis):
-    """RATE-6: an endpoint may opt into fail-closed — deny on Redis outage."""
+    """EP-21: an endpoint may opt into fail-closed — deny on Redis outage."""
     counters = InProcessCounters()
     async with _running(
         engine, redis, counters=counters, rate_limiter=ValkeyRateLimiter(BoomRedis(), counters)
@@ -805,7 +805,7 @@ async def test_rate_limit_fail_closed_blocks_on_redis_error(engine, redis):
 
 
 async def test_auth_failure_lockout_by_ip(engine, redis):
-    """RATE-5: repeated bad credentials from one IP get 429 after the threshold."""
+    """EP-20: repeated bad credentials from one IP get 429 after the threshold."""
     counters = InProcessCounters()
     limiter = ValkeyAuthFailureLimiter(redis, limit=2, window=100, counters=counters)
     async with _running(engine, redis, counters=counters, auth_failure_limiter=limiter) as (
@@ -824,7 +824,7 @@ async def test_auth_failure_lockout_by_ip(engine, redis):
 
 
 async def test_token_endpoint_auth_failure_counted(engine, redis):
-    """RATE-5: a bad OAuth client at the token endpoint is counted and locked out."""
+    """EP-20: a bad OAuth client at the token endpoint is counted and locked out."""
     counters = InProcessCounters()
     limiter = ValkeyAuthFailureLimiter(redis, limit=1, window=100, counters=counters)
     form = {
@@ -845,7 +845,7 @@ async def test_token_endpoint_auth_failure_counted(engine, redis):
 
 
 async def test_identity_header_injected_and_spoof_stripped(engine, redis):
-    """FWD-2/FWD-3: X-MCP-User injected from resolved identity; client value ignored."""
+    """AUTH-28/AUTH-29: X-MCP-User injected from resolved identity; client value ignored."""
     captured: dict = {}
 
     def capturing_factory(server, extra_headers, *, observer=None, **handlers):
@@ -869,7 +869,7 @@ async def test_identity_header_injected_and_spoof_stripped(engine, redis):
             },
         )
         assert captured["X-MCP-User"].startswith("api_key:")  # injected, not "spoofed"
-        assert captured["x-tenant"] == "tenant-42"  # FWD-1 mapping
+        assert captured["x-tenant"] == "tenant-42"  # AUTH-27 mapping
 
 
 async def test_store_unreachable_answers_503_not_500(gateway, redis, monkeypatch):

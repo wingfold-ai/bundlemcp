@@ -1,4 +1,4 @@
-# Publish the documentation site to Infomaniak web hosting by FTP (spec 61 DOC-6).
+# Publish the documentation site to Infomaniak web hosting by FTP (DOC-6).
 # Pull requests build the site and check its size in ci.yml's docs job.
 name: Publish docs
 

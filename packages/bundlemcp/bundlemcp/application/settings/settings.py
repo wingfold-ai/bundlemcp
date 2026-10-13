@@ -35,7 +35,7 @@ class Settings(BaseModel):
         "makes per-client rate limits and audit records attribute to the proxy",
     )
 
-    # Admin auth (spec 21)
+    # Admin auth (the auth spec)
     oidc_discovery_url: str | None = Field(
         default=None,
         description="OIDC issuer's discovery document URL; admin login is disabled when unset. "
@@ -72,7 +72,7 @@ class Settings(BaseModel):
         "list, so an allow entry covering the same address wins",
     )
 
-    discovery_refresh_interval: int = Field(  # DISC-7
+    discovery_refresh_interval: int = Field(  # UPS-23
         default=1800,
         ge=0,
         description="Seconds between re-reading every upstream server's tool list, so tools "
@@ -87,7 +87,7 @@ class Settings(BaseModel):
         "Servers using upstream OAuth cannot be used while this is empty",
     )
 
-    metering_hook: str | None = Field(  # MID-3
+    metering_hook: str | None = Field(  # PROT-26
         default=None,
         description="Import path 'module:attribute' of the billing hook consulted around every "
         "tool call; unset installs a no-op hook",
@@ -97,7 +97,7 @@ class Settings(BaseModel):
         description="Whether a tool call proceeds when the metering hook itself fails. "
         "False denies the call, which is the safe default for a paid deployment",
     )
-    metering_http_url: str | None = Field(  # MID-6
+    metering_http_url: str | None = Field(  # PROT-29
         default=None,
         pattern=r"^https?://",
         description="URL of a metering hook that runs out of process, consulted over HTTP "
@@ -119,7 +119,7 @@ class Settings(BaseModel):
         "the call is treated as unanswered and, by default, denied",
     )
 
-    identity_subject: IdentitySubject = Field(  # FWD-3
+    identity_subject: IdentitySubject = Field(  # AUTH-29
         default=IdentitySubject.INTERNAL,
         description="Which identifier the X-MCP-User header names a signed-in user by: "
         "'internal' sends the gateway's own user id, stable only within this gateway's "
@@ -128,7 +128,7 @@ class Settings(BaseModel):
         "it changes the key upstream servers see for every existing user",
     )
 
-    # Auth-failure limiter (RATE-5): gateway-wide, per client IP.
+    # Auth-failure limiter (EP-20): gateway-wide, per client IP.
     auth_failure_limit: int = Field(
         default=20,
         ge=1,
@@ -140,8 +140,8 @@ class Settings(BaseModel):
         description="Seconds the auth-failure count is retained before the lockout lifts",
     )
 
-    # Client registration with the gateway's OAuth server (spec 20, SEC-8)
-    dcr_allowed_redirect_uris: list[str] = Field(  # OAS-2, OAS-13
+    # Client registration with the gateway's OAuth server (SEC-8)
+    dcr_allowed_redirect_uris: list[str] = Field(  # AUTH-2, AUTH-13
         default_factory=list,
         description="Redirect URIs OAuth clients may register or declare in a client metadata "
         "document. Each entry is an exact URI, compared character for character, or a URI "
@@ -150,7 +150,7 @@ class Settings(BaseModel):
         "path and query. Empty accepts any https URI, or http on localhost. Registrations "
         "whose redirect URIs are all listed are exempt from the per-IP registration limit",
     )
-    dcr_rate_limit: int = Field(  # OAS-12
+    dcr_rate_limit: int = Field(  # AUTH-12
         default=10,
         ge=1,
         le=100_000,
@@ -158,7 +158,7 @@ class Settings(BaseModel):
         "shared egress, such as a hosted AI client registering from its own servers, every "
         "user of that client shares this budget",
     )
-    dcr_rate_window: int = Field(  # OAS-12
+    dcr_rate_window: int = Field(  # AUTH-12
         default=3600,
         ge=1,
         le=86_400,
@@ -174,13 +174,13 @@ class Settings(BaseModel):
         "Applies to every registration, allow-listed or not",
     )
 
-    # Bootstrap (spec 41)
+    # Bootstrap (the management spec)
     bootstrap_file: str | None = Field(
         default=None,
         description="Path to a declarative document (YAML or JSON) of servers, bundles and "
         "endpoints applied at startup; applying it twice changes nothing",
     )
-    bootstrap: str | None = Field(  # BOOT-1
+    bootstrap: str | None = Field(  # MGMT-8
         default=None,
         description="The same document inline as JSON, for a compose file or a secret store "
         "that cannot mount a file. Applied after the file when both are set",
@@ -190,7 +190,7 @@ class Settings(BaseModel):
         description="Whether a failed bootstrap refuses startup. True belongs in CI and "
         "production; false logs and continues, which suits local development",
     )
-    initial_service_key: str | None = Field(  # BOOT-3
+    initial_service_key: str | None = Field(  # MGMT-10
         default=None,
         description="Value of a service API key provisioned on first boot when no service key "
         "exists yet, so the management API is reachable headlessly. Ignored once one exists",
@@ -229,7 +229,7 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def _one_metering_hook(self) -> "Settings":
-        # MID-6: one hook per deployment, in-process or over HTTP
+        # PROT-29: one hook per deployment, in-process or over HTTP
         if self.metering_hook and self.metering_http_url:
             raise ValueError(
                 "set BUNDLEMCP_METERING_HOOK or BUNDLEMCP_METERING_HTTP_URL, not both"

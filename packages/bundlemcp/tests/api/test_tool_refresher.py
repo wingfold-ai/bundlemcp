@@ -1,4 +1,4 @@
-"""Periodic tool refresh (spec 11 DISC-7): one replica sweeps per interval."""
+"""Periodic tool refresh (UPS-23): one replica sweeps per interval."""
 
 from bundlemcp.api.jobs.tool_refresher import ToolRefresher
 from bundlemcp.application.schemas import DiscoverySweep
@@ -15,7 +15,7 @@ class CountingDiscovery:
 
 
 async def test_one_replica_sweeps_per_interval(redis):
-    """DISC-7: a second replica finds the interval's lease held and skips its tick."""
+    """UPS-23: a second replica finds the interval's lease held and skips its tick."""
     discovery = CountingDiscovery()
     first = ToolRefresher(discovery, ValkeyRefreshLock(redis), interval_seconds=1800)
     second = ToolRefresher(discovery, ValkeyRefreshLock(redis), interval_seconds=1800)
@@ -26,7 +26,7 @@ async def test_one_replica_sweeps_per_interval(redis):
 
 
 async def test_lease_expires_before_the_next_tick(redis):
-    """DISC-7: the lease is shorter than the interval, so the next tick can sweep again."""
+    """UPS-23: the lease is shorter than the interval, so the next tick can sweep again."""
     refresher = ToolRefresher(CountingDiscovery(), ValkeyRefreshLock(redis), interval_seconds=1800)
 
     await refresher.refresh_once()

@@ -1,4 +1,4 @@
-"""The modern-era edge (MCP 2026-07-28, spec 32 PROT-13..16): stateless requests on the
+"""The modern-era edge (MCP 2026-07-28, PROT-13..16): stateless requests on the
 same endpoint that still serves the initialize handshake.
 
 ASGI-transport style like test_gateway: the upstream is an in-process FastMCP

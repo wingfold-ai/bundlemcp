@@ -21,7 +21,7 @@ class BundlePrompt(PromptListing):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="Identifier of the prompt")
     bundle_id: uuid.UUID = Field(description="Bundle the prompt belongs to")
-    messages: list[PromptMessage] = Field(  # BPR-1
+    messages: list[PromptMessage] = Field(  # BND-18
         min_length=1, description="Messages of the prompt, in conversation order"
     )
     created_at: datetime = Field(default_factory=utcnow, description="When it was created")
@@ -39,7 +39,7 @@ class BundlePrompt(PromptListing):
 
     def check_references(self, bundle_resources: set[str]) -> None:
         """Refuse placeholders for undeclared arguments and embeds of unknown resources."""
-        # BPR-3
+        # BND-20
         declared = {argument.name for argument in self.arguments}
         used = set().union(*(message.placeholders for message in self.messages))
         if undeclared := sorted(used - declared):
@@ -53,7 +53,7 @@ class BundlePrompt(PromptListing):
 
     def render(self, supplied: dict[str, str]) -> list[PromptMessage]:
         """The messages with every placeholder replaced; resource messages are unchanged."""
-        # BPR-3, BPR-4
+        # BND-20, BND-21
         return [
             message.model_copy(update={"text": substitute(message.text, supplied)})
             if message.text is not None

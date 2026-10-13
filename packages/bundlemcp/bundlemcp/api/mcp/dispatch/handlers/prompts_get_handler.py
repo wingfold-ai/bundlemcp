@@ -29,7 +29,7 @@ class PromptsGetHandler:
         presented = message.param("name", "")
         parsed = PresentedName.parse(presented)  # BND-2 first-`__`
         if parsed is None:
-            # BPR-9: a name without `__` is the bundle's own; it never reaches a member
+            # BND-26: a name without `__` is the bundle's own; it never reaches a member
             return await self._bundle_prompt(ctx, message, presented)
         server = ctx.view.servers.get(parsed.server)
         # BND-8: a member that never advertised prompts is not asked (ADR-0043)
@@ -54,7 +54,7 @@ class PromptsGetHandler:
         if listing is None:
             return rpc_error(message.id, INVALID_PARAMS, f"unknown prompt: {name}")
         supplied = _arguments(message.param("arguments"))
-        if missing := listing.missing_arguments(supplied):  # BPR-4
+        if missing := listing.missing_arguments(supplied):  # BND-21
             return rpc_error(
                 message.id, INVALID_PARAMS, f"missing required argument: {', '.join(missing)}"
             )

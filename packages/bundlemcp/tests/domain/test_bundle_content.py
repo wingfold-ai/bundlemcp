@@ -1,4 +1,4 @@
-"""Bundle-owned prompts and resources (spec 17): the rules that hold without any storage."""
+"""Bundle-owned prompts and resources: the rules that hold without any storage."""
 
 import uuid
 
@@ -40,32 +40,32 @@ def _user(text: str) -> PromptMessage:
 
 @pytest.mark.parametrize("name", ["chart", "make-chart", "chart_2"])
 def test_prompt_name_accepts_plain_names(name):
-    """BPR-2"""
+    """BND-19"""
     assert TypeAdapter(PromptName).validate_python(name) == name
 
 
 @pytest.mark.parametrize("name", ["python__chart", "a.b", "a/b", ""])
 def test_prompt_name_rejects_prefix_separator_and_punctuation(name):
-    """BPR-2: no `__`, so a bundle prompt can never collide with a member's prefixed one."""
+    """BND-19: no `__`, so a bundle prompt can never collide with a member's prefixed one."""
     with pytest.raises(ValidationError):
         TypeAdapter(PromptName).validate_python(name)
 
 
 @pytest.mark.parametrize("name", ["style", "guides/style", "guides/v1.2/style.md"])
 def test_resource_name_accepts_folders(name):
-    """BPR-6"""
+    """BND-23"""
     assert TypeAdapter(BundleResourceName).validate_python(name) == name
 
 
 @pytest.mark.parametrize("name", ["/style", "guides/", "guides//style", "a b", ".hidden"])
 def test_resource_name_rejects_malformed_paths(name):
-    """BPR-6"""
+    """BND-23"""
     with pytest.raises(ValidationError):
         TypeAdapter(BundleResourceName).validate_python(name)
 
 
 def test_message_has_text_or_resource_not_both():
-    """BPR-3"""
+    """BND-20"""
     with pytest.raises(ValidationError):
         PromptMessage(role=PromptRole.USER, text="x", resource="style")
     with pytest.raises(ValidationError):
@@ -73,7 +73,7 @@ def test_message_has_text_or_resource_not_both():
 
 
 def test_render_substitutes_arguments_and_blanks_missing_optional_ones():
-    """BPR-3, BPR-4"""
+    """BND-20, BND-21"""
     prompt = _prompt(
         _user("Plot {{series}} as a {{kind}} chart.{{note}}"),
         arguments=[
@@ -87,7 +87,7 @@ def test_render_substitutes_arguments_and_blanks_missing_optional_ones():
 
 
 def test_substituted_values_are_never_rescanned():
-    """BPR-3: a value that looks like a placeholder stays literal text."""
+    """BND-20: a value that looks like a placeholder stays literal text."""
     prompt = _prompt(
         _user("{{a}} and {{b}}"),
         arguments=[PromptArgument(name="a"), PromptArgument(name="b")],
@@ -96,13 +96,13 @@ def test_substituted_values_are_never_rescanned():
 
 
 def test_render_leaves_resource_messages_alone():
-    """BPR-3"""
+    """BND-20"""
     embed = PromptMessage(role=PromptRole.USER, resource="guides/style")
     assert _prompt(embed).render({})[0] == embed
 
 
 def test_missing_arguments_names_required_ones_in_order():
-    """BPR-4"""
+    """BND-21"""
     listing = PromptListing(
         name="chart",
         arguments=[
@@ -116,14 +116,14 @@ def test_missing_arguments_names_required_ones_in_order():
 
 
 def test_check_references_rejects_undeclared_placeholders():
-    """BPR-3: a write naming an undeclared argument is rejected, naming it."""
+    """BND-20: a write naming an undeclared argument is rejected, naming it."""
     prompt = _prompt(_user("{{known}} {{unknown}}"), arguments=[PromptArgument(name="known")])
     with pytest.raises(BundleContentRejected, match="unknown"):
         prompt.check_references(set())
 
 
 def test_check_references_rejects_unknown_resources():
-    """BPR-3: an embed must name a resource of the same bundle."""
+    """BND-20: an embed must name a resource of the same bundle."""
     prompt = _prompt(PromptMessage(role=PromptRole.USER, resource="guides/style"))
     with pytest.raises(BundleContentRejected, match="guides/style"):
         prompt.check_references({"other"})
@@ -131,7 +131,7 @@ def test_check_references_rejects_unknown_resources():
 
 
 def test_completions_are_case_insensitive_prefix_matches_in_order():
-    """BPR-5"""
+    """BND-22"""
     argument = PromptArgument(name="kind", values=["Bar", "bubble", "line", "BOX"])
     assert argument.completions("b") == ["Bar", "bubble", "BOX"]
     assert argument.completions("") == ["Bar", "bubble", "line", "BOX"]
@@ -139,14 +139,14 @@ def test_completions_are_case_insensitive_prefix_matches_in_order():
 
 
 def test_resource_size_is_measured_in_utf8_bytes():
-    """BPR-16: the size is derived from the content, never supplied."""
+    """BND-33: the size is derived from the content, never supplied."""
     resource = BundleResource(bundle_id=BUNDLE_ID, name="r", content="äb", size_bytes=999)
     assert resource.size_bytes == 3
     assert resource.mime_type is ResourceMimeType.MARKDOWN
 
 
 def test_resource_uri_carries_no_bundle_name():
-    """BPR-7"""
+    """BND-24"""
     assert bundle_resource_uri("guides/style") == "bundle://resources/guides/style"
     assert bundle_resource_name("bundle://resources/guides/style") == "guides/style"
     assert bundle_resource_name("bundle://resources/") is None
@@ -162,13 +162,13 @@ def test_resource_uri_carries_no_bundle_name():
     ],
 )
 def test_prompt_limits_name_themselves(limits, prompts_after, text, match):
-    """BPR-16: a write over a limit is refused with a message naming the limit."""
+    """BND-33: a write over a limit is refused with a message naming the limit."""
     with pytest.raises(BundleContentRejected, match=match):
         limits.check_prompt(_prompt(_user(text)), prompts_after=prompts_after)
 
 
 def test_prompt_text_limit_is_64_kib_by_default():
-    """BPR-16: nothing is truncated; one byte over is refused."""
+    """BND-33: nothing is truncated; one byte over is refused."""
     limits = BundleContentLimits()
     limits.check_prompt(_prompt(_user("x" * 64 * 1024)), prompts_after=1)
     with pytest.raises(BundleContentRejected, match="64 KiB"):
@@ -176,7 +176,7 @@ def test_prompt_text_limit_is_64_kib_by_default():
 
 
 def test_resource_limits_name_themselves():
-    """BPR-16: per resource, per bundle count, and per bundle total."""
+    """BND-33: per resource, per bundle count, and per bundle total."""
     limits = BundleContentLimits()
     big = BundleResource(bundle_id=BUNDLE_ID, name="r", content="x" * (256 * 1024 + 1))
     with pytest.raises(BundleContentRejected, match="256 KiB"):
@@ -195,7 +195,7 @@ def _view(**content) -> BundleView:
 
 
 def test_bundle_without_members_advertises_its_own_content():
-    """BPR-10: no member server at all, yet prompts, resources and completions are served."""
+    """BND-27: no member server at all, yet prompts, resources and completions are served."""
     caps = aggregate_capabilities(
         _view(
             prompts=[PromptListing(name="p", arguments=[PromptArgument(name="k", values=["a"])])],
@@ -208,6 +208,6 @@ def test_bundle_without_members_advertises_its_own_content():
 
 
 def test_completions_not_advertised_without_suggested_values():
-    """BPR-10"""
+    """BND-27"""
     caps = aggregate_capabilities(_view(prompts=[PromptListing(name="p")]))
     assert "prompts" in caps and "completions" not in caps and "resources" not in caps

@@ -1,4 +1,4 @@
-"""Upstream OAuth client tests (spec 23: UPO-1/2/4/5) with an injected provider."""
+"""Upstream OAuth client tests (UPS-25/26/28/29) with an injected provider."""
 
 import asyncio
 import json
@@ -84,7 +84,7 @@ def _store(engine, redis, provider, c) -> UpstreamTokenService:
 
 
 async def test_token_encrypted_at_rest(engine: AsyncEngine, redis):
-    """UPO-5/DOM-3: the stored blob is ciphertext, not the token."""
+    """UPS-29/ARC-18: the stored blob is ciphertext, not the token."""
     c = cipher()
     srv = await _seed_server(engine, c)
     store = _store(engine, redis, FakeProvider(), c)
@@ -110,7 +110,7 @@ async def test_fresh_token_returned_without_refresh(engine, redis):
 
 
 async def test_near_expiry_triggers_refresh(engine, redis):
-    """UPO-4: proactive refresh when within the skew window."""
+    """UPS-28: proactive refresh when within the skew window."""
     c = cipher()
     srv = await _seed_server(engine, c)
     provider = FakeProvider()
@@ -125,7 +125,7 @@ async def test_near_expiry_triggers_refresh(engine, redis):
 
 
 async def test_single_flight_refresh(engine, redis):
-    """UPO-4: concurrent callers cause exactly one refresh."""
+    """UPS-28: concurrent callers cause exactly one refresh."""
     c = cipher()
     srv = await _seed_server(engine, c)
     provider = FakeProvider()
@@ -169,7 +169,7 @@ async def test_missing_token_raises_needs_connect(engine, redis):
 
 
 async def test_per_user_isolation(engine, redis):
-    """UPO-2: (server, userA) and (server, userB) tokens are independent."""
+    """UPS-26: (server, userA) and (server, userB) tokens are independent."""
     c = cipher()
     srv = await _seed_server(engine, c)
     store = _store(engine, redis, FakeProvider(), c)
@@ -189,7 +189,7 @@ async def test_per_user_isolation(engine, redis):
 
 
 async def test_status_hides_token_values(engine, redis):
-    """UPO-5: status returns connection state only."""
+    """UPS-29: status returns connection state only."""
     c = cipher()
     srv = await _seed_server(engine, c)
     store = _store(engine, redis, FakeProvider(), c)

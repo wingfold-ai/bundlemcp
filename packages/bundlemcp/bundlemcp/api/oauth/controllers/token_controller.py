@@ -28,7 +28,7 @@ class OAuthTokenController(Controller):
     include_in_schema = False
 
     def __init__(self) -> None:
-        super().__init__(dependencies=[Depends(AuthLockout())])  # RATE-5
+        super().__init__(dependencies=[Depends(AuthLockout())])  # EP-20
 
     @route.post("/token")
     async def token(

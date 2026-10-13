@@ -5,15 +5,15 @@
 ## Context
 
 A bundle's tools come from its member servers, and its prompts and resources do too: they pass through live and
-uncurated ([BND-8](../../spec/12-bundles.md), ADR-0021). That made sense while a bundle was only a way to put several
-servers behind one URL. It falls short once the same server is reused for different purposes.
+uncurated ([BND-8](../../openspec/specs/bundles/spec.md), ADR-0021). That made sense while a bundle was only a way to
+put several servers behind one URL. It falls short once the same server is reused for different purposes.
 
 The example that prompted this: one Python-execution server sits in a bundle for chart rendering and in another for
-bookkeeping. The tools are identical in both. What differs is the context a model needs to use them well: in one
-bundle, how charts should look and which libraries to use; in the other, rounding rules and the chart of accounts. The
-server cannot provide this, because it does not know which bundle it is serving. The bundle's `description` is sent as
-MCP `instructions` on every connection, so it has to stay short ([BND-1](../../spec/12-bundles.md)) and cannot hold
-reference material.
+bookkeeping. The tools are identical in both. What differs is the context a model needs to use them well: in one bundle,
+how charts should look and which libraries to use; in the other, rounding rules and the chart of accounts. The server
+cannot provide this, because it does not know which bundle it is serving. The bundle's `description` is sent as MCP
+`instructions` on every connection, so it has to stay short ([BND-1](../../openspec/specs/bundles/spec.md)) and cannot
+hold reference material.
 
 MCP already has the two shapes this material takes: prompts, which a user picks as a starting point, and resources,
 which a client reads into the conversation. What is missing is a place to author them per bundle.
@@ -31,7 +31,7 @@ which a client reads into the conversation. What is missing is a place to author
 - **Two new config entities**, `BundlePrompt` and `BundleResource`, stored in Postgres with the bundle. Their listing
   — names, descriptions, arguments, sizes — is loaded into the bundle view next to its tools; message text and
   content are read by name only for the `prompts/get` or `resources/read` that asks for them, because the view is
-  rebuilt on every request. They are specified in [spec 17](../../spec/17-bundle-prompts-resources.md).
+  rebuilt on every request. They are specified in [spec 17](../../openspec/specs/bundles/spec.md).
 - **Bundle prompts are unprefixed.** Member prompts are always `<server>__<prompt>`, and a bundle prompt name may not
   contain `__`, so the two can never collide and the router knows from the name alone where a prompt lives.
 - **Bundle resources live under `bundle://resources/<name>`.** The URI carries no bundle name, so renaming the bundle

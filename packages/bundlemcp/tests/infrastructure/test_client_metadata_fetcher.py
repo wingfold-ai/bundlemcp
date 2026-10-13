@@ -1,4 +1,4 @@
-"""Client metadata document fetching (spec 20: OAS-13) against an httpx MockTransport."""
+"""Client metadata document fetching (AUTH-13) against an httpx MockTransport."""
 
 import httpx
 import pytest
@@ -27,7 +27,7 @@ def fetcher(handler) -> HttpxClientMetadataFetcher:
 
 
 async def test_document_with_an_unimplemented_grant_is_accepted():
-    """OAS-13: a grant the gateway does not issue is dropped, not a reason to refuse."""
+    """AUTH-13: a grant the gateway does not issue is dropped, not a reason to refuse."""
     body = {
         "client_id": CIMD_URL,
         "redirect_uris": ["https://client.example/cb"],
@@ -39,7 +39,7 @@ async def test_document_with_an_unimplemented_grant_is_accepted():
 
 
 async def test_document_that_does_not_parse_is_reported_as_invalid():
-    """OAS-13: a document that arrived but fails validation is not a fetch failure."""
+    """AUTH-13: a document that arrived but fails validation is not a fetch failure."""
     body = {"client_id": CIMD_URL, "redirect_uris": []}
     with pytest.raises(InvalidInputError, match="is invalid"):
         await fetcher(lambda request: httpx.Response(200, json=body)).fetch(CIMD_URL)
@@ -50,6 +50,6 @@ async def test_document_that_does_not_parse_is_reported_as_invalid():
     [httpx.Response(404), httpx.Response(200, text="not json")],
 )
 async def test_document_that_cannot_be_retrieved_is_reported_as_unfetchable(response):
-    """OAS-13: an HTTP error or a non-JSON body means there is no document to judge."""
+    """AUTH-13: an HTTP error or a non-JSON body means there is no document to judge."""
     with pytest.raises(InvalidInputError, match="could not be fetched"):
         await fetcher(lambda request: response).fetch(CIMD_URL)

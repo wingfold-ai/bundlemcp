@@ -1,4 +1,4 @@
-"""Upstream OAuth connect flow + management + UPO-6 tests (spec 23)."""
+"""Upstream OAuth connect flow + management + UPS-30 tests (the upstreams spec)."""
 
 import json
 from contextlib import asynccontextmanager
@@ -132,7 +132,7 @@ async def test_connect_flow_stores_encrypted_token(engine, redis):
         assert loc.startswith("https://idp/a?state=")
         state = loc.split("state=")[1].split("&")[0]
 
-        # callback exchanges + stores (UPO-8: iss matches the recorded issuer)
+        # callback exchanges + stores (UPS-32: iss matches the recorded issuer)
         cb = await http.get(
             "/oauth/upstream/callback",
             params={"code": "xyz", "state": state, "iss": "https://idp"},
@@ -155,7 +155,7 @@ async def _connect_state(http, path="/oauth/upstream/up/connect") -> str:
 
 
 async def test_callback_validates_the_issuer(engine, redis):
-    """UPO-8 (RFC 9207): a wrong or missing iss is refused before the code is redeemed."""
+    """UPS-32 (RFC 9207): a wrong or missing iss is refused before the code is redeemed."""
     await _seed(engine)
     async with _admin_session(engine, redis) as (http, app, admin):
         state = await _connect_state(http)
@@ -214,8 +214,8 @@ async def test_set_client_config_and_status(engine, redis):
         assert "shh" not in json.dumps(body)  # no secret leak
 
 
-async def test_upo6_endpoint_rejects_none_with_per_user_upstream(engine, redis):
-    """UPO-6: a none-auth endpoint can't expose a per_user upstream bundle."""
+async def test_ups30_endpoint_rejects_none_with_per_user_upstream(engine, redis):
+    """UPS-30: a none-auth endpoint can't expose a per_user upstream bundle."""
     srv = await _seed(engine, identity_mode=IdentityMode.PER_USER)
     async with session_factory(engine)() as db:
         bundle = BundleRow(name="b")
@@ -236,10 +236,10 @@ async def test_upo6_endpoint_rejects_none_with_per_user_upstream(engine, redis):
             },
         )
     assert resp.status_code == 409
-    assert "UPO-6" in resp.json()["detail"]
+    assert "UPS-30" in resp.json()["detail"]
 
 
-async def test_upo6_allows_oauth_endpoint_with_per_user_upstream(engine, redis):
+async def test_ups30_allows_oauth_endpoint_with_per_user_upstream(engine, redis):
     srv = await _seed(engine, identity_mode=IdentityMode.PER_USER)
     async with session_factory(engine)() as db:
         bundle = BundleRow(name="b")
@@ -262,8 +262,8 @@ async def test_upo6_allows_oauth_endpoint_with_per_user_upstream(engine, redis):
     assert resp.status_code == 200
 
 
-async def test_upo6_membership_rejects_per_user_upstream_behind_none_endpoint(engine, redis):
-    """UPO-6: a per_user upstream can't join a bundle a none-auth endpoint already exposes."""
+async def test_ups30_membership_rejects_per_user_upstream_behind_none_endpoint(engine, redis):
+    """UPS-30: a per_user upstream can't join a bundle a none-auth endpoint already exposes."""
     await _seed(engine, identity_mode=IdentityMode.PER_USER)
     async with _running(engine, redis, bearer=SERVICE_KEY) as (http, _app):
         assert (await http.put("/api/v1/bundles/b", json={"name": "b"})).status_code == 200
@@ -279,11 +279,11 @@ async def test_upo6_membership_rejects_per_user_upstream_behind_none_endpoint(en
         assert open_endpoint.status_code == 200
         joined = await http.put("/api/v1/bundles/b/upstreams/up", json={"enabled": True})
     assert joined.status_code == 409
-    assert "UPO-6" in joined.json()["detail"]
+    assert "UPS-30" in joined.json()["detail"]
 
 
-async def test_upo6_identity_switch_rejected_while_none_endpoint_exposes_server(engine, redis):
-    """UPO-6: a member server can't switch to per_user under a none-auth endpoint."""
+async def test_ups30_identity_switch_rejected_while_none_endpoint_exposes_server(engine, redis):
+    """UPS-30: a member server can't switch to per_user under a none-auth endpoint."""
     await _seed(engine, identity_mode=IdentityMode.SHARED)
     async with _running(engine, redis, bearer=SERVICE_KEY) as (http, _app):
         assert (await http.put("/api/v1/bundles/b", json={"name": "b"})).status_code == 200
@@ -312,5 +312,5 @@ async def test_upo6_identity_switch_rejected_while_none_endpoint_exposes_server(
         )
         unchanged = await http.get("/api/v1/upstreams/up")
     assert switched.status_code == 409
-    assert "UPO-6" in switched.json()["detail"]
+    assert "UPS-30" in switched.json()["detail"]
     assert unchanged.json()["identity_mode"] == "shared"

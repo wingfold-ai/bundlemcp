@@ -17,11 +17,11 @@ class User(BaseModel):
     display_name: str | None = Field(
         default=None, description="Display name claim, when the issuer sent one"
     )
-    is_admin: bool = Field(  # ADM-3
+    is_admin: bool = Field(  # AUTH-17
         default=False,
         description="Whether the user may use the management API. Re-evaluated at every login",
     )
-    is_active: bool = Field(  # ADM-6
+    is_active: bool = Field(  # AUTH-20
         default=True,
         description="Whether the user may authenticate; deactivating also ends their sessions",
     )

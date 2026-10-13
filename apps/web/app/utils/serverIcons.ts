@@ -48,7 +48,7 @@ export const HEALTH_ICON: Record<string, string> = {
   unknown: "i-lucide-circle-help",
 };
 
-/** What the last probe found out about the upstream (SRV-12). */
+/** What the last probe found out about the upstream (UPS-12). */
 export const CONNECTION_STATE_LABEL: Record<string, string> = {
   unknown: "not probed",
   ready: "ready",

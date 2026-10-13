@@ -1,4 +1,4 @@
-"""Runtime config tests (spec 02 Config, STP-1/2/3/4)."""
+"""Runtime config tests (the Config entity, SES-17/18/19/20)."""
 
 import asyncio
 
@@ -50,7 +50,7 @@ async def test_put_validates_and_overrides(service_client):
 
 
 async def test_cross_instance_invalidation(engine, redis: FakeRedis):
-    """STP-3/STP-4: a PUT on replica A takes effect on replica B via events, not TTL."""
+    """SES-19/SES-20: a PUT on replica A takes effect on replica B via events, not TTL."""
     await seed_api_key(engine, SERVICE_KEY)
     app_a = _app(engine, redis)
     app_b = _app(engine, redis)
@@ -67,7 +67,7 @@ async def test_cross_instance_invalidation(engine, redis: FakeRedis):
             resp = await http_a.put("/api/v1/config/call_timeout", json={"value": 90})
             assert resp.status_code == 200
 
-            # B's cache must be flushed by the invalidation event (STP-3 budget)
+            # B's cache must be flushed by the invalidation event (SES-19 budget)
             for _ in range(50):
                 if await rc_b.get("call_timeout") == 90.0:
                     break

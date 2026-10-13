@@ -40,7 +40,7 @@ class AuthorizeController(Controller):
         if pending.state:
             params["state"] = pending.state
         # A registered redirect URI may carry its own query; the parameters are
-        # merged into it, and iss (OAS-14, RFC 9207) is set exactly once.
+        # merged into it, and iss (AUTH-14, RFC 9207) is set exactly once.
         return build_client_redirect(pending.redirect_uri, params, iss=issuer)
 
     @staticmethod
@@ -69,7 +69,7 @@ class AuthorizeController(Controller):
         user: CurrentSessionUserProvider,
     ) -> Response:
         if user is None:
-            # OAS-3: needs an authenticated human — bounce through OIDC login.
+            # AUTH-3: needs an authenticated human — bounce through OIDC login.
             # The client must still be genuine before anyone is sent anywhere.
             if not await service.client_is_registered(query):
                 raise HTTPException(400, "unknown client or redirect_uri")

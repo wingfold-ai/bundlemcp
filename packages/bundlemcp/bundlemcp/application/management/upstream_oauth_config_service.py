@@ -53,11 +53,11 @@ class UpstreamOAuthConfigService:
         client = await self._clients.for_server(server.id)
         if client is None:
             client = UpstreamOAuthClient(server_id=server.id, client_id=body.client_id)
-        if body.grant_type == UpstreamGrant.CLIENT_CREDENTIALS:  # UPO-11
+        if body.grant_type == UpstreamGrant.CLIENT_CREDENTIALS:  # UPS-35
             if server.is_per_user:
                 raise PreconditionError(
                     "a client-credentials client authorizes the gateway itself, so the server "
-                    "must use identity_mode=shared (UPO-11)"
+                    "must use identity_mode=shared (UPS-35)"
                 )
             if not body.client_secret and not client.client_secret_encrypted:
                 raise PreconditionError("a client-credentials client needs a client secret")
@@ -68,7 +68,7 @@ class UpstreamOAuthConfigService:
         if body.authorization_url and body.token_url:
             metadata["authorization_endpoint"] = body.authorization_url
             metadata["token_endpoint"] = body.token_url
-        # an admin's client is never replaced by the gateway (UPO-1/13)
+        # an admin's client is never replaced by the gateway (UPS-25/37)
         metadata[IDENTIFICATION_KEY] = ClientIdentification.PREREGISTERED.value
         metadata[GRANT_KEY] = body.grant_type.value
         client.metadata_ = metadata
@@ -106,7 +106,7 @@ class UpstreamOAuthConfigService:
             **registration,
         )
 
-    # UPO-11
+    # UPS-35
     async def connect_client(self, name: str) -> UpstreamOAuthStatusRead:
         """Run the client-credentials grant now, so the shared connection exists."""
         server = await self._server(name)

@@ -88,7 +88,7 @@ class JoseOidcProvider:
             "state": state,
             "nonce": nonce,
         }
-        if self._sends_pkce:  # ADM-1
+        if self._sends_pkce:  # AUTH-15
             params["code_challenge"] = code_challenge
             params["code_challenge_method"] = CodeChallengeMethod.S256
         return f"{self._metadata['authorization_endpoint']}?{urlencode(params)}"
@@ -107,7 +107,7 @@ class JoseOidcProvider:
             "client_id": self._settings.oidc_client_id,
             "client_secret": self._settings.oidc_client_secret,
         }
-        if self._sends_pkce:  # ADM-1
+        if self._sends_pkce:  # AUTH-15
             form["code_verifier"] = code_verifier
         try:
             async with self._client_factory() as client:

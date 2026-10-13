@@ -49,12 +49,12 @@ class EndpointUpsert(BaseModel):
                 raise ValueError("'none' is only valid alone (EP-3)")
             if not self.allow_unauthenticated:
                 raise ValueError("'none' requires allow_unauthenticated=true (EP-3)")
-        # PROF-6 matrix
+        # EP-15 matrix
         if self.profile == EndpointProfile.CLAUDE and modes != {EndpointAuthMode.OAUTH}:
-            raise ValueError("claude profile requires auth_modes == ['oauth'] (PROF-6)")
+            raise ValueError("claude profile requires auth_modes == ['oauth'] (EP-15)")
         if self.profile == EndpointProfile.CHATGPT and not modes & {
             EndpointAuthMode.OAUTH,
             EndpointAuthMode.API_KEY,
         }:
-            raise ValueError("chatgpt profile requires oauth or api_key (PROF-6)")
+            raise ValueError("chatgpt profile requires oauth or api_key (EP-15)")
         return self

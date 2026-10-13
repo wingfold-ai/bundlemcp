@@ -35,7 +35,7 @@ A spike against 4.0.3 (in-process servers, both eras) established:
 ## Decision
 
 - Depend on `fastmcp>=4.0.3` (SDK 2.1). The client factory (`gateway/upstream.py`) passes the server's `protocol_mode`
-  as `mode`; discovery reads `server_capabilities` and records `protocol_version` on `McpServer` (SRV-10).
+  as `mode`; discovery reads `server_capabilities` and records `protocol_version` on `McpServer` (UPS-10).
 - `McpServer.protocol_mode` (`auto` default, `legacy`, or a pinned revision) is the operator's remedy for an upstream
   that advertises the modern era but whose tools need the handshake's back-channel.
 - Modern-era upstream calls go through `client.session` with `allow_input_required=True`, so the gateway sees

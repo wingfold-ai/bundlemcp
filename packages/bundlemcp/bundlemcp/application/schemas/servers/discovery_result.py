@@ -15,7 +15,7 @@ class DiscoveryResult(BaseModel):
         default=None,
         description="Why the probe failed; None when it succeeded",
     )
-    connection_state: ConnectionState = Field(  # SRV-12
+    connection_state: ConnectionState = Field(  # UPS-12
         default=ConnectionState.UNKNOWN,
         description="What the probe found out about the upstream: ready on success, otherwise "
         "why it gave no MCP answer (oauth_required, credential_required, not_mcp, "

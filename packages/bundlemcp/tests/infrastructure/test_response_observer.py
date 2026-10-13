@@ -1,4 +1,4 @@
-"""Seeing below the MCP client: what an upstream actually answered (SRV-12, UPO-4, UPO-10)."""
+"""Seeing below the MCP client: what an upstream actually answered (UPS-12, UPS-28, UPS-34)."""
 
 import httpx2
 import pytest
@@ -88,14 +88,14 @@ class _Refusing:
         ),
     ],
 )
-async def test_srv12_a_failed_probe_is_classified(factory, state):
+async def test_ups12_a_failed_probe_is_classified(factory, state):
     probe = FastMcpUpstreamProbe(factory)
     with pytest.raises(ProbeFailure) as excinfo:
         await probe.probe(McpServer(name="s", url="https://up.example/mcp"), {})
     assert excinfo.value.state == state
 
 
-async def test_srv12_a_connection_failure_is_unreachable():
+async def test_ups12_a_connection_failure_is_unreachable():
     cause = httpx2.ConnectError("refused")
     error = RuntimeError("Client failed to connect")
     error.__cause__ = cause
@@ -105,7 +105,7 @@ async def test_srv12_a_connection_failure_is_unreachable():
     assert excinfo.value.state == ConnectionState.UNREACHABLE
 
 
-async def test_srv12_without_an_oauth_provider_a_refusal_stays_as_classified():
+async def test_ups12_without_an_oauth_provider_a_refusal_stays_as_classified():
     failure = ProbeFailure("x", state=ConnectionState.CREDENTIAL_REQUIRED)
     diagnosis = await ConnectionDiagnoser(None).diagnose("https://up.example/mcp", failure)
     assert diagnosis.state == ConnectionState.CREDENTIAL_REQUIRED

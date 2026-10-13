@@ -36,22 +36,22 @@ class McpServer(BaseModel):
         default=IdentityMode.SHARED,
         description="Whether callers share one upstream identity or each gets their own",
     )
-    send_identity_header: bool = Field(  # FWD-3
+    send_identity_header: bool = Field(  # AUTH-29
         default=True,
         description="Whether the calling user's identity is forwarded upstream",
     )
-    capabilities: dict = Field(  # DISC-6, source for PROT-11 aggregation
+    capabilities: dict = Field(  # UPS-22, source for PROT-11 aggregation
         default_factory=dict,
         description="What the server advertised at its last probe. A key is present exactly "
         "when that capability was advertised",
     )
-    protocol_mode: str = Field(  # SRV-10
+    protocol_mode: str = Field(  # UPS-10
         default="auto",
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
         "probes server/discover and falls back to the initialize handshake, 'legacy' always "
         "uses the handshake, and a revision date pins that revision",
     )
-    protocol_version: str | None = Field(  # SRV-10
+    protocol_version: str | None = Field(  # UPS-10
         default=None,
         description="MCP revision negotiated at the last successful probe, absent until then",
     )
@@ -60,7 +60,7 @@ class McpServer(BaseModel):
         description="Result of the most recent probe: ok, error or unknown",
     )
     last_error: str | None = Field(default=None, description="Why the last probe failed, if it did")
-    connection_state: ConnectionState = Field(  # SRV-12
+    connection_state: ConnectionState = Field(  # UPS-12
         default=ConnectionState.UNKNOWN,
         description="What the last probe found out about the upstream, classified from its "
         "HTTP response",
@@ -87,7 +87,7 @@ class McpServer(BaseModel):
             protocol_mode=self.protocol_mode,
         )
 
-    # SRV-2
+    # UPS-2
     @property
     def last_probe_succeeded(self) -> bool:
         """The most recent probe reached the upstream and read its tools."""
@@ -110,7 +110,7 @@ class McpServer(BaseModel):
     def uses_delegated_token(self) -> bool:
         return self.auth_mode == ServerAuthMode.DELEGATED_TOKEN
 
-    # FWD-7
+    # AUTH-33
     @property
     def forwards_caller_token(self) -> bool:
         """The caller's own bearer is passed through to the upstream unchanged."""

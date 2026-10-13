@@ -53,7 +53,7 @@ class ClientIdMetadataDocument(BaseModel):
         if not isinstance(value, list):
             return value  # the list type check reports it
         supported = {grant.value for grant in GrantType}
-        return [grant for grant in value if grant in supported]  # OAS-13
+        return [grant for grant in value if grant in supported]  # AUTH-13
 
     def check(self, fetched_from: str, allowed: RedirectUriAllowList) -> None:
         """Refuse a document that may not describe a client of this gateway.
@@ -76,7 +76,7 @@ class ClientIdMetadataDocument(BaseModel):
                 check_redirect_uri(uri)
             except InvalidRedirectUri as exc:
                 raise InvalidClientMetadataDocument(str(exc)) from None
-            if not allowed.permits(uri):  # OAS-13
+            if not allowed.permits(uri):  # AUTH-13
                 raise InvalidClientMetadataDocument(
                     f"invalid_redirect_uri: {uri} is not a redirect URI this gateway accepts"
                 )

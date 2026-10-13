@@ -20,10 +20,10 @@ test(testTitle("E2E-12"), async ({ page, steps }) => {
         await page.goto(`/upstreams/${upstream.name}`);
         await expect(page.getByTestId("input-url")).toHaveValue(upstream.url);
       }),
-      then("its forward_headers pass the caller's bearer through", { req: "FWD-4" }, async () => {
+      then("its forward_headers pass the caller's bearer through", { req: "AUTH-30" }, async () => {
         await expect(page.getByTestId("fwd-key-0")).toHaveValue("authorization");
       }),
-      then("forwarding the caller's bearer is flagged as passthrough", { req: "FWD-7" }, async () => {
+      then("forwarding the caller's bearer is flagged as passthrough", { req: "AUTH-33" }, async () => {
         await expect(page.getByTestId("passthrough-warning")).toBeVisible();
       }),
     ]),
@@ -46,7 +46,7 @@ test(testTitle("E2E-13"), async ({ page, steps }) => {
       await page.getByTestId("create-submit").click();
       await page.waitForURL(new RegExp(`/upstreams/${name}$`));
     }),
-    then("the connect link targets its gateway connect route", { req: "UPO-1" }, async () => {
+    then("the connect link targets its gateway connect route", { req: "UPS-25" }, async () => {
       const href = await page.getByTestId("upstream-connect").getAttribute("href");
       expect(href).toContain(`/oauth/upstream/${name}/connect`);
       await page.getByTestId("delete-server").click();

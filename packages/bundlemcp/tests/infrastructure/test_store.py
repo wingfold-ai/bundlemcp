@@ -1,4 +1,4 @@
-"""Store-layer tests: session records (SES-1/2/3/4, SES-1a) and invalidation (STP-1)."""
+"""Store-layer tests: session records (SES-1/2/3/4, SES-1a) and invalidation (SES-17)."""
 
 import asyncio
 import json

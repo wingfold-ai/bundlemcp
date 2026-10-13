@@ -37,7 +37,7 @@ class UpstreamClientConfig(BaseModel):
     def grant(self) -> UpstreamGrant:
         return UpstreamGrant(self.metadata.get(GRANT_KEY, UpstreamGrant.AUTHORIZATION_CODE))
 
-    # UPO-13
+    # UPS-37
     @property
     def issuer(self) -> str | None:
         """The authorization server this client belongs to, when it is known."""

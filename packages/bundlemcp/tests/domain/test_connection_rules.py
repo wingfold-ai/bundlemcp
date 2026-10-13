@@ -1,6 +1,6 @@
 """What an upstream's answer means, and the facts a server's configuration implies.
 
-Spec 10 (SRV-1, SRV-12, SRV-13, SRV-14), spec 23 (UPO-1, UPO-10, UPO-12), spec 24 (FWD-7).
+UPS-1, UPS-12, UPS-13, UPS-14, UPS-25, UPS-34, UPS-36, AUTH-33.
 """
 
 import pytest
@@ -61,16 +61,16 @@ def test_challenges_without_oauth_metadata_are_not_oauth():
         (refusal(500), ConnectionState.ERROR),
     ],
 )
-def test_srv12_refusals_are_classified_from_the_http_evidence(observed, state):
+def test_ups12_refusals_are_classified_from_the_http_evidence(observed, state):
     assert classify_refusal(observed, unreachable=False) == state
 
 
-def test_srv12_a_401_alone_is_never_evidence_of_oauth():
+def test_ups12_a_401_alone_is_never_evidence_of_oauth():
     """VS Code's trap: an expired API key must not read as an OAuth prompt."""
     assert classify_refusal(refusal(401), unreachable=False) == ConnectionState.CREDENTIAL_REQUIRED
 
 
-def test_srv12_no_response_at_all_is_unreachable_or_an_error():
+def test_ups12_no_response_at_all_is_unreachable_or_an_error():
     assert classify_refusal(None, unreachable=True) == ConnectionState.UNREACHABLE
     assert classify_refusal(None, unreachable=False) == ConnectionState.ERROR
 
@@ -97,11 +97,11 @@ def test_response_log_finds_the_step_up_challenge_and_the_401():
         ("https://8.8.8.8/mcp", False),
     ],
 )
-def test_srv13_internal_hosts(url, internal):
+def test_ups13_internal_hosts(url, internal):
     assert is_internal_host(url) is internal
 
 
-def test_srv1_none_and_static_headers_follow_the_stored_headers():
+def test_ups1_none_and_static_headers_follow_the_stored_headers():
     assert ServerAuthMode.NONE.settled(has_static_headers=True) == ServerAuthMode.STATIC_HEADERS
     assert ServerAuthMode.STATIC_HEADERS.settled(has_static_headers=False) == ServerAuthMode.NONE
     oauth = ServerAuthMode.UPSTREAM_OAUTH
@@ -111,11 +111,11 @@ def test_srv1_none_and_static_headers_follow_the_stored_headers():
 
 
 @pytest.mark.parametrize("header", ["Cookie", "host", "X-API-Key", "Sec-Fetch-Mode", "proxy-auth"])
-def test_srv14_denied_headers_are_not_forwardable(header):
+def test_ups14_denied_headers_are_not_forwardable(header):
     assert not is_forwardable(header)
 
 
-def test_srv12_a_state_that_contradicts_the_configuration_names_the_fix():
+def test_ups12_a_state_that_contradicts_the_configuration_names_the_fix():
     server = McpServer(name="s", url="https://x/mcp")
     server.connection_state = ConnectionState.OAUTH_REQUIRED
     assert "upstream OAuth" in (server.configuration_mismatch or "")
@@ -125,7 +125,7 @@ def test_srv12_a_state_that_contradicts_the_configuration_names_the_fix():
     assert server.configuration_mismatch is None  # a bad key, not a missing one
 
 
-def test_fwd7_forwarding_authorization_is_reported_as_passthrough():
+def test_auth33_forwarding_authorization_is_reported_as_passthrough():
     server = McpServer(
         name="s", url="http://x/mcp", forward_headers={"Authorization": "authorization"}
     )
@@ -133,7 +133,7 @@ def test_fwd7_forwarding_authorization_is_reported_as_passthrough():
     assert not McpServer(name="t", url="http://x/mcp").forwards_caller_token
 
 
-def test_upo1_identification_prefers_a_metadata_document_then_registration():
+def test_ups25_identification_prefers_a_metadata_document_then_registration():
     meta = UpstreamMetadata(
         authorization_endpoint="https://as/a",
         token_endpoint="https://as/t",
@@ -166,7 +166,7 @@ def test_upo1_identification_prefers_a_metadata_document_then_registration():
     )
 
 
-def test_upo10_step_up_scopes_are_requested_with_the_resource_scopes():
+def test_ups34_step_up_scopes_are_requested_with_the_resource_scopes():
     meta = UpstreamMetadata(
         authorization_endpoint="https://as/a",
         token_endpoint="https://as/t",
@@ -176,7 +176,7 @@ def test_upo10_step_up_scopes_are_requested_with_the_resource_scopes():
     assert meta.authorization_scope == "files:read files:write"
 
 
-def test_upo12_resource_is_the_documents_parent_identifier_or_the_url():
+def test_ups36_resource_is_the_documents_parent_identifier_or_the_url():
     url = "https://API.example/tenants/a/mcp/"
     assert resource_indicator(url, None) == "https://api.example/tenants/a/mcp"
     assert resource_indicator(url, {"resource": "https://api.example/tenants/a"}) == (
@@ -198,5 +198,5 @@ def test_upo12_resource_is_the_documents_parent_identifier_or_the_url():
         (None, "http://127.0.0.1:8021/mcp", "server"),
     ],
 )
-def test_srv11_suggested_names_are_slug_safe(label, url, name):
+def test_ups11_suggested_names_are_slug_safe(label, url, name):
     assert suggest_server_name(label, url) == name

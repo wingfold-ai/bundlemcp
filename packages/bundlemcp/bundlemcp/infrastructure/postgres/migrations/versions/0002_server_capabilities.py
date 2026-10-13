@@ -1,4 +1,4 @@
-"""Add mcp_servers.capabilities (advertised-capability snapshot, DISC-6).
+"""Add mcp_servers.capabilities (advertised-capability snapshot, UPS-22).
 
 Captured from the upstream initialize result at discovery; the source for
 PROT-11 capability aggregation.

@@ -44,7 +44,7 @@ class BundleResourceService(BundleContentService):
 
     async def catalogue(self, bundle_id: uuid.UUID) -> list[CatalogueResourceRead]:
         """The bundle's own resources as a person browsing the catalogue sees them."""
-        # BPR-19
+        # BND-36
         return [
             CatalogueResourceRead(name=r.name, title=r.title, description=r.description)
             for r in await self._resources.listings(bundle_id)
@@ -59,7 +59,7 @@ class BundleResourceService(BundleContentService):
             resource.id, resource.created_at = existing.id, existing.created_at
         others = [r for r in await self._resources.listings(bundle.id) if r.name != body.name]
         try:
-            self._limits.check_resource(  # BPR-16
+            self._limits.check_resource(  # BND-33
                 resource,
                 resources_after=len(others) + 1,
                 bundle_bytes_after=sum(r.size_bytes for r in others) + resource.size_bytes,
@@ -69,7 +69,7 @@ class BundleResourceService(BundleContentService):
         self._resources.add(resource)
         await self._commit(bundle, "created" if existing is None else "updated")
         await self._uow.refresh(resource)
-        # BPR-17: content is configuration, so it is logged by size, never by value
+        # BND-34: content is configuration, so it is logged by size, never by value
         log.info(
             "bundle_resource.saved",
             bundle=bundle.name,

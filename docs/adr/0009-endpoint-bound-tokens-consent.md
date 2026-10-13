@@ -18,9 +18,9 @@ layer.
 
 ## Decision
 
-Two controls in [spec/20](../../spec/20-oauth-server.md): **consent** (OAS-11 — per (user, client, endpoint),
-persistent, revocable) and **endpoint-bound tokens** (OAS-10 — RFC 8707 resource indicators; the token's audience is the
-endpoint; endpoints reject mismatches, EP-3a).
+Two controls in [spec/20](../../openspec/specs/auth/spec.md): **consent** (AUTH-11 — per (user, client,
+endpoint), persistent, revocable) and **endpoint-bound tokens** (AUTH-10 — RFC 8707 resource indicators; the token's
+audience is the endpoint; endpoints reject mismatches, EP-3a).
 
 ## Alternatives considered
 

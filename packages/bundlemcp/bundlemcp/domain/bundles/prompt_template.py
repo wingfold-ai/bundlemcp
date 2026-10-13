@@ -3,7 +3,7 @@
 import re
 from collections.abc import Mapping
 
-# BPR-3: a placeholder is the argument name in double braces, nothing more.
+# BND-20: a placeholder is the argument name in double braces, nothing more.
 PLACEHOLDER = re.compile(r"\{\{([a-zA-Z0-9_-]+)\}\}")
 
 

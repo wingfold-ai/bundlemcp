@@ -22,7 +22,7 @@ class BundleResourceRow(SQLModel, table=True):
         sa_column=Column(ForeignKey("bundles.id", ondelete="CASCADE"), index=True, nullable=False),
         description="Bundle the resource belongs to",
     )
-    name: str = Field(description="Resource name, unique in its bundle")  # BPR-6
+    name: str = Field(description="Resource name, unique in its bundle")  # BND-23
     title: str | None = Field(default=None, description="Human-readable title")
     description: str | None = Field(default=None, description="What the resource contains")
     mime_type: ResourceMimeType = Field(

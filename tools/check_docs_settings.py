@@ -6,8 +6,8 @@ Three checks, all currently green, kept green cheaply:
 1. Every ``BUNDLEMCP_*`` variable the documentation mentions is a real ``Settings``
    field, **and** every field is documented. The second direction is the one that
    rots silently: a new setting nobody documents is invisible to operators.
-2. Every requirement ID the documentation cites (``SRV-1``, ``EP-3``, …) resolves
-   to something in ``spec/``.
+2. Every requirement ID the documentation cites (``UPS-1``, ``EP-3``, …) resolves
+   to a requirement in ``openspec/`` — a main spec, or a change not yet archived.
 3. No requirement ID appears in a docstring or a Pydantic ``description``. The
    convention is that IDs belong in ``#`` comments, test names and error
    messages, because docstrings and descriptions are read by people — and, for
@@ -17,6 +17,7 @@ Three checks, all currently green, kept green cheaply:
 """
 
 import ast
+import json
 import pathlib
 import re
 import sys
@@ -24,7 +25,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "packages" / "bundlemcp" / "bundlemcp"
 SETTINGS = PACKAGE / "application" / "settings" / "settings.py"
-SPEC = ROOT / "spec"
+OPENSPEC = ROOT / "openspec"
 
 # Markdown this repository owns; a package manager's vendored docs would
 # otherwise contribute their own CVE and licence identifiers as "requirement IDs".
@@ -48,7 +49,7 @@ REQUIREMENT_ID = re.compile(r"\b([A-Z]{2,6})-([0-9]+[a-z]?)\b")
 # Env vars that are deliberately not Settings fields.
 ENV_EXEMPT = {
     "BUNDLEMCP_INTEGRATION",  # a pytest gate, read by tests/integration/conftest.py
-    "BUNDLEMCP_OIDC_",  # a prefix fragment, quoted in spec/21
+    "BUNDLEMCP_OIDC_",  # a prefix fragment, quoted in the auth spec
 }
 # Prefixes that look like requirement IDs but are not.
 ID_EXEMPT_PREFIXES = {"ADR", "BSD", "MPL", "MIT", "RFC", "SHA", "UTF", "HTTP", "API", "CI"}
@@ -71,11 +72,13 @@ def documented_text() -> str:
 
 
 def spec_ids() -> set[str]:
+    """Every code openspec/ defines, plus the former codes slices.json maps to a current one."""
+    former = json.loads((OPENSPEC / "slices.json").read_text()).get("former_codes", {})
     return {
         f"{m.group(1)}-{m.group(2)}"
-        for path in SPEC.glob("*.md")
+        for path in OPENSPEC.rglob("*.md")
         for m in REQUIREMENT_ID.finditer(path.read_text())
-    }
+    } | {code for code in former if not code.startswith("$")}
 
 
 def ids_in_docstrings() -> list[str]:
@@ -129,7 +132,7 @@ def main() -> int:
         if m.group(1) not in ID_EXEMPT_PREFIXES
     }
     for missing in sorted(cited - known):
-        problems.append(f"cited in the docs but absent from spec/: {missing}")
+        problems.append(f"cited in the docs but absent from openspec/: {missing}")
 
     problems.extend(ids_in_docstrings())
 

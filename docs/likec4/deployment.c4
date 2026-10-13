@@ -1,4 +1,4 @@
-// bundlemcp — deployment model (reference compose/production topology, spec/71)
+// bundlemcp — deployment model (reference compose/production topology, the deployment spec)
 
 specification {
   deploymentNode environment

@@ -21,7 +21,7 @@ class UpstreamOAuthConfig(BaseModel):
     token_url: str | None = Field(
         default=None, description="Token endpoint, when it cannot be discovered automatically"
     )
-    grant_type: UpstreamGrant = Field(  # UPO-11
+    grant_type: UpstreamGrant = Field(  # UPS-35
         default=UpstreamGrant.AUTHORIZATION_CODE,
         description="How the gateway obtains tokens: 'authorization_code' (a person signs in "
         "through the browser) or 'client_credentials' (the gateway authenticates as this "

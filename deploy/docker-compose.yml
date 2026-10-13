@@ -1,5 +1,5 @@
 # bundlemcp dev/reference stack (ARC-13). TLS is the operator's proxy concern
-# in production (spec 71 DEP-3); here the gateway is exposed directly.
+# in production (DEP-3); here the gateway is exposed directly.
 #
 # Egress note (SEC-2): compose service hostnames resolve to private IPs, which
 # the default egress policy allows; loopback/metadata ranges stay blocked.
@@ -118,7 +118,7 @@ services:
   # Google Search Console MCP (sibling seo-improve-mcp repo -> GHCR). Does its
   # own per-user Google OAuth at /connect + /google/callback (host port 8001 so
   # Google can redirect), and verifies the gateway-forwarded bearer via RFC 7662
-  # introspection against this stack's gateway (FWD-4). Requires real Google
+  # introspection against this stack's gateway (AUTH-30). Requires real Google
   # OAuth client credentials in deploy/.env — see .env.example.
   seo-gsc:
     image: ${SEO_GSC_IMAGE:-ghcr.io/mhoegger/seo-gsc-mcp:latest}
@@ -166,7 +166,7 @@ services:
       - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
 
   # HyperFrames MCP (HTML-to-video, sibling hyperframes-mcp repo -> GHCR).
-  # Identifies callers by the gateway-injected X-MCP-User header (FWD-3).
+  # Identifies callers by the gateway-injected X-MCP-User header (AUTH-29).
   hyperframes:
     image: ${HYPERFRAMES_IMAGE:-ghcr.io/mhoegger/hyperframes-mcp:latest}
     profiles: [fleet]

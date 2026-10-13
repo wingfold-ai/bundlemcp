@@ -22,15 +22,15 @@ class BundlePromptRow(SQLModel, table=True):
         sa_column=Column(ForeignKey("bundles.id", ondelete="CASCADE"), index=True, nullable=False),
         description="Bundle the prompt belongs to",
     )
-    name: str = Field(description="Prompt name, unique in its bundle")  # BPR-2
+    name: str = Field(description="Prompt name, unique in its bundle")  # BND-19
     title: str | None = Field(default=None, description="Human-readable title")
     description: str | None = Field(default=None, description="What the prompt is for")
-    arguments: list[dict[str, Any]] = Field(  # BPR-1
+    arguments: list[dict[str, Any]] = Field(  # BND-18
         default_factory=list,
         sa_column=Column(JSON, nullable=False),
         description="Arguments the prompt takes, in display order",
     )
-    messages: list[dict[str, Any]] = Field(  # BPR-1
+    messages: list[dict[str, Any]] = Field(  # BND-18
         default_factory=list,
         sa_column=Column(JSON, nullable=False),
         description="Messages of the prompt, in conversation order",

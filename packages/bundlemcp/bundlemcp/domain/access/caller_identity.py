@@ -8,7 +8,7 @@ from bundlemcp.domain.access.identity_subject import IdentitySubject
 from bundlemcp.domain.access.user import User
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 
-API_KEY_SUBJECT_PREFIX = "api_key:"  # FWD-3 identity format for key-authenticated callers
+API_KEY_SUBJECT_PREFIX = "api_key:"  # AUTH-29 identity format for key-authenticated callers
 
 
 class CallerIdentity(BaseModel):

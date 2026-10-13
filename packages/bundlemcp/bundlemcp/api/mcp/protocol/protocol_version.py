@@ -11,7 +11,7 @@ never negotiated, however long the SDK keeps them.
 import mcp_types.version as sdk_versions
 from mcp_types.version import is_version_at_least
 
-OLDEST_HANDSHAKE_SERVED = "2025-03-26"  # spec 32: the handshake era starts here
+OLDEST_HANDSHAKE_SERVED = "2025-03-26"  # the handshake era starts here
 
 # Newest first. The head of each list is the era's default.
 MODERN_PROTOCOL_VERSIONS = list(reversed(sdk_versions.MODERN_PROTOCOL_VERSIONS))

@@ -19,10 +19,10 @@ test(testTitle("E2E-09"), async ({ page, steps }) => {
       await expect(row()).toBeVisible();
       await expect(row()).toContainText("admin");
     }),
-    then("a deactivate action is offered (not clicked — only admin)", { req: "ADM-6" }, async () => {
+    then("a deactivate action is offered (not clicked — only admin)", { req: "AUTH-20" }, async () => {
       await expect(page.getByTestId("deactivate-user-admin@example.com").first()).toBeEnabled();
     }),
-    when("drilling into the user's OAuth consents", { req: "OAS-11" }, async () => {
+    when("drilling into the user's OAuth consents", { req: "AUTH-11" }, async () => {
       // The toggle label flips deterministically regardless of consent count.
       const toggle = page.getByTestId("consents-admin@example.com").first();
       await toggle.click();

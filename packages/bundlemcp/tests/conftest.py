@@ -96,7 +96,7 @@ async def service_client(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator
 async def engine() -> AsyncIterator[AsyncEngine]:
     eng = create_engine("sqlite+aiosqlite://")
 
-    # sqlite needs FKs switched on for the ondelete=CASCADE behavior (DOM-2)
+    # sqlite needs FKs switched on for the ondelete=CASCADE behavior (ARC-17)
     @event.listens_for(eng.sync_engine, "connect")
     def _fk_on(dbapi_conn, _record):  # pragma: no cover - trivial
         dbapi_conn.execute("PRAGMA foreign_keys=ON")

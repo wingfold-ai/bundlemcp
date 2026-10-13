@@ -8,7 +8,7 @@ from bundlemcp.domain.delegation.delegated_token import DelegatedToken
 
 log = structlog.get_logger(__name__)
 
-DELEGATED_TOKEN_KEY = "bmcp:delegated:{token_hash}"  # FWD-6
+DELEGATED_TOKEN_KEY = "bmcp:delegated:{token_hash}"  # AUTH-32
 
 
 class ValkeyDelegatedTokenStore:

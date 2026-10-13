@@ -34,6 +34,6 @@ async def load_bundle_view(uow: UnitOfWork, endpoint_name: str) -> BundleView | 
         bundle=bundle,
         servers=enabled_servers,
         tools=tools,
-        prompts=await uow.bundle_prompts.listings(bundle.id),  # BPR-8
+        prompts=await uow.bundle_prompts.listings(bundle.id),  # BND-25
         resources=await uow.bundle_resources.listings(bundle.id),
     )

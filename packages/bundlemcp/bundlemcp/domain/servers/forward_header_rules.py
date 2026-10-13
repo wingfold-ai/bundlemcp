@@ -1,6 +1,6 @@
 """Which client headers may ever be forwarded to an upstream server."""
 
-# Never forwarded regardless of a server's mapping (DOM-3 / SEC-3 / FWD-2).
+# Never forwarded regardless of a server's mapping (ARC-18 / SEC-3 / AUTH-28).
 DENIED_FORWARD_HEADERS = frozenset(
     {"host", "content-length", "cookie", "x-api-key", "mcp-session-id"}
 )

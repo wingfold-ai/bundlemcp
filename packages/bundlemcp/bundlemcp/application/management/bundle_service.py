@@ -204,8 +204,8 @@ class BundleService(NamedResourceService[Bundle, BundleRead]):
     async def _ensure_override_name_free(
         self, bundle: Bundle, tool_id: uuid.UUID, override_name: str
     ) -> None:
-        # TM-3: override names unique within the bundle vs other overrides
+        # BND-14: override names unique within the bundle vs other overrides
         if await self._curations.override_name_taken(
             bundle.id, override_name, except_tool_id=tool_id
         ):
-            raise ConflictError("override_name already used in this bundle (TM-3)")
+            raise ConflictError("override_name already used in this bundle (BND-14)")

@@ -41,7 +41,8 @@ class ManagementAuth:
                 return Principal(kind=PrincipalKind.SERVICE, api_key_id=str(caller.id))
             case ApiKey():
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="key is not service-kind (KEY-2)"
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="key is not service-kind (AUTH-23)",
                 )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

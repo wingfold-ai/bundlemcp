@@ -1,4 +1,4 @@
-"""Integration tests run against the live compose stack (spec 30 SES-12, spec 20 OAS-9).
+"""Integration tests run against the live compose stack (SES-12, AUTH-9).
 
 Gated by BUNDLEMCP_INTEGRATION=1 so the default hermetic suite never touches
 Docker/network. Run locally with:

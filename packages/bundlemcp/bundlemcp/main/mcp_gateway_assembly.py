@@ -80,7 +80,7 @@ class McpGatewayAssembly(BaseModel):
     upstream_tokens: UpstreamTokenService | None = Field(
         description="Store for upstream OAuth tokens; None when no encryption keys are configured"
     )
-    delegated_tokens: DelegatedTokenIssuer = Field(  # FWD-6
+    delegated_tokens: DelegatedTokenIssuer = Field(  # AUTH-32
         description="Issues the upstream-bound tokens delegated_token servers receive"
     )
     state_cipher: SecretCipher | None = Field(
@@ -100,8 +100,8 @@ class McpGatewayAssembly(BaseModel):
         credentials = UpstreamCredentialResolver(
             self.upstream_tokens, self.settings.public_base, delegated=self.delegated_tokens
         )
-        connect_prompts = AccountConnectPrompts(credentials)  # UPO-3
-        header_forwarding = HeaderForwarding(self.settings.identity_subject)  # FWD-3
+        connect_prompts = AccountConnectPrompts(credentials)  # UPS-27
+        header_forwarding = HeaderForwarding(self.settings.identity_subject)  # AUTH-29
         fanout = MemberFanout(
             self.client_factory,
             credentials,
@@ -110,7 +110,7 @@ class McpGatewayAssembly(BaseModel):
             self.signals,
             self.runtime_config,
         )
-        content = BundleContentReader(self.unit_of_work_factory)  # BPR-8
+        content = BundleContentReader(self.unit_of_work_factory)  # BND-25
         tool_calls = ToolsCallHandler(
             ToolCallSupport(
                 metering=self.metering,

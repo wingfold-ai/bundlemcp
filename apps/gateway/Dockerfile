@@ -1,4 +1,4 @@
-# bundlemcp gateway (spec 71 DEP-11); build from the repo root:
+# bundlemcp gateway (DEP-11); build from the repo root:
 #   docker build -f apps/gateway/Dockerfile .
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 WORKDIR /app

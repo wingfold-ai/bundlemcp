@@ -21,7 +21,7 @@ HTTP_TIMEOUT = 10
 PROTECTED_RESOURCE_PATH = "/.well-known/oauth-protected-resource"
 AUTHORIZATION_SERVER_PATH = "/.well-known/oauth-authorization-server"
 OPENID_CONFIGURATION_PATH = "/.well-known/openid-configuration"
-# UPO-1: the challenge is asked for with the request a modern client sends first
+# UPS-25: the challenge is asked for with the request a modern client sends first
 CHALLENGE_PROTOCOL_VERSION = "2026-07-28"
 CHALLENGE_REQUEST = {
     "jsonrpc": "2.0",
@@ -92,7 +92,7 @@ def _metadata(data: dict[str, Any], resource_scopes: list[str], resource: str) -
     )
 
 
-# UPO-13
+# UPS-37
 def _acceptable(data: dict[str, Any] | None, issuer: str) -> dict[str, Any] | None:
     """Authorization server metadata the connect can use, or None to try the next location.
 
@@ -141,14 +141,14 @@ class HttpxUpstreamProvider:
         async with self._client_factory() as client:
             challenge = await self._challenge(client, server_url)
             resource = await self._protected_resource(client, server_url, challenge)
-            # UPO-1: request what the resource asks for, never the server's whole catalogue
+            # UPS-25: request what the resource asks for, never the server's whole catalogue
             if challenge.scope is not None:
                 scopes = challenge.scope
             elif resource is not None:
                 scopes = list(resource.get("scopes_supported") or [])
             else:
                 scopes = []
-            indicator = resource_indicator(server_url, resource)  # UPO-12
+            indicator = resource_indicator(server_url, resource)  # UPS-36
             if resource is not None:
                 servers = resource.get("authorization_servers") or []
                 if servers:
@@ -167,7 +167,7 @@ class HttpxUpstreamProvider:
     async def _protected_resource(
         self, client: httpx.AsyncClient, server_url: str, challenge: UpstreamChallenge
     ) -> dict[str, Any] | None:
-        # UPO-1: the MCP authorization spec's order, server-named document first
+        # UPS-25: the MCP authorization spec's order, server-named document first
         candidates = _protected_resource_candidates(server_url)
         if challenge.resource_metadata is not None:
             self._check_egress(challenge.resource_metadata, "resource_metadata_denied")
@@ -212,7 +212,7 @@ class HttpxUpstreamProvider:
     async def register(
         self, meta: UpstreamMetadata, *, redirect_uri: str, client_name: str
     ) -> UpstreamClientRegistration:
-        # UPO-1: RFC 7591 registration of a public client that proves itself with PKCE
+        # UPS-25: RFC 7591 registration of a public client that proves itself with PKCE
         if not meta.registration_endpoint:
             raise NeedsConnect("upstream", "no_client_config")
         self._check_egress(meta.registration_endpoint, "registration_endpoint_denied")
@@ -222,7 +222,7 @@ class HttpxUpstreamProvider:
             "grant_types": ["authorization_code", "refresh_token"],
             "response_types": ["code"],
             "token_endpoint_auth_method": "none",
-            "application_type": DYNAMIC_CLIENT_APPLICATION_TYPE,  # UPO-1
+            "application_type": DYNAMIC_CLIENT_APPLICATION_TYPE,  # UPS-25
         }
         async with self._client_factory() as client:
             response = await client.post(meta.registration_endpoint, json=request)
@@ -253,7 +253,7 @@ class HttpxUpstreamProvider:
         }
         if scope:
             params["scope"] = scope
-        if meta.resource:  # UPO-12
+        if meta.resource:  # UPS-36
             params["resource"] = meta.resource
         return f"{meta.authorization_endpoint}?{urlencode(params)}"
 
@@ -301,7 +301,7 @@ class HttpxUpstreamProvider:
         client_secret: str,
         scope: str | None,
     ) -> UpstreamTokens:
-        # UPO-11: the MCP OAuth Client Credentials extension, secret in the request body
+        # UPS-35: the MCP OAuth Client Credentials extension, secret in the request body
         data = {"grant_type": "client_credentials", "client_id": client_id}
         if scope:
             data["scope"] = scope
@@ -314,7 +314,7 @@ class HttpxUpstreamProvider:
         self._check_egress(meta.token_endpoint, "token_endpoint_denied")
         if client_secret:
             data["client_secret"] = client_secret
-        if meta.resource:  # UPO-12: token and refresh requests name the resource too
+        if meta.resource:  # UPS-36: token and refresh requests name the resource too
             data["resource"] = meta.resource
         async with self._client_factory() as client:
             response = await client.post(meta.token_endpoint, data=data)

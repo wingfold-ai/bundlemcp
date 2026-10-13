@@ -9,22 +9,26 @@ through one or more **endpoints** shaped for the consuming client (claude.ai OAu
 profile, API-key access for scripts). It is designed to be consumed by an application layer that adds Keycloak, billing
 and discovery, but is fully usable standalone with any OIDC provider.
 
-The `/spec` folder is the source of truth: [spec/README.md](spec/README.md) is the index, each numbered file is an
-atomic spec with testable requirement IDs (`SRV-1`, `EP-3`, …). The decision log in spec/README.md lists deliberately
-dropped metamcp features — do not reintroduce them without new evidence.
+Specs are kept with [OpenSpec](https://github.com/Fission-AI/OpenSpec) in `openspec/`, the source of truth:
+`openspec/specs/<capability>/spec.md` describes what is implemented today, with testable requirement IDs (`UPS-1`,
+`EP-3`, …); `openspec/changes/<change>/` holds each change not yet implemented. [openspec/README.md](openspec/README.md)
+is the index, and its decision log lists deliberately dropped metamcp features — do not reintroduce them without new
+evidence. Each capability is a slice with a requirement-code prefix (`BND` = bundles, `UPS` = upstreams, …);
+the registry is `openspec/slices.json`, and a requirement is coded `<code>-<n>` and never renumbered.
 
 Architecture rationale lives in `docs/`: arc42 sections in `docs/arc42/`, MADR-style ADRs in `docs/adr/` (append-only;
 new architectural decisions land with an ADR in the same PR), diagrams as LikeC4 models in `docs/likec4/` (validate with
-`npx likec4 validate docs/likec4`). Rules: spec 62.
+`npx likec4 validate docs/likec4`). Rules: the documentation spec.
 
 ## Architecture
 
-See [spec/00-overview.md](spec/00-overview.md) and [spec/01-architecture.md](spec/01-architecture.md). Core rules:
+See [overview](openspec/README.md) and [architecture](openspec/specs/architecture/spec.md). Core rules:
 
 - **Stack:** FastAPI + FastMCP v4, SQLModel (Pydantic-native, SQLAlchemy 2.0 async + asyncpg, Alembic), Valkey (BSD-3,
   RESP; via the MIT redis-py client — ADR-0022), Nuxt 4 + Nuxt UI v4. Always adopt the latest stable versions.
 - **State model:** Postgres = durable config/tokens/audit; Valkey (RESP) = live sessions/rate-limits/logs.
-  **No in-memory-only state a request depends on** — any replica serves any session; restarts are non-events (spec 30).
+  **No in-memory-only state a request depends on** — any replica serves any session; restarts are non-events
+  (sessions spec).
 - **Pydantic-first:** entities are plain Pydantic models in `domain/`; their tables are SQLModel row classes in
   `infrastructure/postgres/rows/`, mapped by the repositories (ADR-0034); API DTOs are Pydantic; frontend TS types are
   generated from OpenAPI, never hand-written.
@@ -46,7 +50,7 @@ See [spec/00-overview.md](spec/00-overview.md) and [spec/01-architecture.md](spe
   the host with `uv run uvicorn --factory apps.gateway.main:app_factory --reload`.
 - If a sibling checkout of `../metamcp` is present it is read-only reference material (what we're replacing); it is not
   required to work here. The first consumer, a private application layer, is never named in this repo; its registrar
-  and billing contracts drive specs 40 and 31.
+  and billing contracts drive the management-api and protocol specs.
 
 ## Testing
 
@@ -61,11 +65,15 @@ See [spec/00-overview.md](spec/00-overview.md) and [spec/01-architecture.md](spe
   only typecheck is not enough.
 - `python3 tools/check_docs_links.py`, `check_docs_symbols.py`, `check_docs_settings.py` and `check_adr_graph.py` —
   documentation consistency over the files the VitePress build does not see. All four are CI gates.
+- `python3 tools/check_spec_ids.py` — requirement codes: each header uses its slice's code, no code is defined twice
+  or reused, every code cited in code and tests exists, and every active requirement is dated. A CI gate, beside
+  `openspec validate --all --strict`.
 - `uv run lint-imports` — import contracts (ADR-0023/0033): the inward layer direction, `domain/` and `application/`
   free of every driver, `api/` never naming an adapter, `application/` never touching the ORM. Must pass with zero
   exceptions; never silence a violation with `ignore_imports`. Delete `.import_linter_cache` after moving modules; a
   stale cache reports kept contracts that are broken.
-- Integration tests run against the compose stack; spec 30 mandates restart-under-load and two-replica session tests.
+- Integration tests run against the compose stack; the sessions spec mandates restart-under-load and
+  two-replica session tests.
 - Tests reference spec requirement IDs in their names/docstrings where they verify one.
 
 ## Conventions
@@ -73,7 +81,7 @@ See [spec/00-overview.md](spec/00-overview.md) and [spec/01-architecture.md](spe
 - Ruff (line length 100), full type hints, `pydantic-settings` with `BUNDLEMCP_` env prefix.
 - Docstrings never reference spec numbers or requirement IDs — they must explain the behavior standalone, or be omitted.
   Requirement-ID cross-references belong in inline `#` comments, test names/docstrings, and error messages only.
-- Never log or return secrets/tokens/header values (spec 51, DOM-3).
+- Never log or return secrets/tokens/header values (operations spec, ARC-18).
 - **Pydantic everywhere, no `dataclasses`.** Every structured value is a `BaseModel` (SQLModel for the row classes);
   `X | None` only where `None` is really reachable. The config recipes, the `@runtime_checkable` rule for `Protocol`
   fields, and the boundary round-trip pattern are in:
@@ -109,8 +117,11 @@ See [spec/00-overview.md](spec/00-overview.md) and [spec/01-architecture.md](spe
   (`server.requires_per_user_token`, `token.is_usable_at(now)`) is a property on the entity, written once. Services take
   a `UnitOfWork` and query through `Repository[T]`; invariants that span resources are policy objects
   (`PerUserUpstreamPolicy`). See ADR-0024/0025.
-- New behavior starts with a spec update in `/spec`; keep requirement IDs stable. The read order and the full change
-  checklist are in [CONTRIBUTING.md](CONTRIBUTING.md).
+- **New behavior starts as an OpenSpec change**, never as code: `/opsx:propose` writes `proposal.md`, the delta specs,
+  `design.md` and `tasks.md` under `openspec/changes/<change>/`; `/opsx:apply` implements it task by task;
+  `/opsx:archive` merges the deltas into `openspec/specs/` once it is done. `openspec/specs/` only ever describes what
+  is implemented. Keep requirement IDs stable and never reuse one; `openspec validate --all --strict` must pass. The
+  read order and the full change checklist are in [CONTRIBUTING.md](CONTRIBUTING.md).
 - Local aliases (`state = self._app.state`) must add meaning, not save typing — the rules, and the cases that justify
   one, are in:
 

@@ -1,4 +1,4 @@
-"""Every logger in the process, stdlib ones included, writes the configured line format (OBS-1)."""
+"""Every logger in the process, stdlib ones included, writes the configured line format (OPS-8)."""
 
 import json
 import logging

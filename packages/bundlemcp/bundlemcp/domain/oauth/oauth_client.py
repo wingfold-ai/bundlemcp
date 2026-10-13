@@ -33,7 +33,7 @@ class OAuthClient(BaseModel):
         description="How the client authenticates at the token endpoint",
     )
     scope: str = Field(default="mcp", description="Space-separated scopes the client may request")
-    application_type: ApplicationType | None = Field(  # OAS-2
+    application_type: ApplicationType | None = Field(  # AUTH-2
         default=None,
         description="'web' or 'native' as the client registered itself; absent when it did not "
         "say or was described by a metadata document",

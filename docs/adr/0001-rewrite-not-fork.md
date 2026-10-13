@@ -17,7 +17,7 @@ with hand-picked fixes. The maintainer's home stack is Python + Vue, not TypeScr
 - Maintenance risk: depending on a stalled upstream for a load-bearing gateway.
 - Stack familiarity compounds: every future feature is cheaper in the home stack.
 - A rewrite allows deliberate scope reduction (see the decision log in
-  [spec/README](../../spec/README.md)).
+  [spec/README](../../openspec/README.md)).
 
 ## Decision
 

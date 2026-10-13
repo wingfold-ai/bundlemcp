@@ -11,7 +11,7 @@ ADR-0019 introduced a controller/service split but placed the layer under `packa
 (bootstrap, future CLI/jobs)" — and the contradiction was already load-bearing: `bootstrap.py` reimplemented the
 server/bundle/endpoint upserts inline rather than import "down" from `api/`, and it pulled DTOs from
 `bundlemcp.api.schemas`. Extracting the authentication logic still living in `api/deps.py` (the API-key lookup with its
-KEY-4 last-used write, and the admin-session DB re-validation) made the inversion concrete: the MCP edge (`gateway/`)
+AUTH-25 last-used write, and the admin-session DB re-validation) made the inversion concrete: the MCP edge (`gateway/`)
 and the OAuth token endpoint (`oauth/`) already imported `resolve_api_key` from `bundlemcp.api.deps`, so `api/` owned a
 dependency of its own peers.
 
@@ -40,7 +40,7 @@ A second, smaller problem: the workspace root used `services/` for **deployable 
   `Principal` is co-located with `AuthService` (it is an auth domain type, not a serialized Pydantic DTO, so it stays
   out of the Pydantic `schemas/` package).
 - **`bootstrap` consumes the services** instead of duplicating their upserts, making the ADR-0019 reuse promise real and
-  inheriting every invariant (SRV-*, UPO-6, PROF-6) and correct `rate_limit` serialization.
+  inheriting every invariant (UPS-*, UPS-30, EP-15) and correct `rate_limit` serialization.
 - **Workspace convention: `apps/` = deployable applications, `packages/` = libraries.** Root `services/` → `apps/`, so
   the deployable gateway is `apps/gateway/` beside the planned `apps/web/`, freeing `services/` for the library layer.
   Gateway is not a uv workspace member, so `uv.lock` is unaffected.

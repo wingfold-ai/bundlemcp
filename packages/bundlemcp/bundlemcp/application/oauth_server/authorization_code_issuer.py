@@ -39,7 +39,7 @@ class AuthorizationCodeIssuer:
                 scope=pending.scope,
                 code_challenge=pending.code_challenge,
                 code_challenge_method=CodeChallengeMethod.S256,
-                expires_at=self._clock.now() + self._policy.authorization_code_ttl,  # OAS-3
+                expires_at=self._clock.now() + self._policy.authorization_code_ttl,  # AUTH-3
             )
         )
         return raw_code

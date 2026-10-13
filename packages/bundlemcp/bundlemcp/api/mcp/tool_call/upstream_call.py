@@ -86,7 +86,7 @@ class UpstreamCall:
         self._last_activity = self._started
         self._timeout_reason: str | None = None
         self._cancelled = False
-        self.responses = ResponseLog()  # SRV-12: what the upstream answered below MCP
+        self.responses = ResponseLog()  # UPS-12: what the upstream answered below MCP
 
     async def _progress(self, progress: float, total: float | None, message: str | None) -> None:
         self._last_activity = self._loop.time()  # PROT-2: reset the idle window
@@ -160,7 +160,7 @@ class UpstreamCall:
             result = await task
             if isinstance(result, InputRequiredResult):
                 return CallOutcome(status=CallStatus.INPUT_REQUIRED, input_required=result)
-            status = CallStatus.ERROR if result.is_error else CallStatus.SUCCESS  # MID-3
+            status = CallStatus.ERROR if result.is_error else CallStatus.SUCCESS  # PROT-26
             return CallOutcome(status=status, result=result)
         except asyncio.CancelledError:
             if self._cancelled:

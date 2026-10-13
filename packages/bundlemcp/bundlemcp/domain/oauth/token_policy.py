@@ -13,17 +13,17 @@ class TokenPolicy(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    access_token_ttl: timedelta = Field(  # OAS-4
+    access_token_ttl: timedelta = Field(  # AUTH-4
         default=timedelta(hours=1),
         gt=timedelta(0),
         description="How long an access token authenticates before it must be refreshed",
     )
-    refresh_token_ttl: timedelta = Field(  # OAS-4
+    refresh_token_ttl: timedelta = Field(  # AUTH-4
         default=timedelta(days=7),
         gt=timedelta(0),
         description="How long a refresh token may be exchanged for a new pair",
     )
-    authorization_code_ttl: timedelta = Field(  # OAS-3
+    authorization_code_ttl: timedelta = Field(  # AUTH-3
         default=timedelta(minutes=10),
         gt=timedelta(0),
         description="How long a client has to redeem an authorization code",

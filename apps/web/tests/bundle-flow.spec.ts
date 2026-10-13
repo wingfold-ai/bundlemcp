@@ -26,13 +26,13 @@ test(testTitle("E2E-05"), async ({ page, steps }) => {
       await page.getByTestId("member-add").click();
       await expect(page.getByTestId("member-echo")).toBeVisible();
     }),
-    then("its tools appear as curation rows, prefixed server__tool", { req: "TM-1" }, async () => {
+    then("its tools appear as curation rows, prefixed server__tool", { req: "BND-12" }, async () => {
       const row = page.getByTestId("curation-echo__echo");
       await expect(row).toBeVisible();
       await expect(row).toContainText("echo__echo");
       toolId = await row.getAttribute("data-tool-id");
     }),
-    when("overriding the presented name echo__echo → just_echo", { req: "TM-3" }, async () => {
+    when("overriding the presented name echo__echo → just_echo", { req: "BND-14" }, async () => {
       await page.getByTestId(`override-name-${toolId}`).fill("just_echo");
       await page.getByTestId(`curation-save-${toolId}`).click();
       await expect(page.getByTestId("curation-echo__echo")).toContainText("just_echo");
@@ -60,10 +60,10 @@ test(testTitle("E2E-05"), async ({ page, steps }) => {
 test(testTitle("E2E-06"), async ({ page, steps }) => {
   await steps.play([
     given("the create-endpoint form on a bundle's page", () => page.goto("/bundles/demo")),
-    when("selecting the chatgpt profile", { req: "PROF-3" }, () =>
+    when("selecting the chatgpt profile", { req: "EP-12" }, () =>
       page.getByTestId("create-endpoint-profile").selectOption("chatgpt"),
     ),
-    then("a re-annotation warning is shown", { req: "PROF-3" }, async () => {
+    then("a re-annotation warning is shown", { req: "EP-12" }, async () => {
       await expect(page.getByTestId("chatgpt-warning")).toBeVisible();
     }),
   ]);
@@ -159,7 +159,7 @@ test(testTitle("E2E-18"), async ({ page, steps }) => {
       await page.getByTestId("create-submit").click();
       await page.getByTestId(`open-${bundle}`).click();
     }),
-    when("the administrator writes a Markdown resource in a folder", { req: "BPR-6" }, async () => {
+    when("the administrator writes a Markdown resource in a folder", { req: "BND-23" }, async () => {
       await page.getByTestId("resource-new").click();
       await page.getByTestId("resource-name").fill("guides/style");
       await page.getByTestId("resource-title").fill("House style");
@@ -169,7 +169,7 @@ test(testTitle("E2E-18"), async ({ page, steps }) => {
       await page.getByTestId("resource-save").click();
       await expect(page.getByTestId("resource-guides/style")).toContainText("House style");
     }),
-    when("writes a prompt that takes an argument and embeds the resource", { req: "BPR-3" }, async () => {
+    when("writes a prompt that takes an argument and embeds the resource", { req: "BND-20" }, async () => {
       await page.getByTestId("prompt-new").click();
       await page.getByTestId("prompt-name").fill("plot");
       await page.getByTestId("prompt-add-argument").click();
@@ -178,15 +178,15 @@ test(testTitle("E2E-18"), async ({ page, steps }) => {
       await page.getByTestId("prompt-add-resource").click();
       await expect(page.getByTestId("prompt-message-resource-1")).toHaveValue("guides/style");
     }),
-    then("the preview renders it with sample arguments", { req: "BPR-14" }, async () => {
+    then("the preview renders it with sample arguments", { req: "BND-31" }, async () => {
       await page.getByTestId("prompt-sample-series").fill("revenue");
       await expect(page.getByTestId("prompt-rendered-0")).toHaveText("Plot revenue.");
     }),
-    then("it is saved and listed", { req: "BPR-14" }, async () => {
+    then("it is saved and listed", { req: "BND-31" }, async () => {
       await page.getByTestId("prompt-save").click();
       await expect(page.getByTestId("prompt-plot")).toContainText("series");
     }),
-    then("the embedded resource cannot be deleted while the prompt uses it", { req: "BPR-3" }, async () => {
+    then("the embedded resource cannot be deleted while the prompt uses it", { req: "BND-20" }, async () => {
       await page.getByTestId("resource-delete-guides/style").click();
       await expect(page.getByTestId("resources-error")).toContainText("plot");
     }),

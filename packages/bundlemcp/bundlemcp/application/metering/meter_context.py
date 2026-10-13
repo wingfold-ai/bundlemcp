@@ -10,11 +10,11 @@ class MeterContext(BaseModel):
         description="Caller identity: a user id, 'api_key:<id>', or None when anonymous"
     )
     email: str | None = Field(description="Caller email when the identity provider supplied one")
-    oidc_issuer: str | None = Field(  # MID-1
+    oidc_issuer: str | None = Field(  # PROT-24
         description="Identity provider that authenticated the caller; None for an API key "
         "or an anonymous caller"
     )
-    oidc_sub: str | None = Field(  # MID-1
+    oidc_sub: str | None = Field(  # PROT-24
         description="The caller's subject at that identity provider, stable across logins and "
         "independent of this gateway's database; None for an API key or an anonymous caller"
     )

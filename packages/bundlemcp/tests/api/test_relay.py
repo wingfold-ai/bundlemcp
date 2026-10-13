@@ -1,4 +1,4 @@
-"""Protocol-relay tests (spec 32): GET stream, list_changed, progress, cancel, elicitation.
+"""Protocol-relay tests: GET stream, list_changed, progress, cancel, elicitation.
 
 SSE streaming can't go through httpx's ASGITransport (it buffers the whole
 response), so these tests run the gateway on a real loopback uvicorn server —
@@ -136,7 +136,7 @@ UPSTREAMS = {"relay": relay_server, "modern": modern_server}
 
 
 def upstream_factory(server, extra_headers, *, observer=None, **handlers):
-    # `relay` is pinned to the handshake era by its protocol_mode (SRV-10);
+    # `relay` is pinned to the handshake era by its protocol_mode (UPS-10);
     # `modern` negotiates 2026-07-28 through server/discover.
     return Client(UPSTREAMS[server.name], mode=server.protocol_mode, **handlers)
 
@@ -735,7 +735,7 @@ async def test_subscriptions_listen_acknowledges_and_relays_list_changed(relay_e
 
 
 async def test_bundle_prompt_write_reaches_the_get_stream(relay_env):
-    """BPR-11: a handshake client hears that the prompt list changed, not the tool list."""
+    """BND-28: a handshake client hears that the prompt list changed, not the tool list."""
     http, app, base_url = relay_env
     session = await _initialize(http)
 
@@ -759,7 +759,7 @@ async def test_bundle_prompt_write_reaches_the_get_stream(relay_env):
 
 
 async def test_subscriptions_listen_relays_bundle_resource_changes(relay_env):
-    """BPR-11, PROT-17: prompt and resource list changes are acknowledged and delivered."""
+    """BND-28, PROT-17: prompt and resource list changes are acknowledged and delivered."""
     http, app, base_url = relay_env
     acknowledged = asyncio.Event()
 

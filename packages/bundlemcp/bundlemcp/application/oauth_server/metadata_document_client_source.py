@@ -35,7 +35,7 @@ class MetadataDocumentClientSource:
         return client_id.startswith(METADATA_DOCUMENT_SCHEME)
 
     async def resolve(self, client_id: str) -> OAuthClient | None:
-        # OAS-13
+        # AUTH-13
         document = await self._fetcher.fetch(client_id)
         try:
             document.check(fetched_from=client_id, allowed=self._allowed_redirect_uris)

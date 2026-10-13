@@ -28,7 +28,7 @@ async function load() {
   const endpointRequest = api.GET("/api/v1/me/endpoints");
   const bundlePath = { params: { path: { bundle_name: bundleName.value } } };
   const toolRequest = api.GET("/api/v1/me/bundles/{bundle_name}/tools", bundlePath);
-  // BPR-19: the context the bundle itself offers
+  // BND-36: the context the bundle itself offers
   const promptRequest = api.GET("/api/v1/me/bundles/{bundle_name}/prompts", bundlePath);
   const resourceRequest = api.GET("/api/v1/me/bundles/{bundle_name}/resources", bundlePath);
   const { data: endpointData, error: endpointError } = await endpointRequest;

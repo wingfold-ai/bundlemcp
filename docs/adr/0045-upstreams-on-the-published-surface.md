@@ -20,7 +20,7 @@ Inventory at `9ec1a70`:
 | Management API routes under `/servers` | 13, plus 3 bundle-membership routes under `/bundles/{name}/servers` |
 | OpenAPI tag `servers` | 1 controller |
 | Bootstrap document keys | `servers` at the top level and in each bundle entry |
-| Export / import document | `servers` key specified (EXP-1); not implemented yet |
+| Export / import document | `servers` key specified (MGMT-17); not implemented yet |
 | Admin UI | 2 pages under `/servers`, 1 nav entry, 9 files referencing the label or route |
 | User documentation | 19 references to `/api/v1/servers` across 5 pages, plus `deploy/seed.yaml` |
 | Payload fields | `server_name`, `server_id`, `server_url`, `server_info`, the metering context's `server`, the audit record's `server_name` |
@@ -40,15 +40,15 @@ Inventory at `9ec1a70`:
   the property that tells it apart from the gateway itself. On the wire it is always the short form: `upstreams` in
   paths, the OpenAPI tag and JSON and YAML keys, `/upstreams` for UI routes. Prose and UI titles say *upstream
   server*; the documentation introduces the term as "upstream server (upstream for short)" and uses either afterwards,
-  so the wire name is one a reader has already met ([SRV-16](../../spec/10-server-registry.md),
-  [UI-7](../../spec/60-admin-ui.md)).
+  so the wire name is one a reader has already met ([UPS-16](../../openspec/specs/upstreams/spec.md),
+  [UI-7](../../openspec/specs/admin-ui/spec.md)).
 - **Scope.** Collection nouns only: route paths, document keys, the tag, UI copy and routes. Payload field names stay
   (`server_name` on a tool or an audit record is already qualified by its object), and so do Python class names; both
   can follow later without touching the published contract.
 - **No transition.** The old names go in one step: `/api/v1/servers` answers `404`, the admin UI's `/servers` pages
   are gone, and a bootstrap document that still says `servers` is rejected. The bootstrap document and its bundle
   entries now refuse unknown keys, so an outdated document fails at startup instead of quietly provisioning nothing
-  ([BOOT-8](../../spec/41-bootstrap.md)).
+  ([MGMT-15](../../openspec/specs/management/spec.md)).
 
 ## Alternatives considered
 

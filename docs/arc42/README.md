@@ -1,9 +1,9 @@
 # bundlemcp — arc42 Architecture Documentation
 
 Structured per the [arc42](https://arc42.org) template. The `/spec` folder is the **normative** source (requirement IDs
-like `SRV-1`, `SES-14`); these sections carry rationale, views, and cross-cutting concepts and reference specs instead
+like `UPS-1`, `SES-14`); these sections carry rationale, views, and cross-cutting concepts and reference specs instead
 of duplicating them. Diagrams come from the LikeC4 model in [`../likec4/`](../likec4/)
-([ADOC-3](../../spec/62-architecture-documentation.md)).
+([DOC-9](../../openspec/specs/documentation/spec.md)).
 
 | § | Section |
 |---|---|

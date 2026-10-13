@@ -77,7 +77,7 @@ HTTP POST /{endpoint}/mcp
         ├─ metering.pre_call(ctx)           deny → DENIED + error
         ├─ _forward_headers(request, server, sub)   then merge upstream bearer
         ├─ _drive_upstream(…)               per-call FastMCP client → call_tool_mcp
-        │     └─ reactive OAuth retry once on upstream 401 (UPO-4)
+        │     └─ reactive OAuth retry once on upstream 401 (UPS-28)
         └─ finalize → metering.post_call + audit.record → JSON-RPC result/error
 ```
 
@@ -95,9 +95,9 @@ Key points that are easy to miss:
   bucketing.
 - **Upstream OAuth is resolved before metering** so that a call to an unconnected upstream returns a "connect here"
   error and is never billed.
-- **Connect-account tools (UPO-3, ADR-0037).** `tools/list` appends `<server>__connect_account` for each per-user member
-  server the signed-in caller has not connected; `AccountConnectPrompts` decides which. A `tools/call` naming one is
-  answered by `ToolsCallHandler` with the connect URL before the pipeline starts, so it is neither metered nor sent
+- **Connect-account tools (UPS-27, ADR-0037).** `tools/list` appends `<server>__connect_account` for each per-user
+  member server the signed-in caller has not connected; `AccountConnectPrompts` decides which. A `tools/call` naming one
+  is answered by `ToolsCallHandler` with the connect URL before the pipeline starts, so it is neither metered nor sent
   upstream.
 - **Two response shapes.** If the client passed a `progressToken`, the response is an SSE stream of
   `notifications/progress` frames followed by the final result; otherwise it's a single buffered JSON-RPC frame.
@@ -120,19 +120,19 @@ this endpoint expose, under what names, with what annotations." The pipeline is
 2. Member servers: the `BundleServer` join, keeping only `enabled` members (BND-4).
 3. Curation map: the bundle's `BundleTool` rows, keyed by tool id.
 4. For each `Tool` belonging to an enabled member:
-   - **Disabled?** `BundleTool.enabled is False` → skip. (TM-2: a disabled tool is filtered from `tools/list` *and*
+   - **Disabled?** `BundleTool.enabled is False` → skip. (BND-13: a disabled tool is filtered from `tools/list` *and*
      rejected on `tools/call` — hiding alone isn't enough.)
    - **Presented name:** `override_name` if set, otherwise `f"{server.name}__{tool.name}"`. `PREFIX_SEP = "__"` is the
      collision-free namespace separator (BND-2), which is also why server names may not contain `__`.
    - **Annotations:** apply the profile transform, then merge per-tool annotation overrides on top (explicit overrides
-     win, TM-4).
+     win, BND-15).
    - **title / description:** per-bundle overrides else the tool's own.
 5. Sort by presented name → `BundleView`.
 
 `BundleView.resolve(presented_name)` is an exact-match scan, so it matches both override names and default
 `server__tool` names.
 
-**ChatGPT profile re-annotation (PROF-3):** `_apply_profile_annotations` — when the endpoint's profile is `chatgpt`, it
+**ChatGPT profile re-annotation (EP-12):** `_apply_profile_annotations` — when the endpoint's profile is `chatgpt`, it
 merges `readOnlyHint=True` and `destructiveHint=False` onto a copy of each tool's annotations. The tools still perform
 their real upstream operations; only the *labels* change, which is why the profile carries an explicit warning in the
 UI.
@@ -142,23 +142,23 @@ UI.
 ## 3. Tool discovery (`discovery.py`)
 
 Discovery is the **only writer of the `Tool` cache** in Postgres; `tools/list` reads exclusively from that cache
-(DISC-4), so serving tools never fans out to upstreams.
+(UPS-20), so serving tools never fans out to upstreams.
 
 - **When:** `DiscoveryService.schedule_probe(server_id)` fires a best-effort background task that never blocks the
   caller (e.g. after a server is created or updated via `ServerService`, or after an upstream OAuth connect completes).
   It is never on the request path.
-- **Credentials (UPO-9):** an `upstream_oauth` server is probed with the shared connection's bearer, or any user's for a
-  `per_user` server. With none the result is "upstream not connected", which does not count toward the error streak. A
+- **Credentials (UPS-33):** an `upstream_oauth` server is probed with the shared connection's bearer, or any user's for
+  a `per_user` server. With none the result is "upstream not connected", which does not count toward the error streak. A
   probe that changes the tool set invalidates the server's bundles, which sends `tools/list_changed` to their live
   streams.
 - **How:** `discover(server_id)` opens a FastMCP client to the server, calls `list_tools()`, and reads the `initialize`
-  result. Advertised capabilities are snapshotted onto `McpServer.capabilities` (DISC-6) to feed capability aggregation
+  result. Advertised capabilities are snapshotted onto `McpServer.capabilities` (UPS-22) to feed capability aggregation
   at `initialize`.
 - **Change detection:** each upstream tool is hashed (`tool_schema_hash` = SHA-256 over a canonical JSON of
-  name/title/description/ input_schema/annotations). A row is rewritten only when its hash changed (DISC-2);
+  name/title/description/ input_schema/annotations). A row is rewritten only when its hash changed (UPS-18);
   `last_seen_at` is always bumped. Tools that vanish upstream are **not deleted** — they keep their old `last_seen_at`
-  (DISC-3).
-- **Health (SRV-4):** a per-server consecutive-failure counter flips `health_status` to `error` after N attempts
+  (UPS-19).
+- **Health (UPS-4):** a per-server consecutive-failure counter flips `health_status` to `error` after N attempts
   (default 3) and self-heals to `ok` on the next success.
 
 ---
@@ -191,14 +191,14 @@ client's reply comes back in through `mcp_post` and is routed to the waiting fut
 ## 5. State propagation — the invalidation bus (`infrastructure/valkey/invalidation_subscriber.py`)
 
 Config and topology changes must reach every replica without a restart. A single Redis pub/sub channel `bmcp:invalidate`
-(STP-1) carries `InvalidationEvent`s (`entity_type` ∈ server/bundle/bundle_tool/endpoint/api_key/config; `action` ∈
+(SES-17) carries `InvalidationEvent`s (`entity_type` ∈ server/bundle/bundle_tool/endpoint/api_key/config; `action` ∈
 created/updated/deleted; `key` = natural key or uuid). Services publish an event **after they commit** a change.
 
 Each replica runs one `InvalidationSubscriber`. On every (re)subscribe it first runs the reconnect-flush callbacks — a
 subscription *gap* means it may have missed events, so it flushes caches wholesale — then dispatches each event. The
 wiring in `app.py::_on_invalidation` reacts to two entity types:
 
-- **`config`** → `RuntimeConfig.flush()`. The per-replica config cache is dropped and lazily reloaded (STP-2); config
+- **`config`** → `RuntimeConfig.flush()`. The per-replica config cache is dropped and lazily reloaded (SES-18); config
   never propagates by TTL.
 - **`bundle` / `endpoint`** → BND-7 `list_changed`. Every live session whose `bundle_name`/`endpoint_name` matches the
   changed key is sent `notifications/tools/list_changed`. Each replica walks only *its own* local streams, so together
@@ -211,17 +211,17 @@ Note this `bmcp:invalidate` channel (one channel, `subscribe`) is a separate bus
 
 ## 6. Rate limiting (`ratelimit.py`)
 
-A **fixed-window counter** keyed to Redis server time so all replicas share the window (RATE-2/7):
+A **fixed-window counter** keyed to Redis server time so all replicas share the window (EP-17/22):
 `bucket = now // window`, `INCR bmcp:rate:{scope}:{bucket}`, `EXPIRE window*2` on first hit, `allowed = count <= limit`,
 `retry_after = window - (now % window)`.
 
 - **Two scopes per endpoint**, both from `Endpoint.rate_limit`: an endpoint-wide limit (`ep:{name}:all`) and a
   per-client limit (`ep:{name}:{identity}`) where identity is `user:{id}` / `apikey:{id}` / `ip:{ip}` (EP-6).
-  `initialize`/`tools/list` are exempt unless `include_initialize_list` is set (RATE-4). Exceed → JSON-RPC `-32000` at
+  `initialize`/`tools/list` are exempt unless `include_initialize_list` is set (EP-19). Exceed → JSON-RPC `-32000` at
   HTTP 429 with `Retry-After`. A rate rejection is a metric, never an audit record.
-- **Fail-open by default (RATE-6):** any Redis error during a check logs, bumps a counter, and *allows* the request —
+- **Fail-open by default (EP-21):** any Redis error during a check logs, bumps a counter, and *allows* the request —
   unless the endpoint opts into `fail_closed`.
-- **Auth-failure lockout (RATE-5):** a separate gateway-wide, IP-keyed `AuthFailureLimiter` (scope `authfail:{ip}`)
+- **Auth-failure lockout (EP-20):** a separate gateway-wide, IP-keyed `AuthFailureLimiter` (scope `authfail:{ip}`)
   throttles credential scanning. It is invoked on any auth miss at the MCP edge and at the OAuth token endpoint, and it
   always fails open. A valid credential never touches it.
 
@@ -234,13 +234,13 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   `audit_retention_days`). `coerce` type-validates and rejects unknown keys. Stored overrides live in `config_entries`;
   `RuntimeConfig` caches the effective values per replica and `flush`es on invalidation.
 - **Audit (`audit.py`):** `AuditWriter` owns a bounded in-process queue. `record()` is `put_nowait` — fire-and-forget,
-  never blocks or fails the call path; queue overflow is a metric + log, not silent loss (AUD-3). A background drain
+  never blocks or fails the call path; queue overflow is a metric + log, not silent loss (OPS-3). A background drain
   writes one `AuditRecord` per row. Records carry endpoint/bundle/tool identity, `status` (success/error/denied),
-  reason/error, duration, and caller identity — this is the metering reconciliation source (AUD-7).
+  reason/error, duration, and caller identity — this is the metering reconciliation source (OPS-7).
 - **Metering (`metering.py`):** a `MeteringHook` protocol (`pre_call` → allow/deny, `post_call` → settle/refund) loaded
   from a `"module:attr"` path; default is a no-op. A fresh idempotency key is minted per client invocation and reused
-  across internal retries (MID-3), so a reactive OAuth retry is not double-billed. This is the seam an application layer
-  hooks billing into.
+  across internal retries (PROT-26), so a reactive OAuth retry is not double-billed. This is the seam an application
+  layer hooks billing into.
 - **Egress / SSRF (`egress.py`):** `check_url_allowed` runs before every upstream connection. It resolves *all*
   addresses for the host (so a hostname can't smuggle a blocked IP) and evaluates: explicit allow CIDRs first, then an
   always-blocked set (link-local/metadata `169.254.0.0/16`, IPv6 link-local, loopback), then operator deny CIDRs
@@ -253,7 +253,7 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   deny-list (`host`, `content-length`, `cookie`, `x-api-key`, `mcp-session-id`, any `sec-*`/`proxy-*`) — note
   `authorization` is *not* denied, so it can be forwarded (the seo-gsc introspection pattern, see the OAuth doc). Any
   client-supplied `X-MCP-User` is always stripped; the gateway injects its own `X-MCP-User: {sub}` when
-  `send_identity_header` is set (FWD-2/FWD-3).
+  `send_identity_header` is set (AUTH-28/AUTH-29).
 - **Protocol version (`protocol_version.py`):** negotiates against `SUPPORTED_PROTOCOL_VERSIONS` (newest first);
   requests older than the oldest supported fail `initialize`. `translate()` is an identity seam for future cross-version
   shimming.

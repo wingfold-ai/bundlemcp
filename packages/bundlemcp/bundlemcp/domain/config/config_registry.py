@@ -38,11 +38,11 @@ DEFAULTS: dict[str, ConfigSetting] = {
     "session_lifetime": ConfigSetting(default=86400, value_type=int),
     # PROT-16 (milliseconds a client may keep a tools/prompts/resources list)
     "list_cache_ttl_ms": ConfigSetting(default=300000, value_type=int),
-    # SRV-4
+    # UPS-4
     "server_error_attempts": ConfigSetting(default=3, value_type=int),
-    # AUD-5 (days)
+    # OPS-5 (days)
     "audit_retention_days": ConfigSetting(default=90, value_type=int),
-    # OAS-3 / OAS-4 (seconds): what the gateway's own OAuth server issues
+    # AUTH-3 / AUTH-4 (seconds): what the gateway's own OAuth server issues
     "authorization_code_lifetime": ConfigSetting(default=600, value_type=int),
     "access_token_lifetime": ConfigSetting(default=3600, value_type=int),
     "refresh_token_lifetime": ConfigSetting(default=604800, value_type=int),

@@ -1,4 +1,4 @@
-# Apache rules for the docs site on Infomaniak web hosting (spec 61 DOC-6).
+# Apache rules for the docs site on Infomaniak web hosting (DOC-6).
 RewriteEngine on
 
 # Send every HTTP request to HTTPS (Infomaniak FAQ 1961).

@@ -1,4 +1,4 @@
-"""Multi Round-Trip Requests for modern-era clients (spec 32 PROT-18, spec 30 SES-16).
+"""Multi Round-Trip Requests for modern-era clients (PROT-18, SES-16).
 
 A modern client cannot be sent a server-initiated request, so an upstream's
 request for input becomes an ``input_required`` result the client answers by
@@ -238,7 +238,7 @@ async def test_passthrough_forwards_the_upstreams_input_required(env):
     )
     assert final["result"]["content"][0]["text"] == "hi Ada"
     assert final["result"]["resultType"] == "complete"
-    # MID-3: both legs are one invocation to the hook; post_call only when it ended
+    # PROT-26: both legs are one invocation to the hook; post_call only when it ended
     assert len(hook.pre) == 2 and hook.pre[0] == hook.pre[1]
     assert hook.post == ["result"]
     assert await _audit_statuses(app) == ["input_required", "success"]

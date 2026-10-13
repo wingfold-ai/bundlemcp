@@ -14,7 +14,7 @@ from bundlemcp.domain.oauth.token_endpoint_auth_method import TokenEndpointAuthM
 from bundlemcp.domain.shared.secret_generator import SecretGenerator
 from bundlemcp.domain.shared.secret_hasher import SecretHasher
 
-REGISTRATION_RATE_SCOPE = "dcr:{ip}"  # OAS-12: per-IP registration counter
+REGISTRATION_RATE_SCOPE = "dcr:{ip}"  # AUTH-12: per-IP registration counter
 
 
 class ClientRegistrationService:
@@ -54,7 +54,7 @@ class ClientRegistrationService:
         quota of unused registrations is spent.
         """
         self._check_redirect_uris(request.redirect_uris)
-        if self._policy.limits_per_ip(request.redirect_uris):  # OAS-12 / SEC-8
+        if self._policy.limits_per_ip(request.redirect_uris):  # AUTH-12 / SEC-8
             rate = await self._rate_limiter.check(
                 REGISTRATION_RATE_SCOPE.format(ip=client_ip),
                 self._policy.per_ip_limit,
@@ -88,7 +88,7 @@ class ClientRegistrationService:
         await self._uow.commit()
         return ClientRegistrationResponse(
             client_id=client_id,
-            client_secret=client_secret,  # shown once (DOM-3)
+            client_secret=client_secret,  # shown once (ARC-18)
             client_name=request.client_name,
             redirect_uris=request.redirect_uris,
             grant_types=request.grant_types,
@@ -110,7 +110,7 @@ class ClientRegistrationService:
                     OAuthErrorCode.INVALID_REDIRECT_URI,
                     f"{uri} must be https, or http on localhost",
                 ) from None
-            if not self._policy.allowed_redirect_uris.permits(uri):  # OAS-2
+            if not self._policy.allowed_redirect_uris.permits(uri):  # AUTH-2
                 raise OAuthError(
                     OAuthErrorCode.INVALID_REDIRECT_URI,
                     f"{uri} is not a redirect URI this gateway accepts",

@@ -11,7 +11,7 @@ class BundleResourceUpsert(BaseModel):
     bundle, and to the model.
     """
 
-    name: BundleResourceName = Field(  # BPR-6
+    name: BundleResourceName = Field(  # BND-23
         description="Resource name, unique in the bundle; '/' separates folders, as in "
         "'guides/style'. Clients read it as bundle://resources/<name>"
     )
@@ -22,7 +22,7 @@ class BundleResourceUpsert(BaseModel):
     mime_type: ResourceMimeType = Field(
         default=ResourceMimeType.MARKDOWN, description="Text format of the content"
     )
-    content: str = Field(  # BPR-16, BPR-17
+    content: str = Field(  # BND-33, BND-34
         description="The document itself, at most 256 KiB, and at most 4 MiB across the "
         "bundle's resources. Not secret: served to every caller of the bundle and to the model"
     )

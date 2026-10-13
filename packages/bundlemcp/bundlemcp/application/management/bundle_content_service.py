@@ -37,7 +37,7 @@ class BundleContentService:
     async def _commit(
         self, bundle: Bundle, action: Literal["created", "updated", "deleted"]
     ) -> None:
-        # BPR-11: the bundle's view changed, so its clients' lists did too
+        # BND-28: the bundle's view changed, so its clients' lists did too
         self._uow.invalidate(
             InvalidationEvent(entity_type=self._entity_type, key=bundle.name, action=action)
         )

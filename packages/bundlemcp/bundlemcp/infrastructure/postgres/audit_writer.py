@@ -10,7 +10,7 @@ from bundlemcp.infrastructure.postgres.rows.audit_record_row import AuditRecordR
 
 log = structlog.get_logger(__name__)
 
-QUEUE_MAX = 1000  # AUD-3: overflow is a metric/log event, not silent loss
+QUEUE_MAX = 1000  # OPS-3: overflow is a metric/log event, not silent loss
 
 
 class QueuedAuditWriter:
@@ -18,7 +18,7 @@ class QueuedAuditWriter:
         self._sessions = session_factory
         self._queue: asyncio.Queue[AuditRecord] = asyncio.Queue(maxsize=QUEUE_MAX)
         self._task: asyncio.Task | None = None
-        self.dropped = 0  # exported as a metric (OBS-2)
+        self.dropped = 0  # exported as a metric (OPS-9)
 
     async def start(self) -> None:
         self._task = asyncio.create_task(self._drain())

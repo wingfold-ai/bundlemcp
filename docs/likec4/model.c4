@@ -1,5 +1,5 @@
 // bundlemcp — LikeC4 model (single source for context/container views)
-// Rendered via `npx likec4` (CLI or VS Code extension). See spec/62.
+// Rendered via `npx likec4` (CLI or VS Code extension). See the documentation spec.
 
 specification {
   // Palette of the documentation site: the wordmark teal for what bundlemcp

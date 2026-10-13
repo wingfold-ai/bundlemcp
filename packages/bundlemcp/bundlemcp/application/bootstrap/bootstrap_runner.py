@@ -67,20 +67,20 @@ class BootstrapRunner:
             endpoints = EndpointService(uow)
             for server in doc.upstreams:
                 await servers.upsert(server)
-                if server.upstream_oauth is not None:  # BOOT-9
+                if server.upstream_oauth is not None:  # MGMT-16
                     await upstream_clients.set_client(server.name, server.upstream_oauth)
             for bundle in doc.bundles:
                 await bundles.upsert(bundle)
                 for server_name in bundle.upstreams:
                     await bundles.set_member(bundle.name, server_name, BundleServerUpdate())
-                # BPR-15: resources first, since a prompt may embed one
+                # BND-32: resources first, since a prompt may embed one
                 for resource in bundle.resources:
                     await bundle_resources.upsert(bundle.name, resource)
                 for prompt in bundle.prompts:
                     await bundle_prompts.upsert(bundle.name, prompt)
             for endpoint in doc.endpoints:
                 await endpoints.upsert(endpoint)
-        # DISC-1 / BOOT-7: a probe opens its own unit of work, so it must not
+        # UPS-17 / MGMT-14: a probe opens its own unit of work, so it must not
         # start before the document's transaction has committed the servers.
         await probes.release()
 
@@ -92,7 +92,7 @@ class BootstrapRunner:
         """
         documents: dict[str, BootstrapDocument] = {}
         try:
-            if settings.bootstrap_file:  # BOOT-1
+            if settings.bootstrap_file:  # MGMT-8
                 documents["file"] = load_document(settings.bootstrap_file)
             if settings.bootstrap:
                 documents["inline"] = parse_document(settings.bootstrap)

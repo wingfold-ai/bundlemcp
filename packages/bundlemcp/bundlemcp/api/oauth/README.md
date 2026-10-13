@@ -60,7 +60,7 @@ claude.ai                          gateway                         Keycloak (IdP
 
 `POST /oauth/register` (201). Rate-limited per IP (10 / hour, fails open). Redirect URIs must be `https` (or `http` only
 for localhost). Mints `client_id = bmcp_client_…`; for confidential clients a `client_secret` is generated, **hashed**
-into `OAuthClient.client_secret_hash`, and the plaintext returned exactly once (DOM-3). Row lands in `oauth_clients`.
+into `OAuthClient.client_secret_hash`, and the plaintext returned exactly once (ARC-18). Row lands in `oauth_clients`.
 
 ### Authorize — `authorize_controller.py` + `AuthorizationService`
 
@@ -74,7 +74,7 @@ into `OAuthClient.client_secret_hash`, and the plaintext returned exactly once (
    `oauth` in its `auth_modes`.
 5. **Login bounce:** if there's no admin browser session, 302 to `/login?next=<return url>`, where the return URL is
    rebuilt from `public_url` (not the incoming Host — see §5; this is the reverse-proxy fix).
-6. **Persisted-consent skip (OAS-11):** if an un-revoked `OAuthConsent` row already exists for
+6. **Persisted-consent skip (AUTH-11):** if an un-revoked `OAuthConsent` row already exists for
    `(user, client, endpoint)`, issue a code immediately with no screen.
 7. Otherwise store a single-use consent token in Redis (`bmcp:pendingconsent:{token}`, 600s) and render `consent.html`
    (hardened headers: strict CSP, `X-Frame-Options: DENY`, `no-store`).
@@ -83,7 +83,7 @@ into `OAuthClient.client_secret_hash`, and the plaintext returned exactly once (
 
 The consent POST reads-and-deletes the single-use Redis token (400 if expired), re-checks the session user matches,
 writes the `oauth_consents` row on approve, and issues a code. The code is `token_urlsafe(32)`; only its
-**SHA-256 hash** is stored (`oauth_authorization_codes`, PK = hash, OAS-8), alongside the PKCE challenge, the endpoint
+**SHA-256 hash** is stored (`oauth_authorization_codes`, PK = hash, AUTH-8), alongside the PKCE challenge, the endpoint
 audience, and a 10-minute expiry.
 
 > Operational note learned the hard way: the consent token is single-use, so a double-submitted approve returns "consent
@@ -111,12 +111,12 @@ per-IP auth-failure limiter.
   `{active, sub, client_id, scope, exp, aud, email}` for a valid OAuth token. Two special cases matter for upstream auth
   (system d):
   - A forwarded **gateway API key** presented as the token introspects as
-    `{"active": true, "sub": "api_key:<id>", "token_use": "api_key"}` (FWD-4), so an introspecting upstream can serve
+    `{"active": true, "sub": "api_key:<id>", "token_use": "api_key"}` (AUTH-30), so an introspecting upstream can serve
     API-key callers.
   - This is what makes the seo-gsc pattern work — see [§4](#4-gateway--protected-upstream-system-d).
 - **`POST /oauth/revoke` (RFC 7009)** authenticates the client like the token endpoint (RFC 7009 §2.1; a public client
   by `client_id` alone) and flips `revoked` on a matching access or refresh token issued to that client; always 200 for
-  an unknown or foreign token, 401 (counted toward the RATE-5 lockout) for a client that cannot authenticate.
+  an unknown or foreign token, 401 (counted toward the EP-20 lockout) for a client that cannot authenticate.
 - **`TokenPurgeService`**, run by `TokenPurger` from the composition root, deletes expired codes, long-dead refresh
   rows, and never-used stale clients (SEC-8).
 
@@ -142,10 +142,10 @@ Files: `controllers/login_controller.py`, `infrastructure/oidc/jose_oidc_provide
 - **`GET /login/callback?code&state`** reads-and-deletes the state (CSRF), exchanges the code (the provider validates
   the ID token against JWKS and checks the `nonce`), then `UserProvisioningService.provision`.
 - **`provision`** is create-or-update by `(oidc_issuer, oidc_sub)`. It refreshes `email`, `display_name`, and
-  **`is_admin` on every login** (ADM-3) — `is_admin` is true if the email is in `admin_emails` or the token carries a
+  **`is_admin` on every login** (AUTH-17) — `is_admin` is true if the email is in `admin_emails` or the token carries a
   `bundlemcp-admin` group. So revoking someone's admin email demotes them at their next login, not at some cache expiry.
 - A session is created and the **`bmcp_session`** cookie set: `httponly`, `samesite=lax`, `secure` iff `public_url` is
-  https, `max_age` 12h (forces periodic re-login, ADM-6). The session record (Redis `bmcp:adminsession:{id}`, 12h TTL)
+  https, `max_age` 12h (forces periodic re-login, AUTH-20). The session record (Redis `bmcp:adminsession:{id}`, 12h TTL)
   holds `user_id`/`email`/`is_admin`, but `is_admin`/`is_active` are **re-checked against the DB on every use**, so
   deactivation takes effect immediately.
 - **`POST /logout`** deletes the session and clears the cookie.
@@ -163,7 +163,7 @@ admin cookie **or** a service-kind API key:
    **CSRF Origin/Referer check (SEC-4)**: the `Origin`/`Referer` must match `public_url` or an allowlisted `web_origin`,
    else 403. (`SameSite=Lax` cookies plus this origin check is the CSRF defense; non-browser callers use keys instead.)
 2. **API key** (`Authorization: Bearer` / `X-API-Key`, never query params) → must be `kind == service`. A non-service
-   key is a deliberate 403 ("key is not service-kind", KEY-2).
+   key is a deliberate 403 ("key is not service-kind", AUTH-23).
 3. Otherwise 401.
 
 `AuthService` is framework-free (it takes header/cookie strings and a DB session, never a FastAPI `Request`) so the same
@@ -184,7 +184,7 @@ patterns, selected by `McpServer.auth_mode` and its `forward_headers`.
 ### (i) Static headers
 
 `auth_mode = static_headers` with a `static_headers` map (e.g. `Authorization: Bearer <static token>`). The values are
-write-only through the API (only header *names* are ever returned, SRV-3) and merged into every upstream request.
+write-only through the API (only header *names* are ever returned, UPS-3) and merged into every upstream request.
 Simplest case; no per-user identity.
 
 ### (ii) Gateway-managed upstream OAuth
@@ -200,12 +200,12 @@ Simplest case; no per-user identity.
   600s, read-once), and redirects to the upstream IdP. The callback (`/oauth/upstream/callback`) exchanges the code and
   saves the encrypted token.
 - **Token store (`UpstreamTokenService`, a facade over `UpstreamTokenRepository`, `UpstreamConnectFlow` and
-  `UpstreamTokenRefresher`):** keyed `(server_id, user_id)` with `user_id NULL = shared` (UPO-2). Tokens live in
+  `UpstreamTokenRefresher`):** keyed `(server_id, user_id)` with `user_id NULL = shared` (UPS-26). Tokens live in
   `upstream_oauth_tokens` (Fernet-encrypted JSON), client config in `upstream_oauth_clients`. `ensure_access_token`
   returns a valid bearer, refreshing proactively near expiry or on demand (`force=True`) after an upstream 401.
   Refreshes are single-flighted with a Redis lock so concurrent calls don't stampede the token endpoint.
 - **Identity modes:** `shared` (one token an admin establishes) vs `per_user` (a token per user; the caller must be an
-  authenticated MCP user at call time). UPO-6 forbids exposing a `per_user` upstream through a `none`-auth endpoint,
+  authenticated MCP user at call time). UPS-30 forbids exposing a `per_user` upstream through a `none`-auth endpoint,
   since there'd be no identity to key the token on.
 - **Encryption (`infrastructure/crypto/token_cipher.py`):** Fernet (AES-128-CBC + HMAC) via `MultiFernet`. Keys come
   from `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS`; the **first key encrypts, all keys decrypt**, so keys rotate without a
@@ -214,17 +214,17 @@ Simplest case; no per-user identity.
 - **Runtime (`mcp_endpoint._handle_call`):** the upstream bearer is resolved *before* metering (an unconnected upstream
   returns a "connect at …" error and is never billed), injected as `Authorization`, and merged so it wins over any
   forwarded header. A single reactive retry on upstream 401 force-refreshes and replays without re-metering
-  (UPO-4/MID-3).
+  (UPS-28/PROT-26).
 
 ### (iii) Forwarded caller bearer + upstream introspection (the seo-gsc pattern)
 
 Some upstreams (like `seo-gsc`) run their *own* OAuth and just want to know who the caller is. Here the server is
 `none`/`static_headers` with `forward_headers: {authorization: authorization}`. `_forward_headers` passes the caller's
 bearer through (`authorization` is not on the deny-list), and the upstream calls **our** `POST /oauth/introspect` (with
-a service key) to resolve it — getting back the OAuth `sub`, or `api_key:<id>` for API-key callers (FWD-1/ FWD-4). The
-upstream then maps that `sub` to its own per-user state (e.g. a stored Google token). Identity forwarding via
-`X-MCP-User` (FWD-3) is the lighter-weight sibling: the gateway injects a trusted `X-MCP-User: <sub>` header and strips
-any client-supplied one.
+a service key) to resolve it — getting back the OAuth `sub`, or `api_key:<id>` for API-key callers (AUTH-27/ AUTH-30).
+The upstream then maps that `sub` to its own per-user state (e.g. a stored Google token). Identity forwarding via
+`X-MCP-User` (AUTH-29) is the lighter-weight sibling: the gateway injects a trusted `X-MCP-User: <sub>` header and
+strips any client-supplied one.
 
 ---
 
@@ -258,7 +258,7 @@ management-API CSRF allowlist all go through `public_url`.
 | Upstream OAuth token | provider-issued | Fernet-encrypted JSON | provider expiry, auto-refresh |
 
 Nothing reversible is stored for gateway-issued credentials — only hashes. Upstream tokens are the sole secret held in a
-recoverable form, and those are encrypted with rotating keys and never logged or returned (DOM-3, spec 51).
+recoverable form, and those are encrypted with rotating keys and never logged or returned (ARC-18, the operations spec).
 
 ---
 

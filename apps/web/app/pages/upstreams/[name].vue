@@ -61,7 +61,7 @@ const forwardsCallerToken = computed(() =>
   fwdRows.value.some((r) => r.key.trim().toLowerCase() === "authorization"),
 );
 
-/** Apply the change a contradicting connection state calls for (SRV-12). */
+/** Apply the change a contradicting connection state calls for (UPS-12). */
 async function fixMismatch() {
   if (server.value?.connection_state === "oauth_required") {
     authMode.value = "upstream_oauth";
@@ -196,7 +196,7 @@ async function saveUpstream() {
   }
 }
 
-/** UPO-11: a client-credentials client connects with a grant, not a browser sign-in. */
+/** UPS-35: a client-credentials client connects with a grant, not a browser sign-in. */
 async function connectAsClient() {
   errorMsg.value = "";
   upConnecting.value = true;
@@ -290,7 +290,7 @@ onMounted(async () => {
     <p v-if="notFound" class="text-muted" data-testid="not-found">not found</p>
 
     <template v-else-if="server">
-      <!-- What the last probe found out (SRV-12) -->
+      <!-- What the last probe found out (UPS-12) -->
       <div class="flex flex-wrap items-center gap-2 text-sm" data-testid="connection-state">
         <UBadge
           :icon="CONNECTION_STATE_ICON[server.connection_state]"

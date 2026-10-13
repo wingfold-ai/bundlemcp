@@ -64,7 +64,7 @@ class CompletionHandler:
         ctx: RequestContext, message: JsonRpcMessage, name: str, argument: dict[str, Any]
     ) -> Response:
         """Complete from the argument's suggested values; no member is contacted."""
-        # BPR-5
+        # BND-22
         prompt = ctx.view.prompt(name)
         if prompt is None:
             return rpc_error(message.id, -32602, f"unknown prompt ref: {name}")

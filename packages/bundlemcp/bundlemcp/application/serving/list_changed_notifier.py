@@ -12,7 +12,7 @@ RESOURCES_LIST_CHANGED = "notifications/resources/list_changed"
 _CHANGED_LIST = {
     "bundle": TOOLS_LIST_CHANGED,  # BND-7
     "endpoint": TOOLS_LIST_CHANGED,
-    "bundle_prompt": PROMPTS_LIST_CHANGED,  # BPR-11
+    "bundle_prompt": PROMPTS_LIST_CHANGED,  # BND-28
     "bundle_resource": RESOURCES_LIST_CHANGED,
 }
 

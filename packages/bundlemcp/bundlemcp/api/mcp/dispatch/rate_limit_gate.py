@@ -52,7 +52,7 @@ class RateLimitGate:
             # down; serve unlimited and say so loudly.
             log.warning("ratelimit.config_malformed", endpoint=endpoint.name)
             return None
-        if not tool_call and not config.include_initialize_list:  # RATE-4
+        if not tool_call and not config.include_initialize_list:  # EP-19
             return None
 
         checks: list[tuple[str, RateRule]] = []

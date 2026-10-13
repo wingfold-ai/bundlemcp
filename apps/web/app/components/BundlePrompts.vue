@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The prompts a bundle itself serves (BPR-1, BPR-14): list, edit one at a time,
+ * The prompts a bundle itself serves (BND-18, BND-31): list, edit one at a time,
  * and preview it rendered with sample arguments, as prompts/get would.
  */
 import type { components } from "~~/types/api";
@@ -87,7 +87,7 @@ function addMessage(kind: MessageDraft["kind"]) {
   messages.value.push({ role: "user", kind, text: "", resource: resourceNames.value[0] ?? "" });
 }
 
-// BPR-3: placeholders the text uses but no argument declares; the gateway would refuse them
+// BND-20: placeholders the text uses but no argument declares; the gateway would refuse them
 const undeclared = computed(() => {
   const declared = new Set(args.value.map((a) => a.name));
   const used = messages.value.flatMap((m) => (m.kind === "text" ? promptPlaceholders(m.text) : []));

@@ -12,16 +12,16 @@ class BootstrapDocument(BaseModel):
     list name fails loudly instead of quietly provisioning nothing.
     """
 
-    model_config = ConfigDict(extra="forbid")  # BOOT-8
+    model_config = ConfigDict(extra="forbid")  # MGMT-15
 
-    version: int = Field(  # EXP-1: the export format this document follows
+    version: int = Field(  # MGMT-17: the export format this document follows
         default=1,
         ge=1,
         le=1,
         description="Format version of the document. Only 1 exists; a future format bumps it "
         "so an old document is rejected with a clear error rather than misread",
     )
-    upstreams: list[BootstrapServer] = Field(  # BOOT-8
+    upstreams: list[BootstrapServer] = Field(  # MGMT-15
         default=[],
         description="Upstream servers to register or update, each optionally with the OAuth "
         "client the gateway presents to it",

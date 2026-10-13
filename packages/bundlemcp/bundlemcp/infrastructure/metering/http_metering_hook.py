@@ -16,7 +16,7 @@ log = structlog.get_logger(__name__)
 
 Sleep = Callable[[float], Awaitable[None]]
 
-# MID-6: a post-call is tried five times within about a minute: the waits
+# PROT-29: a post-call is tried five times within about a minute: the waits
 # between tries, plus up to one timeout per try.
 POST_CALL_RETRY_DELAYS = (1.0, 3.0, 9.0, 27.0)
 # How long shutdown waits for post-calls still being delivered.

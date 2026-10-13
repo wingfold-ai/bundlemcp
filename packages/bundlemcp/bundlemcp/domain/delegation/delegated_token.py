@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 DELEGATION_CLIENT_ID = "bundlemcp-delegation"  # the client every delegated token is issued to
-DELEGATED_TOKEN_TTL_SECONDS = 300  # FWD-6
+DELEGATED_TOKEN_TTL_SECONDS = 300  # AUTH-32
 ENDPOINT_ACTOR_PREFIX = "endpoint:"
 
 

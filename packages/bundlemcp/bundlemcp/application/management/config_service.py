@@ -17,7 +17,7 @@ class ConfigService:
         self._entries = uow.config_entries
 
     def _invalidate(self, key: str, action: str) -> None:
-        # STP-1
+        # SES-17
         self._uow.invalidate(
             InvalidationEvent(entity_type="config", key=key, action=action)  # type: ignore[arg-type]
         )

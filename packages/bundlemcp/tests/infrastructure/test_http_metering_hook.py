@@ -1,4 +1,4 @@
-"""The HTTP metering hook's delivery rules, against an httpx MockTransport (MID-6)."""
+"""The HTTP metering hook's delivery rules, against an httpx MockTransport (PROT-29)."""
 
 import httpx
 from bundlemcp.application.metering.meter_context import MeterContext
@@ -44,7 +44,7 @@ def _hook(answer: httpx.Response | Exception, waits: list[float]) -> tuple[HttpM
 
 
 async def test_post_call_gives_up_after_five_tries():
-    """MID-6: a hook service that never takes the post-call is tried five times, then
+    """PROT-29: a hook service that never takes the post-call is tried five times, then
     the failure is logged with the key to reconcile on."""
     waits: list[float] = []
     hook, sent = _hook(httpx.ConnectError("refused"), waits)
@@ -56,7 +56,7 @@ async def test_post_call_gives_up_after_five_tries():
 
 
 async def test_post_call_rejected_by_the_service_is_not_retried():
-    """MID-6: a 4xx other than 429 is an answer, not a transport failure."""
+    """PROT-29: a 4xx other than 429 is an answer, not a transport failure."""
     waits: list[float] = []
     hook, sent = _hook(httpx.Response(400), waits)
     await hook.post_call(CTX, MeterOutcome.RESULT, 12)
@@ -65,7 +65,7 @@ async def test_post_call_rejected_by_the_service_is_not_retried():
 
 
 async def test_post_call_does_not_wait_for_delivery():
-    """MID-6: the tool result never waits for the hook; shutdown drains what is in flight."""
+    """PROT-29: the tool result never waits for the hook; shutdown drains what is in flight."""
     waits: list[float] = []
     hook, sent = _hook(httpx.Response(204), waits)
     await hook.post_call(CTX, MeterOutcome.TOOL_ERROR, 5)

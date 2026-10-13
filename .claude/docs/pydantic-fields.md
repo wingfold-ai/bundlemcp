@@ -80,11 +80,11 @@ default appears in the schema alongside them. `default_factory` for mutable defa
 ## No requirement IDs in descriptions
 
 The rule that keeps spec numbers out of docstrings applies with more force here: descriptions are published to API
-consumers and to operators. `SRV-5` means nothing to either. Keep the ID in an adjacent `#` comment and write the
+consumers and to operators. `UPS-5` means nothing to either. Keep the ID in an adjacent `#` comment and write the
 description in plain terms.
 
 ```python
-force: bool = Field(  # SRV-5 rename acknowledgement
+force: bool = Field(  # UPS-5 rename acknowledgement
     default=False,
     description="Confirm a rename that would otherwise be rejected as ambiguous",
 )

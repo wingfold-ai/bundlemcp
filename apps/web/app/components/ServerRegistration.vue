@@ -257,7 +257,7 @@ watch([headerName, headerValue, source], () => {
   verified.value = "";
 });
 
-// SRV-13: the same default the gateway derives — on only for its own network
+// UPS-13: the same default the gateway derives — on only for its own network
 watch(url, (value) => {
   if (!identityHeaderTouched.value)
     sendIdentityHeader.value = connectionKind(value).network === "local";

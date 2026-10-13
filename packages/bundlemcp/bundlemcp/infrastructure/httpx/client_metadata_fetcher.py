@@ -13,9 +13,9 @@ from bundlemcp.application.oauth_server import ClientIdMetadataDocument
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, check_url_allowed
 
-CLIENT_METADATA_KEY = "bmcp:cimd:{digest}"  # OAS-13 cached client metadata documents
+CLIENT_METADATA_KEY = "bmcp:cimd:{digest}"  # AUTH-13 cached client metadata documents
 HTTP_TIMEOUT = 10
-DEFAULT_TTL = 3600  # OAS-13: bounded lifetime when the document names none
+DEFAULT_TTL = 3600  # AUTH-13: bounded lifetime when the document names none
 MAX_TTL = 3600
 MIN_TTL = 60
 _MAX_AGE = re.compile(r"max-age=(\d+)")

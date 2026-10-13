@@ -71,10 +71,10 @@ from bundlemcp.main.composition_overrides import CompositionOverrides
 from bundlemcp.main.container import AppContainer
 from bundlemcp.main.mcp_gateway_assembly import McpGatewayAssembly
 
-# Where the gateway publishes its own client metadata document for upstreams (UPO-1).
+# Where the gateway publishes its own client metadata document for upstreams (UPS-25).
 UPSTREAM_CLIENT_DOCUMENT_PATH = "/oauth/upstream/client.json"
 
-# Key layouts of the browser-state records parked in the live store (spec 20, 23).
+# Key layouts of the browser-state records parked in the live store (OAuth server, upstream OAuth).
 PENDING_CONSENT_PREFIX = "bmcp:pendingconsent"
 OIDC_STATE_PREFIX = "bmcp:oidcstate"
 CONNECT_STATE_PREFIX = "bmcp:upstream-connect"
@@ -145,12 +145,12 @@ class CompositionRoot:
             if cipher is not None
             else None
         )
-        delegated_tokens = DelegatedTokenIssuer(  # FWD-6
+        delegated_tokens = DelegatedTokenIssuer(  # AUTH-32
             ValkeyDelegatedTokenStore(redis), clock=clock, generator=generator, hasher=hasher
         )
         upstream_probe = FastMcpUpstreamProbe(client_factory)
-        diagnoser = ConnectionDiagnoser(upstream_oauth)  # SRV-12
-        # DISC-1: upstream-OAuth servers are probed with a connected account's token
+        diagnoser = ConnectionDiagnoser(upstream_oauth)  # UPS-12
+        # UPS-17: upstream-OAuth servers are probed with a connected account's token
         discovery = DiscoveryService(
             units,
             upstream_probe,
@@ -171,8 +171,8 @@ class CompositionRoot:
         self._stack.push_async_callback(signals.stop)
         session_store = ValkeySessionStore(redis)
 
-        counters = overrides.counters or InProcessCounters()  # RATE-3 metric seam
-        auth_failure_limiter = overrides.auth_failure_limiter or ValkeyAuthFailureLimiter(  # RATE-5
+        counters = overrides.counters or InProcessCounters()  # EP-18 metric seam
+        auth_failure_limiter = overrides.auth_failure_limiter or ValkeyAuthFailureLimiter(  # EP-20
             redis,
             limit=settings.auth_failure_limit,
             window=settings.auth_failure_window,
@@ -204,14 +204,14 @@ class CompositionRoot:
         ).build()
 
         await self._ensure_initial_service_key(units, hasher, generator)
-        await BootstrapRunner(  # spec 41
+        await BootstrapRunner(  # the management spec
             units,
             discovery,
             cipher=cipher,
             connections=upstream_tokens or NoUpstreamConnections(),
         ).run(settings)
 
-        subscriber = InvalidationSubscriber(redis)  # STP-2: one subscriber per replica
+        subscriber = InvalidationSubscriber(redis)  # SES-18: one subscriber per replica
         subscriber.on_reconnect_flush(runtime_config.flush)
         subscriber.on_event(self._config_flush(runtime_config))
         subscriber.on_event(ListChangedNotifier(registry).on_invalidation)
@@ -219,11 +219,11 @@ class CompositionRoot:
         self._stack.push_async_callback(subscriber.stop)
         self._stack.callback(registry.close_streams)  # PROT-17: streams end with a result
 
-        purger = TokenPurger(units, clock)  # OAS-8/SEC-8: expired grants must not linger
+        purger = TokenPurger(units, clock)  # AUTH-8/SEC-8: expired grants must not linger
         purger.start()
         self._stack.callback(purger.stop)
 
-        if settings.discovery_refresh_interval:  # DISC-7: 0 disables the periodic refresh
+        if settings.discovery_refresh_interval:  # UPS-23: 0 disables the periodic refresh
             refresher = ToolRefresher(
                 discovery, ValkeyRefreshLock(redis), settings.discovery_refresh_interval
             )
@@ -278,7 +278,7 @@ class CompositionRoot:
             invalidation=subscriber,
             mcp_router=mcp_router,
             client_metadata=client_metadata,
-            # OAS-4: the grants this server serves; OAS-2/OAS-13: how clients identify
+            # AUTH-4: the grants this server serves; AUTH-2/AUTH-13: how clients identify
             token_grants=(AuthorizationCodeGrant, RefreshTokenGrant),
             client_sources=(
                 lambda uow: RegisteredClientSource(uow.oauth_clients),
@@ -291,7 +291,7 @@ class CompositionRoot:
             registration_policy=registration_policy,
         )
 
-    # OAS-2 / OAS-12 / SEC-8
+    # AUTH-2 / AUTH-12 / SEC-8
     def _registration_policy(self) -> RegistrationPolicy:
         """The redirect URIs and registration limits the operator configured."""
         return RegistrationPolicy(
@@ -303,7 +303,7 @@ class CompositionRoot:
             max_unused_clients=self._settings.dcr_max_unused_clients,
         )
 
-    # UPO-1
+    # UPS-25
     def _client_document_url(self) -> str | None:
         """The gateway's client metadata document, when an authorization server can fetch it.
 
@@ -315,7 +315,7 @@ class CompositionRoot:
         return f"{self._settings.public_base}{UPSTREAM_CLIENT_DOCUMENT_PATH}"
 
     def _build_cipher(self) -> SecretCipher | None:
-        # spec 23 / DEP-9: without keys nothing is stored, so upstream_oauth
+        # the upstreams spec / DEP-9: without keys nothing is stored, so upstream_oauth
         # servers error clearly rather than storing plaintext.
         if not self._settings.token_encryption_keys:
             return None
@@ -340,7 +340,7 @@ class CompositionRoot:
         Startup does not wait for the issuer: an installer that creates the realm
         only once the gateway is ready would otherwise never see it ready.
         """
-        # ADM-7: discovery is retried in the background, never awaited here
+        # AUTH-21: discovery is retried in the background, never awaited here
         if self._overrides.oidc_provider is not None:
             return self._overrides.oidc_provider
         provider = build_provider(self._settings)
