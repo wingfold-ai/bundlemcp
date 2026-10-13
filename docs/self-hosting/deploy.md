@@ -46,8 +46,9 @@ changelog — see [Migrations and upgrades](#migrations-and-upgrades) for what t
 ## Public URL
 
 `BUNDLEMCP_PUBLIC_URL` is the single source of the externally visible base URL, for example `https://gw.example.com`.
-The OAuth issuer, the `.well-known` metadata, redirect URIs, consent pages and the admin session cookie's `Domain` and
-`Secure` attributes all derive from it, never from the incoming `Host` header.
+The OAuth issuer, the `.well-known` metadata, redirect URIs and consent pages all derive from it, never from the
+incoming `Host` header. The admin session cookie is host-only (it sets no `Domain`), and its `Secure` attribute follows
+the public URL's scheme: set when the URL is `https`.
 
 Set it to exactly what clients reach. A wrong value shows up as OAuth clients being sent to the wrong issuer, or a login
 cookie that never sticks.
@@ -324,7 +325,9 @@ The check resolves the hostname and tests every address it gets back, so a name
 cannot smuggle a blocked IP past a name-based check. It is a **pre-flight**
 check, though, not a connect-time one: the HTTP client resolves again when it
 connects, so a name whose DNS answer changes between the two resolutions is not
-covered. Redirects are not followed, so there is no per-hop gap.
+covered. Redirects are a second gap: the MCP client that talks to upstream servers follows them, and the check is not
+repeated for the address a redirect leads to. Until the policy is enforced at connect time, do not register an
+upstream you do not trust to keep its redirects inside your allow-list.
 
 ## Checklist
 

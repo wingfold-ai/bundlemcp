@@ -261,8 +261,9 @@ and a server whose tools change is picked up within one interval. Use the refres
 Tools that disappear upstream stay in the cache, marked by an old `last_seen_at`, so a bundle's curation of them
 survives a temporary outage.
 
-`health_status` is `ok`, `error` or `unknown`. It turns `error` after `server_error_attempts` consecutive failures (a
-runtime setting, default 3) and returns to `ok` on the next successful connection.
+`health_status` is `ok`, `error` or `unknown`. It turns `error` after 3 consecutive failed discovery probes and returns
+to `ok` on the next successful connection. The runtime setting `server_error_attempts` is meant to change that
+threshold, but nothing reads it yet: the threshold is fixed at 3.
 
 `connection_state` says *why*, and is updated on every probe: the states of
 [inspection](#inspecting-a-server-before-registering-it), plus `account_required` (upstream OAuth is set up but nobody

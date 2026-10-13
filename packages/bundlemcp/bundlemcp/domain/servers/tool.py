@@ -31,5 +31,5 @@ class Tool(BaseModel):
     last_seen_at: datetime = Field(
         default_factory=utcnow,
         description="When the tool was last reported. A stale value means it has disappeared "
-        "upstream and is no longer served, though its curation is kept",
+        "upstream; its curation is kept, and it is still served until it is pruned",
     )

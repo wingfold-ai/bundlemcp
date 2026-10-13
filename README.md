@@ -42,8 +42,9 @@ Then:
            "io.modelcontextprotocol/clientCapabilities":{}}}}'
    ```
 
-   The seed also registers four private fleet servers the default stack does not start; they show as
-   `health_status: error` until you remove them.
+   The seed also registers `oauth-demo`, an OAuth-protected example upstream, and two more endpoints on the `demo`
+   bundle (`claude` and `chatgpt`). The maintainers' private fleet is not part of the default seed; it lives in
+   `deploy/seed.fleet.yaml`.
 3. Create an endpoint with the `claude` profile and connect it in claude.ai; the gateway runs the OAuth authorization
    server and the consent screen itself. claude.ai needs a public HTTPS URL, so this step wants a real deployment or a
    tunnel.

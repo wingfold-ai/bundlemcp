@@ -1,9 +1,9 @@
 """Structured logging for everything the process writes: structlog and stdlib alike.
 
 Uvicorn, SQLAlchemy and other libraries log through the standard library.
-Routing their records through the same structlog formatter keeps production
-stdout to one line format, so a log pipeline never meets a plain-text access
-log beside JSON application events.
+Routing their records through the same structlog formatter keeps the
+process's log output (standard error) to one line format, so a log pipeline
+never meets a plain-text access log beside JSON application events.
 """
 
 import logging
@@ -14,7 +14,7 @@ FOREIGN_LOGGERS = ("uvicorn", "uvicorn.access", "uvicorn.error")
 
 
 def configure_logging(level: str, log_format: str = "json") -> None:
-    """Send every log record to stdout in the chosen format, at the given minimum level.
+    """Send every log record to standard error in the chosen format, at the given minimum level.
 
     Safe to call more than once; each call replaces the previous handler.
     """

@@ -2462,7 +2462,7 @@ export interface components {
             /**
              * Last Seen At
              * Format: date-time
-             * @description When the tool was last reported by its server. A stale value means the tool has disappeared upstream and is no longer served
+             * @description When the tool was last reported by its server. A stale value means the tool has disappeared upstream; endpoints still serve it for now
              */
             last_seen_at: string;
             /**

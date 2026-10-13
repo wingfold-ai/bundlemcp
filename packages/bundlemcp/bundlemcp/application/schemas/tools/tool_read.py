@@ -21,5 +21,5 @@ class ToolRead(EntityRead):
     )
     last_seen_at: datetime = Field(
         description="When the tool was last reported by its server. A stale value means the "
-        "tool has disappeared upstream and is no longer served"
+        "tool has disappeared upstream; endpoints still serve it for now"
     )
