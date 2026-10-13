@@ -14,6 +14,8 @@ from bundlemcp.api.management.controllers import (
     ApiKeyController,
     AuditController,
     BundleController,
+    BundlePromptController,
+    BundleResourceController,
     ConfigController,
     EndpointController,
     MeController,
@@ -84,6 +86,8 @@ def create_app(
     for controller in (
         ServerController(),
         BundleController(),
+        BundlePromptController(),  # BPR-14
+        BundleResourceController(),
         EndpointController(),
         ApiKeyController(),
         ConfigController(),

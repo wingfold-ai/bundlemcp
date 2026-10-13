@@ -1,4 +1,5 @@
-"""What the bundle advertises, derived from its members' discovery snapshots."""
+"""What the bundle advertises: its own prompts and resources, plus its members' discovery
+snapshots."""
 
 from typing import Any
 
@@ -7,13 +8,18 @@ from bundlemcp.domain.bundles.bundle_view import BundleView
 
 def aggregate_capabilities(view: BundleView) -> dict[str, Any]:
     # PROT-11 (aggregation rule), DISC-6 (the snapshot it reads)
-    """Advertise a capability if at least one enabled member advertises it.
+    """Advertise a capability if the bundle itself provides it or an enabled member does.
 
-    Source is each member's discovery-time capabilities snapshot, so initialize
-    never fans out to members. The gateway always supports tools.
+    A member's source is its discovery-time capabilities snapshot, so initialize
+    never fans out to members. The gateway always supports tools. A bundle that
+    owns prompts or resources serves them with no member at all.
     """
+    # BPR-10
     caps: dict[str, Any] = {"tools": {"listChanged": True}}
-    has_prompts = has_resources = has_completions = has_logging = False
+    has_prompts = bool(view.prompts)
+    has_resources = bool(view.resources)
+    has_completions = any(prompt.offers_completions for prompt in view.prompts)
+    has_logging = False
     resources_subscribe = False
     for server in view.servers.values():
         member = server.capabilities or {}

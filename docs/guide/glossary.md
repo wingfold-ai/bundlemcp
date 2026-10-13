@@ -19,6 +19,7 @@ The vocabulary the rest of these pages assumes.
 | **Presented name** | The name the client calls, `server__tool` by default. The `__` separator is what lets the gateway route a call back to the right upstream. |
 | **Override** | A per-bundle change to a tool's presented name, description or annotations. Applied after the profile, so it always wins. |
 | **Curation** | Choosing which of a server's tools a bundle exposes. A tool disabled in the bundle does not exist for that bundle's clients. |
+| **Bundle prompt / bundle resource** | A prompt or document written on the bundle itself rather than offered by a member: context for the bundle's purpose, served by the gateway without contacting an upstream. A bundle prompt's name has no server prefix; a bundle resource is read as `bundle://resources/<name>`. See [Bundles](/manage/bundles#bundle-prompts-and-documents). |
 | **Catalogue** | What a signed-in non-administrator sees: the bundles they could connect a client to, and nothing else. |
 
 ## Identity and access

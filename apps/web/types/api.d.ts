@@ -90,6 +90,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bundles/{bundle}/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Prompts */
+        get: operations["list_prompts_api_v1_bundles__bundle__prompts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bundles/{bundle}/prompts/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Prompt */
+        get: operations["get_prompt_api_v1_bundles__bundle__prompts__name__get"];
+        /** Upsert Prompt */
+        put: operations["upsert_prompt_api_v1_bundles__bundle__prompts__name__put"];
+        post?: never;
+        /** Delete Prompt */
+        delete: operations["delete_prompt_api_v1_bundles__bundle__prompts__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bundles/{bundle}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Resources */
+        get: operations["list_resources_api_v1_bundles__bundle__resources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bundles/{bundle}/resources/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Resource */
+        get: operations["get_resource_api_v1_bundles__bundle__resources__name__get"];
+        /** Upsert Resource */
+        put: operations["upsert_resource_api_v1_bundles__bundle__resources__name__put"];
+        post?: never;
+        /** Delete Resource */
+        delete: operations["delete_resource_api_v1_bundles__bundle__resources__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bundles/{name}": {
         parameters: {
             query?: never;
@@ -295,6 +367,48 @@ export interface paths {
         };
         /** Whoami */
         get: operations["whoami_api_v1_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/bundles/{bundle_name}/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bundle Prompts
+         * @description The prompts a bundle itself offers, for a signed-in person reading its catalogue
+         *     entry.
+         */
+        get: operations["bundle_prompts_api_v1_me_bundles__bundle_name__prompts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/bundles/{bundle_name}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bundle Resources
+         * @description The documents a bundle itself offers, for a signed-in person reading its catalogue
+         *     entry.
+         */
+        get: operations["bundle_resources_api_v1_me_bundles__bundle_name__resources_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -889,6 +1003,83 @@ export interface components {
             server: string;
         };
         /**
+         * BundlePromptRead
+         * @description A prompt the bundle itself serves, as stored.
+         */
+        BundlePromptRead: {
+            /**
+             * Arguments
+             * @description Arguments the prompt takes
+             */
+            arguments: components["schemas"]["PromptArgument"][];
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the prompt was created
+             */
+            created_at: string;
+            /**
+             * Description
+             * @description What the prompt is for
+             */
+            description: string | null;
+            /**
+             * Messages
+             * @description Messages of the prompt, in order
+             */
+            messages: components["schemas"]["PromptMessage"][];
+            /**
+             * Name
+             * @description Prompt name, as clients see it
+             */
+            name: string;
+            /**
+             * Title
+             * @description Human-readable title
+             */
+            title: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the prompt was last changed
+             */
+            updated_at: string;
+        };
+        /**
+         * BundlePromptUpsert
+         * @description Body for creating or replacing a prompt the bundle itself serves.
+         *
+         *     Not secret: the prompt is served to every caller of every endpoint of the
+         *     bundle, and to the model.
+         */
+        BundlePromptUpsert: {
+            /**
+             * Arguments
+             * @description Arguments the prompt takes; each message text may refer to one as {{name}}
+             */
+            arguments?: components["schemas"]["PromptArgument"][];
+            /**
+             * Description
+             * @description What the prompt is for, shown when a user picks a prompt
+             */
+            description?: string | null;
+            /**
+             * Messages
+             * @description Messages of the prompt, in conversation order; together at most 64 KiB of text. Not secret: served to every caller of the bundle and to the model
+             */
+            messages: components["schemas"]["PromptMessage"][];
+            /**
+             * Name
+             * @description Prompt name, unique in the bundle: letters, digits, underscores and hyphens, never '__'. Clients see it unprefixed, unlike a member server's prompts
+             */
+            name: string;
+            /**
+             * Title
+             * @description Human-readable title
+             */
+            title?: string | null;
+        };
+        /**
          * BundleRead
          * @description A bundle as stored.
          */
@@ -926,6 +1117,90 @@ export interface components {
              * @description When the bundle was last changed
              */
             updated_at: string;
+        };
+        /**
+         * BundleResourceRead
+         * @description A document the bundle itself serves, as stored.
+         */
+        BundleResourceRead: {
+            /**
+             * Content
+             * @description The document itself
+             */
+            content: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the resource was created
+             */
+            created_at: string;
+            /**
+             * Description
+             * @description What the document contains
+             */
+            description: string | null;
+            /** @description Text format of the content */
+            mime_type: components["schemas"]["ResourceMimeType"];
+            /**
+             * Name
+             * @description Resource name, unique in the bundle
+             */
+            name: string;
+            /**
+             * Size Bytes
+             * @description Size of the content, in UTF-8 bytes
+             */
+            size_bytes: number;
+            /**
+             * Title
+             * @description Human-readable title
+             */
+            title: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the resource was last changed
+             */
+            updated_at: string;
+            /**
+             * Uri
+             * @description URI clients read the resource by
+             */
+            uri: string;
+        };
+        /**
+         * BundleResourceUpsert
+         * @description Body for creating or replacing a document the bundle itself serves.
+         *
+         *     Not secret: the document is served to every caller of every endpoint of the
+         *     bundle, and to the model.
+         */
+        BundleResourceUpsert: {
+            /**
+             * Content
+             * @description The document itself, at most 256 KiB, and at most 4 MiB across the bundle's resources. Not secret: served to every caller of the bundle and to the model
+             */
+            content: string;
+            /**
+             * Description
+             * @description What the document contains, shown in a client's list
+             */
+            description?: string | null;
+            /**
+             * @description Text format of the content
+             * @default text/markdown
+             */
+            mime_type?: components["schemas"]["ResourceMimeType"];
+            /**
+             * Name
+             * @description Resource name, unique in the bundle; '/' separates folders, as in 'guides/style'. Clients read it as bundle://resources/<name>
+             */
+            name: string;
+            /**
+             * Title
+             * @description Human-readable title
+             */
+            title?: string | null;
         };
         /**
          * BundleServerUpdate
@@ -1055,6 +1330,48 @@ export interface components {
              * @description Long-form description of the bundle for people browsing the catalogue: what it is for, what the tools can do, and anything a user must set up first. Plain text, paragraphs separated by blank lines. Unlike 'description' this is never sent to a model, so it can be as long as it needs to be
              */
             overview?: string | null;
+        };
+        /**
+         * CataloguePromptRead
+         * @description A prompt the bundle itself offers, for someone deciding whether to connect it.
+         */
+        CataloguePromptRead: {
+            /**
+             * Description
+             * @description What the prompt is for; absent when the administrator wrote none
+             */
+            description: string | null;
+            /**
+             * Name
+             * @description Name the client lists the prompt under
+             */
+            name: string;
+            /**
+             * Title
+             * @description Human-readable title, when the administrator set one
+             */
+            title: string | null;
+        };
+        /**
+         * CatalogueResourceRead
+         * @description A document the bundle itself offers, for someone deciding whether to connect it.
+         */
+        CatalogueResourceRead: {
+            /**
+             * Description
+             * @description What the document contains; absent when the administrator wrote none
+             */
+            description: string | null;
+            /**
+             * Name
+             * @description Resource name, with '/' separating folders
+             */
+            name: string;
+            /**
+             * Title
+             * @description Human-readable title, when the administrator set one
+             */
+            title: string | null;
         };
         /**
          * CatalogueToolRead
@@ -1451,6 +1768,29 @@ export interface components {
              */
             total: number;
         };
+        /** Page[BundlePromptRead] */
+        Page_BundlePromptRead_: {
+            /**
+             * Items
+             * @description The page of results
+             */
+            items: components["schemas"]["BundlePromptRead"][];
+            /**
+             * Limit
+             * @description Maximum records this page may contain
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Records skipped before this page
+             */
+            offset: number;
+            /**
+             * Total
+             * @description Total matching records, ignoring offset and limit
+             */
+            total: number;
+        };
         /** Page[BundleRead] */
         Page_BundleRead_: {
             /**
@@ -1458,6 +1798,29 @@ export interface components {
              * @description The page of results
              */
             items: components["schemas"]["BundleRead"][];
+            /**
+             * Limit
+             * @description Maximum records this page may contain
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Records skipped before this page
+             */
+            offset: number;
+            /**
+             * Total
+             * @description Total matching records, ignoring offset and limit
+             */
+            total: number;
+        };
+        /** Page[BundleResourceRead] */
+        Page_BundleResourceRead_: {
+            /**
+             * Items
+             * @description The page of results
+             */
+            items: components["schemas"]["BundleResourceRead"][];
             /**
              * Limit
              * @description Maximum records this page may contain
@@ -1567,6 +1930,57 @@ export interface components {
             total: number;
         };
         /**
+         * PromptArgument
+         * @description One argument a bundle prompt takes, referred to in its text as ``{{name}}``.
+         */
+        PromptArgument: {
+            /**
+             * Description
+             * @description What the argument is for, shown to the user filling it in
+             */
+            description?: string | null;
+            /**
+             * Name
+             * @description Argument name: letters, digits, underscores and hyphens
+             */
+            name: string;
+            /**
+             * Required
+             * @description Whether the prompt refuses to render without it; an optional argument left out is replaced with the empty string
+             * @default false
+             */
+            required?: boolean;
+            /**
+             * Values
+             * @description Suggested values a client offers as completions, in this order; empty when the argument is free text
+             */
+            values?: string[];
+        };
+        /**
+         * PromptMessage
+         * @description One message of a bundle prompt: either text, or one of the bundle's resources.
+         */
+        PromptMessage: {
+            /**
+             * Resource
+             * @description Name of a resource of the same bundle, embedded in full when the prompt is rendered. Set exactly one of 'text' and 'resource'
+             */
+            resource?: string | null;
+            /** @description Who speaks the message: 'user' or 'assistant' */
+            role: components["schemas"]["PromptRole"];
+            /**
+             * Text
+             * @description Message text; may refer to the prompt's arguments as {{argument}}. Set exactly one of 'text' and 'resource'
+             */
+            text?: string | null;
+        };
+        /**
+         * PromptRole
+         * @description Who speaks a prompt message, in MCP's vocabulary.
+         * @enum {string}
+         */
+        PromptRole: "user" | "assistant";
+        /**
          * RateLimitConfig
          * @description Per-endpoint rate limits. Stored as JSON on the endpoint.
          */
@@ -1604,6 +2018,12 @@ export interface components {
              */
             window_seconds: number;
         };
+        /**
+         * ResourceMimeType
+         * @description The text formats a bundle resource may be written in.
+         * @enum {string}
+         */
+        ResourceMimeType: "text/markdown" | "text/plain" | "text/csv" | "application/json" | "application/yaml";
         /**
          * ServerAuthMode
          * @description How the gateway authenticates to an upstream server.
@@ -2443,6 +2863,270 @@ export interface operations {
             };
         };
     };
+    list_prompts_api_v1_bundles__bundle__prompts_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                bundle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_BundlePromptRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_prompt_api_v1_bundles__bundle__prompts__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundlePromptRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_prompt_api_v1_bundles__bundle__prompts__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BundlePromptUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundlePromptRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_prompt_api_v1_bundles__bundle__prompts__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_resources_api_v1_bundles__bundle__resources_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                bundle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_BundleResourceRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_resource_api_v1_bundles__bundle__resources__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleResourceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_resource_api_v1_bundles__bundle__resources__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BundleResourceUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleResourceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource_api_v1_bundles__bundle__resources__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_bundle_api_v1_bundles__name__get: {
         parameters: {
             query?: never;
@@ -2985,6 +3669,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeRead"];
+                };
+            };
+        };
+    };
+    bundle_prompts_api_v1_me_bundles__bundle_name__prompts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CataloguePromptRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bundle_resources_api_v1_me_bundles__bundle_name__resources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogueResourceRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

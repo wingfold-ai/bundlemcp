@@ -183,6 +183,18 @@
         "OAS-11",
         "OAS-2"
       ]
+    },
+    {
+      "id": "E2E-18",
+      "testFile": "bundle-flow.spec.ts",
+      "slug": "bundle-own-prompts-and-resources",
+      "title": "An admin writes a bundle's own resource and prompt, previews both, and cannot orphan the prompt",
+      "requirements": [
+        "BPR-14",
+        "BND-6",
+        "BPR-6",
+        "BPR-3"
+      ]
     }
   ]
 }

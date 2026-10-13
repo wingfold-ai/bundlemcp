@@ -146,3 +146,53 @@ test(testTitle("E2E-16"), async ({ page, steps }) => {
   await page.getByTestId("delete-bundle").click();
   await page.waitForURL(/\/bundles$/);
 });
+
+// The bundle's own context needs no member: a bundle on its own serves it.
+test(testTitle("E2E-18"), async ({ page, steps }) => {
+  const bundle = "e2e-context";
+  page.on("dialog", (d) => d.accept());
+
+  await steps.play([
+    given(`a new bundle "${bundle}" with no upstream servers`, { req: "BND-6" }, async () => {
+      await page.goto("/bundles");
+      await page.getByTestId("create-name").fill(bundle);
+      await page.getByTestId("create-submit").click();
+      await page.getByTestId(`open-${bundle}`).click();
+    }),
+    when("the administrator writes a Markdown resource in a folder", { req: "BPR-6" }, async () => {
+      await page.getByTestId("resource-new").click();
+      await page.getByTestId("resource-name").fill("guides/style");
+      await page.getByTestId("resource-title").fill("House style");
+      await page.getByTestId("resource-content").fill("# House style\n\n- Use **blue**");
+      await page.getByTestId("resource-preview-toggle").check();
+      await expect(page.getByTestId("resource-preview").locator("strong")).toHaveText("blue");
+      await page.getByTestId("resource-save").click();
+      await expect(page.getByTestId("resource-guides/style")).toContainText("House style");
+    }),
+    when("writes a prompt that takes an argument and embeds the resource", { req: "BPR-3" }, async () => {
+      await page.getByTestId("prompt-new").click();
+      await page.getByTestId("prompt-name").fill("plot");
+      await page.getByTestId("prompt-add-argument").click();
+      await page.getByTestId("prompt-argument-0").locator("input").first().fill("series");
+      await page.getByTestId("prompt-message-text-0").fill("Plot {{series}}.");
+      await page.getByTestId("prompt-add-resource").click();
+      await expect(page.getByTestId("prompt-message-resource-1")).toHaveValue("guides/style");
+    }),
+    then("the preview renders it with sample arguments", { req: "BPR-14" }, async () => {
+      await page.getByTestId("prompt-sample-series").fill("revenue");
+      await expect(page.getByTestId("prompt-rendered-0")).toHaveText("Plot revenue.");
+    }),
+    then("it is saved and listed", { req: "BPR-14" }, async () => {
+      await page.getByTestId("prompt-save").click();
+      await expect(page.getByTestId("prompt-plot")).toContainText("series");
+    }),
+    then("the embedded resource cannot be deleted while the prompt uses it", { req: "BPR-3" }, async () => {
+      await page.getByTestId("resource-delete-guides/style").click();
+      await expect(page.getByTestId("resources-error")).toContainText("plot");
+    }),
+  ]);
+
+  // cleanup: the bundle takes its prompts and resources with it
+  await page.getByTestId("delete-bundle").click();
+  await page.waitForURL(/\/bundles$/);
+});

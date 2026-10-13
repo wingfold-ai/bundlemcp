@@ -122,12 +122,13 @@ client era works with any upstream era, and the newest revision both sides suppo
 - **PROT-17 `subscriptions/listen`.** A modern client opens change notifications with one long-lived POST whose response
   stream first carries `notifications/subscriptions/acknowledged` echoing the subset of the filter the gateway honours,
   then only the notification types acknowledged, each tagged with `_meta["io.modelcontextprotocol/subscriptionId"]` =
-  the request id. The gateway honours `toolsListChanged` (BND-7 invalidations, delivered cross-replica like PROT-10).
-  `promptsListChanged`, `resourcesListChanged` and `resourceSubscriptions` depend on a standing upstream connection
-  ([ADR-0012](../docs/adr/0012-per-call-upstream-connections.md)) and are omitted from the acknowledgement until pooling
-  lands. The stream sends SSE keep-alive comments, ends with a completion result on graceful shutdown, and is closed by
-  the client to unsubscribe. GET and DELETE on the endpoint without an `Mcp-Session-Id` answer 405
-  ([EP-1](14-endpoints.md)).
+  the request id. The gateway honours `toolsListChanged` (BND-7 invalidations, delivered cross-replica like PROT-10),
+  and `promptsListChanged` and `resourcesListChanged` for the bundle's own prompts and resources
+  ([BPR-11](17-bundle-prompts-resources.md)). A member's prompt and resource list changes, and `resourceSubscriptions`,
+  depend on a standing upstream connection ([ADR-0012](../docs/adr/0012-per-call-upstream-connections.md)): they are not
+  delivered, and `resourceSubscriptions` is omitted from the acknowledgement, until pooling lands. The stream sends SSE
+  keep-alive comments, ends with a completion result on graceful shutdown, and is closed by the client to unsubscribe.
+  GET and DELETE on the endpoint without an `Mcp-Session-Id` answer 405 ([EP-1](14-endpoints.md)).
 - **PROT-18 Multi Round-Trip Requests.** When an upstream needs client input during `tools/call`, `prompts/get` or
   `resources/read` for a modern client, the gateway answers `resultType: "input_required"` with `inputRequests` and a
   sealed `requestState`; the client retries the same method with `inputResponses` and the state, and any replica MUST be
@@ -178,7 +179,7 @@ client era works with any upstream era, and the newest revision both sides suppo
 (PROT-9), capability aggregation (PROT-11), handshake version negotiation (PROT-12), and the roots/logging relay
 (PROT-4/PROT-7) on the request/response path and within an active call. **Implemented**
 ([ADR-0029](../docs/adr/0029-dialects-and-dual-era-edge.md), [ADR-0030](../docs/adr/0030-fastmcp-4.md)): PROT-13 to
-PROT-22, with the PROT-17 (only `toolsListChanged` acknowledged) and PROT-18 (`tools/call` only for modern clients)
+PROT-22, with the PROT-17 (member list changes not delivered) and PROT-18 (`tools/call` only for modern clients)
 residuals noted in place. **Pooling-dependent residual:** any upstream→client *push* that must arrive between calls —
 `notifications/resources/updated`, PROT-7 upstream `notifications/message`, and PROT-10 upstream `*/list_changed`
 **outside an active call** — requires a persistent upstream connection, which the per-call-connection model (ADR-0012)

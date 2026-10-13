@@ -501,6 +501,137 @@
         "title": "BundleMembershipRead",
         "type": "object"
       },
+      "BundlePromptRead": {
+        "description": "A prompt the bundle itself serves, as stored.",
+        "properties": {
+          "arguments": {
+            "description": "Arguments the prompt takes",
+            "items": {
+              "$ref": "#/components/schemas/PromptArgument"
+            },
+            "title": "Arguments",
+            "type": "array"
+          },
+          "created_at": {
+            "description": "When the prompt was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the prompt is for",
+            "title": "Description"
+          },
+          "messages": {
+            "description": "Messages of the prompt, in order",
+            "items": {
+              "$ref": "#/components/schemas/PromptMessage"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "name": {
+            "description": "Prompt name, as clients see it",
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable title",
+            "title": "Title"
+          },
+          "updated_at": {
+            "description": "When the prompt was last changed",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "description",
+          "arguments",
+          "messages",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "BundlePromptRead",
+        "type": "object"
+      },
+      "BundlePromptUpsert": {
+        "description": "Body for creating or replacing a prompt the bundle itself serves.\n\nNot secret: the prompt is served to every caller of every endpoint of the\nbundle, and to the model.",
+        "properties": {
+          "arguments": {
+            "description": "Arguments the prompt takes; each message text may refer to one as {{name}}",
+            "items": {
+              "$ref": "#/components/schemas/PromptArgument"
+            },
+            "title": "Arguments",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the prompt is for, shown when a user picks a prompt",
+            "title": "Description"
+          },
+          "messages": {
+            "description": "Messages of the prompt, in conversation order; together at most 64 KiB of text. Not secret: served to every caller of the bundle and to the model",
+            "items": {
+              "$ref": "#/components/schemas/PromptMessage"
+            },
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          },
+          "name": {
+            "description": "Prompt name, unique in the bundle: letters, digits, underscores and hyphens, never '__'. Clients see it unprefixed, unlike a member server's prompts",
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable title",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "name",
+          "messages"
+        ],
+        "title": "BundlePromptUpsert",
+        "type": "object"
+      },
       "BundleRead": {
         "description": "A bundle as stored.",
         "properties": {
@@ -561,6 +692,135 @@
           "updated_at"
         ],
         "title": "BundleRead",
+        "type": "object"
+      },
+      "BundleResourceRead": {
+        "description": "A document the bundle itself serves, as stored.",
+        "properties": {
+          "content": {
+            "description": "The document itself",
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "When the resource was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the document contains",
+            "title": "Description"
+          },
+          "mime_type": {
+            "$ref": "#/components/schemas/ResourceMimeType",
+            "description": "Text format of the content"
+          },
+          "name": {
+            "description": "Resource name, unique in the bundle",
+            "title": "Name",
+            "type": "string"
+          },
+          "size_bytes": {
+            "description": "Size of the content, in UTF-8 bytes",
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable title",
+            "title": "Title"
+          },
+          "updated_at": {
+            "description": "When the resource was last changed",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "uri": {
+            "description": "URI clients read the resource by",
+            "title": "Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "uri",
+          "title",
+          "description",
+          "mime_type",
+          "size_bytes",
+          "content",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "BundleResourceRead",
+        "type": "object"
+      },
+      "BundleResourceUpsert": {
+        "description": "Body for creating or replacing a document the bundle itself serves.\n\nNot secret: the document is served to every caller of every endpoint of the\nbundle, and to the model.",
+        "properties": {
+          "content": {
+            "description": "The document itself, at most 256 KiB, and at most 4 MiB across the bundle's resources. Not secret: served to every caller of the bundle and to the model",
+            "title": "Content",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the document contains, shown in a client's list",
+            "title": "Description"
+          },
+          "mime_type": {
+            "$ref": "#/components/schemas/ResourceMimeType",
+            "default": "text/markdown",
+            "description": "Text format of the content"
+          },
+          "name": {
+            "description": "Resource name, unique in the bundle; '/' separates folders, as in 'guides/style'. Clients read it as bundle://resources/<name>",
+            "pattern": "^[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)*$",
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable title",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "name",
+          "content"
+        ],
+        "title": "BundleResourceUpsert",
         "type": "object"
       },
       "BundleServerUpdate": {
@@ -788,6 +1048,88 @@
           "name"
         ],
         "title": "BundleUpsert",
+        "type": "object"
+      },
+      "CataloguePromptRead": {
+        "description": "A prompt the bundle itself offers, for someone deciding whether to connect it.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the prompt is for; absent when the administrator wrote none",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Name the client lists the prompt under",
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable title, when the administrator set one",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "description"
+        ],
+        "title": "CataloguePromptRead",
+        "type": "object"
+      },
+      "CatalogueResourceRead": {
+        "description": "A document the bundle itself offers, for someone deciding whether to connect it.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the document contains; absent when the administrator wrote none",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Resource name, with '/' separating folders",
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable title, when the administrator set one",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "description"
+        ],
+        "title": "CatalogueResourceRead",
         "type": "object"
       },
       "CatalogueToolRead": {
@@ -1415,6 +1757,41 @@
         "title": "Page[AuditRecordRead]",
         "type": "object"
       },
+      "Page_BundlePromptRead_": {
+        "properties": {
+          "items": {
+            "description": "The page of results",
+            "items": {
+              "$ref": "#/components/schemas/BundlePromptRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "description": "Maximum records this page may contain",
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "description": "Records skipped before this page",
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total matching records, ignoring offset and limit",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "Page[BundlePromptRead]",
+        "type": "object"
+      },
       "Page_BundleRead_": {
         "properties": {
           "items": {
@@ -1448,6 +1825,41 @@
           "limit"
         ],
         "title": "Page[BundleRead]",
+        "type": "object"
+      },
+      "Page_BundleResourceRead_": {
+        "properties": {
+          "items": {
+            "description": "The page of results",
+            "items": {
+              "$ref": "#/components/schemas/BundleResourceRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "description": "Maximum records this page may contain",
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "description": "Records skipped before this page",
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total matching records, ignoring offset and limit",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "Page[BundleResourceRead]",
         "type": "object"
       },
       "Page_EndpointRead_": {
@@ -1590,6 +2002,96 @@
         "title": "Page[UserRead]",
         "type": "object"
       },
+      "PromptArgument": {
+        "description": "One argument a bundle prompt takes, referred to in its text as ``{{name}}``.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the argument is for, shown to the user filling it in",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Argument name: letters, digits, underscores and hyphens",
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "description": "Whether the prompt refuses to render without it; an optional argument left out is replaced with the empty string",
+            "title": "Required",
+            "type": "boolean"
+          },
+          "values": {
+            "description": "Suggested values a client offers as completions, in this order; empty when the argument is free text",
+            "items": {
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PromptArgument",
+        "type": "object"
+      },
+      "PromptMessage": {
+        "description": "One message of a bundle prompt: either text, or one of the bundle's resources.",
+        "properties": {
+          "resource": {
+            "anyOf": [
+              {
+                "pattern": "^[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of a resource of the same bundle, embedded in full when the prompt is rendered. Set exactly one of 'text' and 'resource'",
+            "title": "Resource"
+          },
+          "role": {
+            "$ref": "#/components/schemas/PromptRole",
+            "description": "Who speaks the message: 'user' or 'assistant'"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Message text; may refer to the prompt's arguments as {{argument}}. Set exactly one of 'text' and 'resource'",
+            "title": "Text"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "PromptMessage",
+        "type": "object"
+      },
+      "PromptRole": {
+        "description": "Who speaks a prompt message, in MCP's vocabulary.",
+        "enum": [
+          "user",
+          "assistant"
+        ],
+        "title": "PromptRole",
+        "type": "string"
+      },
       "RateLimitConfig": {
         "description": "Per-endpoint rate limits. Stored as JSON on the endpoint.",
         "properties": {
@@ -1653,6 +2155,18 @@
         ],
         "title": "RateRule",
         "type": "object"
+      },
+      "ResourceMimeType": {
+        "description": "The text formats a bundle resource may be written in.",
+        "enum": [
+          "text/markdown",
+          "text/plain",
+          "text/csv",
+          "application/json",
+          "application/yaml"
+        ],
+        "title": "ResourceMimeType",
+        "type": "string"
       },
       "ServerAuthMode": {
         "description": "How the gateway authenticates to an upstream server.",
@@ -3191,6 +3705,440 @@
         ]
       }
     },
+    "/api/v1/bundles/{bundle}/prompts": {
+      "get": {
+        "operationId": "list_prompts_api_v1_bundles__bundle__prompts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_BundlePromptRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Prompts",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{bundle}/prompts/{name}": {
+      "delete": {
+        "operationId": "delete_prompt_api_v1_bundles__bundle__prompts__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Prompt",
+        "tags": [
+          "bundles"
+        ]
+      },
+      "get": {
+        "operationId": "get_prompt_api_v1_bundles__bundle__prompts__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundlePromptRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Prompt",
+        "tags": [
+          "bundles"
+        ]
+      },
+      "put": {
+        "operationId": "upsert_prompt_api_v1_bundles__bundle__prompts__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundlePromptUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundlePromptRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upsert Prompt",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{bundle}/resources": {
+      "get": {
+        "operationId": "list_resources_api_v1_bundles__bundle__resources_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_BundleResourceRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Resources",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{bundle}/resources/{name}": {
+      "delete": {
+        "operationId": "delete_resource_api_v1_bundles__bundle__resources__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Resource",
+        "tags": [
+          "bundles"
+        ]
+      },
+      "get": {
+        "operationId": "get_resource_api_v1_bundles__bundle__resources__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleResourceRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Resource",
+        "tags": [
+          "bundles"
+        ]
+      },
+      "put": {
+        "operationId": "upsert_resource_api_v1_bundles__bundle__resources__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundleResourceUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleResourceRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upsert Resource",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
     "/api/v1/bundles/{name}": {
       "delete": {
         "operationId": "delete_bundle_api_v1_bundles__name__delete",
@@ -3966,6 +4914,100 @@
           }
         },
         "summary": "Whoami",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/bundles/{bundle_name}/prompts": {
+      "get": {
+        "description": "The prompts a bundle itself offers, for a signed-in person reading its catalogue\nentry.",
+        "operationId": "bundle_prompts_api_v1_me_bundles__bundle_name__prompts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle_name",
+            "required": true,
+            "schema": {
+              "title": "Bundle Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CataloguePromptRead"
+                  },
+                  "title": "Response Bundle Prompts Api V1 Me Bundles  Bundle Name  Prompts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bundle Prompts",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/bundles/{bundle_name}/resources": {
+      "get": {
+        "description": "The documents a bundle itself offers, for a signed-in person reading its catalogue\nentry.",
+        "operationId": "bundle_resources_api_v1_me_bundles__bundle_name__resources_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle_name",
+            "required": true,
+            "schema": {
+              "title": "Bundle Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogueResourceRead"
+                  },
+                  "title": "Response Bundle Resources Api V1 Me Bundles  Bundle Name  Resources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bundle Resources",
         "tags": [
           "me"
         ]

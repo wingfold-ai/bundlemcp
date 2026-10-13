@@ -11,6 +11,8 @@ from bundlemcp.application.contracts.upstream.tool_discovery import ToolDiscover
 from bundlemcp.application.contracts.upstream.upstream_connection_registry import (
     UpstreamConnectionRegistry,
 )
+from bundlemcp.application.management.bundle_prompt_service import BundlePromptService
+from bundlemcp.application.management.bundle_resource_service import BundleResourceService
 from bundlemcp.application.management.bundle_service import BundleService
 from bundlemcp.application.management.endpoint_service import EndpointService
 from bundlemcp.application.management.server_service import ServerService
@@ -60,6 +62,8 @@ class BootstrapRunner:
                 uow, cipher=self._cipher, connections=self._connections
             )
             bundles = BundleService(uow)
+            bundle_prompts = BundlePromptService(uow)
+            bundle_resources = BundleResourceService(uow)
             endpoints = EndpointService(uow)
             for server in doc.upstreams:
                 await servers.upsert(server)
@@ -69,6 +73,11 @@ class BootstrapRunner:
                 await bundles.upsert(bundle)
                 for server_name in bundle.upstreams:
                     await bundles.set_member(bundle.name, server_name, BundleServerUpdate())
+                # BPR-15: resources first, since a prompt may embed one
+                for resource in bundle.resources:
+                    await bundle_resources.upsert(bundle.name, resource)
+                for prompt in bundle.prompts:
+                    await bundle_prompts.upsert(bundle.name, prompt)
             for endpoint in doc.endpoints:
                 await endpoints.upsert(endpoint)
         # DISC-1 / BOOT-7: a probe opens its own unit of work, so it must not

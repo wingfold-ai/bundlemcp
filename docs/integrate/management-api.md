@@ -68,6 +68,8 @@ These return a **bare JSON array** with no envelope, so a client that unwraps `.
 | `GET /users/{id}/consents` | `[ConsentRead]` |
 | `GET /me/endpoints` | `[AvailableEndpointRead]` |
 | `GET /me/bundles/{name}/tools` | `[CatalogueToolRead]` |
+| `GET /me/bundles/{name}/prompts` | `[CataloguePromptRead]` |
+| `GET /me/bundles/{name}/resources` | `[CatalogueResourceRead]` |
 
 `GET /config` is a third shape again: a flat object of key → value.
 
@@ -125,6 +127,10 @@ Upstream servers live under `/upstreams` (the short form of *upstream servers*),
 | `DELETE` | `/bundles/{name}/upstreams/{server_name}` | Remove a membership. |
 | `GET` | `/bundles/{name}/tools` | Every tool with its curation and presented name. |
 | `PUT` | `/bundles/{name}/tools/{tool_id}` | Enable, disable, override. |
+| `GET` | `/bundles/{name}/prompts` | The bundle's own prompts, paginated. |
+| `GET` `PUT` `DELETE` | `/bundles/{name}/prompts/{prompt}` | Read, create or replace, delete one prompt. |
+| `GET` | `/bundles/{name}/resources` | The bundle's own resources, paginated. |
+| `GET` `PUT` `DELETE` | `/bundles/{name}/resources/{resource}` | Read, create or replace, delete one resource; the name may contain `/`. A resource a prompt embeds answers `409` to `DELETE`. |
 
 ### Endpoints
 
@@ -152,6 +158,7 @@ Upstream servers live under `/upstreams` (the short form of *upstream servers*),
 | `GET` | `/me` | Who is calling. Answers for any signed-in user, admin or not. |
 | `GET` | `/me/endpoints` | The catalogue: enabled endpoints accepting OAuth, with their URLs. Any signed-in user. |
 | `GET` | `/me/bundles/{name}/tools` | The tools one catalogue bundle serves. Any signed-in user; 404 rather than 403 when no endpoint would let this caller reach the bundle. |
+| `GET` | `/me/bundles/{name}/prompts`, `/me/bundles/{name}/resources` | The prompts and documents the bundle itself offers, by title and description. Same access rule as the tools. |
 
 ### Operations
 
