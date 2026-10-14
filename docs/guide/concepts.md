@@ -1,13 +1,21 @@
 # Core concepts
 
-This page explains the ideas bundlemcp is built from, for someone who has just started with MCP. If you have not run it
-yet, the [Quickstart](/guide/quickstart) shows each of them in the admin UI.
+This page explains the ideas bundlemcp is built from. If you have not run it yet, the [Quickstart](/guide/quickstart)
+shows each of them in the admin UI.
 
-## MCP in two paragraphs
+## MCP in brief
 
-The **Model Context Protocol** (MCP) is how an AI application — claude.ai, ChatGPT, Claude Code, your own agent — talks
-to the systems that give it abilities and context. The application is the **MCP client**. Each system is an
-**MCP server**, which offers the client three kinds of things:
+The **Model Context Protocol** (MCP) is a standard way for an AI assistant to use other software. It has two sides:
+
+- The **MCP client** is the program you talk to the AI in: claude.ai or ChatGPT in the browser, Claude Desktop, Claude
+  Code in the terminal, or an agent you wrote yourself. It holds the conversation and runs the model.
+- An **MCP server** is a separate program that connects that model to one particular service — your GitHub account, a
+  company database, a weather API. It describes what that service can do in a form the model understands, and does it
+  when asked.
+
+For example, with a GitHub MCP server connected, you can ask Claude to "open an issue for this bug": Claude, the client,
+asks the GitHub MCP server to create the issue, and the server calls GitHub to do it. A server offers the client three
+kinds of things:
 
 | A server offers | What it is | Who decides to use it | Example |
 |---|---|---|---|
@@ -43,20 +51,10 @@ reached over the network. "Upstream" says which way it faces: clients are downst
 forwards to are upstream — so the short name for one is simply an *upstream*, and that is what the management API
 calls them. The admin UI lists them on the **Upstream servers** page.
 
-Most upstream servers need only a name and a URL. The other settings exist for servers that need a credential, want to
-know who is calling, or have each person sign in to their own account. Each is explained, with the situations it is for,
-on [Upstream server settings](/guide/upstream-server-settings):
-
-| Setting | In one line |
-|---|---|
-| `name` | Unique, letters, digits, `-` and `_`, never `__`. Becomes the prefix of every tool the server contributes. |
-| `url` | Where the server is reached, for example `http://weather:8080/mcp`. [More](/guide/upstream-server-settings#url) |
-| `auth_mode` | How the gateway proves itself to the server: no credential, a fixed key, or OAuth. [More](/guide/upstream-server-settings#auth_mode) |
-| `static_headers` | A fixed credential, such as an API key, sent with every request. [More](/guide/upstream-server-settings#static_headers) |
-| `forward_headers` | Headers from the client's request passed on to the server. [More](/guide/upstream-server-settings#forward_headers) |
-| `send_identity_header` | Tells your own servers which user is calling. [More](/guide/upstream-server-settings#send_identity_header) |
-| `identity_mode` | With OAuth: one shared account for everyone, or each person their own. [More](/guide/upstream-server-settings#identity_mode) |
-| `protocol_mode` | Which MCP revision to speak to the server; `auto` is right almost always. [More](/guide/upstream-server-settings#protocol_mode) |
+Most upstream servers need only a name and a URL. The name becomes the prefix of every tool the server contributes (more
+on that under [Bundles](#bundles)). The other settings exist for servers that need a credential, want to know who is
+calling, or have each person sign in to their own account; [Upstream server settings](/guide/upstream-server-settings)
+explains each of them.
 
 When you register an upstream server, the gateway **probes** it: connects, agrees on a protocol revision and asks for
 its tool list. A failed probe never blocks registration — the server is stored with its error, so you can register one
@@ -109,13 +107,9 @@ claude.ai, a colleague in ChatGPT, a nightly script. Each needs a different way 
 An **endpoint** is one way into one bundle: a URL, `<public url>/<endpoint name>/mcp`, plus its rules. It is what you
 paste into a client. A bundle can have as many endpoints as it has kinds of clients.
 
-| Setting | What it decides |
-|---|---|
-| Bundle | Which bundle this URL serves. |
-| Auth modes | How a caller proves who they are: `oauth` (a person signs in, as claude.ai and ChatGPT do), `api_key` (a script sends a key), or `none` (anyone, which must be allowed explicitly). Several can be allowed at once. |
-| Profile | Which client the endpoint is shaped for (below). |
-| Rate limits | Optional caps on calls per time window: for the whole endpoint, and per caller. |
-| Enabled | A disabled endpoint answers *not found* but keeps its settings. |
+An endpoint decides who may come in and how: whether a person signs in (`oauth`, as claude.ai and ChatGPT do), a
+script sends an API key (`api_key`), or anyone may call it. It can also cap how often it is called, and be switched off
+without losing its settings. [Endpoints](/manage/endpoints) lists every setting.
 
 So the same `tools` bundle could have a `tools-claude` endpoint with OAuth for people and a `tools-cron` endpoint with
 an API key and a tight rate limit for a script — two doors to the same room.

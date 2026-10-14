@@ -254,9 +254,10 @@ reached — `url`, `static_headers`, `forward_headers`, `auth_mode`, `identity_m
 `protocol_mode` — or when its last probe failed. Re-sending an unchanged definition to a working server only writes the
 database, so deploy tooling can re-apply its full config without waking every upstream.
 
-The gateway also re-discovers every server on its own every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds (default 30
-minutes). A server you registered before its upstream was reachable therefore gets its tools without a manual refresh,
-and a server whose tools change is picked up within one interval. Use the refresh endpoint when you do not want to wait.
+The gateway also re-discovers every server on its own every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds: every 30
+minutes when the variable is unset, never when it is `0`. A server you registered before its upstream was reachable
+therefore gets its tools without a manual refresh, and a server whose tools change is picked up within one interval. Use
+the refresh endpoint when you do not want to wait.
 
 Tools that disappear upstream stay in the cache, marked by an old `last_seen_at`, so a bundle's curation of them
 survives a temporary outage.

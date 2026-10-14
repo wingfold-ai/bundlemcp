@@ -6,8 +6,15 @@ Most of an upstream server's settings answer one of two questions about that sec
 
 - **How does the gateway get in?** Some upstream servers answer anyone, some want an API key, some want each person to
   sign in with their own account.
-- **What does the upstream server learn about the caller?** Your own servers often want to know which user is calling;
-  third-party servers should usually learn nothing.
+- **What does the upstream server learn about the caller?** A server you build and run yourself often wants to know
+  which user is calling; a third-party server should usually learn nothing.
+
+Two kinds of upstream server come up again and again on this page, so it helps to name them:
+
+- A **third-party server** is run by someone else, usually for their service: GitHub's MCP server, Linear's, a weather
+  provider's. It has its own user accounts and its own login, and you cannot change its code.
+- **Your own server** is an MCP server that you or your team write and run, typically to expose your own systems (an
+  internal database, a company API). You control its code, so you can make it check a token or read a header.
 
 This page explains every setting in plain terms, with the situation it is made for. For the full reference, see
 [Upstream servers](/manage/servers); for what a server you write yourself receives, see
@@ -16,19 +23,27 @@ This page explains every setting in plain terms, with the situation it is made f
 ## Which settings does my server need? {#which-settings}
 
 When you register an upstream server in the admin UI, it asks one question, **Where does the credential come from?**,
-and pre-selects the answer the server itself gave when the gateway checked it. The answers map to settings like this:
+and pre-selects the answer the server itself gave when the gateway checked it. Find your situation in the first column:
+the second is the answer to pick, the third says what the gateway then does, and the last names the settings that
+answer stores. Each of those settings has its own section further down this page, with the situations it is for and
+what to watch out for; click a setting's name to jump there.
 
-| Your situation | Answer in the UI | Settings |
-|---|---|---|
-| The server needs no login at all (a public demo, a server on your own network). | No credential needed | [`auth_mode`](#auth_mode) `none` |
-| The server's docs give you an API key or personal access token, and everyone may share it. | A key or token I enter | [`static_headers`](#static_headers) |
-| Each person should use their own account at the service (GitHub, Linear, Notion-style). | Each user signs in with their own account | [`auth_mode`](#auth_mode) `upstream_oauth`, [`identity_mode`](#identity_mode) `per_user` |
-| One service account, signed in once by an admin, should serve everyone. | One shared account I sign in with once | [`auth_mode`](#auth_mode) `upstream_oauth`, [`identity_mode`](#identity_mode) `shared` |
-| The provider gave you a client id and secret for machine access. | One shared machine account (client credentials) | as above, with a client credentials client |
-| It is your own server and it must verify who is calling. | A token the gateway issues for each caller | [`auth_mode`](#auth_mode) `delegated_token` |
+| Your situation | Answer in the UI | What the gateway then does | Settings it stores |
+|---|---|---|---|
+| The server needs no login at all (a public demo, a server on your own network). | No credential needed | Calls the server without any credential. | [`auth_mode`](#auth_mode) `none` |
+| The server's docs give you an API key or personal access token, and everyone may share it. | A key or token I enter | Sends the key you enter, as a header, with every request. Every user of the bundle acts through that one key. | [`static_headers`](#static_headers) |
+| Each person should use their own account at the service (GitHub, Linear, Notion-style). | Each user signs in with their own account | Until a person has connected their account, their tool list shows only a `<server>__connect_account` tool, which returns a sign-in link. After they sign in, the server's real tools appear, and the gateway calls the server as that person. | [`auth_mode`](#auth_mode) `upstream_oauth`, [`identity_mode`](#identity_mode) `per_user` |
+| One service account, signed in once by an admin, should serve everyone. | One shared account I sign in with once | An admin signs in to the service once, on the server's page. The gateway keeps that one token and calls the server with it for everyone. | [`auth_mode`](#auth_mode) `upstream_oauth`, [`identity_mode`](#identity_mode) `shared` |
+| The provider gave you a client id and secret for machine access. | One shared machine account (client credentials) | Fetches a token with the client id and secret itself, without anyone signing in in a browser, and fetches a new one when it expires. Everyone shares it. | [`auth_mode`](#auth_mode) `upstream_oauth`, [`identity_mode`](#identity_mode) `shared`, plus the client id and secret ([Client credentials](/manage/servers#client-credentials)) |
+| It is your own server, it has no login of its own, and it must know for certain which bundlemcp user is calling. | A token the gateway issues for each caller | Sends a short-lived token with each call that stands for the calling user and is valid only at this server. Your server asks the gateway who the token belongs to. | [`auth_mode`](#auth_mode) `delegated_token` |
 
-The remaining settings — [`forward_headers`](#forward_headers), [`send_identity_header`](#send_identity_header) and
-[`protocol_mode`](#protocol_mode) — sit under **Advanced**, because their defaults are right for almost every server.
+The remaining settings sit under **Advanced**, because their defaults are right for almost every server. Each is
+explained further down as well:
+
+- [`forward_headers`](#forward_headers) passes chosen headers from the client's request on to the server.
+- [`send_identity_header`](#send_identity_header) tells a server on your own network which user is calling.
+- [`protocol_mode`](#protocol_mode) picks the MCP revision the gateway speaks to the server; `auto` is almost always
+  right.
 
 ## URL {#url}
 
@@ -67,9 +82,25 @@ You never pick between `none` and `static_headers` yourself: an upstream server 
 - **`upstream_oauth`** for a server that sends you to a sign-in page. Combine it with [`identity_mode`](#identity_mode)
   to choose whose account is used. It needs `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS`, because the gateway stores the tokens
   encrypted. The step-by-step setup is in [Upstream OAuth](/manage/servers#upstream-oauth).
-- **`delegated_token`** for a server **you** write that must know, and be able to check, who is calling. The server
-  receives `Authorization: Bearer bmcp_dt_…` and asks the gateway what it means; the details are in
+- **`delegated_token`** for your own server, when it needs to know which bundlemcp user is calling and must not simply
+  take the gateway's word for it. The server receives `Authorization: Bearer bmcp_dt_…` and asks the gateway what it
+  means; the details are in
   [Identity for upstream servers](/integrate/upstream-identity#delegated-token-plus-introspection-verifiable-and-bound-to-you).
+
+**`upstream_oauth` or `delegated_token`?** Both put a per-call token in front of the server, but they differ in who
+issues it, and so in whose users the server knows about:
+
+| | `upstream_oauth` | `delegated_token` |
+|---|---|---|
+| Typical server | A third-party server with its own login, such as GitHub's | Your own server, with no login of its own |
+| Who issues the token | The service's own authorization server, after someone signs in there | bundlemcp, on every call |
+| Whose users the server sees | Its own accounts: the GitHub user, the Linear workspace | bundlemcp's users: the person signed in to the gateway, or the API key used |
+| What the server does with the token | What it always does with its own tokens | Asks the gateway's introspection route who the token belongs to |
+| What a person has to do | Sign in to the service once (or an admin, for a shared account) | Nothing beyond signing in to bundlemcp |
+
+Put differently: with `upstream_oauth` the gateway logs in **to** the server's service; with `delegated_token` the
+server lets bundlemcp **be** its login. Choose `delegated_token` when you are writing the server anyway and want it to
+reuse the users bundlemcp already knows, instead of building a login of its own.
 
 **In the UI:** the *Where does the credential come from?* choice when registering, *Auth mode* on the server's page.
 **API and bootstrap:** `auth_mode`.

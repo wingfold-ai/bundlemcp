@@ -66,11 +66,10 @@ Separately, the gateway locks out an IP after `BUNDLEMCP_AUTH_FAILURE_LIMIT` fai
 `BUNDLEMCP_AUTH_FAILURE_WINDOW` seconds. The lockout is checked before the credential, so a correct key from a
 locked-out address is refused too.
 
-Dynamic client registration at `POST /oauth/register` has its own limits: `BUNDLEMCP_DCR_RATE_LIMIT` registrations per
-client IP every `BUNDLEMCP_DCR_RATE_WINDOW` seconds, and at most `BUNDLEMCP_DCR_MAX_UNUSED_CLIENTS` registered clients
-that never obtained a token. A hosted client such as claude.ai registers from its own servers, so all of its users share
-one IP's budget; listing its callback in `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS` exempts those registrations from the
-per-IP limit, though not from the quota. See [Client registration](/self-hosting/configuration#client-registration).
+Dynamic client registration at `POST /oauth/register` has its own per-IP limit and a cap on registered clients that
+never obtained a token. A hosted client such as claude.ai registers from its own servers, so all of its users share one
+IP's budget; listing its callback in the allow-list exempts it from the per-IP limit. The variables and their defaults
+are under [Client registration](/self-hosting/configuration#client-registration).
 
 ## Audit retention
 

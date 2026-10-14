@@ -180,92 +180,47 @@ throttled, and then locked out, before any database lookup.
 
 ## Upstream identity: how the gateway reaches an upstream server
 
-Once the caller identity is resolved, the gateway calls the upstream server. Two separate questions arise there, and
-each upstream server answers them in its own settings:
+Once the caller identity is resolved, the gateway calls the upstream server. Each upstream server's settings answer two
+questions:
 
-- **How does the gateway authenticate to the upstream server?** That is its `auth_mode`, and it is independent of who
-  called.
-- **Does the upstream server learn who the caller is?** That is `send_identity_header` and `forward_headers`.
+- **How does the gateway get in?** Without a credential, with one shared key, with one shared OAuth account, or with
+  each person's own account at the upstream service.
+- **What does the upstream server learn about the caller?** Nothing, a header naming the caller, or a short-lived token
+  it can verify with the gateway.
 
-The settings themselves, with when to use each, are described on [Upstream servers](/manage/servers).
+Every option, with the situation it is for, is on [Upstream server settings](/guide/upstream-server-settings). What a
+server you write yourself receives, and how it checks it, is on
+[Identity for upstream servers](/integrate/upstream-identity). For authentication, three points matter:
 
-### How the gateway authenticates to the upstream server
-
-| `auth_mode` | Identity toward the upstream | Typical case |
-|---|---|---|
-| `none` | none | Upstream servers on your own network that trust the gateway |
-| `static_headers` | one fixed credential, such as an API key header, for every caller | A hosted server with a service key |
-| `upstream_oauth`, `identity_mode: shared` | one OAuth account an administrator connected once | A service account at the upstream |
-| `upstream_oauth`, `identity_mode: per_user` | the caller's own account at the upstream | GitHub, Google, a CRM: anything where the upstream must see the person |
-
-With `upstream_oauth` the gateway is itself an **OAuth client** of the upstream, and attaches its own bearer to every
-call.
-
-With `per_user`, the first tool call a person makes without a stored account returns a structured MCP error carrying a
-connect link. They open it, sign in at the upstream in their browser, and retry. From then on their calls carry their
-own upstream token, encrypted at rest and refreshed automatically. Two people using the same endpoint therefore act as
-two different upstream accounts, and an administrator's connection is never substituted for a user's. A person's
-upstream token is shared by every MCP client they use: one account per person per upstream server.
-
-Because the caller must be a person, a `per_user` upstream server cannot sit behind a `none`-auth endpoint; the gateway
-refuses that combination.
-
-Details: [Upstream OAuth](/manage/servers#upstream-oauth).
-
-### Telling the upstream server who is calling
-
-Independently of `auth_mode`, two mechanisms pass the caller identity on. They can be combined.
-
-#### `X-MCP-User`: trusted on the internal network
-
-When an upstream server's `send_identity_header` is on (the default), every call to it carries `X-MCP-User: <sub>`:
-the user id for OAuth callers (or their identity provider subject with `BUNDLEMCP_IDENTITY_SUBJECT=oidc`),
-`api_key:<id>` for key callers, and nothing for anonymous callers. The gateway **strips any `X-MCP-User` a client
-sends**, so the header can only come from the gateway.
-
-This is a plain header, not a signed assertion. Trust it only when the upstream server is reachable *only* through the
-gateway, such as on a compose or cluster network. For an upstream server that also faces the internet, use the next
-mechanism.
-
-#### Forwarded bearer plus introspection: verifiable
-
-To let an upstream server *verify* the caller, forward the client's own `Authorization` header and have the upstream ask
-the gateway whether it is valid:
-
-1. Register the upstream server with `forward_headers: {"authorization": "authorization"}`.
-2. Give the upstream server a `service` API key.
-3. The upstream server calls the introspection route (never anonymous):
-
-```bash
-curl -s https://gw.example.com/oauth/introspect \
-  -u "bundlemcp:bmcp_sk_<service key>" \
-  -d "token=<the forwarded bearer>"
-```
-
-```json
-{ "active": true, "sub": "…", "client_id": "…", "exp": 1757340000, "scope": "…", "aud": "…" }
-```
-
-A forwarded **API key** introspects as active with `sub` `api_key:<id>` too, so an upstream server written for
-introspection serves key callers without a second code path. The upstream connection is keyed by the forwarded values,
-never just by `sub`, so one user's credential can never serve another's request.
-
-Details: [Identity for upstream servers](/integrate/upstream-identity).
+- **The upstream identity never changes who the call is attributed to.** Rate limits, the audit record and the
+  metering hook always use the caller identity, even when the gateway reaches the upstream through a shared account.
+- **With each person's own account, people never share one.** A person connects their account once: until then their
+  tool list holds a `<server>__connect_account` tool that returns a sign-in link. Their upstream token is stored
+  encrypted, refreshed automatically, and used by every MCP client they connect. Because the gateway has to know which
+  person is calling, such a server cannot sit behind an endpoint without authentication, and API-key callers cannot
+  use it.
+- **To prove the caller to an upstream server, use a delegated token.** The gateway then sends a token issued for this
+  caller and valid only at this server, which the server checks with the gateway. The simpler `X-MCP-User` header
+  names the caller too, but anyone who can reach the server directly could send it, so trust it only on a network
+  where the upstream server is reachable solely through the gateway.
 
 ## End to end
 
-Alice, a user who is not an administrator, Bob, and a nightly script, all on the same bundle:
+Three callers use the same bundle, `assistant`: two people who are not administrators, and a nightly script.
 
-1. **Alice** signs in and opens the catalogue. She sees the `assistant` bundle with its `assistant` endpoint shaped for
-   claude.ai, and adds its URL in claude.ai. claude.ai registers itself, Alice signs in at the identity provider,
-   approves the consent screen, and claude.ai now holds a token that means "Alice, on `assistant`".
-2. Her call to `github__list_issues` reaches a `per_user` upstream server. No GitHub account is stored for Alice, so the
-   call returns a connect link. She authorises at GitHub and retries. The call now carries **her** GitHub token, the
-   upstream sees `X-MCP-User: <Alice's id>`, and the audit record says Alice.
-3. **Bob** does the same on the same endpoint and ends up with his own GitHub token. Neither can act as the other.
+1. **The first person** signs in and opens the catalogue. They see the `assistant` bundle with its `assistant`
+   endpoint shaped for claude.ai, and add its URL in claude.ai. claude.ai registers itself, the person signs in at the
+   identity provider and approves the consent screen. claude.ai now holds a token that means "this person, on
+   `assistant`".
+2. The bundle contains a GitHub upstream server where each person uses their own account. The first person has not
+   connected one yet, so their tool list shows `github__connect_account` instead of the GitHub tools. Calling it gives
+   them a sign-in link; they authorise at GitHub, and the GitHub tools appear. A call to `github__list_issues` now
+   carries **their** GitHub token, and the audit record names them.
+3. **The second person** does the same on the same endpoint and ends up with their own GitHub token. Neither can act
+   as the other.
 4. **The script** uses an `endpoint` API key on a second endpoint of the same bundle. It is identified as
-   `api_key:<id>`, cannot use a `per_user` upstream server, and would use a `shared` upstream account if one were
-   configured.
+   `api_key:<id>`, cannot use the GitHub server, because that one needs each caller's own account, and would use a
+   shared upstream account if one were configured.
 
 ## Secrets at a glance
 
@@ -275,6 +230,7 @@ Alice, a user who is not an administrator, Bob, and a nightly script, all on the
 | Refresh token | `bmcp_rt_…` | MCP client | 7 days, rotated each use |
 | API key | `bmcp_sk_…` | scripts, services | no expiry; revoke manually |
 | Upstream OAuth token | provider-specific | the gateway (encrypted) | refreshed automatically |
+| Delegated token | `bmcp_dt_…` | the one upstream server it was issued for | 5 minutes |
 | Admin session | signed cookie | the browser | bounded by max age |
 
 Tokens and keys are stored hashed, upstream tokens encrypted, and nothing secret is ever logged or returned by an API.
@@ -294,7 +250,7 @@ an ID token.
 presenting it. Every client a person uses resolves to the same user and the same upstream accounts.
 
 **"Is `X-MCP-User` proof of anything?"** It is trusted only on a network where the upstream server is reachable solely
-through the gateway. For proof, introspect a forwarded bearer.
+through the gateway. For proof, use a [delegated token](/guide/upstream-server-settings#auth_mode).
 
 **"A token works on one endpoint but not another — is it broken?"** No, that is endpoint binding. Re-authorize on the
 second endpoint.

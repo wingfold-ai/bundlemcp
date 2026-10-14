@@ -156,13 +156,38 @@ curl -s -X PUT $API/endpoints/tools -H "Authorization: Bearer $KEY" -H "Content-
 ```
 :::
 
-## 6. Call a tool
+## 6. Create an API key
 
-Any MCP client can now use `http://localhost:8000/tools/mcp` with an API key. For a real script you would create a key
-on the **API keys** page; here the development service key will do. With `curl`, list the tools:
+The endpoint takes API keys, so a client needs one.
+
+1. Open **API keys**, enter `my-script` as the **Name** and keep the kind `endpoint`. An endpoint key can call MCP
+   endpoints and nothing else; a `service` key could also manage the gateway.
+2. Click **Create**.
+
+![The new API key, shown once above the list of keys](/screenshots/quickstart/07-create-api-key.png)
+
+The key is shown exactly once. Copy it now: the gateway stores only a hash, so a lost key cannot be recovered, only
+replaced. The table keeps its prefix, so you can tell keys apart, and **Deactivate** or **Delete** revokes one.
+
+::: details The same step through the management API
+```bash
+curl -s -X POST $API/api-keys -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"name":"my-script","kind":"endpoint"}'
+```
+
+The reply carries the secret in `key`, again only this once.
+:::
+
+## 7. Call a tool
+
+Any MCP client can now use `http://localhost:8000/tools/mcp` with that key: [Scripts and agents](/connect/scripts)
+shows how to configure one. To see the gateway answer without installing a client, call it with `curl`.
+
+::: details List the tools and call one with curl
+Set `KEY` to the key you just copied:
 
 ```bash
-KEY=bmcp_sk_devservicekey000000000000000000000000
+KEY=bmcp_sk_...   # the key from step 6
 V=2026-07-28
 
 curl -s http://localhost:8000/tools/mcp \
@@ -188,7 +213,10 @@ curl -s -N http://localhost:8000/tools/mcp \
 ```
 
 The last `data:` event carries the result, `pcmeldnub`. The gateway saw the `my-server__` prefix and forwarded the call
-to that upstream server. Every call is recorded on the **Audit** page.
+to that upstream server.
+:::
+
+Every call is recorded on the **Audit** page, and the key's **Last used** column on **API keys** updates.
 
 ::: details Why all that ceremony in a plain POST?
 The gateway serves two generations of the MCP protocol on one URL, and each request has to say which one it belongs to.
@@ -200,7 +228,7 @@ A POST carrying neither is refused with `400`. Every MCP SDK builds one or the o
 visible when you use `curl`. The full contract is in [Request envelope](/integrate/http-surface#request-envelope).
 :::
 
-## 7. Connect claude.ai or ChatGPT
+## 8. Connect claude.ai or ChatGPT
 
 [Scripts and agents](/connect/scripts) work against this local stack as it is. claude.ai and ChatGPT do not: they
 connect from their own servers on the internet, which cannot reach `localhost`. They need your gateway at a public

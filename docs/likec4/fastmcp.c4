@@ -1,0 +1,55 @@
+// bundlemcp — gateway vs. framework, drawn on the comparison guide
+// (docs/guide/bundlemcp-vs-fastmcp.md). A dynamic view over the elements of
+// model.c4, plus two example upstream servers built with an MCP framework.
+
+model {
+  extend upstreams {
+    githubOps = external 'GitHub Ops' {
+      description 'Example upstream: tools implemented with @mcp.tool, plus prompt and resource definitions'
+      technology 'FastMCP'
+    }
+    postgresDb = external 'Postgres DB' {
+      description 'Example upstream: tools implemented with @mcp.tool, plus prompt and resource definitions'
+      technology 'FastMCP or TypeScript SDK'
+    }
+  }
+}
+
+views {
+  dynamic view gatewayVsFramework {
+    title 'bundlemcp vs. FastMCP — gateway and framework'
+    description 'bundlemcp is the gateway and aggregation layer; FastMCP is the application framework each upstream server is written in'
+
+    mcpClient -> bundlemcp 'calls'
+    bundlemcp -> upstreams.githubOps 'aggregates' {
+      technology 'Streamable HTTP'
+    }
+    bundlemcp -> upstreams.postgresDb 'aggregates' {
+      technology 'Streamable HTTP'
+    }
+
+    include
+      mcpClient with {
+        title 'Consuming clients'
+        description 'claude.ai, ChatGPT, agents, CI/CD'
+      },
+      bundlemcp with {
+        title 'bundlemcp'
+        technology 'Gateway & aggregation layer'
+        description 'One URL for 10+ servers, Valkey cluster sessions, per-client shaping and tool curation; OAuth 2.1 and API-key auth, rate limits and brute-force defense, audit logs and billing metering'
+      },
+      upstreams.githubOps with {
+        title 'Upstream MCP: GitHub Ops'
+        technology 'Application framework: FastMCP'
+      },
+      upstreams.postgresDb with {
+        title 'Upstream MCP: Postgres DB'
+        technology 'Application framework: FastMCP or TS'
+      }
+    style * {
+      size md
+      textSize md
+    }
+    autoLayout TopBottom
+  }
+}
