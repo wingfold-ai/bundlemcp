@@ -101,28 +101,35 @@ reverse proxy, health checks, backups and scaling. These are the settings it mus
 
 ### Gateway: always set
 
-| Variable | Set it to | Why |
-|---|---|---|
-| `BUNDLEMCP_DATABASE_URL` | `postgresql+asyncpg://<user>:<password>@<host>:5432/<db>` | Where configuration, tokens and the audit log are kept |
-| `BUNDLEMCP_REDIS_URL` | `redis://<host>:6379/0` | Where live sessions, rate-limit counters and cross-replica signals are kept |
-| `BUNDLEMCP_PUBLIC_URL` | The HTTPS URL clients reach, e.g. `https://mcp.example.com` | Every OAuth address and the login cookie derive from it |
-| `BUNDLEMCP_TRUSTED_PROXIES` | The CIDRs your reverse proxy connects from, e.g. `["10.0.0.0/8"]` | Without it, rate limits and audit records see every request as coming from the proxy |
-| `BUNDLEMCP_OIDC_DISCOVERY_URL` | Your identity provider's `…/.well-known/openid-configuration` | People sign in there ([Identity provider](/self-hosting/identity-provider)) |
-| `BUNDLEMCP_OIDC_CLIENT_ID` | The client id you registered for the gateway | Same |
-| `BUNDLEMCP_OIDC_CLIENT_SECRET` | The secret your identity provider issued | Same |
-| `BUNDLEMCP_ADMIN_EMAILS` | `["you@example.com"]` | Who gets admin rights |
-| `BUNDLEMCP_INITIAL_SERVICE_KEY` | A key you generate (below) | Lets you use the management API before anyone has signed in; ignored once a service key exists |
+A production gateway needs every one of these. Each has a fallback so the gateway starts on a developer's machine, and
+in production that fallback is wrong. What each variable does, and exactly what goes wrong without it, is on the
+[Configuration](/self-hosting/configuration) page; follow the variable's name.
+
+| Variable | Set it to |
+|---|---|
+| [`BUNDLEMCP_DATABASE_URL`](/self-hosting/configuration#stores) | `postgresql+asyncpg://<user>:<password>@<host>:5432/<db>` |
+| [`BUNDLEMCP_REDIS_URL`](/self-hosting/configuration#stores) | `redis://<host>:6379/0` |
+| [`BUNDLEMCP_PUBLIC_URL`](/self-hosting/configuration#public-identity) | The HTTPS URL clients reach, e.g. `https://mcp.example.com` |
+| [`BUNDLEMCP_TRUSTED_PROXIES`](/self-hosting/configuration#public-identity) | The CIDRs your reverse proxy connects from, e.g. `["10.0.0.0/8"]` |
+| [`BUNDLEMCP_OIDC_DISCOVERY_URL`](/self-hosting/configuration#admin-login) | Your identity provider's `…/.well-known/openid-configuration` ([Identity provider](/self-hosting/identity-provider)) |
+| [`BUNDLEMCP_OIDC_CLIENT_ID`](/self-hosting/configuration#admin-login) | The client id you registered for the gateway |
+| [`BUNDLEMCP_OIDC_CLIENT_SECRET`](/self-hosting/configuration#admin-login) | The secret your identity provider issued |
+| [`BUNDLEMCP_ADMIN_EMAILS`](/self-hosting/configuration#admin-login) | `["you@example.com"]` |
+| [`BUNDLEMCP_INITIAL_SERVICE_KEY`](/self-hosting/configuration#provisioning) | A key you [generate](/self-hosting/configuration#secrets-you-generate) |
 
 ### Gateway: set when it applies
 
-| Variable | When | Set it to |
+Each of these is needed only in a particular situation. If the second column does not describe your deployment, leave
+the variable unset; what the gateway does then is on the Configuration page, under the variable's name.
+
+| Variable | You need it when | Set it to |
 |---|---|---|
-| `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` | Any upstream server uses upstream OAuth | `["<fernet key>"]` you generate (below) — keep it: losing it disconnects every stored account |
-| `BUNDLEMCP_WEB_ORIGINS` | The admin UI runs on a different origin than the gateway | `["https://admin.example.com"]` |
-| `BUNDLEMCP_BOOTSTRAP_FILE` | You provision from a [bootstrap file](/self-hosting/bootstrap) | Its path inside the container |
-| `BUNDLEMCP_BOOTSTRAP_STRICT` | Same | `true`, so a broken file stops the start instead of being logged |
-| `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS` | You know which clients will connect | Their OAuth callback URLs, e.g. `["https://claude.ai/api/mcp/auth_callback"]` |
-| `BUNDLEMCP_EGRESS_ALLOW_CIDRS` | Upstream servers sit on addresses the gateway blocks by default | Only those ranges — the list overrides the built-in blocks ([Network egress](/self-hosting/deploy#network-egress)) |
+| [`BUNDLEMCP_TOKEN_ENCRYPTION_KEYS`](/self-hosting/configuration#security) | At least one upstream server uses upstream OAuth: people or an admin sign in to it, or the gateway logs in with a client id and secret. | A list with one key you [generate](/self-hosting/configuration#secrets-you-generate). Keep it safe. |
+| [`BUNDLEMCP_WEB_ORIGINS`](/self-hosting/configuration#admin-login) | The admin UI is served from a different address than the gateway. | The admin UI's address, e.g. `["https://admin.example.com"]` |
+| [`BUNDLEMCP_BOOTSTRAP_FILE`](/self-hosting/configuration#provisioning) | You create upstream servers, bundles and endpoints from a [bootstrap file](/self-hosting/bootstrap). | The file's path inside the gateway container |
+| [`BUNDLEMCP_BOOTSTRAP_STRICT`](/self-hosting/configuration#provisioning) | You use a bootstrap file. | `true` |
+| [`BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS`](/self-hosting/configuration#client-registration) | You want only certain MCP clients, such as claude.ai, to connect. Unset allows any client; people still have to sign in either way. | The clients' return addresses, e.g. `["https://claude.ai/api/mcp/auth_callback"]` |
+| [`BUNDLEMCP_EGRESS_ALLOW_CIDRS`](/self-hosting/configuration#security) | An upstream server or your identity provider is on the gateway's loopback or in a link-local / cloud-metadata range. | Only the exact ranges you need, e.g. `["127.0.0.1/32"]` |
 
 ### Admin UI container
 
@@ -132,12 +139,5 @@ reverse proxy, health checks, backups and scaling. These are the settings it mus
 
 ### Generating the secrets
 
-```bash
-# a service API key
-python3 -c "import secrets; print('bmcp_sk_' + secrets.token_urlsafe(32))"
-# a token encryption key (Fernet: url-safe base64 of 32 random bytes)
-openssl rand -base64 32 | tr '+/' '-_'
-```
-
-Keep both in your platform's secret store, never in the repository. The [Secrets](/self-hosting/deploy#secrets) section
-says how to rotate them.
+How to generate the service key and the token encryption key is under
+[Secrets you generate](/self-hosting/configuration#secrets-you-generate).

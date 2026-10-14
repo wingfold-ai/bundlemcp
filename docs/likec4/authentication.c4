@@ -10,28 +10,28 @@ model {
 views {
   dynamic view authDirections {
     title 'Authentication — the two directions'
-    description 'Direction 1 resolves one caller identity; direction 2 decides what the upstream is told'
+    description 'Direction 1 establishes the caller identity; direction 2 uses the upstream identity'
 
-    mcpClient -> bundlemcp.gateway 'credential' {
-      technology 'HTTPS'
+    mcpClient -> bundlemcp.gateway 'caller identity' {
+      technology 'session, OAuth token or API key'
     }
-    bundlemcp.gateway -> upstreams 'identity' {
-      technology 'MCP'
+    bundlemcp.gateway -> upstreams 'upstream identity' {
+      technology 'per upstream: none, a key or an OAuth account'
     }
 
     include
       mcpClient with {
         title 'Callers'
-        description 'MCP clients, scripts and browsers present a session, an OAuth token or an API key'
+        description 'MCP clients, scripts and browsers prove who they are'
       },
       bundlemcp.gateway with {
         title 'bundlemcp'
         technology 'MCP gateway'
-        description 'Resolves one caller identity for rate limits, audit and metering'
+        description 'Resolves the caller identity once, for rate limits, audit and metering, and picks each upstream identity'
       },
       upstreams with {
         title 'Upstream MCP servers'
-        description 'Told who is calling by a header, a forwarded bearer or an upstream OAuth token'
+        description 'Accept the gateway by its upstream identity; can also be told who the caller is'
       }
     style * {
       size md

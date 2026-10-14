@@ -10,6 +10,7 @@ const OUT = "../../docs/public/screenshots/quickstart";
 const SERVER = "my-server";
 const BUNDLE = "tools";
 const ENDPOINT = "tools";
+const KEY = "my-script";
 const SERVICE_KEY =
   process.env.BUNDLEMCP_INITIAL_SERVICE_KEY ?? "bmcp_sk_devservicekey000000000000000000000000";
 
@@ -31,6 +32,11 @@ async function removeLeftovers(): Promise<void> {
   for (const path of [`endpoints/${ENDPOINT}`, `bundles/${BUNDLE}`, `upstreams/${SERVER}`]) {
     const response = await api.delete(`${GATEWAY_URL}/api/v1/${path}`);
     expect([204, 404], `DELETE ${path}: ${await response.text()}`).toContain(response.status());
+  }
+  const keys = await (await api.get(`${GATEWAY_URL}/api/v1/api-keys?limit=100`)).json();
+  for (const key of keys.items.filter((k: { name: string }) => k.name === KEY)) {
+    const response = await api.delete(`${GATEWAY_URL}/api/v1/api-keys/${key.id}`);
+    expect(response.status(), `DELETE api-keys/${key.id}`).toBe(204);
   }
   await api.dispose();
 }
@@ -80,6 +86,14 @@ test("quickstart walk-through", async ({ page }) => {
   await page.goto(`/endpoints/${ENDPOINT}`);
   await expect(page.getByTestId("connection-url")).toContainText(`/${ENDPOINT}/mcp`);
   await shot(page, "06-endpoint-connection");
+
+  await page.goto("/api-keys");
+  await page.getByTestId("key-name").fill(KEY);
+  await page.getByTestId("key-kind").selectOption("endpoint");
+  await page.getByTestId("key-create").click();
+  await expect(page.getByTestId("created-key-banner")).toBeVisible();
+  await expect(page.getByTestId(`key-${KEY}`)).toBeVisible();
+  await shot(page, "07-create-api-key");
 
   await removeLeftovers();
 });

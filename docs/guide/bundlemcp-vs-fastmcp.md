@@ -14,25 +14,7 @@ In fact, bundlemcp does not replace FastMCP — it uses FastMCP internally as it
 
 ## The Core Distinction
 
-```
-Consuming Clients (Claude.ai, ChatGPT, Agents, CI/CD)
-         │
-         ▼
-┌─────────────────────────────────────────┐
-│                bundlemcp                │  ◀── Gateway & Aggregation Layer
-│  • Single URL for 10+ servers           │      • OAuth 2.1 & API Key auth
-│  • Valkey cluster sessions              │      • Rate limits & brute force defense
-│  • Per-client shaping & tool curation   │      • Audit logs & billing metering
-└────────────────────┬────────────────────┘
-                     │ (Streamable HTTP)
-         ┌───────────┴───────────┐
-         ▼                       ▼
- ┌───────────────┐       ┌───────────────┐
- │ Upstream MCP  │       │ Upstream MCP  │   ◀── Application Framework
- │   (FastMCP)   │       │ (FastMCP / TS)│       • Tool implementation (@mcp.tool)
- │   GitHub Ops  │       │  Postgres DB  │       • Prompt / resource definitions
- └───────────────┘       └───────────────┘
-```
+<LikeC4Diagram view="gatewayVsFramework" />
 
 - **Use FastMCP when:** You want to author tools in Python. FastMCP provides a great developer experience for defining
   `@mcp.tool()` functions, prompts, and resources.
