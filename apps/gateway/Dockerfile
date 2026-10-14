@@ -10,7 +10,7 @@ COPY packages/ packages/
 # needs no source tree
 RUN uv sync --frozen --no-dev --all-packages --no-editable
 
-FROM python:3.13-slim-bookworm
+FROM python:3.14-slim-bookworm
 WORKDIR /app
 RUN useradd --system --uid 10001 --create-home bundlemcp
 COPY --from=builder --chown=bundlemcp:bundlemcp /app/.venv /app/.venv
