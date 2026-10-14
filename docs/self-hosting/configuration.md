@@ -13,33 +13,33 @@ A second, smaller set of **runtime settings** is editable while the gateway runs
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BUNDLEMCP_DATABASE_URL` | `postgresql+asyncpg://bundlemcp:bundlemcp@localhost:5432/bundlemcp` | Async SQLAlchemy URL of the Postgres holding configuration, tokens and the audit log. |
-| `BUNDLEMCP_REDIS_URL` | `redis://localhost:6379/0` | Valkey (or Redis) URL for live sessions, rate limits and cross-replica signalling. The `redis://` scheme is correct for Valkey. |
+| `BUNDLEMCP_DATABASE_URL` | `postgresql+asyncpg://bundlemcp:bundlemcp@localhost:5432/bundlemcp` | Async SQLAlchemy URL of the Postgres holding configuration, tokens and the audit log. The default only suits a gateway running on the same machine as Postgres: inside a container, `localhost` is the container itself, the gateway finds no database there and does not start. |
+| `BUNDLEMCP_REDIS_URL` | `redis://localhost:6379/0` | Valkey (or Redis) URL for live sessions, rate limits and cross-replica signalling. The `redis://` scheme is correct for Valkey. With the default inside a container, the gateway never reports ready and requests that need live state answer `503`. |
 
 ### Public identity
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BUNDLEMCP_PUBLIC_URL` | `http://localhost:8000` | Externally reachable base URL. The OAuth issuer, discovery metadata, redirect URIs and cookie scope derive from it. |
-| `BUNDLEMCP_TRUSTED_PROXIES` | `[]` | CIDRs of reverse proxies whose `X-Forwarded-*` headers are honoured. |
+| `BUNDLEMCP_PUBLIC_URL` | `http://localhost:8000` | Externally reachable base URL, exactly as clients reach it, e.g. `https://mcp.example.com`. The OAuth issuer, discovery metadata, redirect URIs and cookie scope derive from it. The default works only on the gateway's own machine: anyone else is sent to `localhost` to sign in, so OAuth and the admin login fail for them. |
+| `BUNDLEMCP_TRUSTED_PROXIES` | `[]` | CIDRs your reverse proxies connect from, e.g. `["10.0.0.0/8"]`; their `X-Forwarded-*` headers are honoured, so the gateway sees each client's real address. Empty: behind a proxy, every request appears to come from the proxy. Everyone then shares one failed-login counter, so a few bad credentials from one client lock out all; anonymous callers share one rate limit; and the audit log shows no real client addresses. |
 
 ### Admin login
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BUNDLEMCP_OIDC_DISCOVERY_URL` | unset | The issuer's OIDC discovery document. Admin login is disabled when unset. |
-| `BUNDLEMCP_OIDC_CLIENT_ID` | unset | Client id registered with the provider. |
-| `BUNDLEMCP_OIDC_CLIENT_SECRET` | unset | Client secret registered with the provider. |
-| `BUNDLEMCP_ADMIN_EMAILS` | `[]` | Emails granted admin rights, re-evaluated at every login. |
-| `BUNDLEMCP_WEB_ORIGINS` | `[]` | Browser origins allowed to call the management API with credentials, and the CSRF allow-list. Empty means same-origin only. |
+| `BUNDLEMCP_OIDC_DISCOVERY_URL` | unset | Your identity provider's discovery document, `…/.well-known/openid-configuration` ([Identity provider](/self-hosting/identity-provider)). Unset, or without the client id and secret below: nobody can sign in (the login answers `503`), so no MCP client can connect through OAuth either; only API keys work. |
+| `BUNDLEMCP_OIDC_CLIENT_ID` | unset | Client id you registered for the gateway at the provider. |
+| `BUNDLEMCP_OIDC_CLIENT_SECRET` | unset | Client secret the provider issued for that client. It comes from the provider; you do not generate it. |
+| `BUNDLEMCP_ADMIN_EMAILS` | `[]` | Emails granted admin rights, re-evaluated at every login. Empty: nobody is an administrator; everyone who signs in sees only the catalogue, and the gateway can be configured only with a service API key. |
+| `BUNDLEMCP_WEB_ORIGINS` | `[]` | Addresses (scheme and host) of admin UIs served from a different address than the gateway, e.g. `["https://admin.example.com"]` for a UI there and the gateway at `https://mcp.example.com`. Browsers let such a page call the management API with the user's login only if the gateway allows its address; the list is also the CSRF allow-list. Empty means same-origin only, which is right when the UI is served from the gateway's own address or not used; a UI elsewhere then loads no data. |
 
 ### Security
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BUNDLEMCP_EGRESS_ALLOW_CIDRS` | `[]` | CIDRs outbound requests may resolve to. Checked first and wins over every other rule, including the built-in loopback and cloud-metadata blocks — keep it narrow. Empty allows anything not denied. |
+| `BUNDLEMCP_EGRESS_ALLOW_CIDRS` | `[]` | Exceptions to the built-in egress rule. By default the gateway refuses to connect to its own loopback and to link-local / cloud-metadata ranges (`169.254.0.0/16`), so a registered server URL cannot reach cloud credentials or the gateway itself; private networks such as `10.0.0.0/8` are allowed. An entry here is checked first and wins over every other rule, so keep it as narrow as the host you mean, e.g. `["127.0.0.1/32"]`; `0.0.0.0/0` reopens the cloud-metadata range. Empty: the built-in rule alone. See [Network egress](/self-hosting/deploy#network-egress). |
 | `BUNDLEMCP_EGRESS_DENY_CIDRS` | `[]` | CIDRs outbound requests may never resolve to, unless an allow entry covers them. |
-| `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` | `[]` | Fernet keys for stored upstream OAuth tokens. The first encrypts, all decrypt. Required before any server can use upstream OAuth. |
+| `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` | `[]` | Keys that encrypt the tokens the gateway stores for upstream servers using upstream OAuth (people or an admin signed in to the service, or a client id and secret), so it can keep calling them without a new sign-in. The first key encrypts, all of them decrypt, which is how [rotation](/self-hosting/operations#rotating-credentials) works. [Generate](#secrets-you-generate) one. Empty: such servers cannot be used (their upstream OAuth status shows `configured: false`); everything else works. Losing every key makes stored sign-ins unreadable, and people have to sign in to those services again. |
 | `BUNDLEMCP_AUTH_FAILURE_LIMIT` | `20` | Failed authentication attempts from one IP before it is locked out. |
 | `BUNDLEMCP_AUTH_FAILURE_WINDOW` | `300` | Seconds the failure count is retained. |
 
@@ -53,6 +53,17 @@ How OAuth clients such as claude.ai and ChatGPT may register with the gateway's 
 | `BUNDLEMCP_DCR_RATE_LIMIT` | `10` | Dynamic registrations one client IP may make per window. Registrations whose redirect URIs are all allow-listed are exempt. |
 | `BUNDLEMCP_DCR_RATE_WINDOW` | `3600` | Seconds in the per-IP registration window. |
 | `BUNDLEMCP_DCR_MAX_UNUSED_CLIENTS` | `1000` | Registered clients that have not yet obtained a token, across all IPs. Further registrations are refused with `429` until some are used or purged after seven days unused. Applies to allow-listed registrations too. |
+
+**Leaving the list empty is a valid choice**, and the default: every MCP client may register, as long as the address
+it sends people back to after sign-in is https (or http to `localhost`, for a client running on the person's own
+machine). Choose it when you do not want to restrict which apps people connect with. Floods of fake registrations are
+still held back by the other two limits in this table: at most `BUNDLEMCP_DCR_RATE_LIMIT` registrations per IP address
+per window, and at most `BUNDLEMCP_DCR_MAX_UNUSED_CLIENTS` clients that never obtained a token.
+
+The list decides **which apps** may connect, not **who** may use your bundles. Whatever client a person uses, they
+still have to sign in at your identity provider, approve the consent screen, and reach an endpoint that accepts OAuth.
+Restricting the list to claude.ai, say, keeps people from connecting through other apps; it lets nobody in who could not
+get in before.
 
 Each entry of `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS` is one of:
 
@@ -71,16 +82,16 @@ claude.ai only.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` | `1800` | Seconds between re-reading every server's tool list. Picks up a server that was unreachable when you registered it, and tools that changed without the upstream announcing it. One replica refreshes per interval. `0` disables it. |
+| `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` | `1800` (30 minutes) | Seconds between re-reading every server's tool list. Picks up a server that was unreachable when you registered it, and tools that changed without the upstream announcing it. One replica refreshes per interval. **Unset** means the default, every 30 minutes. **`0` turns the refresh off entirely**: no server is re-read until you call `:refresh-tools` or change its definition. Any other value is the interval itself, so keep it in minutes, not seconds: every refresh contacts every upstream server, and a value such as `1` probes all of them about once a second. 300–3600 suits most deployments. |
 
 ### Provisioning
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BUNDLEMCP_BOOTSTRAP_FILE` | unset | Path to a YAML or JSON [bootstrap document](/self-hosting/bootstrap) applied at startup. |
+| `BUNDLEMCP_BOOTSTRAP_FILE` | unset | Path, as the gateway container sees it, to a YAML or JSON [bootstrap document](/self-hosting/bootstrap) whose upstream servers, bundles and endpoints are created or updated at every start. Unset: nothing is created at start-up; you set everything up in the UI or through the management API. |
 | `BUNDLEMCP_BOOTSTRAP` | unset | The same document inline as JSON, applied after the file when both are set. |
-| `BUNDLEMCP_BOOTSTRAP_STRICT` | `false` | Whether a failed bootstrap refuses startup. Use `true` in CI and production. |
-| `BUNDLEMCP_INITIAL_SERVICE_KEY` | unset | A service API key provisioned on first boot when none exists, so the management API is reachable headlessly. Ignored once any service key exists. |
+| `BUNDLEMCP_BOOTSTRAP_STRICT` | `false` | What happens when the bootstrap document has an error. `true` stops the start, so you notice at once; use it in CI and production. `false` logs the error and starts anyway, without whatever the document failed to create. |
+| `BUNDLEMCP_INITIAL_SERVICE_KEY` | unset | A service API key stored at start-up when no service key exists yet, so scripts can use the management API before anyone has signed in. Ignored as long as any service key exists. [Generate](#secrets-you-generate) it; whether to replace it later is explained in [The first service key](/manage/api-keys#the-first-service-key). Unset: no key is created, and the management API is usable only after an administrator signs in and creates one on the **API keys** page. |
 
 ### Metering
 
@@ -107,6 +118,39 @@ claude.ai only.
 | `BUNDLEMCP_LOG_FORMAT` | `json` | `json` for a log pipeline, `text` for a terminal. Applies to the web server's loggers too. |
 
 Secrets, tokens, header values and tool arguments are never written to the log at any level.
+
+## Secrets you generate
+
+Two settings are secrets you create yourself; generate each once and keep it in your platform's secret store, never in
+the repository. Any machine with `openssl` can make both.
+
+**`BUNDLEMCP_INITIAL_SERVICE_KEY`** has to start with `bmcp_sk_`, followed by a long random string:
+
+```bash
+echo "bmcp_sk_$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')"
+```
+
+**`BUNDLEMCP_TOKEN_ENCRYPTION_KEYS`** takes a list of keys, each exactly 32 random bytes in url-safe base64 (a Fernet
+key):
+
+```bash
+openssl rand -base64 32 | tr '+/' '-_'
+```
+
+Put the result in a list: `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS='["<the key>"]'`.
+
+Without `openssl`, `python3 -c "import secrets; print('bmcp_sk_' + secrets.token_urlsafe(32))"` makes a service key
+with the standard library alone. For an encryption key from the `cryptography` library itself, which a host does not
+usually have installed, run it inside the gateway image:
+
+```bash
+docker run --rm your-registry/bundlemcp-gateway:$SHA \
+  python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"
+```
+
+The other secrets are issued elsewhere: `BUNDLEMCP_OIDC_CLIENT_SECRET` by your identity provider, the Postgres password
+in `BUNDLEMCP_DATABASE_URL` by whoever runs your database. How to rotate each is in
+[Rotating credentials](/self-hosting/operations#rotating-credentials).
 
 ## Runtime settings
 

@@ -45,7 +45,8 @@ changelog — see [Migrations and upgrades](#migrations-and-upgrades) for what t
 
 ## Public URL
 
-`BUNDLEMCP_PUBLIC_URL` is the single source of the externally visible base URL, for example `https://gw.example.com`.
+[`BUNDLEMCP_PUBLIC_URL`](/self-hosting/configuration#public-identity) is the single source of the externally visible
+base URL, for example `https://gw.example.com`.
 The OAuth issuer, the `.well-known` metadata, redirect URIs and consent pages all derive from it, never from the
 incoming `Host` header. The admin session cookie is host-only (it sets no `Domain`), and its `Secure` attribute follows
 the public URL's scheme: set when the URL is `https`.
@@ -73,7 +74,8 @@ web app on port 3000. Then:
    the gateway would have accepted into the proxy's own error.
 
 These three numbers — **1800 s**, **4 MiB**, **no buffering** — are the whole
-of it, and two of them are below nginx's defaults.
+of it. Two of them are below nginx's defaults; Traefik's defaults only miss the
+timeout.
 
 ::: code-group
 
@@ -103,6 +105,46 @@ location / {
 }
 ```
 
+```yaml [Traefik]
+# Traefik v3 with Docker labels. It streams responses and does not cap request
+# bodies by default; only its 60 s request read timeout needs raising.
+services:
+  traefik:
+    image: traefik:v3.5
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.websecure.address=:443
+      # >= max_total_timeout; the default 60s cuts long-lived streams
+      - --entrypoints.websecure.transport.respondingtimeouts.readtimeout=1800s
+      - --certificatesresolvers.le.acme.tlschallenge=true
+      - --certificatesresolvers.le.acme.email=you@example.com
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+    ports: ["443:443"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+
+  gateway:
+    environment:
+      # the network Traefik reaches the gateway from
+      BUNDLEMCP_TRUSTED_PROXIES: '["172.16.0.0/12"]'
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gateway.rule=Host(`gw.example.com`)
+      - traefik.http.routers.gateway.entrypoints=websecure
+      - traefik.http.routers.gateway.tls.certresolver=le
+      - traefik.http.services.gateway.loadbalancer.server.port=8000
+
+  web:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.web.rule=Host(`admin.example.com`)
+      - traefik.http.routers.web.entrypoints=websecure
+      - traefik.http.routers.web.tls.certresolver=le
+      - traefik.http.services.web.loadbalancer.server.port=3000
+```
+
 :::
 
 ## Browser origins and the web app
@@ -113,8 +155,8 @@ The web app talks to the management API with the admin session cookie, so the ga
 BUNDLEMCP_WEB_ORIGINS=["https://admin.example.com"]
 ```
 
-Only these origins receive credentialed CORS headers, and they are also the allow-list for the CSRF origin check on
-cookie-authenticated mutations. The web container itself needs one variable:
+What the setting does is in [Configuration](/self-hosting/configuration#admin-login). The web container itself needs
+one variable:
 
 ```
 NUXT_PUBLIC_API_BASE=https://gw.example.com
@@ -140,31 +182,16 @@ Details and provider-specific notes are in
 
 ## Secrets
 
-Generate real values for every secret the dev compose file defaults inline:
+The dev compose file sets every secret inline, with values anyone can read in the repository. Replace each one before
+going live, and keep the new values in your platform's secret store:
 
-| Variable | Generate with |
-|---|---|
-| `BUNDLEMCP_INITIAL_SERVICE_KEY` | `python -c "import secrets;print('bmcp_sk_'+secrets.token_urlsafe(32))"` |
-| `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` | `openssl rand -base64 32 \| tr '+/' '-_'` — a Fernet key is url-safe base64 of 32 random bytes |
-| `BUNDLEMCP_OIDC_CLIENT_SECRET` | Whatever your identity provider issued |
-| Postgres password | Your platform's secret store |
+- `BUNDLEMCP_INITIAL_SERVICE_KEY` and `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` you generate yourself, as described under
+  [Secrets you generate](/self-hosting/configuration#secrets-you-generate).
+- `BUNDLEMCP_OIDC_CLIENT_SECRET` comes from your identity provider.
+- The Postgres password, inside `BUNDLEMCP_DATABASE_URL`, comes from whoever runs your database.
 
-`cryptography` is a gateway dependency, not something a host has by default, so
-the `openssl` form above avoids a `ModuleNotFoundError`. If you would rather use
-the library, run it inside the image you just built:
-
-```bash
-docker run --rm your-registry/bundlemcp-gateway:$SHA \
-  python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"
-```
-
-The initial service key is only consulted while no service key exists, so
-it is safe to rotate away afterwards: create a new service key through the
-API, then delete the first one.
-
-Token encryption keys protect stored upstream OAuth tokens. The gateway boots without them, but a server with
-`auth_mode: upstream_oauth` cannot be used until they are set. Losing every key invalidates every stored upstream
-connection; users simply reconnect.
+What each one protects, and what happens without it, is in the [Configuration](/self-hosting/configuration) reference;
+rotating them is in [Rotating credentials](/self-hosting/operations#rotating-credentials).
 
 ## Health checks and readiness
 
@@ -232,19 +259,29 @@ Two facts about a single replica, since they set the shape of a deployment:
 An upstream that scales to zero when idle — a Deployment behind the KEDA HTTP add-on, Knative, or a similar interceptor
 — is woken by any request that reaches it. The gateway answers most client traffic without contacting upstreams:
 
-| Contacts the upstream | Does not |
-|---|---|
-| `tools/call` for one of its tools | `initialize`, `server/discover`, `tools/list` (served from the tool cache) |
-| `prompts/*`, `resources/*` and `completion/complete`, but only for a server that advertised `prompts`, `resources` or `completions` when it was last discovered | The same methods for a server that did not advertise them, and for the bundle's own prompts and resources |
-| Creating a server, or an update that changes how it is reached, or one to a server whose last probe failed | Re-applying an unchanged definition (API or bootstrap file) to a working server |
-| The periodic refresh, every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds | A gateway restart |
-| `:refresh-tools`, `:inspect`, and completing an upstream OAuth connect | |
+| Request or event | Contacts the upstream | Does not |
+|---|:---:|:---:|
+| `initialize`, `server/discover` | | ✔ |
+| `tools/list` (served from the tool cache) | | ✔ |
+| `tools/call` for one of the upstream's tools | ✔ | |
+| `prompts/*`, `resources/*`, `completion/complete`, for a server that advertised `prompts`, `resources` or `completions` when it was last discovered | ✔ | |
+| The same methods for a server that did not advertise them | | ✔ |
+| The bundle's own prompts and resources | | ✔ |
+| Creating a server | ✔ | |
+| Updating a server in a way that changes how it is reached (URL, headers, auth settings) | ✔ | |
+| Updating a server whose last probe failed | ✔ | |
+| Re-applying an unchanged definition to a working server (API or bootstrap file) | | ✔ |
+| The periodic refresh, every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds | ✔ | |
+| A gateway restart | | ✔ |
+| `:refresh-tools` and `:inspect` | ✔ | |
+| Completing an upstream OAuth connect | ✔ | |
 
 To keep idle upstreams at zero:
 
-- **Set `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL=0`.** The refresh probes every server on its interval, so it would wake
-  each one every 30 minutes by default. The cost of turning it off: a change to an upstream's tools reaches the cache
-  only through `:refresh-tools`, or when the server's definition changes.
+- **Set `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL=0`, which turns the periodic refresh off.** Leaving the variable unset
+  does not: unset means the default of 1800 seconds, so the refresh would wake every server once every 30 minutes. The
+  cost of turning it off: a change to an upstream's tools reaches the cache only through `:refresh-tools`, or when the
+  server's definition changes.
 - **Keep the bootstrap file or deploy tooling stable.** Re-applying it is free; changing a server's URL, headers or auth
   settings in it wakes that server once on the next start.
 - **Expect servers that serve prompts or resources to be woken by clients that list them.** Many clients, claude.ai
