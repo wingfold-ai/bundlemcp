@@ -155,7 +155,14 @@ async function saveEndpoint() {
 
 // --- danger zone ---
 const renameInput = ref("");
-const renameForce = ref(false);
+// the admin's acknowledgement that connected clients break; it is what sends force
+const renameAcknowledged = ref(false);
+const renaming = computed(() => renameInput.value !== "" && renameInput.value !== name);
+const renamedUrl = computed(() => `${apiBase()}/${renameInput.value}/mcp`);
+// a different new name is a different consequence, so it needs its own acknowledgement
+watch(renameInput, () => {
+  renameAcknowledged.value = false;
+});
 
 async function renameEndpoint() {
   errorMsg.value = "";
@@ -168,7 +175,10 @@ async function renameEndpoint() {
     return;
   }
   const { error } = await api.POST("/api/v1/endpoints/{name}:rename", {
-    params: { path: { name }, query: { new_name: renameInput.value, force: renameForce.value } },
+    params: {
+      path: { name },
+      query: { new_name: renameInput.value, force: renameAcknowledged.value },
+    },
   });
   if (error) {
     errorMsg.value = apiErrorMessage(error);
@@ -354,16 +364,32 @@ async function deleteEndpoint() {
       <h2 class="font-medium text-red-600">Danger zone</h2>
       <div>
         <label class="wf-label">Rename endpoint</label>
-        <div class="flex items-center gap-2">
-          <input v-model="renameInput" class="wf-input" data-testid="rename-input" />
-          <label class="flex items-center gap-1 text-sm whitespace-nowrap">
-            <input v-model="renameForce" type="checkbox" data-testid="rename-force" />
-            force
+        <input v-model="renameInput" class="wf-input" placeholder="new name" data-testid="rename-input" />
+        <div v-if="renaming" class="mt-2 space-y-2 text-sm" data-testid="rename-consequence">
+          <p>
+            The endpoint moves from
+            <code data-testid="rename-current-url">{{ connectionUrl }}</code>
+            to
+            <code data-testid="rename-new-url">{{ renamedUrl }}</code>.
+          </p>
+          <p class="text-red-600">
+            Every MCP client connected to this endpoint stops working until it is reconfigured with the new URL.
+          </p>
+          <label class="flex items-center gap-2">
+            <input v-model="renameAcknowledged" type="checkbox" data-testid="rename-ack" />
+            I understand that connected clients break
           </label>
-          <UButton variant="outline" data-testid="rename-submit" @click="renameEndpoint">
-            Rename
-          </UButton>
         </div>
+        <UButton
+          class="mt-2"
+          variant="outline"
+          color="error"
+          :disabled="!renaming || !renameAcknowledged"
+          data-testid="rename-submit"
+          @click="renameEndpoint"
+        >
+          Rename
+        </UButton>
       </div>
       <div>
         <UButton color="error" variant="outline" data-testid="delete-endpoint" @click="deleteEndpoint">

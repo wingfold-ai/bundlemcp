@@ -165,7 +165,11 @@ Three URLs, one curated tool set, three different contracts with clients.
 
 ## Renaming and disabling
 
-Renaming changes the public URL and breaks every connected client. The rename route refuses unless forced:
+Renaming changes the public URL and breaks every connected client. In the admin UI the rename sits in the endpoint's
+danger zone: type the new name and it shows the current and the resulting URL and warns that connected clients stop
+working until they are reconfigured. The **Rename** button stays disabled until you tick the acknowledgement.
+
+The rename route refuses with `409` unless forced, and its message names the same consequence:
 
 ```bash
 curl -s -X POST "$API/endpoints/assistant:rename?new_name=helper&force=true" -H "$AUTH"
