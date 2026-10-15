@@ -3,9 +3,11 @@
 # to its branch. On main: renumber the entries of the open pull requests, and
 # tag and release a merge that raised the version.
 #
-# Commits and tags pushed here use the workflow token, which starts no
-# workflow: the entry commit does not rerun CI, and the release is called
-# directly instead of through its tag trigger.
+# Commits pushed to a branch here say [skip ci], so GitHub creates no run for
+# them; the squash merge takes its message from the pull request body, so the
+# marker never reaches main. A tag pushed with the workflow token starts no
+# workflow, so the release is called directly instead of through its tag
+# trigger.
 name: Release entry
 
 on:
@@ -115,6 +117,7 @@ jobs:
         continue-on-error: true
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TITLE: ${{ github.event.pull_request.title }}
@@ -154,9 +157,9 @@ jobs:
           git add CHANGELOG.md pyproject.toml packages/bundlemcp/pyproject.toml uv.lock apps/web/openapi.json
           if ! git diff --cached --quiet; then
             if [ -n "$VERSION" ]; then
-              git commit -m "chore(repo): Release $VERSION"
+              git commit -m "chore(repo): Release $VERSION [skip ci]"
             else
-              git commit -m "chore(repo): Remove the release entry"
+              git commit -m "chore(repo): Remove the release entry [skip ci]"
             fi
           fi
           if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$HEAD_REF")" ]; then
@@ -199,7 +202,7 @@ jobs:
               uvx "$RUMDL" fmt CHANGELOG.md
               git add CHANGELOG.md pyproject.toml packages/bundlemcp/pyproject.toml uv.lock \
                 apps/web/openapi.json
-              git diff --cached --quiet || git commit -qm "chore(repo): Release $version"
+              git diff --cached --quiet || git commit -qm "chore(repo): Release $version [skip ci]"
               git push -q origin "HEAD:$branch"
             elif ! gh api "repos/$GH_REPO/issues/$number/comments" --jq '.[].body' | grep -qF "$marker"; then
               gh pr comment "$number" --body "$marker

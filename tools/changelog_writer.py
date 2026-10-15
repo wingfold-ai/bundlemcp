@@ -123,15 +123,15 @@ def user_message(title: str, body: str, diff: str) -> str:
 
 
 def _post(payload: dict, api_key: str) -> dict:
-    request = urllib.request.Request(
-        API_URL,
-        data=json.dumps(payload).encode(),
-        headers={
-            "content-type": "application/json",
-            "x-api-key": api_key,
-            "anthropic-version": API_VERSION,
-        },
-    )
+    headers = {
+        "content-type": "application/json",
+        "x-api-key": api_key,
+        "anthropic-version": API_VERSION,
+    }
+    # A key that is not scoped to a workspace names the workspace on every request.
+    if workspace := os.environ.get("ANTHROPIC_WORKSPACE_ID"):
+        headers["anthropic-workspace-id"] = workspace
+    request = urllib.request.Request(API_URL, data=json.dumps(payload).encode(), headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=120) as response:
             return json.loads(response.read())

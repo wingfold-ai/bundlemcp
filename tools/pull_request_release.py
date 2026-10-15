@@ -200,13 +200,17 @@ def branch_entry_text(tree: Path, base_ref: str, ref: str | None = None) -> str 
 
 
 def merge_base_branch(tree: Path, base_ref: str) -> None:
-    """Merge ``base_ref`` into the branch; the files ``apply`` rewrites take the base's side."""
+    """Merge ``base_ref`` into the branch; the files ``apply`` rewrites take the base's side.
+
+    The merge commit says ``[skip ci]`` like every commit CI pushes to a branch.
+    """
     contained = subprocess.run(["git", "merge-base", "--is-ancestor", base_ref, "HEAD"], cwd=tree)
     if contained.returncode == 0:
         return
     owned = {CHANGELOG, *VERSION_SITES}
+    message = f"chore(repo): Merge {base_ref} [skip ci]"
     merged = subprocess.run(
-        ["git", "merge", "--no-edit", base_ref], cwd=tree, capture_output=True, text=True
+        ["git", "merge", "-m", message, base_ref], cwd=tree, capture_output=True, text=True
     )
     if merged.returncode == 0:
         return
@@ -217,7 +221,7 @@ def merge_base_branch(tree: Path, base_ref: str) -> None:
         raise ReleaseError(f"merging {base_ref} conflicts in {others}; the author resolves it")
     _git("checkout", "--theirs", "--", *sorted(conflicted), cwd=tree)
     _git("add", "--", *sorted(conflicted), cwd=tree)
-    _git("commit", "--no-edit", cwd=tree)
+    _git("commit", "-m", message, cwd=tree)
 
 
 def apply(

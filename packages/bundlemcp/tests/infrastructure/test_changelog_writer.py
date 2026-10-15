@@ -119,3 +119,30 @@ def test_dep12_without_a_key_nothing_is_written(monkeypatch, tmp_path, capsys):
     )
     assert writer.main() == 1
     assert capsys.readouterr().out == ""
+
+
+def test_dep12_a_workspace_id_is_sent_when_set(monkeypatch):
+    sent = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return b'{"content": []}'
+
+    def urlopen(request, timeout):
+        sent.update({key.lower(): value for key, value in request.header_items()})
+        return Response()
+
+    monkeypatch.setattr(writer.urllib.request, "urlopen", urlopen)
+    monkeypatch.setenv("ANTHROPIC_WORKSPACE_ID", "wrkspc_1")
+    writer._post({}, "key")
+    assert sent["anthropic-workspace-id"] == "wrkspc_1"
+    monkeypatch.delenv("ANTHROPIC_WORKSPACE_ID")
+    sent.clear()
+    writer._post({}, "key")
+    assert "anthropic-workspace-id" not in sent

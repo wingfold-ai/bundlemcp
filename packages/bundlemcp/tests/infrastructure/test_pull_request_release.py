@@ -180,6 +180,7 @@ def test_dep12_main_moving_on_renumbers_above_the_merged_entry(tree):
     _run("git", "switch", "-q", "feature", cwd=tree)
     assert _apply(tree, "feat(bundles): Order members by hand") == "1.3.0"
     assert _run("git", "log", "-1", "--format=%P", cwd=tree).count(" ") == 1
+    assert "[skip ci]" in _run("git", "log", "-1", "--format=%s", cwd=tree)
     changelog = (tree / "CHANGELOG.md").read_text()
     assert changelog.index("## [1.3.0]") < changelog.index("## [1.2.0] - 2026-10-19")
     assert TEXT in changelog and "- Other." in changelog

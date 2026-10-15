@@ -121,11 +121,23 @@ the only signal, so nothing is released, and the failure is visible on `main`.
 
 ### CI sees the commit before the entry
 
-`ci.yml` runs on the author's commit. The entry commit gets no run, so the pull request's head shows no checks. The
-ruleset requires none today, so it does not block the merge. If `ci-passed` is made required, job **entry** also sets
-a `ci-passed` commit status on the new head, but only after the run for the parent commit succeeded and only when the
-new commit changes nothing but the files `apply` owns (`statuses: write`). That is noted here and left out of the
-first cut, because the ruleset does not need it.
+`ci.yml` runs on the author's commit. Pushing with the workflow token is not enough to keep the entry commit from
+running: GitHub still creates `pull_request` runs for it and holds them as *action required*, which leaves two pending
+checks on the pull request's head. So every commit CI pushes to a branch, the merge of `main` included, says
+`[skip ci]` in its subject, and GitHub creates no run at all. The squash merge takes its message from the pull request
+body (the repository's `squash_merge_commit_message` is `PR_BODY`), so the marker never reaches `main`, where it would
+skip CI, the image publish and this workflow's **tag** job.
+
+The ruleset requires no status check today, so a head without checks does not block the merge. If `ci-passed` is made
+required, job **entry** also sets a `ci-passed` commit status on the new head, but only after the run for the parent
+commit succeeded and only when the new commit changes nothing but the files `apply` owns (`statuses: write`). That is
+left out of the first cut, because the ruleset does not need it.
+
+### The Claude API key
+
+The key may be scoped to a workspace or to the organization. An organization-scoped key must name the workspace on each
+request, so the job also passes the repository variable `ANTHROPIC_WORKSPACE_ID`, when set, as the
+`anthropic-workspace-id` header. A workspace ID is not a secret; the key stays one.
 
 ## Risks / Trade-offs
 
@@ -142,13 +154,18 @@ first cut, because the ruleset does not need it.
   rule applies to `main` only.
 - **The date is the day the entry was last generated**, not necessarily the merge day. → Every push and every move of
   `main` regenerates it; a pull request that sits unchanged for a week keeps its older date. Accepted.
+- **`[skip ci]` on `main`.** If the squash message went back to listing the commit messages, the bot's subjects would
+  land on `main` and skip its workflows, release included. → `CONTRIBUTING.md` names the setting, and a skipped
+  release is visible as a merge with no tag.
 - **Two merges in quick succession.** The second pull request's entry may still name the first one's version if its
   refresh has not run yet. → The squash merge then conflicts in `CHANGELOG.md`, and GitHub refuses it until the
   refresh has run. No duplicate tag can be created.
 
 ## Migration Plan
 
-1. Add the `ANTHROPIC_API_KEY` repository secret (the maintainer, in the repository settings; never in a file).
+1. Add the `ANTHROPIC_API_KEY` repository secret (the maintainer, in the repository settings; never in a file), and
+   for an organization-scoped key the `ANTHROPIC_WORKSPACE_ID` variable. Set the squash message to the pull request
+   body.
 2. Create the labels (`type: feat` … `type: revert`, `semver: major|minor|patch|none`) with `gh label create`.
 3. Land this change through its own pull request. A `pull_request` workflow runs from the pull request's own
    branch, so `release-entry.yml` already runs for it: it labels the pull request, has Claude write the `0.2.0` entry

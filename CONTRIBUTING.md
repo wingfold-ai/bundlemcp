@@ -241,9 +241,10 @@ Every pull request into `main` carries the release its merge makes; nobody cuts 
    feature or fix to `0.1.1`. Reaching `1.0.0` is a pull request of its own.
 2. **CI commits the entry to your branch.** For any bump but `none`, CI pushes one commit, `chore(repo): Release
    <version>`, adding the `## [<version>] - <date>` entry to `CHANGELOG.md` and raising the version in both
-   `pyproject.toml` files, `uv.lock` and `apps/web/openapi.json`. That commit starts no CI run. Its text is written by
-   Claude from your diff and description, so it says what users get rather than repeating the title; the diff and
-   description are sent to the Claude API to write it. Reword it on the branch if you like: once the text differs from
+   `pyproject.toml` files, `uv.lock` and `apps/web/openapi.json`. That commit says `[skip ci]`, so it starts no CI run;
+   the squash merge takes its message from the pull request body, so the marker never reaches `main`. Its text is
+   written by Claude from your diff and description, so it says what users get rather than repeating the title; the
+   diff and description are sent to the Claude API to write it. Reword it on the branch if you like: once the text differs from
    what CI last wrote, CI keeps yours and only renumbers it. Without your edit, CI rewrites the text on each push.
 3. **CI keeps the version free.** When the title changes or `main` moves on, CI merges `main` into your branch and
    renumbers the entry above the newest release. If that merge conflicts outside the changelog and the version files,
