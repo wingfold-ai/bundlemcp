@@ -132,8 +132,15 @@ def _post(payload: dict, api_key: str) -> dict:
             "anthropic-version": API_VERSION,
         },
     )
-    with urllib.request.urlopen(request, timeout=120) as response:
-        return json.loads(response.read())
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        try:
+            reason = json.loads(exc.read())["error"]["message"]
+        except (ValueError, KeyError, TypeError):
+            reason = exc.reason
+        raise ValueError(f"the API answered {exc.code}: {reason}") from exc
 
 
 def request_draft(
