@@ -67,9 +67,9 @@
 
 ## 6. Gates
 
-- [ ] 6.1 Run `cd apps/web && npm run openapi` (the runtime config listing gains two keys) and verify the generated
+- [x] 6.1 Run `cd apps/web && npm run openapi` (the runtime config listing gains two keys) and verify the generated
   files are current
-- [ ] 6.2 Run `uv run pytest -q`, `uv run ruff check .`, `uv run rumdl check .`, `uv run lint-imports` (delete
+- [x] 6.2 Run `uv run pytest -q`, `uv run ruff check .`, `uv run rumdl check .`, `uv run lint-imports` (delete
   `.import_linter_cache` first if modules moved), and `python3 tools/check_docs_links.py`, `check_docs_symbols.py`,
   `check_docs_settings.py`, `check_adr_graph.py`; all pass
-- [ ] 6.3 Run `openspec validate --all --strict` and verify it passes
+- [x] 6.3 Run `openspec validate --all --strict` and verify it passes
