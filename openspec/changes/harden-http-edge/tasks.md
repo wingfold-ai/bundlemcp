@@ -20,22 +20,22 @@
 
 ## 3. Egress at connect time (SEC-2)
 
-- [ ] 3.1 Spike whether the `httpx2` client used by the MCP transport accepts a custom network backend (or transport)
+- [x] 3.1 Spike whether the `httpx2` client used by the MCP transport accepts a custom network backend (or transport)
   that dials a vetted address while keeping SNI on the hostname; record the outcome in the ADR draft
-- [ ] 3.2 Extend the policy with `fd00:ec2::254/128`, `0.0.0.0/8`, `::/128` and IPv4-mapped normalisation, and verify
+- [x] 3.2 Extend the policy with `fd00:ec2::254/128`, `0.0.0.0/8`, `::/128` and IPv4-mapped normalisation, and verify
   with unit tests citing SEC-2 for each form, including an allow entry still winning
-- [ ] 3.3 Implement the guarded backend in `infrastructure/egress/` (resolve once, judge every address, dial a vetted
+- [x] 3.3 Implement the guarded backend in `infrastructure/egress/` (resolve once, judge every address, dial a vetted
   one, raise `EgressDenied` and log `egress.denied`), and verify with tests using a fake resolver that answers
   differently on each lookup (the rebinding scenario) and for an https URL that certificate verification still uses the
   hostname
-- [ ] 3.4 Route every gateway-initiated client through it: an `httpx_client_factory` in
+- [x] 3.4 Route every gateway-initiated client through it: an `httpx_client_factory` in
   `infrastructure/fastmcp/client_factory.py` and one client builder for `infrastructure/httpx/` and
   `infrastructure/oidc/`, all with `trust_env=False`; verify with tests that a same-origin redirect from an upstream to
   a host resolving to a blocked address is refused, and run `uv run lint-imports`
-- [ ] 3.5 Write the ADR "Egress policy enforced at connect time" in `docs/adr/` (extends ADR-0032), add it to
+- [x] 3.5 Write the ADR "Egress policy enforced at connect time" in `docs/adr/` (extends ADR-0032), add it to
   `docs/adr/README.md` and `docs/arc42/09-architecture-decisions.md`, and verify `python3 tools/check_adr_graph.py`
   passes
-- [ ] 3.6 Replace the pre-flight and redirect paragraph in `docs/self-hosting/deploy.md` with the connect-time
+- [x] 3.6 Replace the pre-flight and redirect paragraph in `docs/self-hosting/deploy.md` with the connect-time
   behaviour, and update `packages/bundlemcp/bundlemcp/api/mcp/README.md`'s egress note; verify the docs link and
   symbol checks pass
 

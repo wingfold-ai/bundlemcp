@@ -9,6 +9,7 @@ from bundlemcp.domain.servers.observed_response import ObservedResponse
 from bundlemcp.domain.servers.probe_failure import ProbeFailure
 from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.domain.upstream_oauth.upstream_challenge import UpstreamChallenge
+from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, HostUnresolvable
 from bundlemcp.infrastructure.fastmcp.response_observer import ResponseObserver
 from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
 
@@ -103,6 +104,25 @@ async def test_ups12_a_connection_failure_is_unreachable():
     with pytest.raises(ProbeFailure) as excinfo:
         await probe.probe(McpServer(name="s", url="https://up.example/mcp"), {})
     assert excinfo.value.state == ConnectionState.UNREACHABLE
+
+
+@pytest.mark.parametrize(
+    ("cause", "state"),
+    [
+        (EgressDenied("up.example:443", "address in blocked range"), ConnectionState.EGRESS_DENIED),
+        (HostUnresolvable("up.example", "DNS resolution failed"), ConnectionState.UNREACHABLE),
+    ],
+    ids=["denied", "unresolvable"],
+)
+async def test_sec2_a_denial_at_connect_time_keeps_its_state(cause, state):
+    """SEC-2: the MCP client wraps a connect-time egress refusal; the probe still names it."""
+    group = ExceptionGroup("connection", [cause])
+    error = RuntimeError("Client failed to connect")
+    error.__cause__ = group
+    probe = FastMcpUpstreamProbe(_Refusing(0, error=error))
+    with pytest.raises(ProbeFailure) as excinfo:
+        await probe.probe(McpServer(name="s", url="https://up.example/mcp"), {})
+    assert excinfo.value.state == state
 
 
 async def test_ups12_without_an_oauth_provider_a_refusal_stays_as_classified():

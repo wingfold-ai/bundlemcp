@@ -64,3 +64,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0045](0045-upstreams-on-the-published-surface.md) | The published surface says "upstreams" | accepted |
 | [0046](0046-profiles-as-registered-presets-and-tool-pipeline-stages.md) | Profiles are registered presets; the served tool set is built by ordered stages | accepted |
 | [0047](0047-profiles-named-for-what-they-change.md) | Profiles are named for what they change | accepted |
+| [0048](0048-egress-policy-enforced-at-connect-time.md) | The egress policy is enforced at connect time | accepted |

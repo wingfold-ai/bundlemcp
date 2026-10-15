@@ -14,6 +14,7 @@ from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.infrastructure.egress.egress_policy import check_url_allowed
+from bundlemcp.infrastructure.fastmcp.guarded_mcp_http_client import guarded_mcp_http_client
 from bundlemcp.infrastructure.fastmcp.response_observer import ResponseObserver
 
 # (server, extra_headers, *, observer, **handlers) -> Client. `handlers` carries
@@ -26,6 +27,8 @@ ClientFactory = Callable[..., Client]
 
 
 def default_client_factory(settings: Settings) -> ClientFactory:
+    http_client = guarded_mcp_http_client(settings)
+
     def factory(
         server: McpServer,
         extra_headers: dict[str, str],
@@ -33,11 +36,13 @@ def default_client_factory(settings: Settings) -> ClientFactory:
         observer: ResponseLog | None = None,
         **handlers: Any,
     ) -> Client:
-        check_url_allowed(server.url, settings)
+        check_url_allowed(server.url, settings)  # early, clear refusal; enforced at connect
         headers = {**server.static_headers, **extra_headers}
         auth = ResponseObserver(observer) if observer is not None else None
         return Client(
-            StreamableHttpTransport(server.url, headers=headers, auth=auth),
+            StreamableHttpTransport(
+                server.url, headers=headers, auth=auth, httpx_client_factory=http_client
+            ),
             mode=server.protocol_mode,
             **handlers,
         )

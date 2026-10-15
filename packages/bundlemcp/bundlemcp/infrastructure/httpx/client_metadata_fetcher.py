@@ -3,6 +3,7 @@
 import hashlib
 import re
 from collections.abc import Callable
+from functools import partial
 
 import httpx
 from pydantic import ValidationError
@@ -12,6 +13,7 @@ from bundlemcp.application.errors import InvalidInputError
 from bundlemcp.application.oauth_server import ClientIdMetadataDocument
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, check_url_allowed
+from bundlemcp.infrastructure.httpx.guarded_client import guarded_client
 
 CLIENT_METADATA_KEY = "bmcp:cimd:{digest}"  # cached client metadata documents
 HTTP_TIMEOUT = 10
@@ -23,19 +25,21 @@ _MAX_AGE = re.compile(r"max-age=(\d+)")
 ClientFactory = Callable[[], httpx.AsyncClient]
 
 
-def _default_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=False)
-
-
 class HttpxClientMetadataFetcher:
     """The real fetch: HTTPS only, through the egress policy, one hop, no redirects."""
 
     def __init__(
-        self, settings: Settings, redis: Redis, *, client_factory: ClientFactory = _default_client
+        self,
+        settings: Settings,
+        redis: Redis,
+        *,
+        client_factory: ClientFactory | None = None,
     ) -> None:
         self._settings = settings
         self._redis = redis
-        self._client_factory = client_factory
+        self._client_factory = client_factory or partial(
+            guarded_client, settings, timeout=HTTP_TIMEOUT, follow_redirects=False
+        )
 
     async def fetch(self, client_id_url: str) -> ClientIdMetadataDocument:
         key = CLIENT_METADATA_KEY.format(digest=hashlib.sha256(client_id_url.encode()).hexdigest())

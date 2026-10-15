@@ -364,8 +364,11 @@ encrypted with a key you no longer have cannot use those connections.
 The gateway makes outbound HTTP requests to server URLs, to upstream OAuth providers, to client metadata documents and
 to your identity provider. All of them go through one egress policy:
 
-- link-local and cloud metadata ranges (`169.254.0.0/16` and the IPv6
-  equivalents) and the gateway's own loopback are blocked by default;
+- link-local and cloud metadata ranges (`169.254.0.0/16`, `fe80::/10` and
+  AWS's IPv6 metadata address `fd00:ec2::254`), the gateway's own loopback, and
+  the unspecified addresses that reach it (`0.0.0.0/8`, `::`) are blocked by
+  default; an IPv4-mapped IPv6 address such as `::ffff:169.254.169.254` is
+  judged as the IPv4 address it maps;
 - private RFC 1918 ranges are allowed, since compose and cluster networks
   are the common case;
 - `BUNDLEMCP_EGRESS_ALLOW_CIDRS` widens and `BUNDLEMCP_EGRESS_DENY_CIDRS`
@@ -378,13 +381,16 @@ an identity provider on loopback work (a dev Keycloak on the same host needs
 exactly this), but it means the allow list is a security-critical setting: keep
 it as narrow as the one host you meant to reach.
 
-The check resolves the hostname and tests every address it gets back, so a name
-cannot smuggle a blocked IP past a name-based check. It is a **pre-flight**
-check, though, not a connect-time one: the HTTP client resolves again when it
-connects, so a name whose DNS answer changes between the two resolutions is not
-covered. Redirects are a second gap: the MCP client that talks to upstream servers follows them, and the check is not
-repeated for the address a redirect leads to. Until the policy is enforced at connect time, do not register an
-upstream you do not trust to keep its redirects inside your allow-list.
+The policy is enforced **when each connection is opened**. The gateway resolves
+the hostname once, tests every address it gets back, and connects to a vetted
+address itself, so a name cannot smuggle a blocked IP past a name-based check,
+and a DNS answer that changes after the check (DNS rebinding) is never
+connected to. TLS still verifies the certificate against the hostname. The MCP
+client follows a redirect only within the upstream's own origin, and the
+connection that redirect opens is judged the same way. The gateway's outbound
+clients ignore `HTTP_PROXY` and the other proxy variables, so a proxy cannot
+route around the policy. The one outbound client outside it is the metering
+hook's, whose URL is your own configuration.
 
 ## Checklist
 
