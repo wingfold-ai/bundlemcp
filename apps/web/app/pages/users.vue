@@ -58,6 +58,20 @@ async function deactivateUser(userId: string) {
   await load();
 }
 
+// Signing in again does not reactivate a user; this does. Nothing revoked at
+// deactivation comes back: the user consents and connects upstream accounts afresh.
+async function reactivateUser(userId: string) {
+  errorMsg.value = "";
+  const { error } = await api.POST("/api/v1/users/{user_id}:activate", {
+    params: { path: { user_id: userId } },
+  });
+  if (error) {
+    errorMsg.value = apiErrorMessage(error);
+    return;
+  }
+  await load();
+}
+
 async function revokeConsent(userId: string, consentId: string) {
   errorMsg.value = "";
   const { error } = await api.DELETE("/api/v1/users/{user_id}/consents/{consent_id}", {
@@ -113,14 +127,23 @@ async function revokeConsent(userId: string, consentId: string) {
                   {{ expanded.has(u.id) ? "Hide consents" : "Consents" }}
                 </UButton>
                 <UButton
+                  v-if="u.is_active"
                   size="xs"
                   color="error"
                   variant="outline"
                   :data-testid="`deactivate-user-${u.email}`"
-                  :disabled="!u.is_active"
                   @click="deactivateUser(u.id)"
                 >
                   Deactivate
+                </UButton>
+                <UButton
+                  v-else
+                  size="xs"
+                  variant="outline"
+                  :data-testid="`reactivate-user-${u.email}`"
+                  @click="reactivateUser(u.id)"
+                >
+                  Reactivate
                 </UButton>
               </td>
             </tr>

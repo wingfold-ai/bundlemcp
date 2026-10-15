@@ -19,10 +19,12 @@ class UserService:
         return Page.of(rows, total, offset=offset, limit=limit, read=UserRead.from_entity)
 
     async def deactivate(self, user_id: uuid.UUID) -> UserRead:
-        """Deactivation revokes tokens, consents, and (implicitly) sessions.
+        """Deactivation revokes tokens, consents, upstream connections and (implicitly) sessions.
 
         Admin browser sessions are re-validated against is_active on each request,
-        so revoking is_active logs them out too.
+        so revoking is_active logs them out too. The user's upstream OAuth tokens
+        are deleted, so neither their calls nor discovery of a per-user upstream
+        can use them.
         """
         user = await self._uow.users.get(user_id)
         if user is None:
@@ -31,6 +33,22 @@ class UserService:
         self._uow.users.add(user)
         await self._uow.oauth_tokens.revoke_for_user(user_id)
         await self._uow.consents.revoke_for_user(user_id, at=utcnow())
+        await self._uow.upstream_tokens.delete_for_user(user_id)
+        await self._uow.commit()
+        await self._uow.refresh(user)
+        return UserRead.from_entity(user)
+
+    async def activate(self, user_id: uuid.UUID) -> UserRead:
+        """Let a deactivated user sign in again.
+
+        Nothing revoked at deactivation is restored: the user consents to
+        clients and connects upstream accounts afresh.
+        """
+        user = await self._uow.users.get(user_id)
+        if user is None:
+            raise NotFoundError("user not found")
+        user.is_active = True
+        self._uow.users.add(user)
         await self._uow.commit()
         await self._uow.refresh(user)
         return UserRead.from_entity(user)

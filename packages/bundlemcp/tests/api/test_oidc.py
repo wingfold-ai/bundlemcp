@@ -126,12 +126,30 @@ async def test_management_api_accepts_admin_session(env):
     assert resp.status_code == 200
 
 
-async def test_non_admin_session_rejected(env):
-    """Non-admin users can't reach the management API."""
+async def test_auth17_non_admin_session_answers_403(env):
+    """AUTH-17: a signed-in user who is not an admin is known but forbidden: 403, not 401."""
     http, app, provider = env
     await _login(http, provider, OidcClaims(issuer="http://idp", sub="b", email="user@example.com"))
     resp = await http.get("/api/v1/upstreams")
-    assert resp.status_code == 401
+    assert resp.status_code == 403
+    assert (await http.get("/api/v1/me")).status_code == 200  # the catalogue still works
+
+
+async def test_auth17_no_session_is_still_401(env):
+    """AUTH-17: a caller with no session or key at all gets 401."""
+    http, _, _ = env
+    assert (await http.get("/api/v1/upstreams")).status_code == 401
+
+
+async def test_auth17_demotion_turns_an_admin_session_into_403(env):
+    """AUTH-17: losing the admin email takes effect at the next login, as a 403."""
+    http, app, provider = env
+    await _login(
+        http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+    )
+    assert (await http.get("/api/v1/upstreams")).status_code == 200
+    await _login(http, provider, OidcClaims(issuer="http://idp", sub="a", email="user@example.com"))
+    assert (await http.get("/api/v1/upstreams")).status_code == 403
 
 
 async def test_csrf_origin_check_on_mutation(env):
@@ -207,3 +225,94 @@ async def test_login_while_idp_unreachable_answers_503_with_retry_after(engine, 
         # Readiness and the OAuth metadata do not depend on the IdP.
         assert (await http.get("/readyz")).status_code == 200
         assert (await http.get("/.well-known/oauth-authorization-server")).status_code == 200
+
+
+async def _callback(http, provider, claims: OidcClaims):
+    """Run the login flow and return the callback's response, whatever it is."""
+    provider.claims_by_code["fake-code"] = claims
+    location = (await http.get("/login", params={"next": "/"})).headers["location"]
+    q = parse_qs(urlparse(location).query)
+    return await http.get("/login/callback", params={"code": q["code"][0], "state": q["state"][0]})
+
+
+async def test_auth20_relogin_does_not_reactivate(env):
+    """AUTH-20: a deactivated user who signs in at the IdP again gets no session and stays off."""
+    http, app, provider = env
+    admin = OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+    member = OidcClaims(issuer="http://idp", sub="m", email="member@example.com")
+    await _login(http, provider, member)
+    await _login(http, provider, admin)
+    async with app.state.container.session_factory() as db:
+        user = (await db.execute(select(UserRow).where(UserRow.oidc_sub == "m"))).scalar_one()
+    await http.post(f"/api/v1/users/{user.id}:deactivate", headers={"Origin": PUBLIC_URL})
+
+    http.cookies.clear()
+    refused = await _callback(http, provider, member)
+    assert refused.status_code == 403
+    assert "deactivated" in refused.text
+    assert "frame-ancestors 'none'" in refused.headers["content-security-policy"]
+    assert SESSION_COOKIE not in refused.headers.get("set-cookie", "")
+    async with app.state.container.session_factory() as db:
+        assert (await db.get(UserRow, user.id)).is_active is False
+
+
+async def test_auth20_reactivation_lets_the_user_sign_in_with_nothing_restored(env):
+    """AUTH-20: :activate lets the user sign in again; consents and connections stay gone."""
+    http, app, provider = env
+    member = OidcClaims(issuer="http://idp", sub="m", email="member@example.com")
+    await _login(http, provider, member)
+    await _login(
+        http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+    )
+    async with app.state.container.session_factory() as db:
+        user = (await db.execute(select(UserRow).where(UserRow.oidc_sub == "m"))).scalar_one()
+    origin = {"Origin": PUBLIC_URL}
+    await http.post(f"/api/v1/users/{user.id}:deactivate", headers=origin)
+    reactivated = await http.post(f"/api/v1/users/{user.id}:activate", headers=origin)
+    assert reactivated.status_code == 200
+    assert reactivated.json()["is_active"] is True
+    assert (await http.get(f"/api/v1/users/{user.id}/consents")).json() == []
+
+    http.cookies.clear()
+    assert (await _callback(http, provider, member)).status_code == 302
+
+
+async def test_auth15_session_lifetime_follows_the_setting(engine, redis):
+    """AUTH-15: the cookie's max age and the stored session's TTL are the configured lifetime."""
+    settings = hermetic_settings(
+        public_url="https://gw.example.com",
+        admin_emails=["admin@example.com"],
+        admin_session_lifetime=3600,
+    )
+    provider = FakeOidcProvider()
+    async with serving(
+        engine,
+        redis,
+        settings=settings,
+        base_url="https://gw.example.com",
+        follow_redirects=False,
+        oidc_provider=provider,
+    ) as (http, _app):
+        provider.claims_by_code["fake-code"] = OidcClaims(
+            issuer="http://idp", sub="a", email="admin@example.com"
+        )
+        location = (await http.get("/login", params={"next": "/"})).headers["location"]
+        q = parse_qs(urlparse(location).query)
+        callback = await http.get(
+            "/login/callback", params={"code": q["code"][0], "state": q["state"][0]}
+        )
+    cookie = callback.headers["set-cookie"].lower()
+    assert "max-age=3600" in cookie
+    assert "httponly" in cookie and "samesite=lax" in cookie and "secure" in cookie
+    assert "domain=" not in cookie  # host-only
+    [key] = [k async for k in redis.scan_iter("bmcp:adminsession:*")]
+    assert 3590 <= await redis.ttl(key) <= 3600
+
+
+@pytest.mark.parametrize("seconds", [299, 2592001])
+def test_auth15_out_of_range_lifetime_is_refused(seconds):
+    """AUTH-15: a lifetime below five minutes or above thirty days fails settings validation."""
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="admin_session_lifetime"):
+        hermetic_settings(admin_session_lifetime=seconds)

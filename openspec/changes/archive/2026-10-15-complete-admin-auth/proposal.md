@@ -22,19 +22,16 @@ session lifetime, a configurable admin claim, and a 403 (not 401) for a signed-i
   not an admin gets **403** from the management API; 401 stays for a caller with no valid session or key.
   **BREAKING** for API clients that treat any non-2xx from a demoted session as 401.
 - **Key validation path (AUTH-26).** The requirement states why a digest lookup is acceptable and when a validation
-  cache would be allowed. See the open decision.
+  cache would be allowed (settled below).
 
-## Open decision
+## Decision
 
-- **AUTH-26: constant-time comparison or digest lookup.** The original text asked for a "constant-time hash comparison".
-  The gateway looks the SHA-256 digest of the presented key up in Postgres; the comparison happens in the database
-  index, so it is not constant-time, but an attacker controlling the presented key controls only the input to the
-  hash, not the digest bytes being compared, so the timing reveals nothing usable about a stored key. A true
-  constant-time check would need a key-id prefix in the key format to find the row first — a breaking key-format
-  change. `domain/shared/secrets.py::tokens_equal` is not dead code, contrary to the audit: it compares OAuth client
-  secrets. **Recommendation: amend** — the delta below is written that way (digest lookup, and a validation cache only
-  with invalidation events). If the maintainers choose to build constant-time comparison instead, rewrite the AUTH-26
-  delta and add a task group for the key-format change.
+Settled by the maintainers on 2026-10-15:
+
+- **AUTH-26: amend.** The gateway keeps looking up the SHA-256 digest of a presented key in Postgres. An attacker
+  controls only the input to the hash, not the digest bytes being compared, so the lookup's timing reveals nothing
+  usable about a stored key; a constant-time comparison would need a breaking key-format change (a key-id prefix).
+  `domain/shared/secrets.py::tokens_equal` stays in use for OAuth client secrets.
 
 ## Capabilities
 

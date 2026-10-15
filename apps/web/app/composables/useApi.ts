@@ -14,15 +14,27 @@ export function useApi() {
     client.use({
       // a session that expired mid-visit answers 401 on the next call;
       // send the browser back through login instead of showing a failed request.
-      onResponse({ response }) {
+      // A 403 is a known user who may not do this: when they were demoted since the
+      // page loaded, the catalogue is all they can use now. A 403 for any other
+      // reason (a refused origin check) is shown as the error it is.
+      async onResponse({ response }) {
         if (response.status === 401) {
           gotoLogin();
+        } else if (response.status === 403 && !(await stillAdmin())) {
+          window.location.assign("/catalogue");
         }
         return response;
       },
     });
   }
   return client;
+}
+
+/** Whether the signed-in user is still an administrator, asked fresh from the gateway. */
+async function stillAdmin(): Promise<boolean> {
+  const me = await fetch(`${apiBase()}/api/v1/me`, { credentials: "include" });
+  if (!me.ok) return true; // not knowable; leave the page as it is
+  return Boolean((await me.json()).is_admin);
 }
 
 /** Gateway origin, for login redirects and connection URLs. */

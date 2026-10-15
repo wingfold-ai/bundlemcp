@@ -150,7 +150,12 @@ def get_client_registration_service(
 def get_user_provisioning_service(
     uow: UnitOfWorkProvider, settings: SettingsProvider
 ) -> UserProvisioningService:
-    return UserProvisioningService(uow, admin_emails=settings.admin_emails)
+    return UserProvisioningService(
+        uow,
+        admin_emails=settings.admin_emails,
+        admin_claim=settings.admin_claim,
+        admin_claim_value=settings.admin_claim_value,
+    )
 
 
 AdminSessionsProvider = Annotated[AdminSessionStore, Depends(get_admin_sessions)]

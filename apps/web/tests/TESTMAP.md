@@ -28,6 +28,8 @@ Playwright test title, the recording filename, and this table.
 | E2E-20 | A tool the upstream stops listing is flagged stale, then refresh & prune deletes it **(new)** | `tests/curation.spec.ts` | [`upstreams`](../../../openspec/specs/upstreams/spec.md) | UPS-19, BND-16 | `E2E-20__upstreams__curation-stale-tool-refresh-and-prune.webm` |
 | E2E-21 | An admin reorders a bundle's members **(new)** | `tests/curation.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-1 | `E2E-21__bundles__bundle-member-order.webm` |
 | E2E-22 | An admin lists an endpoint's allowed browser origins, and they persist normalised **(new)** | `tests/endpoint-config.spec.ts` | [`endpoints`](../../../openspec/specs/endpoints/spec.md) | EP-24 | `E2E-22__endpoints__endpoint-allowed-origins.webm` |
+| E2E-23 | A deactivated user cannot sign in again until an admin reactivates them **(new)** | `tests/users.spec.ts` | [`auth`](../../../openspec/specs/auth/spec.md) | AUTH-20 | `E2E-23__auth__user-deactivation-sticky.webm` |
+| E2E-24 | A user demoted since the page loaded is sent to the catalogue on the API's 403 **(new)** | `tests/catalogue.spec.ts` | [`auth`](../../../openspec/specs/auth/spec.md) | AUTH-17 | `E2E-24__auth__demoted-session-to-catalogue.webm` |
 
 ## Requirements referenced
 
@@ -60,7 +62,7 @@ Playwright test title, the recording filename, and this table.
 | AUTH-30 | `auth` | Upstreams that need to verify the forwarded bearer SHALL be able to call POST /oauth/introspect (AUTH-5) — the sequence the first consumer's servers use toda… |
 | AUTH-33 | `auth` | A forward_headers entry that forwards authorization passes the caller's gateway token to the upstream — token passthrough, which the MCP authorization spec f… |
 | UPS-25 | `upstreams` | A server with auth_mode=upstream_oauth (UPS-1) needs a client identity at the upstream authorization server. The gateway SHALL use the MCP authorization spec… |
-| AUTH-17 | `auth` | Users listed in BUNDLEMCP_ADMIN_EMAILS, or whose groups claim contains bundlemcp-admin, SHALL get is_admin=true. The role is re-evaluated on every login — de… |
+| AUTH-17 | `auth` | Users listed in BUNDLEMCP_ADMIN_EMAILS, or whose configured admin claim (BUNDLEMCP_ADMIN_CLAIM, a claim name or a dotted path into nested claims, default gro… |
 | BND-11 | `bundles` | A bundle MUST also have an overview: a long-form, admin-managed description written for the person browsing the catalogue, separate from description because … |
 | SEC-6 | `security` | OAuth browser pages (authorize, consent, upstream connect) MUST carry standard hardening headers: a CSP of default-src 'none'; style-src 'unsafe-inline'; fra… |
 | AUTH-2 | `auth` | The gateway SHALL accept RFC 7591 registration at POST /oauth/register: open registration, public clients (token_endpoint_auth_method: none) by default, redi… |

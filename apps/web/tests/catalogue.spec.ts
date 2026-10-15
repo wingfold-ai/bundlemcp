@@ -39,3 +39,37 @@ test(testTitle("E2E-14"), async ({ page, steps }) => {
     }),
   ]);
 });
+
+// A page loaded while the user was an admin, who has since been demoted: the
+// management API answers 403, and the client re-checks who they are rather than
+// sending them through login again. The first /api/v1/me answer is stubbed as an
+// admin to stand in for the page loaded before the demotion.
+test(testTitle("E2E-24"), async ({ page, steps }) => {
+  // armed just before the navigation under test, then answers once as an admin
+  let stubNext = false;
+  await page.route("**/api/v1/me", async (route) => {
+    if (!stubNext) return route.continue();
+    stubNext = false;
+    const real = await route.fetch();
+    await route.fulfill({ response: real, json: { ...(await real.json()), is_admin: true } });
+  });
+  await steps.play([
+    given("jane, who is not an admin, signs in", { req: "AUTH-17" }, async () => {
+      // the app redirects to the identity provider while the first page is still loading
+      await page.goto("/upstreams", { waitUntil: "commit" });
+      await page.locator("#username").waitFor({ timeout: 30_000 });
+      await page.locator("#username").fill("jane");
+      await page.locator("#password").fill("jane");
+      await page.locator("#kc-login").click();
+      await page.waitForURL(/\/catalogue/, { timeout: 30_000 });
+    }),
+    when("a management page she still believes she may use calls the API", { req: "AUTH-17" }, async () => {
+      stubNext = true;
+      await page.goto("/upstreams");
+    }),
+    then("the 403 sends her to the catalogue, not back through login", { req: "AUTH-17" }, async () => {
+      await page.waitForURL(/\/catalogue/, { timeout: 15_000 });
+      await expect(page.getByTestId("catalogue")).toBeVisible();
+    }),
+  ]);
+});

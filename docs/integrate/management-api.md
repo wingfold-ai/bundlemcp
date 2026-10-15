@@ -26,17 +26,16 @@ Two credentials are accepted on every route:
 `GET /api/v1/me` reports which one authenticated the call. It and the other `/api/v1/me/…` routes answer a signed-in
 **non-admin** user too, which is all the web app needs to show them the catalogue.
 
-Everything else requires an administrator, and the status codes are worth reading carefully because they are not the
-obvious split:
+Everything else requires an administrator:
 
 | Status | When |
 |---|---|
-| `401` | No credential, an invalid credential, **or a signed-in user who is not an administrator** |
-| `403` | An endpoint-kind API key, or a cookie-authenticated mutation from a disallowed origin |
+| `401` | No credential, or an invalid or expired one: sign in again |
+| `403` | A known caller who may not manage the gateway: a signed-in user who is not an administrator, an endpoint-kind API key, or a cookie-authenticated mutation from a disallowed origin |
 
-A non-administrator therefore gets `401`, not `403`. If you are building a UI, do not treat `401` on `/api/v1` as
-"session expired" — call `GET /api/v1/me`, which answers for any signed-in user, to tell "not logged in" from "logged
-in, not an administrator". [Error responses](/integrate/errors) has the full table.
+If you are building a UI, `401` means "log in" and `403` means "logged in, but not allowed". A page loaded while its
+user was an administrator can call `GET /api/v1/me`, which answers for any signed-in user, after a `403` to find out
+whether they were demoted. [Error responses](/integrate/errors) has the full table.
 
 Endpoint-kind API keys are refused here; only `service` keys manage the gateway.
 

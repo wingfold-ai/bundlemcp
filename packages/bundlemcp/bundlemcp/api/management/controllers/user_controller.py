@@ -23,6 +23,11 @@ class UserController(ManagementController):
     async def deactivate_user(self, user_id: uuid.UUID, service: UserServiceProvider) -> UserRead:
         return await service.deactivate(user_id)
 
+    @route.post("/{user_id}:activate")
+    async def activate_user(self, user_id: uuid.UUID, service: UserServiceProvider) -> UserRead:
+        """Let a deactivated user sign in again; nothing revoked at deactivation comes back."""
+        return await service.activate(user_id)
+
     @route.get("/{user_id}/consents")
     async def list_consents(
         self, user_id: uuid.UUID, service: UserServiceProvider
