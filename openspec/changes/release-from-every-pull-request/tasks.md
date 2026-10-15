@@ -16,7 +16,7 @@
       the given text or the branch's current one) and bump the two `pyproject.toml` files, `uv.lock` and `openapi.json`
       `info.version`; idempotent, and `none` restores `main`'s content; verify with tests over a temporary tree,
       including rerun and retitle, and that `release_notes.py --check` passes on the result
-- [x] 2.4 `tools/changelog_writer.py`: the Claude call with the entry schema, the diff filter and cut, rendering, and
+- [ ] 2.4 `tools/changelog_writer.py`: the Claude call with the entry schema, the diff filter and cut, rendering, and
   the title fallback when the call fails or the key is absent; verify with tests against a stubbed API (rendering,
   schema limits, no heading in a bullet, the fallback) and one manual run on a merged pull request's diff
 - [x] 2.5 Hand-edit detection: compare the branch's entry text with the bot's newest commit on the branch; verify
