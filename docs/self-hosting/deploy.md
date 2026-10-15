@@ -63,7 +63,14 @@ web app on port 3000. Then:
    for example `["10.0.0.0/8"]`. `X-Forwarded-For` is honoured only from
    those peers; from anyone else the socket address is used. Without this,
    per-client rate limits and audit records attribute every request to the
-   proxy.
+   proxy. Each proxy must **append** the address it saw to `X-Forwarded-For`
+   (nginx's `$proxy_add_x_forwarded_for`, and the default in Traefik and
+   Caddy). The gateway reads the list from the right and takes the first entry
+   that is not one of your proxies, so whatever a client writes into the header
+   itself is ignored. List every proxy in the chain, a CDN included; an
+   unlisted one becomes the client address. `X-Forwarded-Proto` and
+   `X-Forwarded-Host` are not read: every URL the gateway publishes comes from
+   `BUNDLEMCP_PUBLIC_URL`.
 2. Allow long-lived responses and do not buffer them. Session-era clients hold
    a `GET` stream open for server-initiated messages, and a tool call can run
    for `call_timeout` (60 s by default) up to a `max_total_timeout` ceiling of
@@ -100,8 +107,7 @@ location / {
     proxy_read_timeout 1800s;      # >= max_total_timeout; default is 60s
     client_max_body_size 8m;       # the gateway rejects >4 MiB itself; default is 1m
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;   # appends
 }
 ```
 

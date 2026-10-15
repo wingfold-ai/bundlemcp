@@ -2,18 +2,18 @@
 
 ## 1. Client IP and forwarding headers (DEP-2) — exploitable today, lands first
 
-- [ ] 1.1 Rewrite `api/http/client_ip.py` to read `X-Forwarded-For` right to left from a trusted peer, skipping
+- [x] 1.1 Rewrite `api/http/client_ip.py` to read `X-Forwarded-For` right to left from a trusted peer, skipping
   trusted-proxy entries and falling back to the leftmost entry when all are trusted; verify with unit tests citing DEP-2
   for the spoofed-leftmost case, multiple trusted hops, an empty list and a malformed entry
-- [ ] 1.2 Pass `proxy_headers=False` to uvicorn in `apps/gateway/main.py` and in the documented dev command, and verify
+- [x] 1.2 Pass `proxy_headers=False` to uvicorn in `apps/gateway/main.py` and in the documented dev command, and verify
   with an ASGI test that a peer of `127.0.0.1` with no trusted proxies is not rewritten from XFF, and with a test citing
   DEP-2 that `X-Forwarded-Proto`/`X-Forwarded-Host` from a trusted peer leave the OAuth metadata on the public URL
-- [ ] 1.3 Update `docs/self-hosting/deploy.md`, `configuration.md`, `setups.md` and `troubleshooting.md` (proxies must
+- [x] 1.3 Update `docs/self-hosting/deploy.md`, `configuration.md`, `setups.md` and `troubleshooting.md` (proxies must
   append to XFF), and verify `python3 tools/check_docs_links.py` passes
 
 ## 2. AUTH-29 identity header strip
 
-- [ ] 2.1 Strip every forwarded header whose name equals `X-MCP-User` ignoring case in
+- [x] 2.1 Strip every forwarded header whose name equals `X-MCP-User` ignoring case in
       `api/mcp/protocol/header_forwarding.py`, and verify with a test citing AUTH-29 that a mapping
       `x-mcp-user → x-mcp-user` (and `x-client → X-Mcp-User`) never forwards the client's value, with
       `send_identity_header` on and off

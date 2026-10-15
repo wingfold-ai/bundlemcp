@@ -37,8 +37,9 @@ class HeaderForwarding:
             value = client_headers.get(client_header)
             if value is not None:
                 extra[upstream_header] = value
-        # client-supplied identity header is always stripped; gateway injects its own
-        extra.pop(IDENTITY_HEADER, None)
+        # Header names are case-insensitive on the wire, so a mapping spelled
+        # "x-mcp-user" must not slip a client value past this strip.
+        extra = {name: v for name, v in extra.items() if name.lower() != IDENTITY_HEADER.lower()}
         subject = identity.subject_for(self._identity_subject)
         if server.send_identity_header and subject is not None:
             extra[IDENTITY_HEADER] = subject

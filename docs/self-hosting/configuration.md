@@ -21,7 +21,7 @@ A second, smaller set of **runtime settings** is editable while the gateway runs
 | Variable | Default | Meaning |
 |---|---|---|
 | `BUNDLEMCP_PUBLIC_URL` | `http://localhost:8000` | Externally reachable base URL, exactly as clients reach it, e.g. `https://mcp.example.com`. The OAuth issuer, discovery metadata, redirect URIs and cookie scope derive from it. The default works only on the gateway's own machine: anyone else is sent to `localhost` to sign in, so OAuth and the admin login fail for them. |
-| `BUNDLEMCP_TRUSTED_PROXIES` | `[]` | CIDRs your reverse proxies connect from, e.g. `["10.0.0.0/8"]`; their `X-Forwarded-*` headers are honoured, so the gateway sees each client's real address. Empty: behind a proxy, every request appears to come from the proxy. Everyone then shares one failed-login counter, so a few bad credentials from one client lock out all; anonymous callers share one rate limit; and the audit log shows no real client addresses. |
+| `BUNDLEMCP_TRUSTED_PROXIES` | `[]` | CIDRs your reverse proxies connect from, e.g. `["10.0.0.0/8"]`; their `X-Forwarded-For` is honoured (the rightmost entry that is not one of these proxies), so the gateway sees each client's real address. `X-Forwarded-Proto` and `X-Forwarded-Host` are never read; `BUNDLEMCP_PUBLIC_URL` decides every published URL. Empty: behind a proxy, every request appears to come from the proxy. Everyone then shares one failed-login counter, so a few bad credentials from one client lock out all; anonymous callers share one rate limit; and the audit log shows no real client addresses. |
 
 ### Admin login
 
