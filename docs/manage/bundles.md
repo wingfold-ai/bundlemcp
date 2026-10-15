@@ -68,8 +68,12 @@ curl -s -X PUT $API/bundles/assistant/upstreams:order -H "$AUTH" \
 The list must name every member exactly once, or the request answers `422` and nothing changes. A bootstrap document's
 `upstreams` list puts the members it names first, in its order. The bundle page has up and down buttons for the same.
 
-Do not add an upstream whose URL is one of this gateway's own endpoints: nothing refuses that self-reference yet, and
-a call through it re-enters the gateway until a timeout stops it.
+A bundle cannot include the gateway itself. Adding an upstream whose URL is one of this gateway's own MCP endpoints —
+`{BUNDLEMCP_PUBLIC_URL}/{name}/mcp` for any name, in any spelling (host case, an explicit default port, a trailing
+slash) — answers `409`, and so does changing a member's URL to one; a call through such a member would re-enter the
+gateway until a timeout stopped it. The check knows the gateway only by its public URL: reached under another host
+name, such as an internal service name, a second domain or a proxy in front, it cannot be told apart from an ordinary
+upstream, so do not register it that way.
 
 ## How tools are named
 

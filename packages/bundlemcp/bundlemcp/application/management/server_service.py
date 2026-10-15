@@ -9,18 +9,23 @@ from bundlemcp.application.management.presented_name_check import PresentedNameC
 from bundlemcp.application.schemas import DiscoveryResult, Page, ServerRead, ServerUpsert, ToolRead
 from bundlemcp.domain.servers.internal_host import is_internal_host
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.self_reference import (
+    addresses_gateway_endpoint,
+    self_reference_refusal,
+)
 from bundlemcp.domain.shared.resource_names import server_name as server_name_type
 from bundlemcp.domain.upstream_oauth.upstream_client_config import GRANT_KEY
 from bundlemcp.domain.upstream_oauth.upstream_grant import UpstreamGrant
 
 
 class ServerService(NamedResourceService[McpServer, ServerRead]):
-    def __init__(self, uow: UnitOfWork, discovery: ToolDiscovery) -> None:
+    def __init__(self, uow: UnitOfWork, discovery: ToolDiscovery, *, public_base: str) -> None:
         super().__init__(
             uow, repo=uow.servers, read_model=ServerRead, entity_type="server", label="server"
         )
         self._discovery = discovery
         self._policy = PerUserUpstreamCheck(uow)
+        self._public_base = public_base
 
     async def upsert(self, body: ServerUpsert) -> ServerRead:
         """Config-only upsert by natural key; idempotent; never blocks on probing.
@@ -34,6 +39,8 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         server = await self._by_name(body.name)
         created = server is None
         previous_inputs = None if server is None else server.discovery_inputs
+        if server is not None and server.url != body.url:
+            await self._ensure_not_a_member_pointing_at_the_gateway(server, body.url)
         if server is None:
             server = McpServer(
                 name=body.name,
@@ -106,3 +113,12 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         """
         server = await self._get(name)
         return await self._discovery.discover(server.id, prune=prune)
+
+    async def _ensure_not_a_member_pointing_at_the_gateway(
+        self, server: McpServer, new_url: str
+    ) -> None:
+        """A member's URL may not be changed to one of the gateway's own endpoints."""
+        if not addresses_gateway_endpoint(new_url, self._public_base):
+            return
+        if await self._uow.memberships.for_server(server.id):
+            raise ConflictError(self_reference_refusal(server.name, new_url))

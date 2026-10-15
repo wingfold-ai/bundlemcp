@@ -215,6 +215,7 @@ class CompositionRoot:
             cipher=cipher,
             connections=upstream_tokens or NoUpstreamConnections(),
             profiles=profiles,
+            public_base=settings.public_base,
         ).run(settings)
 
         subscriber = InvalidationSubscriber(redis)  # one subscriber per replica

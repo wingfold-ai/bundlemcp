@@ -29,11 +29,15 @@ from bundlemcp.domain.bundles.bundle_server import BundleServer
 from bundlemcp.domain.bundles.bundle_tool import BundleTool
 from bundlemcp.domain.bundles.presented_name import PresentedName
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.self_reference import (
+    addresses_gateway_endpoint,
+    self_reference_refusal,
+)
 from bundlemcp.domain.servers.tool import Tool
 
 
 class BundleService(NamedResourceService[Bundle, BundleRead]):
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, *, public_base: str) -> None:
         super().__init__(
             uow, repo=uow.bundles, read_model=BundleRead, entity_type="bundle", label="bundle"
         )
@@ -43,6 +47,7 @@ class BundleService(NamedResourceService[Bundle, BundleRead]):
         self._tools = uow.tools
         self._policy = PerUserUpstreamCheck(uow)
         self._names = PresentedNameCheck(uow)
+        self._public_base = public_base
 
     async def upsert(self, body: BundleUpsert) -> BundleRead:
         bundle = await self._by_name(body.name)
@@ -153,6 +158,8 @@ class BundleService(NamedResourceService[Bundle, BundleRead]):
         server = await self._servers.by_name(server_name)
         if server is None:
             raise NotFoundError("server not found")
+        if addresses_gateway_endpoint(server.url, self._public_base):
+            raise ConflictError(self_reference_refusal(server.name, server.url))
         await self._policy.ensure_membership_allowed(bundle.id, server)
         membership = await self._membership(bundle, server)
         if membership is None:

@@ -341,7 +341,7 @@ def test_ups15_a_local_only_or_sse_only_document_is_reported():
 
 
 async def test_ups13_identity_header_defaults_by_network_and_is_kept_on_update(uow):
-    servers = ServerService(uow, discovery=NoopToolDiscovery())
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
     internal = await servers.upsert(ServerUpsert(name="gsc", url="http://seo-gsc:8000/mcp"))
     external = await servers.upsert(ServerUpsert(name="lin", url="https://mcp.linear.app/mcp"))
     assert internal.send_identity_header is True
@@ -354,14 +354,14 @@ async def test_ups13_identity_header_defaults_by_network_and_is_kept_on_update(u
 
 
 async def test_ups10_an_update_without_protocol_mode_keeps_the_pin(uow):
-    servers = ServerService(uow, discovery=NoopToolDiscovery())
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
     await servers.upsert(ServerUpsert(name="old", url="http://old/mcp", protocol_mode="legacy"))
     kept = await servers.upsert(ServerUpsert(name="old", url="http://old/mcp", description="d"))
     assert kept.protocol_mode == "legacy"
 
 
 async def test_ups1_auth_mode_follows_the_stored_headers(uow):
-    servers = ServerService(uow, discovery=NoopToolDiscovery())
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
     keyed = await servers.upsert(
         ServerUpsert(name="k", url="http://k/mcp", static_headers={"x-api-key": "v"})
     )
@@ -385,7 +385,7 @@ async def test_ups35_a_client_credentials_server_cannot_become_per_user(uow):
             client_id="machine", client_secret="s", grant_type="client_credentials"
         ),
     )
-    servers = ServerService(uow, discovery=NoopToolDiscovery())
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
     with pytest.raises(PreconditionError):
         await servers.upsert(
             ServerUpsert(

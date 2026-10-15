@@ -30,7 +30,10 @@ from bundlemcp.application.management.user_service import UserService
 
 
 def get_server_service(request: Request, uow: UnitOfWorkProvider) -> ServerService:
-    return ServerService(uow, discovery=request.app.state.container.discovery)
+    container = request.app.state.container
+    return ServerService(
+        uow, discovery=container.discovery, public_base=container.settings.public_base
+    )
 
 
 def get_server_inspection_service(
@@ -58,8 +61,8 @@ def get_upstream_oauth_config_service(
     )
 
 
-def get_bundle_service(uow: UnitOfWorkProvider) -> BundleService:
-    return BundleService(uow)
+def get_bundle_service(request: Request, uow: UnitOfWorkProvider) -> BundleService:
+    return BundleService(uow, public_base=request.app.state.container.settings.public_base)
 
 
 def get_bundle_prompt_service(uow: UnitOfWorkProvider) -> BundlePromptService:
