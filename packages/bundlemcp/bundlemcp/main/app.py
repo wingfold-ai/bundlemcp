@@ -28,6 +28,7 @@ from bundlemcp.api.management.controllers import (
     UserController,
 )
 from bundlemcp.api.mcp.controllers.mcp_endpoint_controller import McpEndpointController
+from bundlemcp.api.mcp.protocol.server_info import SERVER_VERSION
 from bundlemcp.api.oauth.controllers.authorize_controller import AuthorizeController
 from bundlemcp.api.oauth.controllers.introspection_controller import IntrospectionController
 from bundlemcp.api.oauth.controllers.login_controller import LoginController
@@ -64,7 +65,7 @@ def create_app(
 
     app = FastAPI(
         title="bundlemcp",
-        version="0.1.0",
+        version=SERVER_VERSION,
         lifespan=lifespan,
         openapi_url=f"{API_PREFIX}/openapi.json",
         docs_url=f"{API_PREFIX}/docs",

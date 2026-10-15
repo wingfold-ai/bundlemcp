@@ -3,7 +3,8 @@
 Every release of bundlemcp, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/). Each entry names the metering-hook protocol version it
 ships (`METERING_PROTOCOL_VERSION`), so a hook author can tell from the changelog alone whether a release changes the
-contract their hook implements. [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release) says how a release is cut.
+contract their hook implements. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a
+release happens.
 
 ## [0.1.0] - 2026-10-15
 
