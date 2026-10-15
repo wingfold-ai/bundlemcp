@@ -24,8 +24,9 @@ provider. Go to the [Quickstart](/guide/quickstart).
 | Valkey or Redis | Any RESP-compatible server; Valkey 8 is what the reference stack runs. **One shared instance**, not one per replica |
 | An OIDC identity provider | Mandatory, and yours. See below |
 | A TLS-terminating reverse proxy | Yours. The gateway speaks plain HTTP on one port |
-| A container registry | Yours. No image is published, so you build and push |
-| Python | Only if you run the gateway outside a container: 3.13 or newer |
+| A container registry | Only if you build your own images; otherwise pull the published ones, see [Deploy](/self-hosting/deploy#get-the-images) |
+| Python | Only if you run the gateway outside a container: 3.13 or newer; the image ships 3.14 |
+| Node.js | Only if you build or run the admin UI outside a container: 24 or newer (`npm ci` refuses older); the image ships 26 |
 
 ### The identity provider is not optional
 

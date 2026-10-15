@@ -27,8 +27,8 @@ one-time choice.
 The gateway SHALL require Python ≥ 3.13 (`requires-python = ">=3.13"`) and SHALL be built, tested and shipped on the
 latest stable Python release, 3.14 at the time of writing. The repository declares that version in one place, and
 every image that runs Python (the gateway and the example upstreams) and every CI job that sets up Python uses exactly
-the declared version. The web app SHALL be built and run on Node ≥ 24 (the frontend CI job runs Node 24; the web image
-runs Node 26).
+the declared version. The web app SHALL be built and run on Node ≥ 24: `apps/web/package.json` declares it in
+`engines`, every CI and publishing job that runs Node uses 24 or later, and the web image runs Node 26.
 
 #### Scenario: Gateway refuses an older Python
 - **WHEN** the workspace is installed with a Python older than 3.13
@@ -46,6 +46,14 @@ runs Node 26).
 #### Scenario: Shipped gateway runs the declared Python
 - **WHEN** the gateway image is built and started
 - **THEN** it runs on the declared Python version and reports ready
+
+#### Scenario: Older Node is refused by the web app
+- **WHEN** `npm ci` runs in `apps/web` under Node 22 with engine checks enforced
+- **THEN** the install fails on the `engines` constraint
+
+#### Scenario: No CI job runs an older Node
+- **WHEN** the workflows under `.github/workflows/` are inspected
+- **THEN** every `node-version` they set is 24 or later
 
 ### Requirement: ARC-3 Pydantic everywhere
 Every structured value MUST be a Pydantic model; no `dataclasses`. Domain entities are plain `BaseModel` classes in

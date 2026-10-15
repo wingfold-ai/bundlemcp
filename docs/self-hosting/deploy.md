@@ -8,15 +8,18 @@ telling the gateway its public identity. This page walks through the topology;
 ## Get the images
 
 Every push to `main` publishes both images to the GitHub Container Registry, tagged `:latest` and with the full commit
-SHA:
+SHA. Every release publishes them under its version as well:
 
 ```text
-ghcr.io/wingfold-ai/bundlemcp-gateway:<sha>
-ghcr.io/wingfold-ai/bundlemcp-web:<sha>
+ghcr.io/wingfold-ai/bundlemcp-gateway:1.2.0     # a release
+ghcr.io/wingfold-ai/bundlemcp-web:1.2.0
+ghcr.io/wingfold-ai/bundlemcp-gateway:<sha>     # any commit on main
 ```
 
-There is no versioned release yet, so pin the SHA tag (or the digest) rather than `:latest`, and record which commit you
-deployed. To build from a checkout instead, for your own registry:
+Pin a release version, or a SHA or digest, rather than `:latest`, which moves with every merge to `main`. A release's
+notes on GitHub come from [`CHANGELOG.md`](https://github.com/wingfold-ai/bundlemcp/blob/main/CHANGELOG.md) and name the
+[metering-hook protocol version](/integrate/metering-hook#versioning) it ships; read them before upgrading. To build
+from a checkout instead, for your own registry:
 
 ```bash
 git clone https://github.com/wingfold-ai/bundlemcp.git && cd bundlemcp
@@ -361,6 +364,17 @@ curl -fsS http://localhost:8001/readyz
 Migrations bring the schema forward if the dump is older than the running
 version, so step 4 failing usually means a migration did not apply rather than
 a bad dump.
+
+The project rehearses this on every release:
+[`deploy/rehearse_restore.py`](https://github.com/wingfold-ai/bundlemcp/blob/main/deploy/rehearse_restore.py) runs the
+five steps against the compose stack, with a key minted just before the dump so the tool call only succeeds if the data
+was restored, and the *Restore rehearsal* workflow runs it for every release tag, before anything is published, or on
+demand. To rehearse against your own compose checkout:
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d --build --wait
+uv run python deploy/rehearse_restore.py
+```
 
 Valkey is deliberately **not** backed up. It holds sessions and counters; losing it means clients re-initialise and
 rate-limit windows restart.

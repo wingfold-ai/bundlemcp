@@ -55,8 +55,10 @@ The corpora and what each is for:
 ```bash
 git clone https://github.com/wingfold-ai/bundlemcp.git
 cd bundlemcp
-uv sync --all-packages     # Python >= 3.13 workspace (gateway + library)
+uv sync --all-packages     # Python >= 3.13 workspace (gateway + library); CI and images use 3.14
 ```
+
+The admin UI and the docs site need Node 24 or later; `apps/web` refuses an older one on `npm ci`.
 
 The full stack (gateway, web UI, Postgres, Valkey, a dev OIDC provider), when you need the real thing:
 
@@ -97,11 +99,13 @@ uv run ruff check .                     # must be clean
 uv run lint-imports                     # 3 contracts, 0 exceptions
 uv run rumdl check .                    # Markdown line length 120; `uv run rumdl fmt .` rewraps
 cd apps/web && npm run openapi          # regenerates openapi.json + types/api.d.ts
+cd apps/web && npm run typecheck        # vue-tsc; the build alone does not catch type errors
 python3 tools/check_docs_links.py       # relative links and heading anchors
 python3 tools/check_docs_symbols.py     # the living docs name no dead symbols
 python3 tools/check_docs_settings.py    # env vars and requirement IDs are real
 python3 tools/check_adr_graph.py        # ADR statuses and indexes agree
 python3 tools/check_spec_ids.py         # requirement codes are well-formed, unique and real
+python3 tools/release_notes.py --check  # CHANGELOG.md names the metering-hook protocol version
 openspec validate --all --strict        # specs and changes are well-formed
 ```
 
@@ -202,6 +206,24 @@ files.
   to the layer it belongs in, inject it through a contract instead of importing it, or introduce a contract. Never
   `ignore_imports`. Delete `.import_linter_cache` after moving modules — a stale cache reports contracts as kept when
   they are broken.
+
+CI runs all of these on every pull request, plus the frontend build, the docs build, LikeC4 validation, both image
+builds and the integration suite against the compose stack; one `ci-passed` check requires every job.
+
+## Cutting a release
+
+Releases are semantic versions, tagged `v<major>.<minor>.<patch>` on `main`. A maintainer cuts one:
+
+1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [1.2.0] - <date>` and start a new empty `## [Unreleased]` above
+   it. Keep the `Metering-hook protocol: <n>` line in both; if the release changes the protocol, the version bump in
+   `application/metering/metering_hook.py` and the line change together, and the bump is a breaking change.
+2. Check the notes: `python3 tools/release_notes.py v1.2.0` prints exactly what the release will say.
+3. Merge that, then tag the merge commit and push the tag: `git tag v1.2.0 && git push origin v1.2.0`.
+
+The tag starts `.github/workflows/release.yml`. It fails at once when the changelog has no entry for the version, then
+rehearses the documented restore against the compose stack (`restore-rehearsal.yml`), publishes both images as
+`:1.2.0`, and creates the GitHub release from the changelog entry, ending with the protocol version and whether it
+changed since the previous release. A failed rehearsal publishes nothing.
 
 ## Opening a pull request
 
