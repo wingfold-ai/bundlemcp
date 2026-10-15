@@ -9,6 +9,11 @@ from redis.exceptions import TimeoutError as StoreTimeoutError
 
 from bundlemcp.api.health.controllers.health_controller import HealthController
 from bundlemcp.api.http.live_state_unavailable_handler import live_state_unavailable_handler
+from bundlemcp.api.http.request_body_limit import (
+    BodyTooLarge,
+    RequestBodyLimit,
+    body_too_large_handler,
+)
 from bundlemcp.api.http.service_error_handler import service_error_handler
 from bundlemcp.api.management.controllers import (
     ApiKeyController,
@@ -71,6 +76,9 @@ def create_app(
     # Valkey still unreachable after the client's retries
     app.add_exception_handler(StoreConnectionError, live_state_unavailable_handler)
     app.add_exception_handler(StoreTimeoutError, live_state_unavailable_handler)
+    app.add_exception_handler(BodyTooLarge, body_too_large_handler)
+    # bounds request bodies before routing, parsing or admission
+    app.add_middleware(RequestBodyLimit)
 
     if settings.web_origins:
         # credentials-enabled CORS for exactly the web app's origin(s)

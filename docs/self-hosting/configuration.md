@@ -156,7 +156,7 @@ in `BUNDLEMCP_DATABASE_URL` by whoever runs your database. How to rotate each is
 
 These are stored in Postgres, propagated to every replica, and editable from **Settings** in the UI or through
 `GET/PUT/DELETE /api/v1/config/{key}`. Deleting a key resets it to its default. Values are type-checked: a boolean key
-rejects `1`, an integer key rejects `"3"`.
+rejects `1`, an integer key rejects `"3"`, and a value outside a key's range is refused.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -170,6 +170,8 @@ rejects `1`, an integer key rejects `"3"`.
 | `authorization_code_lifetime` | `600` | Seconds a client has to redeem an authorization code from the gateway's OAuth server. |
 | `access_token_lifetime` | `3600` | Seconds an access token issued by the gateway's OAuth server stays valid. |
 | `refresh_token_lifetime` | `604800` | Seconds a refresh token issued by the gateway's OAuth server may be exchanged. |
+| `max_request_bytes` | `4194304` | Largest request body, in bytes, the gateway reads on `/{endpoint}/mcp` and `/api/v1` (4 MiB). A larger one is answered `413` before it is parsed, whether it declares a `Content-Length` or arrives chunked. Between 65536 and 67108864. Keep your proxy's body limit at or above it. |
+| `max_upstream_response_bytes` | `16777216` | Largest single message, in bytes, accepted from an upstream server (16 MiB). A larger tool result is abandoned and the caller gets an error instead. Between 65536 and 67108864. |
 
 ```bash
 curl -s -X PUT https://gw.example.com/api/v1/config/call_timeout \

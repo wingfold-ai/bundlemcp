@@ -216,8 +216,11 @@ class CompositionRoot:
         ).run(settings)
 
         subscriber = InvalidationSubscriber(redis)  # one subscriber per replica
+        await runtime_config.refresh()  # the snapshot holds stored values before serving
+        # a gap only drops the cache: the next config read reloads it, snapshot included,
+        # without a load racing the requests that are already being served
         subscriber.on_reconnect_flush(runtime_config.flush)
-        subscriber.on_event(self._config_flush(runtime_config))
+        subscriber.on_event(self._config_refresh(runtime_config))
         subscriber.on_event(ListChangedNotifier(registry).on_invalidation)
         await subscriber.start()
         self._stack.push_async_callback(subscriber.stop)
@@ -353,9 +356,9 @@ class CompositionRoot:
         return provider
 
     @staticmethod
-    def _config_flush(runtime_config: RuntimeConfig):
+    def _config_refresh(runtime_config: RuntimeConfig):
         async def on_event(event) -> None:
             if event.entity_type == "config":
-                await runtime_config.flush()
+                await runtime_config.refresh()
 
         return on_event

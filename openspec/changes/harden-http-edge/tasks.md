@@ -41,12 +41,12 @@
 
 ## 4. Request and response size limits (SEC-7, EP-9)
 
-- [ ] 4.1 Add `max_request_bytes` (default 4194304) and `max_upstream_response_bytes` (default 16777216) to the runtime
+- [x] 4.1 Add `max_request_bytes` (default 4194304) and `max_upstream_response_bytes` (default 16777216) to the runtime
   config registry with a 64 KiB to 64 MiB range check, and verify with domain tests that out-of-range values are
   refused with a message naming the key
-- [ ] 4.2 Give `RuntimeConfig` a non-loading snapshot accessor refreshed on invalidation, and verify with an application
+- [x] 4.2 Give `RuntimeConfig` a non-loading snapshot accessor refreshed on invalidation, and verify with an application
   test that reading it never opens a unit of work
-- [ ] 4.3 Add the body-limit ASGI middleware for `/api/v1` and `/{endpoint}/mcp` (declared length refused before
+- [x] 4.3 Add the body-limit ASGI middleware for `/api/v1` and `/{endpoint}/mcp` (declared length refused before
   reading, streamed bodies counted), rendering a JSON-RPC error on MCP routes and the API error object on `/api/v1`;
   remove `MAX_PAYLOAD_BYTES` and `_is_oversized` from the router; verify with ASGI tests citing SEC-7 and EP-9 for
   declared, chunked and under-limit bodies on both surfaces, and that no unit of work is opened for a rejected request

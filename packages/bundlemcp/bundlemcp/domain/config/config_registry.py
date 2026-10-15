@@ -17,16 +17,30 @@ class ConfigSetting(BaseModel):
         description="Type a stored value must already have; nothing is converted, so a "
         "bool is not an int and a string is not a number"
     )
+    minimum: int | float | None = Field(
+        default=None, description="Smallest value accepted, inclusive; None for no lower bound"
+    )
+    maximum: int | float | None = Field(
+        default=None, description="Largest value accepted, inclusive; None for no upper bound"
+    )
 
     def coerce(self, value: Any) -> bool | int | float:
-        """The value as the key's type, or a ValueError naming what was wrong."""
+        """The value as the key's type and within its bounds, or a ValueError saying why not."""
         try:
-            return TypeAdapter(self.value_type).validate_python(value, strict=True)
+            coerced = TypeAdapter(self.value_type).validate_python(value, strict=True)
         except ValidationError as exc:
             raise ValueError(
                 f"must be {self.value_type.__name__}: {exc.errors()[0]['msg']}"
             ) from None
+        if self.minimum is not None and coerced < self.minimum:
+            raise ValueError(f"must be at least {self.minimum}")
+        if self.maximum is not None and coerced > self.maximum:
+            raise ValueError(f"must be at most {self.maximum}")
+        return coerced
 
+
+KIB = 1024
+MIB = 1024 * KIB
 
 # The single registry of runtime-tunable settings.
 DEFAULTS: dict[str, ConfigSetting] = {
@@ -45,6 +59,13 @@ DEFAULTS: dict[str, ConfigSetting] = {
     "authorization_code_lifetime": ConfigSetting(default=600, value_type=int),
     "access_token_lifetime": ConfigSetting(default=3600, value_type=int),
     "refresh_token_lifetime": ConfigSetting(default=604800, value_type=int),
+    # bytes: a request body, and one upstream response message
+    "max_request_bytes": ConfigSetting(
+        default=4 * MIB, value_type=int, minimum=64 * KIB, maximum=64 * MIB
+    ),
+    "max_upstream_response_bytes": ConfigSetting(
+        default=16 * MIB, value_type=int, minimum=64 * KIB, maximum=64 * MIB
+    ),
 }
 
 
