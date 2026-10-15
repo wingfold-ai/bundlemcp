@@ -26,3 +26,14 @@ class UpstreamTokenRepository(Repository[UpstreamOAuthToken], Protocol):
     async def delete_for_user(self, user_id: uuid.UUID) -> int:
         """Delete every upstream connection one user owns; shared ones are untouched."""
         ...
+
+    async def replace_ciphertext(self, id: uuid.UUID, expected: str, new: str) -> bool:
+        """Store ``new`` in place of ``expected`` only if the row still holds ``expected``.
+
+        False when another write changed the value first; nothing is changed then.
+        """
+        ...
+
+    async def page_after(self, after: uuid.UUID | None, limit: int) -> list[UpstreamOAuthToken]:
+        """Up to ``limit`` rows in id order, starting after ``after`` (from the start on None)."""
+        ...

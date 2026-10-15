@@ -105,6 +105,14 @@ class Settings(BaseModel):
         "all of them decrypt, so rotation means prepending a key and keeping the old one. "
         "Servers using upstream OAuth cannot be used while this is empty",
     )
+    token_reencryption_interval: int = Field(
+        default=3600,
+        ge=0,
+        description="Seconds between passes that re-encrypt stored upstream tokens and client "
+        "secrets under the first of BUNDLEMCP_TOKEN_ENCRYPTION_KEYS, so an older key can be "
+        "dropped once a pass logs remaining_on_old_key=0. One replica runs each pass. 0 "
+        "disables the passes; values are still re-encrypted when they are read",
+    )
 
     metering_hook: str | None = Field(
         default=None,

@@ -1,10 +1,19 @@
 """Encrypted token sets and client registrations for upstream servers, read and written per call."""
 
 import uuid
+from collections.abc import Callable
 from datetime import timedelta
 
-from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
-from bundlemcp.application.contracts.secret_cipher import SecretCipher
+import structlog
+
+from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from bundlemcp.application.contracts.persistence.upstream_client_repository import (
+    UpstreamClientRepository,
+)
+from bundlemcp.application.contracts.persistence.upstream_token_repository import (
+    UpstreamTokenRepository,
+)
+from bundlemcp.application.contracts.secret_cipher import DecryptionError, SecretCipher
 from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.upstream_oauth.client_identification import ClientIdentification
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
@@ -21,6 +30,19 @@ from bundlemcp.domain.upstream_oauth.upstream_oauth_client import UpstreamOAuthC
 from bundlemcp.domain.upstream_oauth.upstream_oauth_token import UpstreamOAuthToken
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 
+log = structlog.get_logger(__name__)
+
+# where a re-encrypted value is written back, within one unit of work
+type RepositoryOf = Callable[[UnitOfWork], UpstreamTokenRepository | UpstreamClientRepository]
+
+
+def _tokens(uow: UnitOfWork) -> UpstreamTokenRepository:
+    return uow.upstream_tokens
+
+
+def _clients(uow: UnitOfWork) -> UpstreamClientRepository:
+    return uow.upstream_clients
+
 
 class UpstreamTokenStorage:
     """Rows keyed (server_id, user_id); a NULL user is the shared connection.
@@ -28,6 +50,11 @@ class UpstreamTokenStorage:
     Runs outside any request transaction, because a token is refreshed in the
     middle of a tool call, so every operation opens and commits its own unit
     of work.
+
+    A value read while still encrypted under an older key is re-encrypted
+    under the primary key on that read, best effort: the write is a
+    compare-and-set, so it never overwrites a concurrent refresh, and a failure
+    is logged and never fails the read.
     """
 
     def __init__(self, units: UnitOfWorkFactory, cipher: SecretCipher) -> None:
@@ -38,7 +65,8 @@ class UpstreamTokenStorage:
         self, server_id: uuid.UUID, user_id: uuid.UUID | None
     ) -> UpstreamOAuthToken | None:
         async with self._units.open() as uow:
-            return await uow.upstream_tokens.find(server_id, user_id)
+            row = await uow.upstream_tokens.find(server_id, user_id)
+        return await self._current_token(row)
 
     def decode(self, row: UpstreamOAuthToken) -> UpstreamTokens:
         return UpstreamTokens.model_validate_json(self._cipher.decrypt(row.tokens_encrypted))
@@ -81,7 +109,8 @@ class UpstreamTokenStorage:
     async def any_valid_user_connection(self, server_id: uuid.UUID) -> UpstreamOAuthToken | None:
         """Some user's working connection to a per-user server, for discovery to borrow."""
         async with self._units.open() as uow:
-            return await uow.upstream_tokens.any_valid_user_connection(server_id)
+            row = await uow.upstream_tokens.any_valid_user_connection(server_id)
+        return await self._current_token(row)
 
     async def find_client_config(self, server_id: uuid.UUID) -> UpstreamClientConfig | None:
         """The client this gateway uses at the server's authorization server, if it has one."""
@@ -89,6 +118,7 @@ class UpstreamTokenStorage:
             client = await uow.upstream_clients.for_server(server_id)
         if client is None or not client.client_id:
             return None
+        await self._current_secret(client)
         return self._config(client)
 
     async def client_config(self, server_id: uuid.UUID) -> UpstreamClientConfig:
@@ -174,3 +204,34 @@ class UpstreamTokenStorage:
         return UpstreamClientConfig(
             client_id=client.client_id or "", client_secret=secret, metadata=client.metadata_ or {}
         )
+
+    async def _current_token(self, row: UpstreamOAuthToken | None) -> UpstreamOAuthToken | None:
+        """The row, its stored tokens moved under the primary key first if they were not."""
+        if row is not None and not self._cipher.is_current(row.tokens_encrypted):
+            rewritten = await self._reencrypt(_tokens, row.id, row.tokens_encrypted)
+            if rewritten is not None:
+                row.tokens_encrypted = rewritten
+        return row
+
+    async def _current_secret(self, client: UpstreamOAuthClient) -> None:
+        secret = client.client_secret_encrypted
+        if secret and not self._cipher.is_current(secret):
+            rewritten = await self._reencrypt(_clients, client.id, secret)
+            if rewritten is not None:
+                client.client_secret_encrypted = rewritten
+
+    async def _reencrypt(
+        self, repository: RepositoryOf, row_id: uuid.UUID, stored: str
+    ) -> str | None:
+        """The value re-encrypted and stored in place of ``stored``; None when it was not."""
+        try:
+            rewritten = self._cipher.reencrypt(stored)
+            async with self._units.open() as uow:
+                replaced = await repository(uow).replace_ciphertext(row_id, stored, rewritten)
+                await uow.commit()
+        except DecryptionError:
+            return None  # no held key reads it; the read itself reports that
+        except Exception:
+            log.warning("token_encryption.reencrypt_failed", row_id=str(row_id))
+            return None
+        return rewritten if replaced else None

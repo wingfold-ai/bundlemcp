@@ -32,16 +32,27 @@ marked `error` after 3 consecutive failed discovery probes and back to `ok` on t
 it, then delete or deactivate the old one. Deactivation propagates to every replica within the cross-replica signalling
 budget, not a cache TTL.
 
-**Token encryption keys.** `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` is an ordered list. To rotate, prepend the new key and keep
-the old one:
+**Token encryption keys.** `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` is an ordered list: the first key encrypts, all of them
+decrypt. The gateway encrypts two kinds of stored value with it, upstream OAuth tokens and upstream OAuth client
+secrets. To rotate:
 
-```
-BUNDLEMCP_TOKEN_ENCRYPTION_KEYS=["<new>","<old>"]
-```
+1. Prepend the new key, keep the old one, and restart every replica:
 
-New writes use the first key; existing rows decrypt with any key and are re-encrypted with the first key when they are
-next written. Drop the old key once you are confident no row still depends on it. Dropping every key that a row was
-encrypted with invalidates that upstream connection; the affected user or admin reconnects.
+   ```
+   BUNDLEMCP_TOKEN_ENCRYPTION_KEYS=["<new>","<old>"]
+   ```
+
+2. Wait. New writes use the new key, and a value still under the old key is re-encrypted the next time it is read.
+   Values nobody reads are moved by a background pass that one replica runs every
+   `BUNDLEMCP_TOKEN_REENCRYPTION_INTERVAL` seconds (an hour by default). Each pass logs `token_encryption.swept` with
+   `rewritten`, `remaining_on_old_key` and `undecryptable`.
+3. Once a pass reports `remaining_on_old_key=0`, nothing stored needs the old key. Wait one more `max_total_timeout`
+   (30 minutes by default) as well: a tool call waiting on client input carries a state sealed with the key, and it
+   would have to start over.
+4. Remove the old key and restart.
+
+`undecryptable` counts values that no configured key reads, for example because a key was dropped too early; they are
+left as they are. Each one is an upstream connection whose user or admin has to connect again.
 
 **OIDC client secret.** Rotate at the provider, update `BUNDLEMCP_OIDC_CLIENT_SECRET`, restart. Existing admin sessions
 survive.

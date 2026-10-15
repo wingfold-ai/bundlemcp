@@ -1,5 +1,6 @@
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bundlemcp.domain.upstream_oauth.upstream_oauth_token import UpstreamOAuthToken
@@ -36,3 +37,19 @@ class SqlAlchemyUpstreamTokenRepository(
 
     async def delete_for_user(self, user_id: uuid.UUID) -> int:
         return await self.delete_where(UpstreamOAuthTokenRow.user_id == user_id)
+
+    async def replace_ciphertext(self, id: uuid.UUID, expected: str, new: str) -> bool:
+        changed = await self.update_where(
+            UpstreamOAuthTokenRow.id == id,
+            UpstreamOAuthTokenRow.tokens_encrypted == expected,
+            tokens_encrypted=new,
+        )
+        return changed == 1
+
+    async def page_after(self, after: uuid.UUID | None, limit: int) -> list[UpstreamOAuthToken]:
+        statement = select(UpstreamOAuthTokenRow).order_by(UpstreamOAuthTokenRow.id).limit(limit)
+        if after is not None:
+            statement = statement.where(UpstreamOAuthTokenRow.id > after)
+        await self.flush_pending()
+        rows = (await self._session.execute(statement)).scalars()
+        return [self._to_entity(row) for row in rows]
