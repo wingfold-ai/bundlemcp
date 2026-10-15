@@ -34,9 +34,27 @@ def test_rotation_first_encrypts_all_decrypt():
     ct2 = rotated.encrypt("again")
     assert TokenCipher([new]).decrypt(ct2) == "again"
 
-    # rotate() re-encrypts old ciphertext under the primary key
-    reencrypted = rotated.rotate(ct)
+
+def test_dep9_an_old_value_is_not_current_and_reencrypts_to_one_that_is():
+    """DEP-9: a value under the old key re-encrypts under the new one, same plaintext."""
+    old, new = _key(), _key()
+    ct = TokenCipher([old]).encrypt("s3cr3t")
+    rotated = TokenCipher([new, old])
+    assert rotated.is_current(ct) is False
+    assert rotated.is_current(rotated.encrypt("fresh")) is True
+
+    reencrypted = rotated.reencrypt(ct)
+    assert rotated.is_current(reencrypted) is True
     assert TokenCipher([new]).decrypt(reencrypted) == "s3cr3t"
+
+
+def test_dep9_an_undecryptable_value_neither_counts_as_current_nor_reencrypts():
+    """DEP-9: a value no held key decrypts raises DecryptionError instead of being rewritten."""
+    stranger = TokenCipher([_key()]).encrypt("x")
+    cipher = TokenCipher([_key(), _key()])
+    assert cipher.is_current(stranger) is False
+    with pytest.raises(DecryptionError):
+        cipher.reencrypt(stranger)
 
 
 def test_missing_keys_raises():

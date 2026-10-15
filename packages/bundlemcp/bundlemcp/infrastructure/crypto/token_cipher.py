@@ -15,6 +15,7 @@ class TokenCipher:
                 "(generate with cryptography.fernet.Fernet.generate_key())"
             )
         # first key encrypts, all decrypt
+        self._primary = Fernet(keys[0].encode())
         self._fernet = MultiFernet([Fernet(k.encode()) for k in keys])
 
     def encrypt(self, plaintext: str) -> str:
@@ -26,9 +27,18 @@ class TokenCipher:
         except InvalidToken as exc:
             raise DecryptionError("token could not be decrypted with any key") from exc
 
-    def rotate(self, ciphertext: str) -> str:
-        """Re-encrypt under the current primary key (used by lazy rotation)."""
-        return self._fernet.rotate(ciphertext.encode()).decode()
+    def is_current(self, ciphertext: str) -> bool:
+        try:
+            self._primary.decrypt(ciphertext.encode())
+        except InvalidToken:
+            return False
+        return True
+
+    def reencrypt(self, ciphertext: str) -> str:
+        try:
+            return self._fernet.rotate(ciphertext.encode()).decode()
+        except InvalidToken as exc:
+            raise DecryptionError("token could not be decrypted with any key") from exc
 
     def __repr__(self) -> str:  # never leak key material
         return "TokenCipher(keys=<redacted>)"

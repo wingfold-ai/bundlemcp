@@ -23,3 +23,16 @@ class InMemoryUpstreamTokenRepository(InMemoryRepository[UpstreamOAuthToken]):
         for token in owned:
             await self.delete(token)
         return len(owned)
+
+    async def replace_ciphertext(self, id: uuid.UUID, expected: str, new: str) -> bool:
+        token = self.first(lambda t: t.id == id and t.tokens_encrypted == expected)
+        if token is None:
+            return False
+        token.tokens_encrypted = new
+        return True
+
+    async def page_after(self, after: uuid.UUID | None, limit: int) -> list[UpstreamOAuthToken]:
+        ordered = sorted(
+            self.where(lambda row: after is None or row.id > after), key=lambda row: row.id
+        )
+        return ordered[:limit]
