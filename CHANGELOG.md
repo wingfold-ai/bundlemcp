@@ -12,18 +12,30 @@ Metering-hook protocol: 2
 
 ### Added
 
-- Every merge that adds, fixes or improves something is now a release. Its version follows from the pull request title,
-  and it gets versioned `:<version>` images and GitHub release notes without anyone tagging by hand.
-  ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
-- Release notes in `CHANGELOG.md` are written for each change as it is proposed, so every release's notes say what
-  users, operators and integrators get. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- Every pull request into `main` now carries its own release: CI labels it `type: <type>` and `semver: <bump>` from its
+  Conventional Commit title and commits the changelog entry and version bump to the branch, so the squash merge is the
+  release commit. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- A merge into `main` that raises the version tags `v<version>` and runs the release (restore rehearsal, versioned
+  images, GitHub release from the changelog entry) without anyone pushing a tag. A merge that does not change the
+  version releases nothing. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
 
 ### Changed
 
-- The version the gateway reports in its OpenAPI document and in MCP `serverInfo` is read from the installed package. It
-  now always matches the released version. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
-- Merges that release nothing, such as documentation, tests and CI changes, still publish `:latest` and `:<sha>` images
-  but get no version tag or release. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- **Breaking:** Maintainers must set the repository's squash merge message to the pull request body, so the `[skip ci]`
+  marker on CI's commits never reaches `main`. They must also add the `ANTHROPIC_API_KEY` secret, plus the
+  `ANTHROPIC_WORKSPACE_ID` variable for an organization-scoped key. Pull requests from forks fail the entry check until
+  a maintainer moves the branch into the repository. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- The gateway's reported version, in the OpenAPI `info.version` and the MCP `serverInfo.version`, is now read from the
+  installed `bundlemcp` package instead of a fixed value. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- Releases are versioned from the pull request title: `!` is major, `feat` is minor, `fix`, `perf` and `revert` are
+  patch, and everything else releases nothing. Below 1.0 each bump moves one place to the right.
+  ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- Upgrading means deploying a newer release: read the changelog entries between the two versions. A merge that releases
+  nothing, such as documentation, tests or CI, still publishes `:latest` and `:<sha>` images.
+  ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- Changelog entry text is written by Claude from the pull request's diff and description, which are sent to the Claude
+  API. A reworded entry is kept, and later pushes only renumber it.
+  ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
 
 ## [0.1.0] - 2026-10-15
 
