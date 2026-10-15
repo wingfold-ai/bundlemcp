@@ -105,7 +105,7 @@ python3 tools/check_docs_symbols.py     # the living docs name no dead symbols
 python3 tools/check_docs_settings.py    # env vars and requirement IDs are real
 python3 tools/check_adr_graph.py        # ADR statuses and indexes agree
 python3 tools/check_spec_ids.py         # requirement codes are well-formed, unique and real
-python3 tools/release_notes.py --check  # CHANGELOG.md names the metering-hook protocol version
+python3 tools/release_notes.py --check  # CHANGELOG.md entries have dated headings, newest first
 openspec validate --all --strict        # specs and changes are well-formed
 ```
 
@@ -261,8 +261,9 @@ What this means while you work on a branch:
 - CI owns the release entry and the version lines; a hand edit to the version is replaced. Pull before you push
   (`git pull --rebase`), because CI may have pushed to your branch since your last pull.
 - A release that changes the metering-hook protocol bumps `METERING_PROTOCOL_VERSION` in
-  `application/metering/metering_hook.py` in the same pull request; the entry names the new version, and the bump is a
-  breaking change (`!`).
+  `application/metering/metering_hook.py` in the same pull request, and its title is marked breaking (`!`); CI refuses
+  the entry otherwise. The entry then says the protocol changed, with a breaking bullet CI adds unless the text already
+  names it. An entry names the protocol only in that case.
 - CI cannot push to a fork. A pull request from a fork fails its entry check; a maintainer moves the branch into the
   repository before merging.
 - `python3 tools/release_notes.py v1.2.0` prints what a release will say. A tag pushed by hand (`git tag v1.2.0 && git

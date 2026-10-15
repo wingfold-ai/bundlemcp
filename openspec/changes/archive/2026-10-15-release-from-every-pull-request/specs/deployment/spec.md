@@ -51,16 +51,21 @@ A pull request into `main` SHALL carry the release its merge makes, so the squas
   version is `0`, a major bump raises the minor and a minor or patch bump raises the patch (`0.1.0` → `0.2.0` and
   `0.1.1`); from `1.0.0` the bumps are literal.
 - **Entry and bump on the branch.** For a `semver:` label other than `none`, CI commits to the pull request's branch a
-  `CHANGELOG.md` entry `## [<version>] - <date>`, placed above the newest entry on `main` and stating the
-  metering-hook protocol version, and raises the project's version to it. That commit starts no further CI run. The
-  entry's text is not the title: a language model writes it from the pull request's changes and description, as
-  bullets under *Added*, *Changed*, *Fixed* and *Security* that say what a user, operator or integrator gets, with a
-  breaking change marked as breaking and a link to the pull request. The text is written when the entry is first
-  added and again whenever the author pushes changes, unless someone has edited it on the branch since CI last wrote
-  it: an edited text is kept. When the title is edited or `main` moves on, CI renumbers the entry and the bump to the
-  next free version and refreshes the date, keeping the text. When the model cannot be reached, the entry is the
-  title's subject with the link, and the check says so. A `semver: none` pull request gets neither entry nor bump,
-  and any entry or bump CI added earlier is removed.
+  `CHANGELOG.md` entry `## [<version>] - <date>`, placed above the newest entry on `main`, and raises the project's
+  version to it. That commit starts no further CI run. The entry's text is not the title: a language model writes it
+  from the pull request's changes and description, as bullets under *Added*, *Changed*, *Fixed* and *Security* that say
+  what a user, operator or integrator gets, with a breaking change marked as breaking and a link to the pull request.
+  The text is written when the entry is first added and again whenever the author pushes changes, unless someone has
+  edited it on the branch since CI last wrote it: an edited text is kept. When the title is edited or `main` moves on,
+  CI renumbers the entry and the bump to the next free version and refreshes the date, keeping the text. When the model
+  cannot be reached, the entry is the title's subject with the link, and the check says so. A `semver: none` pull
+  request gets neither entry nor bump, and any entry or bump CI added earlier is removed.
+- **The protocol only when it changes.** An entry names the metering-hook protocol
+  ([PROT-27](../protocol/spec.md)) only in a release that changes it. A pull request that raises the protocol version
+  MUST be marked breaking (`!`), or its entry check fails; its entry says the protocol changed, with a breaking bullet
+  CI adds under *Changed* unless the text already names the protocol. A release whose protocol changed since the
+  previous release tag and whose entry does not say so is refused before anything is published. The release notes
+  always end with the protocol version, as DEP-11 requires.
 - **Branches CI cannot write.** A pull request from a fork cannot receive the commit; its check fails and says so,
   and a maintainer brings the branch into the repository before merging.
 
@@ -102,6 +107,19 @@ A pull request into `main` SHALL carry the release its merge makes, so the squas
 #### Scenario: Title that is no Conventional Commit fails
 - **WHEN** a pull request titled `Update stuff` is opened
 - **THEN** its title check fails naming the expected form, and no labels, entry or bump are added
+
+#### Scenario: Unchanged protocol is not named
+- **WHEN** a pull request that leaves the metering-hook protocol version as it is gets its entry
+- **THEN** the entry does not mention the protocol
+
+#### Scenario: Protocol change is named as breaking
+- **GIVEN** the metering-hook protocol version on `main` is `2`
+- **WHEN** a pull request titled `feat(metering)!: Tell the hook more` raises it to `3`
+- **THEN** its entry carries a breaking bullet under *Changed* saying the protocol is now `3` and hooks must be updated
+
+#### Scenario: Protocol change without a breaking title fails
+- **WHEN** a pull request titled `feat(metering): Tell the hook more` raises the metering-hook protocol version
+- **THEN** its entry check fails asking for `!` in the title, and no entry is committed
 
 #### Scenario: The entry commit does not rerun CI
 - **WHEN** CI commits the entry and the bump to a pull request's branch

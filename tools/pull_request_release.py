@@ -31,6 +31,7 @@ CHANGELOG = "CHANGELOG.md"
 HOOK_SOURCE = "packages/bundlemcp/bundlemcp/application/metering/metering_hook.py"
 PACKAGE_PYPROJECT = "packages/bundlemcp/pyproject.toml"
 MAX_TITLE = 72
+VERSIONING = "https://bundlemcp.com/integrate/metering-hook#versioning"
 
 TITLE = re.compile(
     r"^(?P<type>feat|fix|perf|refactor|docs|test|build|ci|chore|revert)"
@@ -41,7 +42,6 @@ BUMPS = {"feat": "minor", "fix": "patch", "perf": "patch", "revert": "patch"}
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 ENTRY = re.compile(r"^## \[(\d+\.\d+\.\d+)\][^\n]*\n", re.MULTILINE)
 SECOND_LEVEL = re.compile(r"^## ", re.MULTILINE)
-PROTOCOL_LINE = re.compile(r"^Metering-hook protocol: \d+\s*\n?", re.MULTILINE)
 SOURCE_PROTOCOL = re.compile(r"^METERING_PROTOCOL_VERSION = (\d+)", re.MULTILINE)
 
 # Where each version file states the version: the pattern's first group is kept,
@@ -117,14 +117,14 @@ def released_versions(changelog: str) -> set[str]:
 
 
 def entry_text(changelog: str, base: str) -> str | None:
-    """The text of the one entry ``changelog`` has and ``base`` lacks, minus its protocol line."""
+    """The text of the one entry ``changelog`` has and ``base`` lacks, without its heading."""
     known = released_versions(base)
     for match in ENTRY.finditer(changelog):
         if match.group(1) in known:
             continue
         following = SECOND_LEVEL.search(changelog, match.end())
         end = following.start() if following else len(changelog)
-        return PROTOCOL_LINE.sub("", changelog[match.end() : end], count=1).strip()
+        return changelog[match.end() : end].strip()
     return None
 
 
@@ -140,12 +140,29 @@ def without_unreleased(changelog: str, base: str) -> str:
     return changelog
 
 
-def with_entry(changelog: str, version: str, date: str, protocol: int, text: str) -> str:
+def with_entry(changelog: str, version: str, date: str, text: str) -> str:
     """``changelog`` with the entry inserted above its newest entry, or above its first section."""
-    entry = f"## [{version}] - {date}\n\nMetering-hook protocol: {protocol}\n\n{text.strip()}\n\n"
+    entry = f"## [{version}] - {date}\n\n{text.strip()}\n\n"
     first = ENTRY.search(changelog) or SECOND_LEVEL.search(changelog)
     at = first.start() if first else len(changelog)
     return changelog[:at] + entry + changelog[at:]
+
+
+def with_protocol_change(text: str, previous: int, current: int, number: int, url: str) -> str:
+    """``text`` with a breaking bullet for the protocol change, unless it already names one."""
+    if "metering-hook protocol" in text.lower():
+        return text
+    bullet = (
+        f"- **Breaking:** The metering-hook protocol is now {current} (was {previous}); hooks "
+        f"must be updated, see [Versioning]({VERSIONING}). ([#{number}]({url}))"
+    )
+    if "### Changed\n\n" in text:
+        return text.replace("### Changed\n\n", f"### Changed\n\n{bullet}\n", 1)
+    section = f"### Changed\n\n{bullet}"
+    for later in ("### Fixed", "### Security"):
+        if later in text:
+            return text.replace(later, f"{section}\n\n{later}", 1)
+    return f"{text.rstrip()}\n\n{section}"
 
 
 def set_version(content: str, path: str, version: str) -> str:
@@ -246,12 +263,20 @@ def apply(
     base_changelog = _changelog_at(tree, base_ref)
     base_version = project_version(_git("show", f"{base_ref}:{PACKAGE_PYPROJECT}", cwd=tree))
     version = next_version(base_version, release.bump)
+    previous = source_protocol(_git("show", f"{base_ref}:{HOOK_SOURCE}", cwd=tree))
+    current = source_protocol((tree / HOOK_SOURCE).read_text())
+    if current != previous and not release.breaking:
+        raise ReleaseError(
+            f"this changes the metering-hook protocol from {previous} to {current}, which is "
+            "breaking; mark the title with '!'"
+        )
     changelog_path = tree / CHANGELOG
     changelog = without_unreleased(changelog_path.read_text(), base_changelog)
     if release.bump != "none":
-        protocol = source_protocol((tree / HOOK_SOURCE).read_text())
         text = text or fallback_text(release, number, url)
-        changelog = with_entry(changelog, version, date, protocol, text)
+        if current != previous:
+            text = with_protocol_change(text, previous, current, number, url)
+        changelog = with_entry(changelog, version, date, text)
     changelog_path.write_text(changelog)
     for path in VERSION_SITES:
         file = tree / path

@@ -1,14 +1,12 @@
 # Changelog
 
 Every release of bundlemcp, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-and versions follow [Semantic Versioning](https://semver.org/). Each entry names the metering-hook protocol version it
-ships (`METERING_PROTOCOL_VERSION`), so a hook author can tell from the changelog alone whether a release changes the
-contract their hook implements. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a
-release happens.
+and versions follow [Semantic Versioning](https://semver.org/). A release that changes the metering-hook protocol
+(`METERING_PROTOCOL_VERSION`) says so in its entry, as a breaking change, so a hook author can tell from the changelog
+alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
+protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
 ## [0.1.1] - 2026-10-15
-
-Metering-hook protocol: 2
 
 ### Added
 
@@ -38,8 +36,6 @@ Metering-hook protocol: 2
   ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
 
 ## [0.1.0] - 2026-10-15
-
-Metering-hook protocol: 2
 
 The first release. It is the whole history from the repository's start on 2026-07-04 to this tag, grouped by what a
 user, operator or integrator gets; pull requests are linked where the work landed through one. Releases from here on

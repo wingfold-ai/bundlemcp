@@ -22,8 +22,6 @@ Intro.
 
 ## [1.1.0] - 2026-10-01
 
-Metering-hook protocol: 2
-
 ### Added
 
 - Something earlier.
@@ -130,7 +128,8 @@ def test_dep12_feature_gets_a_minor_entry_above_the_newest_and_a_bump(tree):
     assert _apply(tree, "feat(bundles): Order members by hand", TEXT) == "1.2.0"
     changelog = (tree / "CHANGELOG.md").read_text()
     assert changelog.index("## [1.2.0] - 2026-10-20") < changelog.index("## [1.1.0]")
-    assert "## [1.2.0] - 2026-10-20\n\nMetering-hook protocol: 2\n\n" + TEXT in changelog
+    assert "## [1.2.0] - 2026-10-20\n\n" + TEXT in changelog
+    assert "Metering-hook protocol" not in changelog
     assert 'version = "1.2.0"' in (tree / "pyproject.toml").read_text()
     lock = (tree / "uv.lock").read_text()
     assert lock.count('version = "1.2.0"') == 2 and 'version = "0.28.1"' in lock
@@ -144,7 +143,7 @@ def test_dep12_entry_passes_the_release_notes_check(tree):
     assert notes_spec is not None and notes_spec.loader is not None
     notes = importlib.util.module_from_spec(notes_spec)
     notes_spec.loader.exec_module(notes)
-    notes.check((tree / "CHANGELOG.md").read_text(), 2)
+    notes.check((tree / "CHANGELOG.md").read_text())
     assert "Order a bundle's members" in notes.notes(
         "1.2.0", (tree / "CHANGELOG.md").read_text(), 2, previous_tag=None, previous=None
     )
@@ -238,3 +237,34 @@ def test_dep12_the_branch_s_own_changelog_edits_outside_the_entry_are_kept(tree)
     assert changelog.index("A better intro.") < changelog.index("## [1.2.0]")
     _apply(tree, "docs(bundles): Order members by hand")
     assert (tree / "CHANGELOG.md").read_text() == edited
+
+
+def _change_protocol(tree, version):
+    (tree / release.HOOK_SOURCE).write_text(f"METERING_PROTOCOL_VERSION = {version}\n")
+
+
+def test_dep12_an_unchanged_protocol_is_not_named(tree):
+    _apply(tree, "feat(bundles): Order members by hand", TEXT)
+    assert "metering-hook protocol" not in (tree / "CHANGELOG.md").read_text().lower()
+
+
+def test_dep12_a_protocol_change_adds_a_breaking_bullet(tree):
+    _change_protocol(tree, 3)
+    _apply(tree, "feat(metering)!: Tell the hook more", TEXT)
+    changelog = (tree / "CHANGELOG.md").read_text()
+    entry = changelog[changelog.index("## [2.0.0]") : changelog.index("## [1.1.0]")]
+    assert "### Changed\n\n- **Breaking:** The metering-hook protocol is now 3 (was 2)" in entry
+    assert entry.index("### Added") < entry.index("### Changed")
+
+
+def test_dep12_a_protocol_change_the_text_names_is_not_named_twice(tree):
+    _change_protocol(tree, 3)
+    text = "### Changed\n\n- **Breaking:** Metering-hook protocol 3 sends `scratch`."
+    _apply(tree, "feat(metering)!: Tell the hook more", text)
+    assert (tree / "CHANGELOG.md").read_text().lower().count("metering-hook protocol") == 1
+
+
+def test_dep12_a_protocol_change_without_a_breaking_title_is_refused(tree):
+    _change_protocol(tree, 3)
+    with pytest.raises(release.ReleaseError, match="mark the title with '!'"):
+        _apply(tree, "feat(metering): Tell the hook more", TEXT)

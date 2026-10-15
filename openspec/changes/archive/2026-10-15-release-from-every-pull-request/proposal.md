@@ -17,12 +17,12 @@ no extra commits on `main` beyond the one squash commit per pull request.
 - **Versioning below 1.0:** while the version is `0.x`, a major bump raises the minor (`0.1.0` → `0.2.0`) and a minor
   or patch bump raises the patch. `1.0.0` is reached by a deliberate pull request, not as a side effect.
 - **The entry lands in the pull request:** while the pull request's CI runs, a job commits to its branch the
-  `## [x.y.z] - <date>` entry in `CHANGELOG.md` (with the metering-hook protocol line) and the version bump. The commit
-  uses the workflow token, so CI does not run again. The title only decides the version; the entry's text is written
-  by Claude from the pull request's diff and description, sorted into *Added*, *Changed*, *Fixed* and *Security*. It
-  is rewritten when the author pushes, unless someone edited it on the branch, in which case the edit is kept. When
-  the title changes or `main` moves on, only the version and date are renumbered, so the version is always the next
-  free one. The squash merge therefore carries the entry and the bump.
+  `## [x.y.z] - <date>` entry in `CHANGELOG.md` and the version bump; the entry names the metering-hook protocol only
+  when it changes. The commit uses the workflow token, so CI does not run again. The title only decides the version; the
+  entry's text is written by Claude from the pull request's diff and description, sorted into *Added*, *Changed*,
+  *Fixed* and *Security*. It is rewritten when the author pushes, unless someone edited it on the branch, in which case
+  the edit is kept. When the title changes or `main` moves on, only the version and date are renumbered, so the version
+  is always the next free one. The squash merge therefore carries the entry and the bump.
 - **Merge releases:** a job on `main` sees the version raised, tags `vX.Y.Z` and runs the existing release
   (restore rehearsal, versioned images, GitHub release from the entry). A `semver: none` pull request (`docs`, `test`,
   `ci`, `build`, `chore`, `refactor`) gets no entry and no release.
