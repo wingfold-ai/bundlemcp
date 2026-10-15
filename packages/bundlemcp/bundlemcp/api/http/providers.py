@@ -8,11 +8,12 @@ that opens a request-scoped unit of work rather than handing out a shared object
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, FastAPI, Request
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from bundlemcp.application.contracts.readiness_probe import ReadinessProbe
 from bundlemcp.application.settings.settings import Settings
+from bundlemcp.domain.config.config_registry import DEFAULTS
 
 
 async def get_unit_of_work(request: Request) -> AsyncIterator[UnitOfWork]:
@@ -27,6 +28,18 @@ def get_readiness(request: Request) -> ReadinessProbe:
 
 def get_app_settings(request: Request) -> Settings:
     return request.app.state.container.settings
+
+
+def current_request_limit(app: FastAPI) -> int:
+    """The request body limit in bytes, from the config snapshot; never does I/O.
+
+    Before the composition root has published its container (a request racing
+    startup) it is the registry default.
+    """
+    container = getattr(app.state, "container", None)
+    if container is None:
+        return int(DEFAULTS["max_request_bytes"].default)
+    return int(container.runtime_config.current("max_request_bytes"))
 
 
 UnitOfWorkProvider = Annotated[UnitOfWork, Depends(get_unit_of_work)]

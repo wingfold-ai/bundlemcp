@@ -59,24 +59,25 @@ Request handling pipelines must always sequence validation in order of **strictl
 - Exhausting database connection pools with malformed or unvalidated garbage payloads is a severe availability hazard.
 
 ### In this repo
-`McpGatewayRouter.post` (`api/mcp/routing/gateway_router.py`) is the sequence,
-and `AdmissionGate` is stages 2 and 3:
+`RequestBodyLimit` (`api/http/request_body_limit.py`) is stage 1, ahead of
+routing; `McpGatewayRouter.post` (`api/mcp/routing/gateway_router.py`) runs the
+rest, and `AdmissionGate` is stages 2 and 3:
 
 | Stage | Where | Cost |
 |---|---|---|
-| `_is_oversized` — `Content-Length` vs `MAX_PAYLOAD_BYTES` (4 MiB) → `413` | `gateway_router.py` | One header read |
+| `RequestBodyLimit` — declared `Content-Length` over `max_request_bytes` (4 MiB) → `413`; a chunked body counted as it streams | `request_body_limit.py` | One header read; a byte count per chunk |
 | `parse_envelope` — `await request.json()` into `JsonRpcMessage` | `admission_gate.py` | Pure CPU |
 | `admit_caller` — endpoint lookup and authentication in one `UnitOfWork` | `admission_gate.py` | A pooled DB connection |
 
 This ordering is what ADR-0035 bought: before it, `_admit()` queried five tables
-*before* checking that the body was valid JSON. Two honest caveats about the
-current implementation, so nobody documents them as done:
+*before* checking that the body was valid JSON. One honest caveat about the
+current implementation, so nobody documents it as done:
 
-- **There is no `Content-Type` check.** The size gate and the JSON parse are the
-  whole of stage 1.
-- **The size gate needs a declared `Content-Length`.** A chunked body reaches
-  `request.json()` unbounded, so the microsecond rejection holds only for
-  length-declared requests.
+- **There is no `Content-Type` check.** The size limit and the JSON parse are the
+  whole of stages 1 and 2.
+
+The limit is read from the runtime-config snapshot (`RuntimeConfig.current`), never
+from Postgres, so stage 1 stays free of I/O even though operators can change it.
 
 ## 4. Honest Pattern Modeling Over Flat Conditionals
 

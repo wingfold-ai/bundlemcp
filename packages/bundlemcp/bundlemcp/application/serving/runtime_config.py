@@ -14,11 +14,17 @@ log = structlog.get_logger(__name__)
 
 
 class RuntimeConfig:
-    """Typed accessors with a per-replica cache invalidated via invalidation events."""
+    """Typed accessors with a per-replica cache invalidated via invalidation events.
+
+    Besides the cache, a snapshot holds the values of the last completed load.
+    A flush does not clear it, so ``current`` keeps answering with the stored
+    values until the next load replaces them.
+    """
 
     def __init__(self, units: UnitOfWorkFactory) -> None:
         self._units = units
         self._cache: dict[str, Any] = {}
+        self._snapshot: dict[str, Any] = {}
         self._loaded = False
         self._lock = asyncio.Lock()
 
@@ -28,6 +34,17 @@ class RuntimeConfig:
         if not self._loaded:
             await self._load()
         return self._cache.get(key, DEFAULTS[key].default)
+
+    def current(self, key: str) -> Any:
+        """The value as of the last load, without any I/O.
+
+        For checks that must not wait on the database, such as the request
+        size limit that runs before a request is admitted. Before the first
+        load it is the registry default.
+        """
+        if key not in DEFAULTS:
+            raise UnknownConfigKey(key)
+        return self._snapshot.get(key, DEFAULTS[key].default)
 
     async def call_timeouts(self) -> CallTimeouts:
         """The current upstream call limits, from overrides or the registry defaults."""
@@ -58,6 +75,18 @@ class RuntimeConfig:
             self._cache.clear()
             self._loaded = False
 
+    async def refresh(self) -> None:
+        """Drop the cache and load it again, so the snapshot follows a change promptly.
+
+        A failed load is logged and leaves the snapshot as it was; the next
+        ``get`` loads again.
+        """
+        await self.flush()
+        try:
+            await self._load()
+        except Exception:
+            log.warning("runtime_config.reload_failed", exc_info=True)
+
     async def _load(self) -> None:
         async with self._lock:
             if self._loaded:
@@ -73,4 +102,5 @@ class RuntimeConfig:
                 except ValueError:
                     log.warning("runtime_config.invalid_value", key=row.key)
             self._cache = cache
+            self._snapshot = dict(cache)
             self._loaded = True

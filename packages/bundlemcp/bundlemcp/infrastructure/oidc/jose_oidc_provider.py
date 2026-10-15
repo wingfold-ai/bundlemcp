@@ -1,6 +1,7 @@
 """The real identity provider, reached over HTTP, its ID tokens verified with joserfc."""
 
 from collections.abc import Callable
+from functools import partial
 from typing import Any, Self
 from urllib.parse import urlencode
 
@@ -15,6 +16,7 @@ from bundlemcp.domain.access.oidc_claims import OidcClaims
 from bundlemcp.domain.access.oidc_error import OidcError
 from bundlemcp.domain.oauth.code_challenge_method import CodeChallengeMethod
 from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, check_url_allowed
+from bundlemcp.infrastructure.httpx.guarded_client import guarded_client
 
 HTTP_TIMEOUT = 10
 ID_TOKEN_ALGORITHMS = ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "PS256"]
@@ -24,8 +26,8 @@ ClientFactory = Callable[[], httpx.AsyncClient]
 log = structlog.get_logger(__name__)
 
 
-def _default_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(timeout=HTTP_TIMEOUT)
+def _guarded(settings: Settings) -> ClientFactory:
+    return partial(guarded_client, settings, timeout=HTTP_TIMEOUT)
 
 
 class JoseOidcProvider:
@@ -45,11 +47,11 @@ class JoseOidcProvider:
         settings: Settings,
         metadata: dict[str, Any],
         *,
-        client_factory: ClientFactory = _default_client,
+        client_factory: ClientFactory | None = None,
     ) -> None:
         self._settings = settings
         self._metadata = metadata
-        self._client_factory = client_factory
+        self._client_factory = client_factory or _guarded(settings)
         self._sends_pkce = _accepts_s256(metadata)
         if not self._sends_pkce:
             log.warning(
@@ -60,12 +62,13 @@ class JoseOidcProvider:
 
     @classmethod
     async def discover(
-        cls, settings: Settings, *, client_factory: ClientFactory = _default_client
+        cls, settings: Settings, *, client_factory: ClientFactory | None = None
     ) -> Self:
         """Fetch the issuer's discovery document and return a provider that can use it."""
         if not settings.oidc_discovery_url:
             raise OidcError("no OIDC discovery URL configured")
         _check_egress(settings.oidc_discovery_url, settings)
+        client_factory = client_factory or _guarded(settings)
         try:
             async with client_factory() as client:
                 response = await client.get(settings.oidc_discovery_url)

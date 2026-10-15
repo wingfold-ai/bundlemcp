@@ -17,7 +17,7 @@ Operator's reverse proxy (TLS, `X-Forwarded-*`) → N stateless **gateway** repl
 | Aspect | Rule | Spec |
 |---|---|---|
 | Public identity | `BUNDLEMCP_PUBLIC_URL` drives issuer/metadata/cookies; Host headers never trusted | [DEP-1](../../openspec/specs/deployment/spec.md) |
-| Proxy trust | `X-Forwarded-*` honored only from `BUNDLEMCP_TRUSTED_PROXIES` CIDRs | DEP-2 |
+| Proxy trust | `X-Forwarded-For` honored only from `BUNDLEMCP_TRUSTED_PROXIES` CIDRs, read from the right; `X-Forwarded-Proto` and `X-Forwarded-Host` ignored | DEP-2 |
 | Migrations | Dedicated step + advisory lock; expand/contract for rolling deploys | DEP-4/5 |
 | Session compat | Redis records versioned; new release reads previous release's records | DEP-6 |
 | Probes | `/healthz` (live), `/readyz` (PG+Redis+schema current) | [OPS-10](../../openspec/specs/operations/spec.md) |

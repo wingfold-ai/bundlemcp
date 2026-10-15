@@ -16,16 +16,28 @@ from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, HostUnre
 TRANSPORT_FAILURES = (httpx2.TransportError, OSError, TimeoutError)
 
 
-def _transport_failed(exc: BaseException) -> bool:
-    """Whether the connection itself failed, anywhere in the exception's cause chain."""
+def _in_chain[E: BaseException](
+    exc: BaseException, kinds: type[E] | tuple[type[E], ...]
+) -> E | None:
+    """The first exception of ``kinds`` in ``exc``'s cause chain, including exception groups.
+
+    The MCP client wraps what its connection raised, so an egress denial at
+    connect time arrives as the cause of a generic connection error.
+    """
     seen: set[int] = set()
-    current: BaseException | None = exc
-    while current is not None and id(current) not in seen:
-        if isinstance(current, TRANSPORT_FAILURES):
-            return True
+    pending: list[BaseException] = [exc]
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
         seen.add(id(current))
-        current = current.__cause__ or current.__context__
-    return False
+        if isinstance(current, kinds):
+            return current
+        if isinstance(current, BaseExceptionGroup):
+            pending.extend(current.exceptions)
+        if (linked := current.__cause__ or current.__context__) is not None:
+            pending.append(linked)
+    return None
 
 
 class FastMcpUpstreamProbe:
@@ -53,10 +65,13 @@ class FastMcpUpstreamProbe:
         except EgressDenied as exc:
             raise ProbeFailure(str(exc), state=ConnectionState.EGRESS_DENIED) from exc
         except Exception as exc:
+            if (unresolved := _in_chain(exc, HostUnresolvable)) is not None:
+                raise ProbeFailure(str(unresolved), state=ConnectionState.UNREACHABLE) from exc
+            if (denied := _in_chain(exc, EgressDenied)) is not None:
+                raise ProbeFailure(str(denied), state=ConnectionState.EGRESS_DENIED) from exc
             observed = responses.last
-            state = classify_refusal(
-                observed, unreachable=observed is None and _transport_failed(exc)
-            )
+            unreachable = observed is None and _in_chain(exc, TRANSPORT_FAILURES) is not None
+            state = classify_refusal(observed, unreachable=unreachable)
             message = f"HTTP {observed.status}: {exc}" if observed is not None else str(exc)
             raise ProbeFailure(message, state=state, observed=observed) from exc
         return ProbeResult(

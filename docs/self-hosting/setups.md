@@ -18,7 +18,7 @@ Both local setups run the compose stack in `deploy/`, which is built to start wi
 - **brings a development identity provider.** Keycloak with the login `admin` / `admin`, and a realm that accepts any
   redirect URI so that a tunnel's changing URL still works.
 - **speaks plain HTTP** on `localhost`. In the tunnel setup the tunnel adds HTTPS in front.
-- **trusts every private address as a proxy**, so `X-Forwarded-*` headers from inside the compose network are believed.
+- **trusts every private address as a proxy**, so `X-Forwarded-For` from inside the compose network is believed.
 - **lets the gateway reach its own loopback**, because the OAuth demo upstream runs there. A production gateway never
   allows that.
 

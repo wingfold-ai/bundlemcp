@@ -70,7 +70,7 @@ rebuild:
 
 ```bash
 docker compose -f deploy/docker-compose.yml up -d postgres valkey keycloak
-uv run uvicorn --factory apps.gateway.main:app_factory --reload
+uv run uvicorn --factory apps.gateway.main:app_factory --reload --no-proxy-headers
 ```
 
 The admin UI:

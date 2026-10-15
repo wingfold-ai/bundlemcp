@@ -21,7 +21,7 @@ A second, smaller set of **runtime settings** is editable while the gateway runs
 | Variable | Default | Meaning |
 |---|---|---|
 | `BUNDLEMCP_PUBLIC_URL` | `http://localhost:8000` | Externally reachable base URL, exactly as clients reach it, e.g. `https://mcp.example.com`. The OAuth issuer, discovery metadata, redirect URIs and cookie scope derive from it. The default works only on the gateway's own machine: anyone else is sent to `localhost` to sign in, so OAuth and the admin login fail for them. |
-| `BUNDLEMCP_TRUSTED_PROXIES` | `[]` | CIDRs your reverse proxies connect from, e.g. `["10.0.0.0/8"]`; their `X-Forwarded-*` headers are honoured, so the gateway sees each client's real address. Empty: behind a proxy, every request appears to come from the proxy. Everyone then shares one failed-login counter, so a few bad credentials from one client lock out all; anonymous callers share one rate limit; and the audit log shows no real client addresses. |
+| `BUNDLEMCP_TRUSTED_PROXIES` | `[]` | CIDRs your reverse proxies connect from, e.g. `["10.0.0.0/8"]`; their `X-Forwarded-For` is honoured (the rightmost entry that is not one of these proxies), so the gateway sees each client's real address. `X-Forwarded-Proto` and `X-Forwarded-Host` are never read; `BUNDLEMCP_PUBLIC_URL` decides every published URL. Empty: behind a proxy, every request appears to come from the proxy. Everyone then shares one failed-login counter, so a few bad credentials from one client lock out all; anonymous callers share one rate limit; and the audit log shows no real client addresses. |
 
 ### Admin login
 
@@ -37,7 +37,7 @@ A second, smaller set of **runtime settings** is editable while the gateway runs
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BUNDLEMCP_EGRESS_ALLOW_CIDRS` | `[]` | Exceptions to the built-in egress rule. By default the gateway refuses to connect to its own loopback and to link-local / cloud-metadata ranges (`169.254.0.0/16`), so a registered server URL cannot reach cloud credentials or the gateway itself; private networks such as `10.0.0.0/8` are allowed. An entry here is checked first and wins over every other rule, so keep it as narrow as the host you mean, e.g. `["127.0.0.1/32"]`; `0.0.0.0/0` reopens the cloud-metadata range. Empty: the built-in rule alone. See [Network egress](/self-hosting/deploy#network-egress). |
+| `BUNDLEMCP_EGRESS_ALLOW_CIDRS` | `[]` | Exceptions to the built-in egress rule. By default the gateway refuses to connect to its own loopback and to link-local / cloud-metadata ranges (`169.254.0.0/16`, `fd00:ec2::254`), so a registered server URL cannot reach cloud credentials or the gateway itself; private networks such as `10.0.0.0/8` are allowed. An entry here is checked first and wins over every other rule, so keep it as narrow as the host you mean, e.g. `["127.0.0.1/32"]`; `0.0.0.0/0` reopens the cloud-metadata range. Empty: the built-in rule alone. See [Network egress](/self-hosting/deploy#network-egress). |
 | `BUNDLEMCP_EGRESS_DENY_CIDRS` | `[]` | CIDRs outbound requests may never resolve to, unless an allow entry covers them. |
 | `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` | `[]` | Keys that encrypt the tokens the gateway stores for upstream servers using upstream OAuth (people or an admin signed in to the service, or a client id and secret), so it can keep calling them without a new sign-in. The first key encrypts, all of them decrypt, which is how [rotation](/self-hosting/operations#rotating-credentials) works. [Generate](#secrets-you-generate) one. Empty: such servers cannot be used (their upstream OAuth status shows `configured: false`); everything else works. Losing every key makes stored sign-ins unreadable, and people have to sign in to those services again. |
 | `BUNDLEMCP_AUTH_FAILURE_LIMIT` | `20` | Failed authentication attempts from one IP before it is locked out. |
@@ -156,7 +156,7 @@ in `BUNDLEMCP_DATABASE_URL` by whoever runs your database. How to rotate each is
 
 These are stored in Postgres, propagated to every replica, and editable from **Settings** in the UI or through
 `GET/PUT/DELETE /api/v1/config/{key}`. Deleting a key resets it to its default. Values are type-checked: a boolean key
-rejects `1`, an integer key rejects `"3"`.
+rejects `1`, an integer key rejects `"3"`, and a value outside a key's range is refused.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -170,6 +170,8 @@ rejects `1`, an integer key rejects `"3"`.
 | `authorization_code_lifetime` | `600` | Seconds a client has to redeem an authorization code from the gateway's OAuth server. |
 | `access_token_lifetime` | `3600` | Seconds an access token issued by the gateway's OAuth server stays valid. |
 | `refresh_token_lifetime` | `604800` | Seconds a refresh token issued by the gateway's OAuth server may be exchanged. |
+| `max_request_bytes` | `4194304` | Largest request body, in bytes, the gateway reads on `/{endpoint}/mcp` and `/api/v1` (4 MiB). A larger one is answered `413` before it is parsed, whether it declares a `Content-Length` or arrives chunked. Between 65536 and 67108864. Keep your proxy's body limit at or above it. |
+| `max_upstream_response_bytes` | `16777216` | Largest single message, in bytes, accepted from an upstream server (16 MiB). A larger tool result is abandoned and the caller gets an error instead. Between 65536 and 67108864. |
 
 ```bash
 curl -s -X PUT https://gw.example.com/api/v1/config/call_timeout \

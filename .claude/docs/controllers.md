@@ -84,7 +84,7 @@ them:
 
 | Step | Class | Job |
 |---|---|---|
-| 1 | `McpGatewayRouter` (`api/mcp/routing/gateway_router.py`) | Size gate, then parse, then admit, then pick the era adapter |
+| 1 | `McpGatewayRouter` (`api/mcp/routing/gateway_router.py`) | Parse, then admit, then pick the era adapter (the size limit ran before routing) |
 | 2 | `AdmissionGate` (`api/mcp/routing/admission_gate.py`) | `parse_envelope` (pure CPU), then `admit_caller` (one short `UnitOfWork`: endpoint lookup + authentication) |
 | 3 | `StatelessMcpAdapter` / `SessionMcpAdapter` (`api/mcp/routing/adapters/`) | Establish the protocol facts their era carries, then call the registry |
 | 4 | `MethodRegistry` (`api/mcp/dispatch/method_registry.py`) | Route the method to its handler |
@@ -98,7 +98,7 @@ if message.has_modern_meta:
 return await self._session.handle_post(ctx, message, endpoint_name)
 ```
 
-The ordering is the point, not an accident: the size gate costs nothing, the parse is pure CPU, and only an
+The ordering is the point, not an accident: the size limit costs nothing, the parse is pure CPU, and only an
 already-parsed request is allowed to take a database connection. Do not move admission earlier — see
 [design-principles.md](design-principles.md) §3.
 

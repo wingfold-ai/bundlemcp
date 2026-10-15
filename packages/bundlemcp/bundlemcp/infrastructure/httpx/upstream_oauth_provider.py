@@ -1,6 +1,7 @@
 """The real upstream authorization server, reached over HTTP."""
 
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
@@ -16,6 +17,7 @@ from bundlemcp.domain.upstream_oauth.upstream_client_registration import (
 from bundlemcp.domain.upstream_oauth.upstream_metadata import PKCE_METHOD, UpstreamMetadata
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, check_url_allowed
+from bundlemcp.infrastructure.httpx.guarded_client import guarded_client
 
 HTTP_TIMEOUT = 10
 PROTECTED_RESOURCE_PATH = "/.well-known/oauth-protected-resource"
@@ -38,10 +40,6 @@ CHALLENGE_HEADERS = {
 DYNAMIC_CLIENT_APPLICATION_TYPE = "web"  # the redirect URI is the gateway's https callback
 
 ClientFactory = Callable[[], httpx.AsyncClient]
-
-
-def _default_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(timeout=HTTP_TIMEOUT)
 
 
 def _split(url: str) -> tuple[str, str]:
@@ -130,9 +128,11 @@ class HttpxUpstreamProvider:
     is refused rather than followed.
     """
 
-    def __init__(self, settings: Settings, *, client_factory: ClientFactory = _default_client):
+    def __init__(self, settings: Settings, *, client_factory: ClientFactory | None = None):
         self._settings = settings
-        self._client_factory = client_factory
+        self._client_factory = client_factory or partial(
+            guarded_client, settings, timeout=HTTP_TIMEOUT
+        )
 
     async def discover(self, server_url: str) -> UpstreamMetadata:
         origin, _ = _split(server_url)

@@ -51,9 +51,9 @@ Decide before applying. Either way the docstrings are corrected (in
 - **Dependencies:** OpenTelemetry packages as an optional extra (`bundlemcp[otel]`), not installed by default; the
   gateway image decides whether to include it.
 - **Responses:** every HTTP response carries an `X-Request-Id` header.
-- **Overlap:** [harden-http-edge](../harden-http-edge/proposal.md) also modifies DEP-2 (rightmost untrusted
-  `X-Forwarded-For` entry, `X-Forwarded-Proto/Host`). This change owns only DEP-2's logging clause; whichever lands
-  second rebases its DEP-2 delta on the other's text.
+- **Overlap:** [harden-http-edge](../archive/2026-10-15-harden-http-edge/proposal.md) changed DEP-2 first (rightmost
+  untrusted `X-Forwarded-For` entry; `X-Forwarded-Proto/Host` ignored). This change's DEP-2 delta is that text plus
+  its own logging clause.
 - **Dependents:** [add-live-logs](../add-live-logs/proposal.md) filters by server and endpoint using the context this
   change binds.
 - **ADR:** one ADR (next free number) for the request-context and tracing model.

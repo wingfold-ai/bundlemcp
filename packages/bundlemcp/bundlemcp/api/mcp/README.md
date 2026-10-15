@@ -250,12 +250,13 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   (`infrastructure/metering/hook_loader.py`); default is a no-op. A fresh idempotency key is minted per client
   invocation and reused across internal retries (PROT-26), so a reactive OAuth retry is not double-billed. This is the
   seam an application layer hooks billing into.
-- **Egress / SSRF (`infrastructure/egress/egress_policy.py`):** `check_url_allowed` runs before every upstream
-  connection. It resolves *all*
-  addresses for the host (so a hostname can't smuggle a blocked IP) and evaluates: explicit allow CIDRs first, then an
-  always-blocked set (link-local/metadata `169.254.0.0/16`, IPv6 link-local, loopback), then operator deny CIDRs
-  (SEC-1/2). Violations raise `EgressDenied`. It is a pre-flight check: redirects the MCP client follows are not
-  re-checked.
+- **Egress / SSRF (`infrastructure/egress/`):** enforced where each connection is dialled. `GuardedNetworkBackend`
+  wraps the connection pool of every outbound client (the MCP client's and the gateway's own `httpx` clients): it
+  resolves the host once, judges *all* addresses with `judge_address` (explicit allow CIDRs first, then an
+  always-blocked set — link-local/metadata, loopback, the unspecified addresses — then operator deny CIDRs, with
+  IPv4-mapped addresses judged as IPv4), and dials a vetted address, so a rebinding DNS answer or a followed redirect
+  cannot reach a blocked address (SEC-1/2, ADR-0048). Violations raise `EgressDenied`. `check_url_allowed` still runs
+  first, for an early and clearly worded refusal.
 - **Per-call upstream connections (`infrastructure/fastmcp/client_factory.py`):** the client factory builds a fresh
   FastMCP `Client`
   (Streamable-HTTP only) per call, merging `{**server.static_headers, **extra_headers}` so forwarded/OAuth headers win
@@ -325,4 +326,5 @@ Outside this package, the edge relies on:
 | `application/metering/metering_hook.py` | The `MeteringHook` protocol — the billing seam |
 | `infrastructure/inprocess/counters.py` | `InProcessCounters` — in-process metric counters (not exported yet) |
 | `infrastructure/postgres/audit_writer.py` | `QueuedAuditWriter` — async, bounded, fire-and-forget audit queue |
-| `infrastructure/egress/egress_policy.py` | `check_url_allowed` — SSRF/egress policy |
+| `infrastructure/egress/egress_policy.py` | `judge_address`, `check_url_allowed` — SSRF/egress policy |
+| `infrastructure/egress/guarded_backend.py` | `GuardedNetworkBackend` — the policy enforced at connect time |

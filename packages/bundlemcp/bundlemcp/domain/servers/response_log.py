@@ -14,9 +14,17 @@ class ResponseLog(BaseModel):
     responses: list[ObservedResponse] = Field(
         default_factory=list, description="Every unusable response, oldest first"
     )
+    oversized_limit: int | None = Field(
+        default=None,
+        description="The byte cap a single upstream message crossed, once one has; the "
+        "connection abandoned that message",
+    )
 
     def record(self, response: ObservedResponse) -> None:
         self.responses.append(response)
+
+    def record_oversized(self, limit: int) -> None:
+        self.oversized_limit = limit
 
     @property
     def last(self) -> ObservedResponse | None:
