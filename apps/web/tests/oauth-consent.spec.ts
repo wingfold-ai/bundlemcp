@@ -91,3 +91,30 @@ test(testTitle("E2E-17"), async ({ page, steps }) => {
     }),
   ]);
 });
+
+// A person withdraws a client they authorised, from the catalogue page they
+// see as a user (an admin sees the same section in the preview).
+test(testTitle("E2E-25"), async ({ page, steps }) => {
+  let clientId = "";
+  await steps.play([
+    given("the signed-in person has approved a client", { req: "AUTH-11" }, async () => {
+      const registered = await fetch(`${GATEWAY_URL}/oauth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ redirect_uris: [redirectUri], client_name: "E2E withdraw client" }),
+      });
+      clientId = (await registered.json()).client_id;
+      await page.goto(authorizeUrl(clientId, "withdraw-state"));
+      await page.getByRole("button", { name: "Approve" }).click();
+      await page.waitForURL((url) => url.href.startsWith(redirectUri));
+    }),
+    when("they open their connected clients in the catalogue", { req: "AUTH-11" }, async () => {
+      await page.goto("/catalogue");
+      await expect(page.getByTestId(`my-consent-${clientId}`)).toBeVisible();
+    }),
+    then("withdrawing the client removes it from the list", { req: "AUTH-11" }, async () => {
+      await page.getByTestId(`revoke-my-consent-${clientId}`).click();
+      await expect(page.getByTestId(`my-consent-${clientId}`)).toHaveCount(0);
+    }),
+  ]);
+});

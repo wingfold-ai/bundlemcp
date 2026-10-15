@@ -1,5 +1,6 @@
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import OAuthError
+from bundlemcp.application.oauth_server.requested_resource import ensure_resource_is_the_audience
 from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
 from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
@@ -24,6 +25,7 @@ class RefreshTokenGrant:
     def __init__(
         self, uow: UnitOfWork, issuer: TokenIssuer, clock: Clock, hasher: SecretHasher
     ) -> None:
+        self._uow = uow
         self._tokens = uow.oauth_tokens
         self._issuer = issuer
         self._clock = clock
@@ -40,6 +42,7 @@ class RefreshTokenGrant:
             raise OAuthError(OAuthErrorCode.INVALID_GRANT)
         if not current.is_refreshable_at(self._clock.now()):
             raise OAuthError(OAuthErrorCode.INVALID_GRANT)
+        await ensure_resource_is_the_audience(self._uow, request, current.endpoint_id)
         # refresh-token rotation as a compare-and-set: a concurrent rotation of the same
         # token is a replay too, and it is refused the same way.
         if not await self._tokens.revoke_unless_revoked(current.id):

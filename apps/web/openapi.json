@@ -5201,6 +5201,69 @@
         ]
       }
     },
+    "/api/v1/me/consents": {
+      "get": {
+        "description": "The clients the signed-in person has authorised, one entry per client and endpoint.",
+        "operationId": "my_consents_api_v1_me_consents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentRead"
+                  },
+                  "title": "Response My Consents Api V1 Me Consents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Consents",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/consents/{consent_id}": {
+      "delete": {
+        "description": "Withdraw one of the signed-in person's consents, and the tokens issued under it.",
+        "operationId": "revoke_my_consent_api_v1_me_consents__consent_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "consent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Consent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke My Consent",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/me/endpoints": {
       "get": {
         "description": "The catalogue for any signed-in person: enabled endpoints that accept OAuth.",

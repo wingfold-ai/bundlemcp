@@ -1,46 +1,5 @@
 ## MODIFIED Requirements
 
-### Requirement: AUTH-5 Introspection
-`POST /oauth/introspect` (RFC 7662) SHALL return `active`, `sub` (bundlemcp user id, see
-[architecture](../architecture/spec.md) `User`), `client_id`, `exp`, `scope`, and for a user's token the
-RFC 7662 §2.2 extension members `oidc_iss` and `oidc_sub` — the issuer and subject of the IdP that authenticated the
-user, which stay stable where the gateway's user id does not. Callable by upstream services; protected against
-anonymous fishing: the caller MUST present either a valid `service`-kind API key
-([AUTH-23](../auth/spec.md)), as a bearer token, in `X-API-Key`, or as the RFC 7662 HTTP-Basic client
-secret, or the client credentials (HTTP Basic `client_id`/`client_secret`) of a confidential client an admin has
-authorised for introspection. A registered client that has not been so authorised is refused like an anonymous caller,
-because dynamic client registration is open to anyone. Gateway **API keys** presented as the introspected token are
-reported as `active` with `sub` `api_key:<id>` ([AUTH-29](../auth/spec.md) identity format)
-and neither `oidc_iss` nor `oidc_sub`, so introspecting upstreams
-([AUTH-30](../auth/spec.md)) can serve api_key-authenticated callers and tool discovery of
-such upstreams can authenticate via a static `authorization` header. A **delegated token**
-([AUTH-32](../auth/spec.md)) is reported `active` with its audience server's URL as `aud`,
-`token_use` `delegated`, and the endpoint it was issued through as `act.sub`; one issued for a user also carries that
-user's `oidc_iss` and `oidc_sub`.
-
-#### Scenario: A user's token is introspected
-- **WHEN** a service-key holder introspects a live access token issued to a user
-- **THEN** the response is `active: true` with the user's id as `sub`, the `client_id`, `exp`, `scope`, the endpoint
-  audience, `oidc_iss` and `oidc_sub`
-
-#### Scenario: Anonymous or endpoint-key introspection is refused
-- **WHEN** introspection is called without credentials, or with an `endpoint`-kind API key
-- **THEN** the gateway answers 401 and reveals nothing about the token
-
-#### Scenario: An API key is introspected
-- **WHEN** a service-key holder introspects an active gateway API key
-- **THEN** the response is `active: true` with `sub` `api_key:<id>` and no `oidc_iss` or `oidc_sub`
-
-#### Scenario: An authorised client introspects with its credentials
-- **GIVEN** a confidential client an admin has authorised for introspection
-- **WHEN** it calls introspection with its `client_id` and `client_secret` as HTTP Basic
-- **THEN** the response reports the token as it would to a service-key holder
-
-#### Scenario: A merely registered client is refused
-- **GIVEN** a confidential client obtained through dynamic registration and not authorised for introspection
-- **WHEN** it calls introspection with its valid client credentials
-- **THEN** the gateway answers 401 and reveals nothing about the token
-
 ### Requirement: AUTH-9 End-to-end integration test
 The claude.ai happy path MUST be covered by an integration test against the compose stack and its real IdP: register
 → authorize (OIDC login and consent) → code → token → MCP initialize → tools/list → tools/call → refresh →

@@ -131,7 +131,9 @@ Step by step:
 4. **Consent.** The person approves a screen naming the client, the endpoint and the scope. Consent is remembered per
    person, client and endpoint, and skipped until revoked.
 5. **Code → tokens.** The gateway redirects back with a single-use authorization code (10-minute life). The client
-   exchanges it at `POST /oauth/token` for:
+   exchanges it at `POST /oauth/token`, optionally naming the endpoint again as `resource` (RFC 8707); a `resource`
+   that is not the endpoint the code was issued for is refused with `invalid_target`, and without one the tokens are
+   bound to that endpoint. The exchange yields:
    - an **access token** (`bmcp_at_…`, opaque, one hour by default), and
    - a **refresh token** (`bmcp_rt_…`, seven days, **rotated on every use**). A refresh token presented twice is treated
      as stolen and the whole token family is revoked.
@@ -142,7 +144,8 @@ Step by step:
 Two properties are worth stating plainly:
 
 - **Tokens are bound to one endpoint.** A token issued for `assistant` is refused at `assistant-gpt` (RFC 8707
-  `resource` → audience). A client simply re-authorizes at the other endpoint.
+  `resource` → audience) with `error="invalid_token"` in the `WWW-Authenticate` challenge, and a client simply
+  re-authorizes at the other endpoint. A refresh can name `resource` too; it must be the same endpoint.
 - **Authorization responses carry `iss`** (RFC 9207), so a client can detect a mix-up between two authorization servers.
 
 Details: [Connect claude.ai](/connect/claude).
