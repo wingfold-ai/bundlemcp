@@ -1,5 +1,6 @@
-"""The Python version the repository ships, and the images and CI jobs that must use it."""
+"""The Python and Node versions the repository ships, and the images and CI jobs that use them."""
 
+import json
 import pathlib
 import re
 
@@ -12,6 +13,9 @@ PYTHON_IMAGES = [
 ]
 IMAGE_VERSION = re.compile(r"\b(?:python:|uv:python)(\d+\.\d+)")
 WORKFLOW_VERSION = re.compile(r"python-version:\s*[\"']?(\d+\.\d+)")
+NODE_WORKFLOW_VERSION = re.compile(r"node-version:\s*[\"']?(\d+)")
+NODE_IMAGE_VERSION = re.compile(r"^FROM\s+node:(\d+)", re.MULTILINE)
+MIN_NODE = 24
 
 
 def declared() -> str:
@@ -42,3 +46,37 @@ def test_arc2_every_python_image_names_a_version():
     named = {f for f, _ in references()}
     missing = [f for f in PYTHON_IMAGES if f not in named]
     assert not missing, f"no Python version found in: {missing}"
+
+
+def node_versions(text: str) -> list[int]:
+    """Every major Node version a workflow sets up."""
+    return [int(v) for v in NODE_WORKFLOW_VERSION.findall(text)]
+
+
+def test_arc2_no_ci_job_runs_an_older_node():
+    """ARC-2: every node-version a workflow sets is 24 or later."""
+    workflows = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+    older = [
+        (str(p.relative_to(ROOT)), v)
+        for p in workflows
+        for v in node_versions(p.read_text())
+        if v < MIN_NODE
+    ]
+    assert not older, f"expected Node {MIN_NODE} or later, found: {older}"
+
+
+def test_arc2_the_check_catches_a_downgraded_workflow():
+    """ARC-2: a workflow pinned to Node 22 is read as 22, so the check above would fail on it."""
+    assert node_versions('- uses: actions/setup-node@x\n  with:\n    node-version: "22"\n') == [22]
+
+
+def test_arc2_web_app_declares_and_builds_on_node_24_or_later():
+    """ARC-2: apps/web declares node >=24 in engines, enforced on install, and its image runs
+    a Node of at least that version."""
+    package = json.loads((ROOT / "apps/web/package.json").read_text())
+    assert package["engines"]["node"] == f">={MIN_NODE}"
+    assert "engine-strict=true" in (ROOT / "apps/web/.npmrc").read_text().split()
+    images = [
+        int(v) for v in NODE_IMAGE_VERSION.findall((ROOT / "apps/web/Dockerfile").read_text())
+    ]
+    assert images and min(images) >= MIN_NODE

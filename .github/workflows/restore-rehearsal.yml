@@ -1,0 +1,48 @@
+# Rehearse the documented restore against the compose stack: dump,
+# restore into a scratch database, start a gateway on it with the same keys,
+# wait for /readyz, make one tool call. Runs for every release (release.yml
+# calls it before anything is published) and on demand.
+name: Restore rehearsal
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.14"
+      - run: uv sync --all-packages
+      - name: Bring up the core stack
+        run: docker compose -f deploy/docker-compose.yml up -d --build --wait --wait-timeout 300
+      - name: Discover the seeded demo upstream
+        # the rehearsal's tool call goes to the demo endpoint's echo tool
+        run: |
+          SK=bmcp_sk_devservicekey000000000000000000000000
+          for _ in $(seq 1 30); do
+            n=$(curl -s -X POST -H "Authorization: Bearer $SK" \
+              http://localhost:8000/api/v1/upstreams/echo:refresh-tools \
+              | python3 -c "import sys,json;print(json.load(sys.stdin).get('discovered',0))" 2>/dev/null || echo 0)
+            [ "$n" -gt 0 ] && { echo "echo discovered $n tools"; break; }
+            sleep 3
+          done
+      - name: Rehearse the restore
+        run: uv run python deploy/rehearse_restore.py
+      - name: Logs on failure
+        if: failure()
+        run: |
+          docker compose -f deploy/docker-compose.yml logs --tail=200
+          docker logs bundlemcp-restore-rehearsal --tail=200 || true
+      - name: Tear down
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v

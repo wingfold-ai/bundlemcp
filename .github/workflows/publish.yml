@@ -1,11 +1,18 @@
 # Publish the gateway and web images to GHCR. Deployed by the
 # vm-stack repo's `bundlemcp` stack, which pulls :latest on every converge.
+# release.yml calls it with a version for a release tag.
 name: Publish images
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: "Release version the images are tagged with, e.g. 1.2.0"
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -27,14 +34,26 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Choose the tags
+        # main: :latest, what vm-stack deploys, and :<sha>, the commit. A release:
+        # :<version> and :<sha>, leaving :latest to main, so tagging an older commit
+        # never moves what a continuously deployed stack runs.
+        id: tags
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/bundlemcp-${{ matrix.image }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          {
+            echo "list<<EOF"
+            if [ -n "$VERSION" ]; then echo "$IMAGE:$VERSION"; else echo "$IMAGE:latest"; fi
+            echo "$IMAGE:$GITHUB_SHA"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: apps/${{ matrix.image }}/Dockerfile
           push: true
-          # :latest is what vm-stack deploys; :<sha> records the commit.
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/bundlemcp-${{ matrix.image }}:latest
-            ghcr.io/${{ github.repository_owner }}/bundlemcp-${{ matrix.image }}:${{ github.sha }}
+          tags: ${{ steps.tags.outputs.list }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
