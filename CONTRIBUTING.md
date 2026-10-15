@@ -233,9 +233,11 @@ builds and the integration suite against the compose stack; one `ci-passed` chec
 
 Releases are semantic versions, tagged `v<major>.<minor>.<patch>` on `main`. A maintainer cuts one:
 
-1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [1.2.0] - <date>` and start a new empty `## [Unreleased]` above
-   it. Keep the `Metering-hook protocol: <n>` line in both; if the release changes the protocol, the version bump in
-   `application/metering/metering_hook.py` and the line change together, and the bump is a breaking change.
+1. In `CHANGELOG.md`, add `## [1.2.0] - <date>` above the previous release, listing what changed since it, or rename
+   `## [Unreleased]` to that heading if changes were collected there. An `[Unreleased]` section exists only while it
+   lists something; none is left behind empty. Every entry starts with a `Metering-hook protocol: <n>` line; if the
+   release changes the protocol, the version bump in `application/metering/metering_hook.py` and the line change
+   together, and the bump is a breaking change.
 2. Check the notes: `python3 tools/release_notes.py v1.2.0` prints exactly what the release will say.
 3. Merge that, then tag the merge commit and push the tag: `git tag v1.2.0 && git push origin v1.2.0`.
 
