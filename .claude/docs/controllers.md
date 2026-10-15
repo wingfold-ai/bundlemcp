@@ -6,7 +6,7 @@ ADR-0026 and ADR-0027.
 ## One surface, one class
 
 Every group of routes is a subclass of `Controller` (`bundlemcp/api/http/`). The subclass names its `prefix` and `tags`,
-and marks handler methods with `@route.get`, `@route.post`, `@route.put` or `@route.delete`:
+and marks handler methods with `@route.get`, `@route.post`, `@route.put`, `@route.delete` or `@route.options`:
 
 ```python
 class ServerController(ManagementController):

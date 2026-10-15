@@ -22,6 +22,12 @@ class McpEndpointController(Controller):
     ) -> Response:
         return await router.open_stream(request, endpoint_name)
 
+    @route.options("/{endpoint_name}/mcp")
+    async def preflight(
+        self, endpoint_name: str, request: Request, router: McpGatewayRouterProvider
+    ) -> Response:
+        return await router.preflight(request, endpoint_name)
+
     @route.delete("/{endpoint_name}/mcp")
     async def close_session(
         self, endpoint_name: str, request: Request, router: McpGatewayRouterProvider

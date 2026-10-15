@@ -19,16 +19,16 @@
 
 ## 3. MCP edge
 
-- [ ] 3.1 Check `Origin` in `AdmissionGate.admit_caller` after the endpoint lookup and before authentication, carry the
+- [x] 3.1 Check `Origin` in `AdmissionGate.admit_caller` after the endpoint lookup and before authentication, carry the
       granted origin on `EndpointContext` and on a post-lookup `RequestRejected`, and apply the CORS headers at
       `McpGatewayRouter`'s exit for POST, GET and DELETE. Verify with ASGI tests citing EP-24 and SEC-5: a listed origin
       is served with CORS (JSON and SSE), another origin gets `403` with no grant and the credential is never checked,
       no `Origin` is unaffected, the gateway's own origin is always allowed, and a 401 challenge to a listed origin is
       readable.
-- [ ] 3.2 Add `OPTIONS /{endpoint_name}/mcp` (`McpGatewayRouter.preflight`) and remove the MCP branch from
+- [x] 3.2 Add `OPTIONS /{endpoint_name}/mcp` (`McpGatewayRouter.preflight`) and remove the MCP branch from
   `PathScopedCors`. Verify with ASGI tests citing SEC-5 that an allowed preflight is answered with the methods, headers
   and max age, a disallowed one gets `403` without `Access-Control-Allow-*`, and `/api/v1` keeps the allow-list.
-- [ ] 3.3 Update `tests/api/test_mcp_cors.py` from `harden-http-edge` to the per-endpoint rule and verify the whole
+- [x] 3.3 Update `tests/api/test_mcp_cors.py` from `harden-http-edge` to the per-endpoint rule and verify the whole
   suite passes with `uv run pytest -q`.
 
 ## 4. Admin UI

@@ -53,7 +53,10 @@ class Endpoint(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _default_allowed_origins(cls, data: Any) -> Any:
-        if isinstance(data, dict) and data.get("allowed_origins") is None:
+        """A list left unset (an omitted field, or a stored row with none) gets the default."""
+        if not isinstance(data, dict):  # read from a row's attributes
+            data = {name: getattr(data, name) for name in cls.model_fields if hasattr(data, name)}
+        if data.get("allowed_origins") is None:
             modes = data.get("auth_modes") or [EndpointAuthMode.API_KEY]
             data = {**data, "allowed_origins": default_allowed_origins(modes)}
         return data
