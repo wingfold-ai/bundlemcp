@@ -6,6 +6,14 @@ ships (`METERING_PROTOCOL_VERSION`), so a hook author can tell from the changelo
 contract their hook implements. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a
 release happens.
 
+## [0.1.1] - 2026-10-15
+
+Metering-hook protocol: 2
+
+### Added
+
+- Make every pull request carry its own release ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+
 ## [0.1.0] - 2026-10-15
 
 Metering-hook protocol: 2
