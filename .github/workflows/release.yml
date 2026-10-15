@@ -1,0 +1,64 @@
+# Cut a release from a v<major>.<minor>.<patch> tag: check the
+# changelog has an entry for it, rehearse the restore, publish both images as
+# :<version>, then create the GitHub release from the changelog entry. Each
+# step needs the one before, so a missing entry or a failed rehearsal publishes
+# nothing.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # the previous release tag decides "changed since"
+      - name: The changelog has an entry for this tag
+        run: python3 tools/release_notes.py "$GITHUB_REF_NAME"
+      - id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+  rehearse:
+    needs: notes
+    uses: ./.github/workflows/restore-rehearsal.yml
+
+  images:
+    needs: [notes, rehearse]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      version: ${{ needs.notes.outputs.version }}
+
+  release:
+    needs: [notes, images]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Create the GitHub release from the changelog entry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 tools/release_notes.py "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/notes.md"
