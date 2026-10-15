@@ -11,6 +11,7 @@ from contextlib import AsyncExitStack
 from fastapi import FastAPI
 
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
+from bundlemcp.api.jobs.secret_reencryption_job import SecretReencryptionJob
 from bundlemcp.api.jobs.token_purger import TokenPurger
 from bundlemcp.api.jobs.tool_refresher import ToolRefresher
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
@@ -32,6 +33,7 @@ from bundlemcp.application.oauth_server import (
 from bundlemcp.application.serving.list_changed_notifier import ListChangedNotifier
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
+from bundlemcp.application.upstream_oauth.secret_reencryption import SecretReencryption
 from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
@@ -239,6 +241,16 @@ class CompositionRoot:
             )
             refresher.start()
             self._stack.callback(refresher.stop)
+
+        # a rotated key is dropped once nothing stored needs it; no keys, nothing to move
+        if cipher is not None and settings.token_reencryption_interval:
+            reencryption = SecretReencryptionJob(
+                SecretReencryption(units, cipher),
+                ValkeyRefreshLock(redis),
+                settings.token_reencryption_interval,
+            )
+            reencryption.start()
+            self._stack.callback(reencryption.stop)
 
         client_metadata = overrides.client_metadata_fetcher or HttpxClientMetadataFetcher(
             settings, redis

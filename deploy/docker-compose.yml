@@ -226,6 +226,7 @@ services:
       BUNDLEMCP_WEB_ORIGINS: '["http://localhost:3000"]'
       # dev-only key (rotate for anything real): upstream OAuth token encryption
       BUNDLEMCP_TOKEN_ENCRYPTION_KEYS: ${BUNDLEMCP_TOKEN_ENCRYPTION_KEYS:-["Uqw2PEJomK66Xa6lD-TmIU75wHfWRU6T1n9jpYqjv80="]}
+      BUNDLEMCP_TOKEN_REENCRYPTION_INTERVAL: ${BUNDLEMCP_TOKEN_REENCRYPTION_INTERVAL:-3600}
       # the tunnel profiles' proxy forwards X-Forwarded-* from the compose network
       BUNDLEMCP_TRUSTED_PROXIES: '["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]'
       # the oauth-demo sidecar answers on this container's loopback. A
