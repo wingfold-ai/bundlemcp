@@ -68,3 +68,11 @@ def test_dep11_an_entry_naming_another_protocol_than_the_source_is_refused():
 def test_dep11_an_entry_without_a_protocol_line_fails_the_check():
     with pytest.raises(release_notes.ReleaseError, match="does not say"):
         release_notes.check("# Changelog\n\n## [Unreleased]\n\n- something\n", 2)
+
+
+def test_dep11_a_history_section_below_the_versions_is_not_part_of_the_last_entry():
+    """DEP-11: the pre-release history below the versions stays out of the oldest notes."""
+    changelog = CHANGELOG + "\n## Before 1.1.0\n\n### feat: something (#1)\n\nHistory.\n"
+    text = release_notes.notes("1.1.0", changelog, 2, previous_tag=None, previous=None)
+    assert "History." not in text and "Before 1.1.0" not in text
+    assert set(release_notes.entries(changelog)) == {"Unreleased", "1.2.0", "1.1.0"}
