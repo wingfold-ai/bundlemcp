@@ -62,7 +62,7 @@ if __name__ == "__main__":
 ```
 
 ```dockerfile
-FROM python:3.13-slim
+FROM python:3.14-slim
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir "fastmcp>=3.4"
 COPY proxy.py .

@@ -24,8 +24,11 @@ one-time choice.
 - **THEN** it is pinned with `>=` (e.g. `fastmcp>=4.0.3`), never with an exact `==` pin
 
 ### Requirement: ARC-2 Runtime versions
-The gateway SHALL require Python ≥ 3.13 (`requires-python = ">=3.13"`, images on `python:3.13`), and the web app SHALL
-be built and run on Node ≥ 24 (the frontend CI job runs Node 24; the web image runs Node 26).
+The gateway SHALL require Python ≥ 3.13 (`requires-python = ">=3.13"`) and SHALL be built, tested and shipped on the
+latest stable Python release, 3.14 at the time of writing. The repository declares that version in one place, and
+every image that runs Python (the gateway and the example upstreams) and every CI job that sets up Python uses exactly
+the declared version. The web app SHALL be built and run on Node ≥ 24 (the frontend CI job runs Node 24; the web image
+runs Node 26).
 
 #### Scenario: Gateway refuses an older Python
 - **WHEN** the workspace is installed with a Python older than 3.13
@@ -34,6 +37,15 @@ be built and run on Node ≥ 24 (the frontend CI job runs Node 24; the web image
 #### Scenario: Web app is built on Node 24 or later
 - **WHEN** CI builds the web app or the web image is built
 - **THEN** the Node version used is 24 or later
+
+#### Scenario: Images and CI use the declared Python
+- **GIVEN** the repository declares Python 3.14 as the shipped version
+- **WHEN** an image's base or build stage, or a CI job, names a different Python version
+- **THEN** the hermetic test suite fails and names the file and the version it found
+
+#### Scenario: Shipped gateway runs the declared Python
+- **WHEN** the gateway image is built and started
+- **THEN** it runs on the declared Python version and reports ready
 
 ### Requirement: ARC-3 Pydantic everywhere
 Every structured value MUST be a Pydantic model; no `dataclasses`. Domain entities are plain `BaseModel` classes in
