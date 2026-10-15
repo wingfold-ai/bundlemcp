@@ -9,9 +9,11 @@ from whichever replica serves the retry.
 
 import asyncio
 import json
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from bundlemcp.api.mcp.relay import RequestState, arguments_digest
+from bundlemcp.application.metering.invocation_sweeper import InvocationSweeper
 from bundlemcp.application.metering.meter_decision import MeterDecision
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
 from bundlemcp.domain.access.caller_identity import CallerIdentity
@@ -22,6 +24,8 @@ from bundlemcp.domain.shared.secrets import (
     hash_token,
 )
 from bundlemcp.infrastructure.config.settings import EnvSettings
+from bundlemcp.infrastructure.crypto.token_cipher import TokenCipher
+from bundlemcp.infrastructure.memory.manual_clock import ManualClock
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
 from bundlemcp.infrastructure.postgres.rows.audit_record_row import AuditRecordRow
@@ -30,6 +34,7 @@ from bundlemcp.infrastructure.postgres.rows.bundle_server_row import BundleServe
 from bundlemcp.infrastructure.postgres.rows.endpoint_row import EndpointRow
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
+from bundlemcp.infrastructure.valkey.paused_invocations import ValkeyPausedInvocations
 from bundlemcp.main.app import create_app
 from bundlemcp.main.composition_overrides import CompositionOverrides
 from cryptography.fernet import Fernet
@@ -103,6 +108,35 @@ async def modern_ask_name(ctx: Context) -> InputRequiredResult | str:
     )
 
 
+@legacy_up.resource("note://secret")
+async def secret_note(ctx: Context) -> str:
+    """A resource served only after the reader answers."""
+    result = await ctx.elicit("Password?", response_type=str)
+    return f"note for {result.data}" if result.action == "accept" else "declined"
+
+
+@modern_up.prompt(name="greeting")
+async def modern_greeting(ctx: Context) -> InputRequiredResult | str:
+    """A prompt rendered only after the client says who it greets."""
+    answer = (ctx.input_responses or {}).get("who")
+    if answer is not None and answer.action == "accept":
+        return f"Greet {answer.content['value']}"
+    return InputRequiredResult(
+        input_requests={
+            "who": ElicitRequest(
+                params=ElicitRequestFormParams(
+                    message="Whom to greet?",
+                    requested_schema={
+                        "type": "object",
+                        "properties": {"value": {"type": "string"}},
+                    },
+                )
+            )
+        },
+        request_state="prompt-state-1",
+    )
+
+
 UPSTREAMS = {"legacyup": legacy_up, "modernup": modern_up}
 
 
@@ -114,13 +148,16 @@ class RecordingHook:
     def __init__(self) -> None:
         self.pre: list[str] = []
         self.post: list[str] = []
+        self.contexts: list = []
 
     async def pre_call(self, ctx) -> MeterDecision:
         self.pre.append(ctx.idempotency_key)
-        return MeterDecision(allowed=True)
+        self.contexts.append(ctx)
+        return MeterDecision(allowed=True, scratch={"reservation": f"r-{len(self.pre)}"})
 
     async def post_call(self, ctx, outcome, duration_ms) -> None:
         self.post.append(outcome)
+        self.contexts.append(ctx)
 
 
 async def seed(engine: AsyncEngine) -> dict[str, str]:
@@ -136,8 +173,15 @@ async def seed(engine: AsyncEngine) -> dict[str, str]:
             )
             for name, token in (("k1", ENDPOINT_KEY), ("k2", OTHER_KEY))
         ]
-        legacy = McpServerRow(name="legacyup", url="http://legacyup/mcp", protocol_mode="legacy")
-        modern = McpServerRow(name="modernup", url="http://modernup/mcp")
+        legacy = McpServerRow(
+            name="legacyup",
+            url="http://legacyup/mcp",
+            protocol_mode="legacy",
+            capabilities={"tools": {}, "resources": {}},
+        )
+        modern = McpServerRow(
+            name="modernup", url="http://modernup/mcp", capabilities={"tools": {}, "prompts": {}}
+        )
         bundle = BundleRow(name="main")
         db.add_all([*keys, legacy, modern, bundle])
         await db.commit()
@@ -193,6 +237,13 @@ def _modern(method, params=None, *, id_=1):
     return {"jsonrpc": "2.0", "id": id_, "method": method, "params": params}, headers
 
 
+async def _read(http, method, params, *, id_=1):
+    """POST a modern prompts/get or resources/read and return the JSON-RPC message."""
+    body, headers = _modern(method, params, id_=id_)
+    resp = await http.post("/main/mcp", headers=headers, json=body)
+    return resp.status_code, resp.json()
+
+
 async def _call(http, name, arguments=None, *, id_=1, **extra):
     """POST a modern tools/call and return the final JSON-RPC message (from SSE or JSON)."""
     body, headers = _modern(
@@ -220,7 +271,7 @@ async def _audit_statuses(app) -> list[str]:
 
 
 async def test_passthrough_forwards_the_upstreams_input_required(env):
-    """PROT-18 passthrough: modern client, modern upstream, no gateway state between legs."""
+    """PROT-18, PROT-26 passthrough: modern client, modern upstream, charged once."""
     http, app, hook, subs, base_url = env
     status, first = await _call(http, "modernup__ask_name")
     assert status == 200
@@ -238,10 +289,66 @@ async def test_passthrough_forwards_the_upstreams_input_required(env):
     )
     assert final["result"]["content"][0]["text"] == "hi Ada"
     assert final["result"]["resultType"] == "complete"
-    # both legs are one invocation to the hook; post_call only when it ended
-    assert len(hook.pre) == 2 and hook.pre[0] == hook.pre[1]
+    # both legs are one invocation to the hook: asked on the first, told on the last
+    assert len(hook.pre) == 1
     assert hook.post == ["result"]
     assert await _audit_statuses(app) == ["input_required", "success"]
+
+
+async def test_prot24_prot26_a_paused_invocation_keeps_its_context_across_legs(env):
+    """PROT-24, PROT-26: a modern request has no session, and the post_call of the retry
+    carries the scratch the first leg's pre_call left."""
+    http, app, hook, subs, base_url = env
+    status, first = await _call(http, "modernup__ask_name")
+    status, final = await _call(
+        http,
+        "modernup__ask_name",
+        id_=2,
+        inputResponses={"name": _accept("Ada")},
+        requestState=first["result"]["requestState"],
+    )
+    assert final["result"]["resultType"] == "complete"
+    pre_ctx, post_ctx = hook.contexts
+    assert pre_ctx.session_id is None
+    assert post_ctx.idempotency_key == pre_ctx.idempotency_key
+    assert post_ctx.scratch == {"reservation": "r-1"}
+
+
+def _sweeper(redis, hook, *, after: float) -> InvocationSweeper:
+    """A sweeper whose clock reads ``after`` seconds from now."""
+    later = datetime.now(UTC) + timedelta(seconds=after)
+    return InvocationSweeper(ValkeyPausedInvocations(redis), hook, ManualClock(later))
+
+
+async def test_prot26_an_abandoned_invocation_is_closed_once(env, redis):
+    """PROT-26: a call that paused for input and was never retried gets exactly one post_call
+    no_result once its requestState has expired."""
+    http, app, hook, subs, base_url = env
+    status, first = await _call(http, "modernup__ask_name")
+    assert first["result"]["resultType"] == "input_required"
+    assert hook.post == []
+
+    assert await _sweeper(redis, hook, after=0).sweep() == 0  # not yet expired
+    sweeper = _sweeper(redis, hook, after=3600)
+    assert await sweeper.sweep() == 1
+    assert await sweeper.sweep() == 0
+    assert hook.post == ["no_result"]
+    assert hook.contexts[-1].idempotency_key == hook.pre[0]
+
+
+async def test_prot26_a_retry_before_the_sweep_leaves_nothing_to_close(env, redis):
+    """PROT-26: once a retry has settled the invocation, the expiry sweep reports nothing more."""
+    http, app, hook, subs, base_url = env
+    status, first = await _call(http, "modernup__ask_name")
+    await _call(
+        http,
+        "modernup__ask_name",
+        id_=2,
+        inputResponses={"name": _accept("Ada")},
+        requestState=first["result"]["requestState"],
+    )
+    assert await _sweeper(redis, hook, after=3600).sweep() == 0
+    assert hook.post == ["result"]
 
 
 async def test_parked_call_resumes_on_another_replica(env, engine, redis):
@@ -366,3 +473,101 @@ async def test_input_required_is_unavailable_without_encryption_keys(engine, red
             status, parked = await _call(http, "legacyup__ask_name", id_=2)
             assert parked["result"]["isError"] is True
     await asyncio.sleep(0)
+
+
+async def test_prot18_prompt_needs_input_from_a_modern_member(env):
+    """PROT-18: a modern member's input_required on prompts/get reaches the client, and the
+    retry renders the prompt; prompts are not metered."""
+    http, app, hook, subs, base_url = env
+    status, first = await _read(http, "prompts/get", {"name": "modernup__greeting"})
+    result = first["result"]
+    assert result["resultType"] == "input_required"
+    assert result["inputRequests"]["who"]["method"] == "elicitation/create"
+    assert "prompt-state-1" not in result["requestState"]
+
+    status, final = await _read(
+        http,
+        "prompts/get",
+        {
+            "name": "modernup__greeting",
+            "inputResponses": {"who": _accept("Ada")},
+            "requestState": result["requestState"],
+        },
+        id_=2,
+    )
+    assert final["result"]["resultType"] == "complete"
+    assert final["result"]["messages"][0]["content"]["text"] == "Greet Ada"
+    assert hook.pre == [] and hook.post == []
+
+
+async def test_prot18_resource_read_needs_input_from_a_handshake_member(env, engine, redis):
+    """PROT-18: a handshake member's elicitation during resources/read parks the read; the
+    retry, served by another replica, returns the contents."""
+    http_a, app_a, hook, subs, base_a = env
+    status, first = await _read(http_a, "resources/read", {"uri": "note://secret"})
+    assert first["result"]["resultType"] == "input_required", first
+    (key, request), *_ = first["result"]["inputRequests"].items()
+    assert request["method"] == "elicitation/create"
+
+    app_b = make_app(engine, redis, hook)
+    async with running_app(app_b) as base_b:
+        async with AsyncClient(
+            base_url=base_b, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}, timeout=10
+        ) as http_b:
+            status, final = await _read(
+                http_b,
+                "resources/read",
+                {
+                    "uri": "note://secret",
+                    "inputResponses": {key: _accept("Grace")},
+                    "requestState": first["result"]["requestState"],
+                },
+                id_=2,
+            )
+    assert final["result"]["contents"][0]["text"] == "note for Grace"
+    assert hook.pre == [] and hook.post == []
+
+
+async def test_prot18_a_state_sealed_for_another_method_is_rejected(env):
+    """PROT-18: a prompts/get state does not let a client retry resources/read."""
+    http, app, hook, subs, base_url = env
+    status, first = await _read(http, "prompts/get", {"name": "modernup__greeting"})
+    status, resp = await _read(
+        http,
+        "resources/read",
+        {
+            "uri": "note://secret",
+            "inputResponses": {"who": _accept("x")},
+            "requestState": first["result"]["requestState"],
+        },
+        id_=2,
+    )
+    assert status == 400 and resp["error"]["code"] == INVALID_PARAMS
+
+
+def test_prot18_a_state_sealed_before_reads_were_bridged_still_unseals():
+    """PROT-18: a tool call's state from the previous field set verifies after an upgrade."""
+    cipher = TokenCipher([KEY])
+    sealed = cipher.encrypt(
+        json.dumps(
+            {
+                "correlation_id": "c",
+                "mode": "passthrough",
+                "presented_tool": "modernup__ask_name",
+                "arguments_digest": arguments_digest({}),
+                "sub": "api_key:1",
+                "idempotency_key": "k",
+                "expires_at": 4102444800.0,
+                "upstream_state": "u",
+            }
+        )
+    )
+    state = RequestState.unseal(
+        cipher,
+        sealed,
+        method="tools/call",
+        target="modernup__ask_name",
+        arguments={},
+        sub="api_key:1",
+    )
+    assert state.idempotency_key == "k" and state.method == "tools/call"

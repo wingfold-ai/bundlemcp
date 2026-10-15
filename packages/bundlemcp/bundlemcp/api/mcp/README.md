@@ -76,10 +76,11 @@ HTTP POST /{endpoint}/mcp
         ├─ view.resolve(presented_name)        unknown/disabled → DENIED + error
         ├─ _resolve_headers                    forwarded headers, then the upstream OAuth bearer —
         │                                      BEFORE metering, so unconnected ≠ debited
-        ├─ _meter_pre_call                     deny → DENIED + error
+        ├─ ToolChain.admit                     MeteringStage: pre_call once per invocation;
+        │                                      deny → refusal → DENIED + error
         ├─ execute → UpstreamCall.run          per-call FastMCP client → call_tool_mcp
         │     └─ reactive OAuth retry once on upstream 401 (UPS-28)
-        └─ finish → _post_call + _record       metering settlement + audit → JSON-RPC result/error
+        └─ finish → ToolChain.settle           MeteringStage post_call + AuditStage → result/error
 ```
 
 Key points that are easy to miss:
@@ -107,8 +108,10 @@ Key points that are easy to miss:
   (enforcing `call_timeout` and `max_total_timeout`, with the idle window optionally reset by progress) and
   `_canceller`, which listens on a cross-replica cancel event. Cancellation → `-32800`; timeout → `-32000`.
 
-`ToolCall.finish` is where metering settlement and the audit write happen. The audit write is fire-and-forget (§7) so it
-never adds latency to the client response.
+`ToolCall.finish` settles the call through the chain: the metering stage reports to the hook and the audit stage writes
+the record. The audit write is fire-and-forget (§7) so it never adds latency to the client response. A leg that ends in
+`input_required` pauses instead: the metering stage stores a paused invocation in Valkey, which the retry claims (no
+second `pre_call`) and `InvocationSweeper` closes with `no_result` once the state expires (ADR-0050).
 
 ---
 
@@ -247,9 +250,9 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   reason/error, duration, and caller identity — this is the metering reconciliation source (OPS-7).
 - **Metering (`application/metering/metering_hook.py`):** a `MeteringHook` protocol (`pre_call` → allow/deny,
   `post_call` → settle/refund) loaded from a `"module:attr"` path or an HTTP URL
-  (`infrastructure/metering/hook_loader.py`); default is a no-op. A fresh idempotency key is minted per client
-  invocation and reused across internal retries (PROT-26), so a reactive OAuth retry is not double-billed. This is the
-  seam an application layer hooks billing into.
+  (`infrastructure/metering/hook_loader.py`); default is a no-op. `MeteringStage` calls it: a fresh idempotency key is
+  minted per client invocation and reused across internal retries and MRTR legs (PROT-26), so neither a reactive OAuth
+  retry nor a retry with input is double-billed. This is the seam an application layer hooks billing into.
 - **Egress / SSRF (`infrastructure/egress/`):** enforced where each connection is dialled. `GuardedNetworkBackend`
   wraps the connection pool of every outbound client (the MCP client's and the gateway's own `httpx` clients): it
   resolves the host once, judges *all* addresses with `judge_address` (explicit allow CIDRs first, then an
@@ -273,7 +276,9 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   cross-version shimming.
 - **Read-only passthrough (BND-8):** `prompts/*`, `resources/*`, and `completion/complete` fan out live to enabled
   members (no metering, no audit — they're reads). Prompt names are `server__prompt`-prefixed; resource URIs pass
-  through and route by first-owner-wins.
+  through and route by first-owner-wins. A modern client's `prompts/get` and `resources/read` go through
+  `InputRequiredBridge` (`dispatch/handlers/input_required_bridge.py`), so a member that needs client input can ask
+  for it as `input_required` (PROT-18).
 
 ---
 
