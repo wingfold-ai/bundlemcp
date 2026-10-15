@@ -172,7 +172,7 @@ class ToolCall:
         self._timeouts = await self._support.runtime_config.call_timeouts()
         if self.rpc_id is not None:
             self._handle = self._support.registry.register_call(
-                self._ctx.routing_key, str(self.rpc_id)
+                self._ctx.call_key, str(self.rpc_id)
             )
         # with a progressToken, stream progress as SSE and deliver the
         # result as the final event. A modern client is always streamed,
@@ -295,11 +295,15 @@ class ToolCall:
         await self.finish(outcome, started)
         await self._events.emit("result", outcome.body(self.shape))
 
+    async def client_disconnected(self) -> bool:
+        """Whether the client has gone away while this call's response is pending."""
+        return await self._ctx.request.is_disconnected()
+
     def disconnected(self) -> None:
         # a disconnect is accounted for as a cancellation
-        """The client closed the response stream mid-call: end the upstream call.
+        """The client went away mid-call: end the upstream call.
 
-        The detached runner then accounts for the call as cancelled.
+        The call is then accounted for as cancelled.
         """
         if self._handle is not None:
             self._handle.cancel_event.set()

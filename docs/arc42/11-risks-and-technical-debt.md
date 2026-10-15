@@ -23,9 +23,9 @@
 - **Upstream→client push between calls is pooling-dependent** ([ADR-0021](../adr/0021-mcp-surface-completion.md)):
   `resources/subscribe` updates, PROT-7 upstream log push, and PROT-10 upstream `list_changed` outside an active call
   need a persistent upstream connection that the per-call model (ADR-0012) lacks. None of them is delivered today,
-  neither between calls nor within one: the upstream client registers no handler for an upstream `list_changed`, and
-  `resources.subscribe` is advertised but never pushes an update. Pooling (SES-8, change
-  `add-upstream-session-pooling`) is the prerequisite.
+  neither between calls nor within one, so none is advertised either: a member's `resources.subscribe` and its prompt
+  and resource `listChanged` are dropped from the bundle's capabilities (PROT-11) until pooling (SES-8, change
+  `add-upstream-session-pooling`) delivers them.
 - `subscriptions/listen` delivers prompt/resource list changes only for the bundle's own entries
   ([PROT-17](../../openspec/specs/protocol/spec.md), BND-28) — a member's list changes and resource
   subscriptions wait for the same pooling.

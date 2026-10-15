@@ -36,14 +36,31 @@ async def stream_events(
             return
 
 
+DISCONNECT_POLL_SECONDS = 0.25
+
+
 class BufferedCallResponse:
-    """Wait for the upstream, then answer with the whole JSON-RPC message."""
+    """Wait for the upstream, then answer with the whole JSON-RPC message.
+
+    A client that disconnects while it waits cancels the call, as closing a
+    streamed response does.
+    """
 
     async def render(self, call: "ToolCall") -> Response:
         started = time.monotonic()
-        outcome = await call.execute(None, None)
+        watcher = asyncio.create_task(self._watch(call))
+        try:
+            outcome = await call.execute(None, None)
+        finally:
+            watcher.cancel()
         await call.finish(outcome, started)
         return JSONResponse(outcome.jsonrpc(call.rpc_id, call.shape))
+
+    @staticmethod
+    async def _watch(call: "ToolCall") -> None:
+        while not await call.client_disconnected():
+            await asyncio.sleep(DISCONNECT_POLL_SECONDS)
+        call.disconnected()
 
 
 class StreamedCallResponse:
