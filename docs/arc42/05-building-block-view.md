@@ -58,12 +58,13 @@ packages/bundlemcp/bundlemcp/
 
 Key internal seams:
 
-- **Tool pipeline** ([EP-13](../../openspec/specs/endpoints/spec.md),
-  [ADR-0046](../adr/0046-profiles-as-registered-presets-and-tool-pipeline-stages.md)): stale filter → curation filter →
-  profile → overrides, as ordered stages (`domain/bundles/tool_pipeline.py`) that build the one tool set behind
-  `tools/list` and `tools/call`; each profile is a preset registered in `ProfileCatalog` (`domain/endpoints/profiles/`).
-- **Call pipeline** ([protocol spec](../../openspec/specs/protocol/spec.md)): metering hook → upstream call → audit; the
-  hook is the only sanctioned third-party extension point (`application/metering/metering_hook.py`).
+- **Tool chain** ([PROT-25](../../openspec/specs/protocol/spec.md),
+  [ADR-0050](../adr/0050-one-stage-chain-and-once-per-invocation-metering.md)): stale filter → curation filter →
+  profile → overrides → metering → audit, one `ToolChain` of `ChainStage`s (`application/serving/tool_chain.py`). The
+  first four, wrapping the domain stages, build the one tool set behind `tools/list` and `tools/call` when the bundle
+  view loads; each profile is a preset registered in `ProfileCatalog` (`domain/endpoints/profiles/`). Metering and
+  audit admit and settle each call; the metering hook is the only sanctioned third-party extension point
+  (`application/metering/metering_hook.py`), asked once per invocation even across Multi Round-Trip legs.
 - **Egress layer** ([SEC-1](../../openspec/specs/security/spec.md)): all gateway-initiated HTTP to admin-supplied URLs
   passes one policy module (`infrastructure/egress/egress_policy.py`).
 - **Session store** ([sessions spec](../../openspec/specs/sessions/spec.md)): the only component

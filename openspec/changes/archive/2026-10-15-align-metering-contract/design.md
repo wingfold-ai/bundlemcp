@@ -7,8 +7,9 @@ See proposal.md for the motivation. Today:
 - `MeterContext` (`application/metering/meter_context.py`, frozen) holds identity, endpoint, bundle, server, tool and
   `idempotency_key`. `CallerIdentity.auth_method` (`EndpointAuthMode`) and the endpoint's `EndpointProfile` exist in
   the domain but are not passed on. The HTTP hook (`infrastructure/metering/`) posts `context` as the dumped model.
-- Curation, overrides and the profile transform are applied when the bundle view is composed
-  (`domain/bundles/tool_presentation.py`); metering and audit run inside `ToolCall` (`api/mcp/tool_call/tool_call.py`).
+- Since #107/#109 the stale filter, curation filter, profile and overrides are ordered domain stages
+  (`domain/bundles/tool_pipeline.py`) applied when the bundle view is composed; metering and audit run inside
+  `ToolCall` (`api/mcp/tool_call/tool_call.py`).
 - `ToolCall` calls `_meter_pre_call` on every leg except a parked call resumed in place (`ResumedCall`); a leg ending in
   `input_required` writes an audit record with that status and skips `post_call`.
 - `RequestState` (`api/mcp/relay/request_state.py`) binds `presented_tool`, an argument digest, `sub`, the
@@ -40,28 +41,39 @@ New optional fields do not break a structural `MeteringHook` or an HTTP consumer
 
 ### D2. One stage interface for list and call
 
-A `ChainStage` contract (`application/serving/chain_stage.py`) with `on_list(ctx, tools)` and `on_call(ctx, call)`; the
-built-ins wrap the existing domain rules: `ToolFilterStage`, `OverridesStage`, `ProfileStage` (list and call),
-`MeteringStage`, `AuditStage` (call only). A `ToolChain` (application) runs them in the PROT-25 order, short-circuiting
-on a rejection while still running the audit stage. The `tools/list` handler and `ToolCall` call the chain instead of
-composing the steps themselves, so each stage sees the PROT-24 context. The domain functions stay where they are; the
-stages only sequence them.
+A `ChainStage` contract (`application/serving/chain_stage.py`, `@runtime_checkable`) has four methods: `present(tool,
+curation)` returns the tool as the stage shows it, or `None` to drop it (the list variant, and the served set a call is
+resolved against); `admit(call)` runs before the upstream and may return a refusal; `pause(call, until)` says the leg
+waits for client input; `settle(call, settlement)` runs after, with how the leg ended. A `ToolChain` (application,
+frozen) holds the stages in PROT-25 order and runs each method across them: `present` stops at the first `None`,
+`admit` at the first refusal, and `settle` reaches every stage so the audit stage records a refusal too. `pause` is
+its own method rather than a kind of settlement because a parked call pauses while its leg goes on; only the metering
+stage acts on it.
 
-*Alternatives:* FastMCP middleware — the client-facing edge is not FastMCP (ADR-0011); amending the spec to the fixed
-pipeline (the Open decision). Whatever is chosen should match add-profile-interface's EP-13 decision: if that change
-builds a pluggable profile stage, it is `ProfileStage` here.
+The built-ins: a `PresentationStage` wraps each domain tool stage from #107/#109 (`StaleToolFilter`, `CurationFilter`,
+`ProfileStage`, `OverrideStage`) and implements only `present`; `MeteringStage` (the hook and the fail-open policy) and
+`AuditStage` (the audit writer) act on calls. The bundle view loader presents tools through
+`ToolChain.for_endpoint(profile)`, the same stage list without call stages; `ToolCall` admits, pauses and settles
+through `ToolChain.for_endpoint(profile, call_stages)`. The domain `ToolPipeline` is replaced by the chain, and its
+tests move with it. The call stages share one `ChainCall` (the `MeterContext`, the audit context, and whether a
+post-call is owed), so the order of stages is the only coupling between them.
+
+The three tool stages see the tool, its curation and the profile but not the caller: they run once while the served
+tool set is built, before authentication. Presenting per caller (moving presentation out of the view) was considered
+and rejected: no stage needs the caller, and it would re-present every tool on every request.
 
 ### D3. A paused-invocation record makes "once" enforceable
 
-When a `tools/call` leg ends in `input_required`, `ToolCall` writes a `PausedInvocation` (application model: the
-`MeterContext` including `scratch`, the leg's start time, the state's expiry) to Valkey under
+When a `tools/call` leg asks for input (pass-through or parked), the metering stage writes a `PausedInvocation`
+(application model: the `MeterContext` including `scratch`, and the state's expiry) to Valkey under
 `bmcp:invocation:{idempotency_key}`, and adds the key to the sorted set `bmcp:invocations:expiry`, through a new
 `PausedInvocations` contract (`application/contracts/live_state/paused_invocations.py`). A retry whose sealed state
-verifies **claims** the record atomically (check-and-set, as SES-1a does for sessions) and continues with the stored
-context: no `pre_call`. A further `input_required` re-arms it with the new expiry; a final outcome deletes it and
-delivers the one `post_call`.
+verifies **claims** the record atomically (`GETDEL`) and continues with the stored context: no `pre_call`. A further
+`input_required` re-arms it with the new expiry. A parked call that resumes in place claims its own record before it
+reports; if a re-run elsewhere or the sweeper claimed it first, it reports nothing.
 
-An `InvocationSweeper` (application, one replica at a time under a Valkey lease, every 30 s) claims records whose
+An `InvocationSweeper` (application; `InvocationSweepJob` in `api/jobs/` runs it on one replica at a time under a
+Valkey lease, every 30 s) claims records whose
 expiry has passed and delivers `post_call` `no_result` for each. The claim is the same atomic operation, so a late retry
 and the sweeper cannot both settle an invocation; the record lives a grace period longer than the state, and a retry
 after the state expired is rejected by the state check anyway.
@@ -70,17 +82,24 @@ The sealed state already carries the `idempotency_key`, so the record adds no lo
 record lost with a Valkey restart degrades to today's behaviour — the retry runs `pre_call` again (a logged
 `metering.invocation_record_missing`), never a lost charge.
 
-*Alternative:* the repeat as contract (Open decision) — no record, no sweeper, `METERING_PROTOCOL_VERSION` 3.
+*Alternative, not taken:* the repeat as contract — no record, no sweeper, `METERING_PROTOCOL_VERSION` 3.
 
-### D4. One bridge for every relayed method
+### D4. A bridge for the relayed reads
 
-The MRTR logic leaves `ToolCall` for an `InputRequiredBridge` (`api/mcp/relay/input_required_bridge.py`) that takes
-the upstream request as a callable and returns either a final result or an `input_required` result. `ToolCall`, the
-prompts-get handler and the resources-read handler use it; `MemberFanout` gains the raw-`input_required` path
-`UpstreamCall` has today. `RequestState` gains `method` (default `tools/call`) and `target` fields, and its
-`idempotency_key` becomes optional (absent for reads); defaults keep states sealed by the previous build valid during a
-rollout. Reads are neither metered nor audited (ADR-0021), so the bridge takes the metering and audit callbacks as
-optional collaborators.
+An `InputRequiredBridge` (`api/mcp/dispatch/handlers/input_required_bridge.py`, beside `MemberFanout`, which it
+drives) serves a modern client's `prompts/get` and `resources/read`. It runs the member read detached and answers with
+the first thing the read has for the client, as one JSON message: the result, or `input_required`. A modern member's
+own `InputRequiredResult` is passed through (`allow_input_required=True` on the SDK's `get_prompt` and
+`read_resource`) with its state sealed inside the gateway's and the member's name, so the retry goes back to it. A
+handshake member's request for input goes through the same `ParkingChannel` tool calls use; the retry routes the
+answers over the signal bus and answers with what the parked read says next, or re-runs the read with a
+`PreansweredChannel` when no replica claims them. `MemberFanout.client_for` takes the channel.
+
+`ToolCall` keeps its own driver, because it streams, meters and audits, and shares the relay pieces (`RequestState`,
+the channels, `CallEvents`) with the bridge rather than the driver. `RequestState` gains `method` (default
+`tools/call`), `target` (the presented tool or prompt name or the resource URI; read from `presented_tool` in a state
+sealed before) and `member`, and its `idempotency_key` becomes optional (absent for reads); a state sealed by the
+previous build still unseals. Reads are neither metered nor audited (ADR-0021).
 
 ### Layer summary
 
@@ -88,8 +107,8 @@ optional collaborators.
 |---|---|
 | `CredentialHeaders` | `domain/access/` |
 | `MeterContext` fields, `ChainStage`, `ToolChain` and stages, `PausedInvocation`, `InvocationSweeper`, `PausedInvocations` contract | `application/` |
-| Paused-invocation adapter and lease; HTTP hook `scratch` | `infrastructure/valkey/`, `infrastructure/metering/` |
-| `InputRequiredBridge`, `RequestState` fields, handlers | `api/mcp/` |
+| Paused-invocation adapter and its in-memory fake | `infrastructure/valkey/`, `infrastructure/memory/` |
+| `InputRequiredBridge`, `RequestState` fields, handlers, `InvocationSweepJob` | `api/mcp/`, `api/jobs/` |
 | Sweeper start/stop, stage wiring | `main/` |
 
 ## Risks / Trade-offs

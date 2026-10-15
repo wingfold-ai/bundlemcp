@@ -1,6 +1,7 @@
 # ADR-0046: Profiles are registered presets; the served tool set is built by ordered stages
 
-**Status:** accepted · **Date:** 2026-10-13 · **Amends:** [ADR-0007](0007-endpoint-profiles.md)
+**Status:** accepted · **Date:** 2026-10-13 · **Amends:** [ADR-0007](0007-endpoint-profiles.md) · **Amended by:**
+[ADR-0050](0050-one-stage-chain-and-once-per-invocation-metering.md)
 
 ## Context
 

@@ -10,8 +10,8 @@ from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error, rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.relay import RequestState, ResumeInputs, StateRejected
-from bundlemcp.api.mcp.tool_call.audit_context import AuditContext
 from bundlemcp.api.mcp.tool_call.call_outcome import UPSTREAM_FAILURE
+from bundlemcp.api.mcp.tool_call.request_audit import request_audit
 from bundlemcp.api.mcp.tool_call.resumed_call import ResumedCall
 from bundlemcp.api.mcp.tool_call.tool_call import NO_CIPHER, ToolCall
 from bundlemcp.api.mcp.tool_call.tool_call_support import ToolCallSupport
@@ -38,7 +38,7 @@ class ToolsCallHandler:
             if connect is not None:
                 return self._connect_account(ctx, message, connect)
             # disabled/unknown tools are rejected on call, not just hidden
-            audit = AuditContext.for_request(ctx, presented_name)
+            audit = request_audit(ctx, presented_name)
             self._support.audit.record(
                 audit.record(AuditStatus.DENIED, denied_reason="unknown_or_disabled_tool")
             )
@@ -66,7 +66,7 @@ class ToolsCallHandler:
         self, ctx: RequestContext, message: JsonRpcMessage, tool: ConnectAccountTool
     ) -> Response:
         """Answer with the connect link; no upstream is reached and nothing is metered."""
-        audit = AuditContext.for_request(ctx, tool.presented_name).model_copy(
+        audit = request_audit(ctx, tool.presented_name).model_copy(
             update={"server_name": tool.server.name, "tool_name": CONNECT_ACCOUNT_TOOL}
         )
         self._support.audit.record(audit.record(AuditStatus.SUCCESS))
@@ -83,7 +83,8 @@ class ToolsCallHandler:
             state = RequestState.unseal(
                 cipher,
                 message.param("requestState"),
-                presented_tool=message.param("name", ""),
+                method="tools/call",
+                target=message.param("name", ""),
                 arguments=message.param("arguments", {}),
                 sub=ctx.identity.sub,
             )

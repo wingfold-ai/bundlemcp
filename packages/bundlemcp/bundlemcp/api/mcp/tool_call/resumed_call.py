@@ -55,9 +55,7 @@ class ResumedCall:
         except TimeoutError:
             registry.unregister_resume(self._state.correlation_id, queue)
             # the parking replica is gone; re-run so the client still gets a result.
-            log.warning(
-                "mrtr.park_lost", tool=self._state.presented_tool, sub=self._ctx.identity.sub
-            )
+            log.warning("mrtr.park_lost", tool=self._state.target, sub=self._ctx.identity.sub)
             return await ToolCall(
                 self._support,
                 self._ctx,

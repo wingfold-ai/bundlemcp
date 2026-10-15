@@ -20,6 +20,7 @@ from bundlemcp.api.mcp.dispatch.handlers import (
     SubscriptionsListenHandler,
     ToolsListHandler,
 )
+from bundlemcp.api.mcp.dispatch.handlers.input_required_bridge import InputRequiredBridge
 from bundlemcp.api.mcp.dispatch.method_registry import MethodRegistry
 from bundlemcp.api.mcp.dispatch.rate_limit_gate import RateLimitGate
 from bundlemcp.api.mcp.dispatch.rate_limited import RateLimited
@@ -33,6 +34,7 @@ from bundlemcp.api.mcp.routing.gateway_router import McpGatewayRouter
 from bundlemcp.api.mcp.routing.session_stream import SessionStream
 from bundlemcp.api.mcp.tool_call import ToolCallSupport, ToolsCallHandler
 from bundlemcp.application.contracts.live_state.counters import Counters
+from bundlemcp.application.contracts.live_state.paused_invocations import PausedInvocations
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
@@ -43,6 +45,8 @@ from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
 from bundlemcp.application.metering.metering_hook import MeteringHook
+from bundlemcp.application.metering.metering_stage import MeteringStage
+from bundlemcp.application.serving.audit_stage import AuditStage
 from bundlemcp.application.serving.bundle_content_reader import BundleContentReader
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
@@ -73,6 +77,9 @@ class McpGatewayAssembly(BaseModel):
     registry: StreamRegistry = Field(description="This replica's open streams and in-flight calls")
     signals: SignalBus = Field(description="Cross-replica delivery of cancels, replies and events")
     metering: MeteringHook = Field(description="Billing hook consulted around every tool call")
+    paused_invocations: PausedInvocations = Field(
+        description="Metered invocations waiting for client input, shared by every replica"
+    )
     audit: AuditSink = Field(description="Queued writer for audit records")
     client_factory: UpstreamClientFactory = Field(
         description="Builds an MCP client for an upstream server"
@@ -115,9 +122,20 @@ class McpGatewayAssembly(BaseModel):
             self.runtime_config,
         )
         content = BundleContentReader(self.unit_of_work_factory)
+        bridge = InputRequiredBridge(
+            fanout, self.registry, self.signals, self.runtime_config, self.state_cipher
+        )
         tool_calls = ToolsCallHandler(
             ToolCallSupport(
-                metering=self.metering,
+                call_stages=(
+                    MeteringStage(
+                        hook=self.metering,
+                        invocations=self.paused_invocations,
+                        fail_open=self.settings.metering_hook_fail_open,
+                    ),
+                    AuditStage(sink=self.audit),
+                ),
+                profiles=self.profiles,
                 audit=self.audit,
                 credentials=credentials,
                 header_forwarding=header_forwarding,
@@ -126,7 +144,6 @@ class McpGatewayAssembly(BaseModel):
                 registry=self.registry,
                 signals=self.signals,
                 runtime_config=self.runtime_config,
-                metering_fail_open=self.settings.metering_hook_fail_open,
                 state_cipher=self.state_cipher,
             ),
             connect_prompts,
@@ -142,11 +159,11 @@ class McpGatewayAssembly(BaseModel):
                 ),
                 "tools/call": RateLimited(tool_calls, gate, tool_call=True),
                 "prompts/list": PromptsListHandler(fanout, cache_hints),
-                "prompts/get": PromptsGetHandler(fanout, content),
+                "prompts/get": PromptsGetHandler(fanout, content, bridge),
                 "completion/complete": CompletionHandler(fanout),
                 "resources/list": ResourcesListHandler(fanout, cache_hints),
                 "resources/templates/list": ResourceTemplatesListHandler(fanout, cache_hints),
-                "resources/read": ResourcesReadHandler(fanout, content, cache_hints),
+                "resources/read": ResourcesReadHandler(fanout, content, cache_hints, bridge),
                 "resources/subscribe": ResourcesSubscribeHandler(),
                 "resources/unsubscribe": ResourcesSubscribeHandler(),
                 "logging/setLevel": LoggingSetLevelHandler(self.sessions),

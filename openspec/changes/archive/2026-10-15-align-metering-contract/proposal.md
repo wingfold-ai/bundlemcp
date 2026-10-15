@@ -24,13 +24,36 @@ upstream's request for input fails fast and a modern upstream's `input_required`
 
 - The metering context also carries the auth method, the endpoint's profile, the session id, the request headers
   read-only (credential headers removed) and a scratch mapping that `pre_call` fills and `post_call` receives (PROT-24).
-- `tools/list` and `tools/call` run through an ordered chain of stages that each receive that context (PROT-25) — or,
-  per the Open decision, the spec is amended to the fixed pipeline.
+- `tools/list` and `tools/call` run through one ordered chain of stages (PROT-25); its call stages receive that context.
 - `pre_call` fires once per client invocation, MRTR legs included; an invocation abandoned after `input_required`
-  receives a `post_call` `no_result` when its state expires (PROT-26) — or, per the Open decision, the repeat becomes
-  the contract.
+  receives a `post_call` `no_result` when its state expires (PROT-26).
 - MRTR pass-through and park-and-resume extend to `prompts/get` and `resources/read` for modern clients; the metering
   sentence matches PROT-26 (PROT-18).
+
+## Capabilities
+
+### New Capabilities
+
+- None.
+
+### Modified Capabilities
+
+- `protocol`: MODIFIED PROT-24 (fuller context), PROT-25 (a chain of stages), PROT-26 (once per invocation, abandoned
+  invocations get a post-call).
+- `protocol`: MODIFIED PROT-18 (bridging for `prompts/get` and `resources/read`; metering sentence).
+
+## Decisions
+
+Settled by the maintainers on 2026-10-15:
+
+- **PROT-25: build the chain, over today's split.** One `ChainStage` interface and one ordered `ToolChain` (tool
+  filter, profile, overrides, metering, audit) that `tools/list` and `tools/call` both go through. The three tool
+  stages keep running where the served tool set is built, since they depend only on the tool, its curation and the
+  endpoint's profile; metering and audit run per call and receive the full PROT-24 context. Presenting tools per caller
+  was considered and not built: it would re-present every tool on every request for no current consumer.
+- **PROT-26: enforce once per invocation.** A short-lived Valkey record per paused invocation lets a retry skip
+  `pre_call` and lets a sweeper close an abandoned invocation with `post_call` `no_result`. `METERING_PROTOCOL_VERSION`
+  stays 2.
 
 ## Capabilities
 
