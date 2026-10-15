@@ -6,11 +6,9 @@
   trusted-proxy entries and falling back to the leftmost entry when all are trusted; verify with unit tests citing DEP-2
   for the spoofed-leftmost case, multiple trusted hops, an empty list and a malformed entry
 - [ ] 1.2 Pass `proxy_headers=False` to uvicorn in `apps/gateway/main.py` and in the documented dev command, and verify
-  with an ASGI test that a peer of `127.0.0.1` with no trusted proxies is not rewritten from XFF
-- [ ] 1.3 Apply `X-Forwarded-Proto`/`X-Forwarded-Host` from a trusted peer to the request scope in an api-layer ASGI
-  middleware (only if the open decision is "build"), and verify with tests citing DEP-2 that an untrusted peer's
-  headers change nothing and that every published URL still comes from the public URL (DEP-1)
-- [ ] 1.4 Update `docs/self-hosting/deploy.md`, `configuration.md`, `setups.md` and `troubleshooting.md` (proxies must
+  with an ASGI test that a peer of `127.0.0.1` with no trusted proxies is not rewritten from XFF, and with a test citing
+  DEP-2 that `X-Forwarded-Proto`/`X-Forwarded-Host` from a trusted peer leave the OAuth metadata on the public URL
+- [ ] 1.3 Update `docs/self-hosting/deploy.md`, `configuration.md`, `setups.md` and `troubleshooting.md` (proxies must
   append to XFF), and verify `python3 tools/check_docs_links.py` passes
 
 ## 2. AUTH-29 identity header strip
@@ -43,7 +41,7 @@
 
 ## 4. Request and response size limits (SEC-7, EP-9)
 
-- [ ] 4.1 Add `max_request_bytes` (default 1048576) and `max_upstream_response_bytes` (default 16777216) to the runtime
+- [ ] 4.1 Add `max_request_bytes` (default 4194304) and `max_upstream_response_bytes` (default 16777216) to the runtime
   config registry with a 64 KiB to 64 MiB range check, and verify with domain tests that out-of-range values are
   refused with a message naming the key
 - [ ] 4.2 Give `RuntimeConfig` a non-loading snapshot accessor refreshed on invalidation, and verify with an application

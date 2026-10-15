@@ -105,10 +105,12 @@ cookie, and SEC-5 now states that as a requirement so a later change cannot add 
 ### 6. One interpreter of forwarding headers
 
 `apps/gateway/main.py` passes `proxy_headers=False` to uvicorn, so the gateway's own policy is the only place forwarding
-headers are read. `api/http/client_ip.py` walks `X-Forwarded-For` right to left, skipping trusted-proxy entries, and a
-small ASGI middleware (api layer) applies `X-Forwarded-Proto`/`X-Forwarded-Host` from a trusted peer to the request
-scope. Feeding `BUNDLEMCP_TRUSTED_PROXIES` into uvicorn's `forwarded_allow_ips` was rejected: two interpreters drift,
-and uvicorn's rules for the client entry are not the ones DEP-2 specifies.
+headers are read. `api/http/client_ip.py` walks `X-Forwarded-For` right to left, skipping trusted-proxy entries.
+`X-Forwarded-Proto` and `X-Forwarded-Host` are read by nothing: with uvicorn's handling off, the request scope keeps the
+socket's scheme and host, and every URL the gateway publishes is built from the public URL. A middleware applying them
+from trusted peers was considered and rejected (see the proposal's decisions). Feeding `BUNDLEMCP_TRUSTED_PROXIES` into
+uvicorn's `forwarded_allow_ips` was rejected: two interpreters drift, and uvicorn's rules for the client entry are not
+the ones DEP-2 specifies.
 
 ### 7. AUTH-29 strip is case-insensitive
 
@@ -126,8 +128,8 @@ enforced and why `trust_env` is off.
   fall back to the URL-rewrite alternative for the MCP side only, keeping the backend for the `httpx` clients.
 - [Connect-time denial surfaces later than a pre-flight, mid-request] → The early `check_url_allowed` stays for a clear
   error; the connect-time denial raises the same `EgressDenied` type so callers' handling is unchanged.
-- [Lowering the default body limit to 1 MiB breaks clients posting large arguments] → Recorded as an open decision;
-  the limit is runtime-configurable, and the release notes call it out.
+- [The framework's trailing-slash redirect builds an absolute URL from the request, so behind a TLS proxy it names
+  `http://`] → Accepted: no OAuth, MCP or UI path uses a trailing slash; a separate change can turn the redirect off.
 - [Rightmost-untrusted needs proxies that append to XFF] → nginx's `$proxy_add_x_forwarded_for` and Traefik/Caddy
   defaults do; `deploy.md` says so, and a proxy that overwrites XFF still yields the right answer.
 - [Reflecting every origin on MCP routes] → Safe only without ambient credentials; covered by the SEC-5 cookie clause
@@ -135,6 +137,6 @@ enforced and why `trust_env` is off.
 
 ## Migration Plan
 
-No data migration. Operators with a proxy body limit below the new request limit need nothing; those relying on bodies
-between 1 and 4 MiB raise the runtime limit before upgrading. Rollback is a redeploy of the previous image; the two new
+No data migration. The default request limit stays 4 MiB, so no client that works today is refused; what changes is
+that chunked bodies and `/api/v1` are now bounded by it too. Rollback is a redeploy of the previous image; the two new
 runtime-config keys are ignored by older versions.

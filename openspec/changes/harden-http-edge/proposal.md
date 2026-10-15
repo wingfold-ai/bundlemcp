@@ -30,28 +30,29 @@ side is spelled `x-mcp-user` forwards a client-supplied value under the gateway'
   IPv4 address it maps.
 - **Permissive CORS on MCP endpoints (SEC-5, new).** `/{endpoint}/mcp` reflects the request's `Origin`, never allows
   credentials, and exposes `Mcp-Session-Id` and `WWW-Authenticate`. `/api/v1` keeps the SEC-4 allow-list.
-- **Body and response limits (SEC-7, EP-9).** A request-body limit (default 1 MiB, runtime-configurable) on
+- **Body and response limits (SEC-7, EP-9).** A request-body limit (default 4 MiB as today, runtime-configurable) on
   `/{endpoint}/mcp` and `/api/v1`, enforced while the body streams in, so chunked bodies are bounded too; an upstream
   response cap per message (default 16 MiB, runtime-configurable). Over-limit requests get 413 with a structured body
   (a JSON-RPC error on MCP routes); an over-limit upstream response becomes a structured MCP error to the caller.
-  **BREAKING:** the default request limit drops from 4 MiB to 1 MiB.
 - **Proxy headers (DEP-2).** From a trusted peer the client IP is the **rightmost** `X-Forwarded-For` entry that is not
-  itself a trusted proxy; `X-Forwarded-Proto` and `X-Forwarded-Host` are honoured from trusted peers for the request's
-  own scheme and host, while every published URL still comes from the public URL (DEP-1).
+  itself a trusted proxy. `X-Forwarded-Proto` and `X-Forwarded-Host` are ignored from every peer: every published URL
+  comes from the public URL (DEP-1), so they would only change the scheme and host the application sees, and nothing
+  reads those. Uvicorn's own proxy-header handling is turned off so the gateway's policy is the only interpreter.
 - **AUTH-29 fix (task, no delta).** The client-supplied identity header is stripped case-insensitively, so no mapping
   can forward it.
 
-## Open decision
+## Decisions
 
-- **DEP-2: `X-Forwarded-Proto`/`X-Forwarded-Host`.** DEP-1 already derives every externally visible URL and the
-  cookie's `Secure` flag from `BUNDLEMCP_PUBLIC_URL`, never from request headers, so honouring these two headers
-  changes only the scheme and host the application sees on the request (logs, redirects that are relative today). The
-  delta builds it as the original asked. The alternative is to **amend** DEP-2 to say the gateway deliberately ignores
-  both because DEP-1 makes them unnecessary; then drop task 4.3. Either way the client-IP fix stands.
-- **SEC-7: the 1 MiB default.** The original specification set 1 MiB; the gateway has shipped 4 MiB, and operators'
-  proxy configs (`docs/self-hosting/deploy.md`) are written for it. Lowering the default is breaking for any client
-  that posts large tool arguments. The delta keeps 1 MiB as specified; the maintainers may instead keep 4 MiB as the
-  default (only the number in SEC-7, EP-9 and the docs changes).
+Settled by the maintainers on 2026-10-15:
+
+- **DEP-2: `X-Forwarded-Proto`/`X-Forwarded-Host` are ignored**, and DEP-2 says so. DEP-1 already derives every
+  externally visible URL and the cookie's `Secure` flag from `BUNDLEMCP_PUBLIC_URL`, and the gateway never reads the
+  request's own scheme or host, so honouring them would add a header to trust for no behaviour. The one place a request
+  URL is built from them is the framework's automatic trailing-slash redirect, which then names `http://` behind a TLS
+  proxy; it is on no OAuth, MCP or UI path and is left for a separate change.
+- **SEC-7: the default stays 4 MiB.** The original specification set 1 MiB, but the gateway has shipped 4 MiB and the
+  operators' proxy configs in `docs/self-hosting/deploy.md` are written for it. Keeping it makes this change
+  non-breaking; operators can lower it at runtime.
 
 ## Capabilities
 
@@ -64,7 +65,7 @@ None.
 - `security`: SEC-2 (connect-time enforcement, redirects, IPv6 metadata, IPv4-mapped and unspecified addresses), SEC-5
   (added: CORS on MCP endpoints), SEC-7 (configurable limits on both surfaces, chunked bodies, upstream response cap).
 - `endpoints`: EP-9 (the MCP route's view of the SEC-7 limit).
-- `deployment`: DEP-2 (rightmost untrusted `X-Forwarded-For`; `X-Forwarded-Proto`/`Host` from trusted peers).
+- `deployment`: DEP-2 (rightmost untrusted `X-Forwarded-For`; `X-Forwarded-Proto`/`Host` deliberately ignored).
 
 ## Impact
 
