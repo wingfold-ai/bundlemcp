@@ -5,10 +5,6 @@ and versions follow [Semantic Versioning](https://semver.org/). Each entry names
 ships (`METERING_PROTOCOL_VERSION`), so a hook author can tell from the changelog alone whether a release changes the
 contract their hook implements. [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release) says how a release is cut.
 
-## [Unreleased]
-
-Metering-hook protocol: 2
-
 ## [0.1.0] - 2026-10-15
 
 Metering-hook protocol: 2
