@@ -22,7 +22,7 @@ Responses:
 | `401` | Missing or invalid credentials, with a `WWW-Authenticate` challenge. |
 | `404` | An unknown or disabled endpoint, or a session id the gateway does not hold for this endpoint and caller. |
 | `405` | `GET` or `DELETE` without `Mcp-Session-Id`, with `Allow: POST`. |
-| `413` | A request body over 4 MiB, as plain text. |
+| `413` | A request body over the limit (4 MiB by default), as a JSON-RPC error with `id: null`. |
 | `429` | A rate limit, with `Retry-After`. |
 | `503` | The live-state store (Valkey) is unreachable, with `Retry-After`. The session is kept; retry it. |
 
@@ -151,7 +151,8 @@ Because endpoints are served at the root, these first path segments cannot be en
 
 | Limit | Default |
 |---|---|
-| Request body | 4 MiB, rejected with `413` before the body is read |
+| Request body | 4 MiB (`max_request_bytes`), rejected with `413` before it is parsed, chunked bodies included |
+| One upstream message | 16 MiB (`max_upstream_response_bytes`); a larger tool result is answered with an error |
 | Single tool call | 60 s, raised to at most 1800 s by runtime configuration |
 | Access token lifetime | 1 hour |
 | Refresh token lifetime | 7 days |

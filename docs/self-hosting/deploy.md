@@ -77,8 +77,10 @@ web app on port 3000. Then:
    1800 s. Set the proxy's read and idle timeouts at or above the ceiling you
    allow.
 3. Allow a request body of at least 4 MiB — the cap the gateway enforces
-   itself, answering `413` above it. A proxy limit below that turns a request
-   the gateway would have accepted into the proxy's own error.
+   itself on `/{endpoint}/mcp` and `/api/v1`, answering `413` above it, also
+   for a chunked body. A proxy limit below that turns a request the gateway
+   would have accepted into the proxy's own error. If you raise
+   `max_request_bytes`, raise the proxy's limit with it.
 
 These three numbers — **1800 s**, **4 MiB**, **no buffering** — are the whole
 of it. Two of them are below nginx's defaults; Traefik's defaults only miss the
@@ -410,7 +412,8 @@ hook's, whose URL is your own configuration.
 
 | | Value |
 |---|---|
-| Request body | 4 MiB, `413` above it |
+| Request body | `max_request_bytes` 4 MiB, `413` above it |
+| One upstream message | `max_upstream_response_bytes` 16 MiB; a larger tool result becomes an error |
 | Single tool call | `call_timeout` 60 s, ceiling `max_total_timeout` 1800 s |
 | Session idle expiry | `session_lifetime` 86 400 s |
 | Tool-list cache hint | `list_cache_ttl_ms` 300 000 ms |

@@ -53,7 +53,7 @@
 - [x] 4.4 Wrap upstream response streams in a per-message byte counter in the MCP client factory and map the overflow to
   a structured MCP error in the tool-call pipeline; verify with a test against an in-process upstream returning a
   message over a lowered cap, citing SEC-7
-- [ ] 4.5 Update the size figures in `docs/self-hosting/deploy.md` (proxy limits, checklist, summary table),
+- [x] 4.5 Update the size figures in `docs/self-hosting/deploy.md` (proxy limits, checklist, summary table),
   `troubleshooting.md` and `docs/integrate/http-surface.md`, and verify the docs checks pass
 
 ## 5. CORS on MCP endpoints (SEC-5)
