@@ -9,11 +9,12 @@ from bundlemcp.application.contracts.live_state.stream_registry import StreamReg
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
-from bundlemcp.application.metering.metering_hook import MeteringHook
+from bundlemcp.application.serving.chain_stage import ChainStage
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
+from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 
 
 class ToolCallSupport(BaseModel):
@@ -21,8 +22,15 @@ class ToolCallSupport(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    metering: MeteringHook = Field(description="Billing hook consulted before and after the call")
-    audit: AuditSink = Field(description="Where the call's audit record goes")
+    call_stages: tuple[ChainStage, ...] = Field(
+        description="The chain's stages that act on calls, in order: metering, then audit"
+    )
+    profiles: ProfileCatalog = Field(
+        description="The registered profiles, whose presentation stages open each call's chain"
+    )
+    audit: AuditSink = Field(
+        description="Where the record of a call that never resolved to a tool goes"
+    )
     credentials: UpstreamCredentialResolver = Field(
         description="Resolves the upstream Authorization header for the caller"
     )
@@ -38,9 +46,6 @@ class ToolCallSupport(BaseModel):
     )
     signals: SignalBus = Field(description="Reaches the replica holding the client's stream")
     runtime_config: RuntimeConfig = Field(description="Source of the call timeouts")
-    metering_fail_open: bool = Field(
-        description="Whether a call proceeds when the metering hook itself fails"
-    )
     state_cipher: SecretCipher | None = Field(
         description="Seals the requestState a modern client echoes on a retry; None when no "
         "token encryption keys are configured, which makes input_required unavailable"

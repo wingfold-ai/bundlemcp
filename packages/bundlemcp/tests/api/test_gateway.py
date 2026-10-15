@@ -929,3 +929,77 @@ async def test_sec7_oversized_upstream_response_is_a_structured_error(engine, re
     assert "too large" in error["message"]
     assert str(64 * KIB) in error["message"]
     assert elapsed < 10  # ended by the cap, not by the call timeout
+
+
+async def test_prot24_handshake_call_carries_auth_method_profile_session_and_headers(gateway):
+    """PROT-24: the call stages see how the caller authenticated, the endpoint's profile, the
+    session id and the request headers without credentials."""
+    http, app, hook = gateway
+    session = await _initialize(http, endpoint="gpt")
+    resp = await http.post(
+        "/gpt/mcp",
+        headers={"Mcp-Session-Id": session, "x-request-source": "ci", "user-agent": "probe/1"},
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {"name": "echo__say", "arguments": {"text": "hi"}},
+        },
+    )
+    assert resp.json()["result"]["content"][0]["text"] == "echo:hi"
+    (ctx,) = hook.pre_calls
+    assert ctx.auth_method == "api_key"
+    assert ctx.sub.startswith("api_key:")
+    assert ctx.oidc_issuer is None and ctx.oidc_sub is None
+    assert ctx.profile == "write_as_read"
+    assert ctx.session_id == session
+    assert ctx.headers["x-request-source"] == "ci"
+    assert ctx.headers["user-agent"] == "probe/1"
+    assert "authorization" not in ctx.headers
+
+
+class ScratchHook(RecordingHook):
+    """PROT-24 hook double that leaves a reservation id for its own post_call."""
+
+    async def pre_call(self, ctx: MeterContext) -> MeterDecision:
+        ctx.scratch["reservation"] = "r-1"
+        return await super().pre_call(ctx)
+
+
+async def test_prot24_scratch_carries_from_pre_call_to_post_call(engine, redis):
+    """PROT-24: what pre_call leaves in the scratch mapping reaches the same call's post_call."""
+    hook = ScratchHook()
+    async with _running(engine, redis, metering_hook=hook) as (http, _app):
+        session = await _initialize(http)
+        await _rpc(
+            http, "main", session, "tools/call", {"name": "echo__say", "arguments": {"text": "x"}}
+        )
+    ((ctx, outcome, _),) = hook.post_calls
+    assert outcome == MeterOutcome.RESULT
+    assert ctx.scratch == {"reservation": "r-1"}
+
+
+async def test_prot25_list_passes_filter_profile_then_overrides(gateway):
+    """PROT-25: a listing drops the disabled tool, shows the override's name and applies the
+    profile's annotations to the overridden tool under that name."""
+    http, app, hook = gateway
+    async with app.state.container.session_factory() as db:
+        bundle = (await db.execute(select(BundleRow))).scalar_one()
+        tools = {t.name: t for t in (await db.execute(select(ToolRow))).scalars()}
+        db.add_all(
+            [
+                BundleToolRow(bundle_id=bundle.id, tool_id=tools["fail"].id, enabled=False),
+                BundleToolRow(bundle_id=bundle.id, tool_id=tools["say"].id, override_name="speak"),
+            ]
+        )
+        await db.commit()
+
+    session = await _initialize(http, endpoint="gpt")
+    listed = {
+        t["name"]: t
+        for t in (await _rpc(http, "gpt", session, "tools/list")).json()["result"]["tools"]
+    }
+    assert "echo__fail" not in listed and "echo__say" not in listed
+    assert listed["speak"]["annotations"]["readOnlyHint"] is True
+    assert listed["speak"]["annotations"]["destructiveHint"] is False
+    assert hook.pre_calls == []  # listing is not metered

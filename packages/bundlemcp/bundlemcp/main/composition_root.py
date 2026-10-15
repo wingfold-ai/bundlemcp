@@ -11,6 +11,7 @@ from contextlib import AsyncExitStack
 from fastapi import FastAPI
 
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
+from bundlemcp.api.jobs.invocation_sweep_job import InvocationSweepJob
 from bundlemcp.api.jobs.secret_reencryption_job import SecretReencryptionJob
 from bundlemcp.api.jobs.token_purger import TokenPurger
 from bundlemcp.api.jobs.tool_refresher import ToolRefresher
@@ -23,6 +24,7 @@ from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTok
 from bundlemcp.application.discovery.connection_diagnoser import ConnectionDiagnoser
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.management.api_key_service import ApiKeyService
+from bundlemcp.application.metering.invocation_sweeper import InvocationSweeper
 from bundlemcp.application.oauth_server import (
     AuthorizationCodeGrant,
     MetadataDocumentClientSource,
@@ -65,6 +67,7 @@ from bundlemcp.infrastructure.valkey.auth_failure_limiter import ValkeyAuthFailu
 from bundlemcp.infrastructure.valkey.client import create_redis
 from bundlemcp.infrastructure.valkey.delegated_token_store import ValkeyDelegatedTokenStore
 from bundlemcp.infrastructure.valkey.invalidation_subscriber import InvalidationSubscriber
+from bundlemcp.infrastructure.valkey.paused_invocations import ValkeyPausedInvocations
 from bundlemcp.infrastructure.valkey.rate_limiter import ValkeyRateLimiter
 from bundlemcp.infrastructure.valkey.refresh_lock import ValkeyRefreshLock
 from bundlemcp.infrastructure.valkey.session_store import ValkeySessionStore
@@ -189,6 +192,7 @@ class CompositionRoot:
         metering = overrides.metering_hook or load_metering_hook(settings)
         if isinstance(metering, HttpMeteringHook):
             self._stack.push_async_callback(metering.aclose)
+        paused_invocations = ValkeyPausedInvocations(redis)
         mcp_router = McpGatewayAssembly(
             settings=settings,
             unit_of_work_factory=units,
@@ -196,6 +200,7 @@ class CompositionRoot:
             registry=registry,
             signals=signals,
             metering=metering,
+            paused_invocations=paused_invocations,
             audit=audit,
             client_factory=client_factory,
             runtime_config=runtime_config,
@@ -251,6 +256,13 @@ class CompositionRoot:
             )
             reencryption.start()
             self._stack.callback(reencryption.stop)
+
+        # an invocation abandoned while waiting for client input still hears how it ended
+        invocation_sweep = InvocationSweepJob(
+            InvocationSweeper(paused_invocations, metering, clock), ValkeyRefreshLock(redis)
+        )
+        invocation_sweep.start()
+        self._stack.callback(invocation_sweep.stop)
 
         client_metadata = overrides.client_metadata_fetcher or HttpxClientMetadataFetcher(
             settings, redis

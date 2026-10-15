@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: PROT-24 Metering context
-Every stage of the chain (PROT-25), the metering hook included, SHALL receive for every request it handles a context
+Every call stage of the chain (PROT-25), the metering hook included, SHALL receive for every call it handles a context
 carrying: the resolved caller identity (`sub` — a user id, `api_key:<id>`, or `None` when anonymous — and `email`; for
 an OAuth user also the IdP's `oidc_issuer` and `oidc_sub`, which are `None` for API-key and anonymous callers); the auth
 method (`oauth`, `api_key` or `none`); the endpoint, its bundle and its profile; the session id (`None` for a modern-era
@@ -33,8 +33,9 @@ metering hook's `post_call` receives as its `pre_call` left it.
 - **AND** for the out-of-process hook the decision's `scratch` object is echoed in the `post_call` event
 
 ### Requirement: PROT-25 Built-in pipeline order
-Every `tools/list` and `tools/call` SHALL pass through an ordered chain of stages, each receiving the PROT-24 context,
-in this order (list and call variants):
+Every `tools/list` and `tools/call` SHALL pass through one ordered chain of stages, in this order. The first three
+present the tools: they decide the one served tool set, from the tool, its curation and the endpoint's profile, that a
+list returns and a call is resolved against. The last two act on calls and receive the PROT-24 context:
 
 1. tool filter — drops stale tools ([UPS-19](../upstreams/spec.md)) and disabled tools / rejects calls to
    either ([BND-13](../bundles/spec.md))

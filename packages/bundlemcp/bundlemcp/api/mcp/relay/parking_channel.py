@@ -3,7 +3,7 @@
 # park and resume, the stateless era's answer to a mid-request tool response.
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from bundlemcp.api.mcp.relay.call_events import CallEvents
@@ -21,7 +21,7 @@ class ParkingChannel:
         self,
         registry: StreamRegistry,
         events: CallEvents,
-        seal_state: Callable[[], str],
+        seal_state: Callable[[], Awaitable[str]],
         shape: Shaper,
         wait_timeout: float,
     ) -> None:
@@ -37,7 +37,7 @@ class ParkingChannel:
         key = f"input-{self._round}"
         future = self._registry.register_reply(self._events.correlation_id)
         asked = input_required_result(
-            {key: {"method": method, "params": params}}, self._seal_state()
+            {key: {"method": method, "params": params}}, await self._seal_state()
         )
         await self._events.emit("input_required", {"result": self._shape(asked)})
         try:

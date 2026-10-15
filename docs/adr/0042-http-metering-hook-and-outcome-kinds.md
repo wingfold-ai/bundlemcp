@@ -1,6 +1,7 @@
 # ADR-0042: The metering hook can run out of process, and reports outcome kinds
 
-**Status:** accepted · **Date:** 2026-10-08 · **Amends:** spec 31 (PROT-26, PROT-27)
+**Status:** accepted · **Date:** 2026-10-08 · **Amends:** spec 31 (PROT-26, PROT-27) · **Amended by:**
+[ADR-0050](0050-one-stage-chain-and-once-per-invocation-metering.md)
 
 ## Context
 

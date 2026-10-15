@@ -46,7 +46,7 @@ not entitled to is answered at admission and leaves no audit trace at all.
   [complete-admin-ui](../complete-admin-ui/proposal.md), which depends on this change.
 - **Code:** `infrastructure/postgres/audit_writer.py`, the MCP admission path, a new purge job beside `api/jobs/`
   `token_purger.py`, `application/management/audit_service.py`.
-- **Interaction:** [align-metering-contract](../align-metering-contract/proposal.md) decides whether `pre_call` may
-  repeat under one key (PROT-26); this change records the key either way, and OPS-7 is stated per invocation, not per
-  pre-call.
+- **Interaction:** [align-metering-contract](../archive/2026-10-15-align-metering-contract/proposal.md) made
+  `pre_call` fire once per invocation (PROT-26); this change records the key on every leg, and OPS-7 is stated per
+  invocation, not per pre-call.
 - **ADR:** one ADR (next free number) on audit durability and the idempotency key as the reconciliation join.

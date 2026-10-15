@@ -6,18 +6,21 @@ versioned Python protocol. It can run in the gateway's process or out of
 process, as a separate service the gateway calls [over HTTP](#over-http), for
 deployments that run the published image unchanged.
 
-Every `tools/call` runs this chain, and the order matters to you because it
-decides which calls you are asked about at all:
+Every `tools/list` and `tools/call` passes one chain of stages: tool filter, profile, overrides, metering, audit. The
+first three decide the tools an endpoint serves; a list shows them and a call is resolved against them. The order
+matters to you because it decides which calls you are asked about at all:
 
-1. **Tool filter.** A tool disabled in the bundle is rejected here. No `pre_call`.
-2. **Overrides and profile transform.**
+1. **Tool filter.** A tool disabled in the bundle, or gone from its upstream's latest tool list, is rejected here. No
+   `pre_call`.
+2. **Profile, then overrides**, so an explicit override wins over the profile's rewrite.
 3. **Upstream credential resolution.** A `per_user` server the caller has not
    connected, or an unconfigured upstream OAuth client, fails here with an audit
    record of `status: error`. **No `pre_call`, so nothing is debited** — you are
    never charged for a call that could not have gone out.
-4. **`pre_call`.**
+4. **`pre_call`**, once per client invocation.
 5. **The upstream call**, with at most one internal retry after a token refresh.
-6. **`post_call`**, then the audit record.
+6. **`post_call`**, once per invocation, then the audit record. The audit stage also records a call an earlier stage
+   refused.
 
 ## The contract
 
@@ -45,11 +48,23 @@ class MeteringHook(Protocol):
 | `email` | The caller's email when the identity provider supplied one, else `None`. |
 | `oidc_issuer` | Issuer of the identity provider that authenticated the user; `None` for an API key or an open endpoint. |
 | `oidc_sub` | The user's subject at that identity provider, e.g. the Keycloak `sub`; `None` when `oidc_issuer` is. |
+| `auth_method` | How the caller authenticated: `oauth`, `api_key` or `none`. |
 | `endpoint` | Endpoint name the call arrived on. |
+| `profile` | The endpoint's profile, e.g. `default` or `write_as_read`. |
 | `bundle` | Bundle the endpoint exposes. |
+| `session_id` | MCP session of a handshake-era client; `None` for a modern-era request, which has no session. |
 | `server` | Upstream server the call routes to. |
 | `tool` | Upstream tool name, without the bundle prefix or override. |
 | `idempotency_key` | Stable key for one client invocation. |
+| `headers` | The client's request headers, names lower-cased, read-only. `authorization`, `proxy-authorization`, `cookie` and `x-api-key` are removed. |
+| `scratch` | A mapping your `pre_call` fills and your `post_call` receives as you left it, e.g. a reservation id; at most 4 KiB as JSON. |
+
+Only those four headers are removed. If a client sends a credential in a header of your own, such as
+`x-acme-token`, it reaches the hook too; add it to the deny-list your servers' `forward_headers` already respect, and
+do not log `headers` wholesale.
+
+An in-process hook writes `ctx.scratch["reservation"] = …` in `pre_call`; an HTTP hook returns a `scratch` object in
+its decision. A `scratch` over 4 KiB is dropped and logged as `metering.scratch_too_large`.
 
 `sub` is the gateway's own user id, stable only within this gateway's database. If your ledger keys users on the
 identity provider's subject, key on `(oidc_issuer, oidc_sub)` instead: it is the same for every login of a user,
@@ -58,7 +73,7 @@ Never key on `email`, which can change and be reused.
 
 `MeterDecision` has `allowed: bool`, an optional machine-readable `reason` such as `insufficient_credits`, and an
 optional `user_message`: text for the person behind the client, such as "Your credits are used up. Top up at
-https://example.com/account", at most 2000 characters.
+https://example.com/account", at most 2000 characters, and an optional `scratch` mapping merged into the context's.
 
 `MeterOutcome` is a string enum:
 
@@ -66,7 +81,7 @@ https://example.com/account", at most 2000 characters.
 |---|---|
 | `result` | The upstream returned a tool result. |
 | `tool_error` | The upstream returned a tool result with `isError: true`. The tool ran and reported a failure. |
-| `no_result` | No tool result: the upstream was unreachable or timed out, answered a JSON-RPC error, the gateway refused the call after `pre_call` allowed it, or `pre_call` itself gave no answer. |
+| `no_result` | No tool result: the upstream was unreachable or timed out, answered a JSON-RPC error, the gateway refused the call after `pre_call` allowed it, `pre_call` itself gave no answer, or the call paused for client input and the client never came back. |
 | `cancelled` | The client cancelled the call or closed its stream before a result arrived. |
 
 ## Semantics
@@ -86,17 +101,19 @@ tool ran) is charged like `result` or refunded like `no_result` is your call.
 so it is safe to bill on.
 
 **Calls that pause for input.** A tool that asks the client a question produces
-an audit record with `status: input_required` and **no `post_call`**. The
-invocation resumes when the client retries, reusing the same
-`idempotency_key`, and `pre_call` fires again on that resume. If the client
-never retries — the user closes the tab, the agent gives up — no `post_call`
-ever arrives. Treat a debit whose only audit record is `input_required`, older
-than your window, as abandoned.
+an audit record with `status: input_required` and **no `post_call` yet**. The
+invocation continues when the client retries, under the same `idempotency_key`
+and with the same context, `scratch` included, and **`pre_call` does not fire
+again**: you decided on the first leg, and cannot refuse a later one. The one
+`post_call` comes when the invocation ends. If the client never retries — the
+user closes the tab, the agent gives up — the gateway delivers `post_call`
+`no_result` with `duration_ms` 0 once the call's `requestState` has expired,
+within about 30 seconds after.
 
-**`pre_call` can fire more than once for one key.** An internal retry (after
-refreshing an upstream OAuth token) does *not* re-fire it. An `input_required`
-resume does, with the key preserved. So: **make `pre_call` idempotent on
-`idempotency_key` and charge exactly once per key.**
+The gateway keeps the paused invocation in Valkey. If that record is lost, for
+example with a Valkey restart while the call waits, the retry runs `pre_call`
+again under the same key and logs `metering.invocation_record_missing`. So:
+**keep `pre_call` idempotent on `idempotency_key`** and charge at most once per key.
 
 **The contract carries no amount, unit or currency.** Pricing is entirely
 yours. The gateway asks one question — may this call proceed? — and reports one
@@ -198,16 +215,21 @@ URL, with `Authorization: Bearer <token>` when a token is set.
   "event": "pre_call",
   "context": {
     "sub": "api_key:3f…", "email": null, "oidc_issuer": null, "oidc_sub": null,
-    "endpoint": "main", "bundle": "main", "server": "echo", "tool": "say",
-    "idempotency_key": "9c1e…"
+    "auth_method": "api_key", "endpoint": "main", "profile": "default", "bundle": "main",
+    "session_id": null, "server": "echo", "tool": "say", "idempotency_key": "9c1e…",
+    "headers": {"user-agent": "claude-code/2.1"}, "scratch": {}
   }
 }
 ```
 
-Answer `2xx` with a decision. `reason` and `user_message` are optional:
+Answer `2xx` with a decision. `reason`, `user_message` and `scratch` are optional:
 
 ```json
 {"allowed": false, "reason": "insufficient_credits", "user_message": "Your credits are used up."}
+```
+
+```json
+{"allowed": true, "scratch": {"reservation": "r-81f2"}}
 ```
 
 A pre-call that is not answered within the timeout, cannot be sent, gets a
@@ -216,7 +238,7 @@ not one) counts as unanswered: the call is denied unless
 `BUNDLEMCP_METERING_HOOK_FAIL_OPEN=true`, and a `no_result` post-call follows
 for the same key.
 
-**Post-call.** The same `context`, plus `outcome` and `duration_ms`:
+**Post-call.** The same `context`, with the `scratch` your decision returned, plus `outcome` and `duration_ms`:
 
 ```json
 {"protocol_version": 2, "event": "post_call", "context": {…}, "outcome": "no_result", "duration_ms": 0}
@@ -251,11 +273,18 @@ longer than your reconciliation window — noting that
 
 ## Versioning
 
-`METERING_PROTOCOL_VERSION` is `2`. A change to the context, the decision or
-the call pattern bumps it and is a breaking change in the gateway's release
-notes. The HTTP bodies carry the version as `protocol_version`. The hook is not
-consulted for `tools/list`; entitlement-based tool hiding is not part of
-version 2.
+`METERING_PROTOCOL_VERSION` is `2`. A change that breaks a hook written against
+the documented contract bumps it and is a breaking change in the gateway's
+release notes; new optional fields do not. The HTTP bodies carry the version as
+`protocol_version`. The hook is not consulted for `tools/list`;
+entitlement-based tool hiding is not part of version 2.
+
+Within version 2 the context gained `auth_method`, `profile`, `session_id`,
+`headers` and `scratch`, and the decision `scratch`. A call that pauses for
+client input now fires `pre_call` once rather than on every leg, and an
+abandoned one now receives `post_call` `no_result`. A hook that was idempotent
+on `idempotency_key`, as this page always asked, sees one call fewer and one
+more report, both under keys it already knows.
 
 Version 2 replaced the `status` argument of `post_call` (`success` or `error`)
 with `outcome`. To port a version 1 hook, treat `result` as `success` and every

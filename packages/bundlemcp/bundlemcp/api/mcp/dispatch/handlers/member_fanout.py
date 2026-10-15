@@ -10,6 +10,7 @@ from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
 from bundlemcp.api.mcp.protocol.header_forwarding import HeaderForwarding
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.relay.client_relay import ClientRelay
+from bundlemcp.api.mcp.relay.input_channel import InputChannel
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
@@ -60,8 +61,15 @@ class MemberFanout:
     def credentials(self) -> UpstreamCredentialResolver:
         return self._credentials
 
-    async def client_for(self, ctx: RequestContext, server: McpServer) -> Client:
-        """A client for one member, with forwarded headers and its upstream bearer attached."""
+    async def client_for(
+        self, ctx: RequestContext, server: McpServer, *, channel: InputChannel | None = None
+    ) -> Client:
+        """A client for one member, with forwarded headers and its upstream bearer attached.
+
+        ``channel`` is how a modern client is asked for the input a handshake
+        member requests; without one such a member sees the client as unable to
+        answer.
+        """
         headers = self._header_forwarding.headers_for(ctx.request.headers, server, ctx.identity)
         headers.update(
             await self._credentials.headers_for(
@@ -69,10 +77,9 @@ class MemberFanout:
             )
         )
         handlers: dict[str, Any] = {}
-        if ctx.era is ProtocolEra.SESSION:
+        if ctx.era is ProtocolEra.SESSION or channel is not None:
             # a handshake client's GET stream answers an upstream's requests
-            # for input on any method. A modern client's requests on prompts/get
-            # and resources/read are not bridged yet.
+            # for input on any method; a modern client's, the channel
             timeouts = await self._runtime_config.call_timeouts()
             relay = ClientRelay(
                 self._registry,
@@ -81,7 +88,7 @@ class MemberFanout:
                 timeouts.max_total,
                 log_level=ctx.log_level,
                 on_notification=None,
-                channel=None,
+                channel=channel,
             )
             handlers = relay.client_kwargs(ctx.client_capabilities)
         return self._client_factory(server, headers, **handlers)

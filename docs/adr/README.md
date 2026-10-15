@@ -58,11 +58,12 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0039](0039-server-inspection-and-connection-state.md) | Upstreams are inspected, and their refusals classified, below the MCP client | accepted |
 | [0040](0040-upstream-client-identification.md) | The gateway identifies itself upstream in the MCP spec's order | accepted |
 | [0041](0041-delegated-upstream-tokens.md) | Delegated tokens replace token passthrough for identity-aware upstreams | accepted |
-| [0042](0042-http-metering-hook-and-outcome-kinds.md) | The metering hook can run out of process, and reports outcome kinds | accepted |
+| [0042](0042-http-metering-hook-and-outcome-kinds.md) | The metering hook can run out of process, and reports outcome kinds | accepted (amended by 0050) |
 | [0043](0043-contact-upstreams-only-with-a-reason.md) | The gateway contacts an upstream only when it has a reason to | accepted |
 | [0044](0044-bundle-owned-prompts-and-resources.md) | Bundles own prompts and resources, served by the gateway | accepted |
 | [0045](0045-upstreams-on-the-published-surface.md) | The published surface says "upstreams" | accepted |
-| [0046](0046-profiles-as-registered-presets-and-tool-pipeline-stages.md) | Profiles are registered presets; the served tool set is built by ordered stages | accepted |
+| [0046](0046-profiles-as-registered-presets-and-tool-pipeline-stages.md) | Profiles are registered presets; the served tool set is built by ordered stages | accepted (amended by 0050) |
 | [0047](0047-profiles-named-for-what-they-change.md) | Profiles are named for what they change | accepted |
 | [0048](0048-egress-policy-enforced-at-connect-time.md) | The egress policy is enforced at connect time | accepted |
 | [0049](0049-browser-origins-are-an-endpoint-setting.md) | Browser origins are an endpoint setting, not an auth mode | accepted |
+| [0050](0050-one-stage-chain-and-once-per-invocation-metering.md) | Tools pass one stage chain, and an invocation is metered once | accepted |

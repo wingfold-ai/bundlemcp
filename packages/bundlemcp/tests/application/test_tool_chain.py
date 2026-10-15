@@ -1,13 +1,15 @@
-"""The tool pipeline: curation filter, profile, overrides (EP-12, EP-13, BND-13/14/15)."""
+"""The tool chain: filters, profile, overrides, then the call stages (EP-12, EP-13, BND-13/14/15,
+PROT-25)."""
 
 import uuid
 
+from bundlemcp.application.serving.presentation_stage import PresentationStage
+from bundlemcp.application.serving.tool_chain import ToolChain
 from bundlemcp.domain.bundles.bundle_tool import BundleTool
 from bundlemcp.domain.bundles.curation_filter import CurationFilter
 from bundlemcp.domain.bundles.override_stage import OverrideStage
 from bundlemcp.domain.bundles.profile_stage import ProfileStage
 from bundlemcp.domain.bundles.stale_tool_filter import StaleToolFilter
-from bundlemcp.domain.bundles.tool_pipeline import ToolPipeline
 from bundlemcp.domain.endpoints.endpoint_profile import EndpointProfile
 from bundlemcp.domain.endpoints.profiles import ProfileCatalog
 from bundlemcp.domain.servers.mcp_server import McpServer
@@ -25,8 +27,8 @@ TOOL = Tool(
 CATALOG = ProfileCatalog.builtin()
 
 
-def pipeline(profile: EndpointProfile) -> ToolPipeline:
-    return ToolPipeline.for_profile(CATALOG.get(profile))
+def pipeline(profile: EndpointProfile) -> ToolChain:
+    return ToolChain.for_endpoint(CATALOG.get(profile))
 
 
 def test_default_profile_keeps_annotations_and_prefixes_the_name():
@@ -61,7 +63,8 @@ def test_ep13_stage_order():
     """Stale and curation filters first, the profile next, the overrides last so they win
     (BND-15, UPS-19)."""
     stages = pipeline(EndpointProfile.WRITE_AS_READ).stages
-    assert [type(s) for s in stages] == [
+    assert all(isinstance(s, PresentationStage) for s in stages)
+    assert [type(s.stage) for s in stages] == [
         StaleToolFilter,
         CurationFilter,
         ProfileStage,
@@ -91,5 +94,5 @@ def test_bnd13_a_disabled_tool_never_reaches_the_profile():
             return tool
 
     disabled = BundleTool(bundle_id=uuid.uuid4(), tool_id=TOOL.id, enabled=False)
-    assert ToolPipeline.for_profile(Recording()).present(SERVER, TOOL, disabled) is None
+    assert ToolChain.for_endpoint(Recording()).present(SERVER, TOOL, disabled) is None
     assert seen == []

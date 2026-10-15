@@ -25,7 +25,6 @@ from bundlemcp.api.mcp.relay import (
     input_required_result,
 )
 from bundlemcp.api.mcp.relay.client_relay import ClientRelay, NotificationSink
-from bundlemcp.api.mcp.tool_call.audit_context import AuditContext
 from bundlemcp.api.mcp.tool_call.call_outcome import (
     UPSTREAM_FAILURE,
     CallOutcome,
@@ -35,14 +34,18 @@ from bundlemcp.api.mcp.tool_call.call_response import (
     StreamedCallResponse,
 )
 from bundlemcp.api.mcp.tool_call.call_status import CallStatus
+from bundlemcp.api.mcp.tool_call.request_audit import request_audit
 from bundlemcp.api.mcp.tool_call.tool_call_support import ToolCallSupport
 from bundlemcp.api.mcp.tool_call.upstream_call import ProgressCallback, UpstreamCall
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.metering.idempotency_key import new_idempotency_key
 from bundlemcp.application.metering.meter_context import MeterContext
-from bundlemcp.application.metering.meter_decision import MeterDecision
-from bundlemcp.application.metering.meter_outcome import MeterOutcome
 from bundlemcp.application.serving.call_handle import CallHandle
+from bundlemcp.application.serving.call_refusal import CallRefusal
+from bundlemcp.application.serving.call_settlement import CallSettlement
+from bundlemcp.application.serving.chain_call import ChainCall
+from bundlemcp.application.serving.tool_chain import ToolChain
+from bundlemcp.domain.access.credential_headers import CredentialHeaders
 from bundlemcp.domain.audit.audit_status import AuditStatus
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
 from bundlemcp.domain.config.call_timeouts import CallTimeouts
@@ -55,7 +58,7 @@ NO_CIPHER = "input_required is unavailable on this gateway: no token encryption 
 
 
 class ToolCall:
-    """The state of one tools/call as it moves through the pipeline.
+    """The state of one tools/call as it moves through the endpoint's chain.
 
     ``run`` decides the response shape and drives the steps in order; the two
     response renderers call back into ``execute`` and ``finish`` (or
@@ -77,19 +80,39 @@ class ToolCall:
         # resume: a retry's answers for an upstream that asked for input itself
         # (passthrough); preanswered: answers for an upstream that will ask again
         # because its parked call was lost (re-run); idempotency_key: carried over
-        # from the first leg so the retry is charged once
+        # from the first leg, which marks this one as a later leg of that invocation
         self._support = support
         self._ctx = ctx
         self._message = message
         self._tool = tool
         self._resume = resume
         self._preanswered = preanswered
-        self._idempotency_key = idempotency_key or new_idempotency_key()
         self._correlation_id = uuid.uuid4().hex
         self._arguments: dict[str, Any] = message.param("arguments", {})
-        self._audit = AuditContext.for_request(ctx, message.param("name", "")).resolved(tool)
+        endpoint = ctx.view.endpoint
+        self._chain = ToolChain.for_endpoint(
+            support.profiles.get(endpoint.profile), support.call_stages
+        )
+        self._call = ChainCall(
+            context=MeterContext(
+                sub=ctx.identity.sub,
+                email=ctx.identity.user_email,
+                oidc_issuer=ctx.identity.oidc_issuer,
+                oidc_sub=ctx.identity.oidc_sub,
+                auth_method=ctx.identity.auth_method,
+                endpoint=endpoint.name,
+                profile=endpoint.profile,
+                bundle=ctx.view.bundle.name,
+                session_id=ctx.session.session_id if ctx.session is not None else None,
+                server=tool.server.name,
+                tool=tool.tool.name,
+                idempotency_key=idempotency_key or new_idempotency_key(),
+                headers=CredentialHeaders.removed_from(ctx.request.headers),
+            ),
+            audit=request_audit(ctx, message.param("name", "")).resolved(tool),
+            resumed=idempotency_key is not None,
+        )
         self._headers: dict[str, str] = {}
-        self._meter: MeterContext | None = None
         self._timeouts: CallTimeouts | None = None
         self._handle: CallHandle | None = None
         self._events: CallEvents | None = None
@@ -128,21 +151,23 @@ class ToolCall:
         try:
             self._headers = await self._resolve_headers()
         except UpstreamOAuthNotConfigured:
-            self._record(AuditStatus.ERROR, error_message="upstream OAuth not configured")
+            await self._chain.settle(
+                self._call, CallSettlement.failed("upstream OAuth not configured")
+            )
             return rpc_error(
                 self.rpc_id, UPSTREAM_FAILURE, "upstream OAuth not configured on this gateway"
             )
         except NeedsConnect:
-            self._record(AuditStatus.ERROR, error_message="upstream_not_connected")
+            await self._chain.settle(self._call, CallSettlement.failed("upstream_not_connected"))
             return rpc_error(
                 self.rpc_id,
                 UPSTREAM_FAILURE,
                 self._support.credentials.connect_hint(self._tool.server),
             )
 
-        decision = await self._meter_pre_call()
-        if not decision.allowed:
-            return self._deny(decision)
+        refusal = await self._chain.admit(self._call)
+        if refusal is not None:
+            return await self._refuse(refusal)
 
         self._timeouts = await self._support.runtime_config.call_timeouts()
         if self.rpc_id is not None:
@@ -167,45 +192,14 @@ class ToolCall:
         headers.update(upstream)  # the upstreams spec: the upstream OAuth bearer wins
         return headers
 
-    async def _meter_pre_call(self) -> MeterDecision:
-        self._meter = MeterContext(
-            sub=self._ctx.identity.sub,
-            email=self._ctx.identity.user_email,
-            oidc_issuer=self._ctx.identity.oidc_issuer,
-            oidc_sub=self._ctx.identity.oidc_sub,
-            endpoint=self._ctx.view.endpoint.name,
-            bundle=self._ctx.view.bundle.name,
-            server=self._tool.server.name,
-            tool=self._tool.tool.name,
-            idempotency_key=self._idempotency_key,  # once per client invocation
-        )
-        try:
-            return await self._support.metering.pre_call(self._meter)
-        except Exception:
-            log.error("metering.pre_call_failed", exc_info=True)
-        # fail-open is the gateway's policy, not the hook's property.
-        if self._support.metering_fail_open:
-            return MeterDecision(allowed=True, reason="metering_unavailable")
-        # the hook may have debited before it failed to answer, so it is
-        # told, under the same key, that the refused call produced no result.
-        await self._post_call(MeterOutcome.NO_RESULT, 0)
-        return MeterDecision(allowed=False, reason="metering_unavailable")
-
-    def _deny(self, decision: MeterDecision) -> Response:
-        """Refuse the call the hook denied, in words the person behind the client can read."""
-        self._record(AuditStatus.DENIED, denied_reason=decision.reason or "denied")
-        if decision.user_message:
+    async def _refuse(self, refusal: CallRefusal) -> Response:
+        """End the call a stage refused, in words the person behind the client can read."""
+        await self._chain.settle(self._call, CallSettlement.refused(refusal.reason))
+        if refusal.user_message:
             # a tool error result, so the model relays the text verbatim
-            content = [{"type": "text", "text": decision.user_message}]
+            content = [{"type": "text", "text": refusal.user_message}]
             return rpc_result(self.rpc_id, self.shape({"content": content, "isError": True}))
-        return rpc_error(self.rpc_id, UPSTREAM_FAILURE, decision.reason or "call denied")
-
-    async def _post_call(self, outcome: MeterOutcome, duration_ms: int) -> None:
-        assert self._meter is not None  # built by _meter_pre_call
-        try:
-            await self._support.metering.post_call(self._meter, outcome, duration_ms)
-        except Exception:
-            log.error("metering.post_call_failed", exc_info=True)
+        return rpc_error(self.rpc_id, UPSTREAM_FAILURE, refusal.reason)
 
     async def execute(
         self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
@@ -215,8 +209,8 @@ class ToolCall:
         A 401 from an upstream-OAuth server forces a token refresh and one
         retry; a 403 insufficient_scope records the scopes the next
         connect must request and asks the caller to reconnect. The
-        same metering context is reused — an internal retry does NOT re-fire
-        pre_call.
+        same chain call is reused, so an internal retry does not ask the
+        metering hook again.
         """
         attempt = self._upstream_call(self._headers, on_progress, on_notification)
         outcome = await attempt.run()
@@ -272,7 +266,7 @@ class ToolCall:
         outcome = await self.execute(on_progress, on_notification)
         if outcome.status is CallStatus.INPUT_REQUIRED:
             try:
-                state = self._seal_state(
+                state = await self._pause(
                     mode="passthrough", upstream_state=outcome.input_required.request_state
                 )
             except RelayRejected as exc:
@@ -280,11 +274,15 @@ class ToolCall:
                     status=CallStatus.ERROR, error_message=str(exc), code=UPSTREAM_FAILURE
                 )
             else:
-                # The invocation continues on the client's retry: no post_call yet.
+                # the invocation continues on the client's retry
                 self._release()
-                self._record(
-                    AuditStatus.INPUT_REQUIRED,
-                    duration_ms=int((time.monotonic() - started) * 1000),
+                await self._chain.settle(
+                    self._call,
+                    CallSettlement(
+                        status=AuditStatus.INPUT_REQUIRED,
+                        outcome=None,
+                        duration_ms=int((time.monotonic() - started) * 1000),
+                    ),
                 )
                 requests = outcome.input_required.model_dump(
                     by_alias=True, mode="json", exclude_none=True
@@ -317,26 +315,30 @@ class ToolCall:
         return ParkingChannel(
             self._support.registry,
             self._events,
-            self._seal_state,
+            self._pause,
             self.shape,
             self._timeouts.max_total,
         )
 
-    def _seal_state(self, mode: str = "parked", upstream_state: str | None = None) -> str:
+    async def _pause(self, mode: str = "parked", upstream_state: str | None = None) -> str:
+        """Seal the state the client's retry must echo, and tell the chain the leg waits."""
         cipher = self._support.state_cipher
         if cipher is None:
             raise RelayRejected(NO_CIPHER)
         assert self._timeouts is not None
-        return RequestState(
+        expires_at = time.time() + self._timeouts.max_total
+        state = RequestState(
             correlation_id=self._correlation_id,
             mode=mode,  # type: ignore[arg-type]
-            presented_tool=self._message.param("name", ""),
+            target=self._message.param("name", ""),
             arguments_digest=arguments_digest(self._arguments),
             sub=self._ctx.identity.sub,
-            idempotency_key=self._idempotency_key,
-            expires_at=time.time() + self._timeouts.max_total,
+            idempotency_key=self._call.context.idempotency_key,
+            expires_at=expires_at,
             upstream_state=upstream_state,
         ).seal(cipher)
+        await self._chain.pause(self._call, expires_at)
+        return state
 
     def _upstream_call(
         self,
@@ -378,13 +380,15 @@ class ToolCall:
             self._handle = None
 
     async def finish(self, outcome: CallOutcome, started: float) -> None:
-        """Account for the call: release the handle, tell metering, write the audit record."""
+        """Account for the call: release the handle and tell every stage how it ended."""
         self._release()
-        duration_ms = int((time.monotonic() - started) * 1000)
-        if self._meter is not None:
-            await self._post_call(outcome.meter_outcome, duration_ms)  # refund trigger
         status = AuditStatus.SUCCESS if outcome.status is CallStatus.SUCCESS else AuditStatus.ERROR
-        self._record(status, error_message=outcome.error_message, duration_ms=duration_ms)
-
-    def _record(self, status: AuditStatus, **details: Any) -> None:
-        self._support.audit.record(self._audit.record(status, **details))
+        await self._chain.settle(
+            self._call,
+            CallSettlement(
+                status=status,
+                outcome=outcome.meter_outcome,
+                duration_ms=int((time.monotonic() - started) * 1000),
+                error_message=outcome.error_message,
+            ),
+        )
