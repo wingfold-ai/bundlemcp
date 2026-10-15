@@ -192,6 +192,10 @@ put("/api/v1/endpoints/fleet", {
 Run it on a timer. Servers that are not up yet are stored with an error status and probed again; nothing in the loop
 needs to wait.
 
+The upsert answers with the server alone; read its discovered tools from `GET /api/v1/upstreams/{name}/tools`, which
+pages them. A `transport` field is accepted for registrars that always send one, but only as `streamable-http`; any
+other value is a `422` saying so.
+
 The API never deletes what you do not ask it to delete, so a registrar that wants to prune stale servers lists them and
 deletes explicitly.
 

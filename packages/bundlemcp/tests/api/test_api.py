@@ -33,6 +33,15 @@ async def test_server_upsert_idempotent(client: AsyncClient):
     assert listing.json()["total"] == 1
 
 
+async def test_api4_unsupported_transport_pointed_message(client: AsyncClient):
+    """MGMT-4: a transport other than streamable-http is a 422 naming the field and the value."""
+    body = {"name": "seo", "url": "http://seo:8000/mcp", "transport": "stdio"}
+    resp = await client.put("/api/v1/upstreams/seo", json=body)
+    assert resp.status_code == 422
+    assert "transport must be 'streamable-http'" in resp.text
+    assert (await client.get("/api/v1/upstreams")).json()["total"] == 0
+
+
 async def test_server_secret_headers_write_only(client: AsyncClient):
     """UPS-3: header values never leave the API."""
     body = {"name": "s1", "url": "http://s1/mcp", "static_headers": {"authorization": "secret1"}}
