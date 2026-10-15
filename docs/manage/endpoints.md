@@ -71,9 +71,9 @@ Endpoints that accept `oauth` appear in the users' catalogue, since a person can
 identity; endpoints that accept only `api_key` are for automation and stay out of it. See
 [Authentication](/guide/authentication#caller-identity-who-is-calling-the-gateway).
 
-An OAuth token is bound to the endpoint it was issued for. Presenting it at another endpoint fails with a 401 and the
-same `WWW-Authenticate` challenge an unauthenticated request gets, which sends the client to re-authorise for that
-endpoint.
+An OAuth token is bound to the endpoint it was issued for. Presenting it at another endpoint fails with a 401 whose
+`WWW-Authenticate` challenge carries `error="invalid_token"` and that endpoint's metadata, which sends the client to
+re-authorise for it. An expired, revoked or unknown token is answered the same way.
 
 Unauthenticated requests receive a 401 with a `WWW-Authenticate` challenge pointing at
 `/.well-known/oauth-protected-resource/<name>/mcp`, which is how claude.ai discovers where to register and authorise.

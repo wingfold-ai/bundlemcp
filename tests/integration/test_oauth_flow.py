@@ -119,7 +119,18 @@ def test_full_oauth_happy_path():
         # 4. MCP call with the bearer
         session = initialize(GATEWAY_URL, "oauthdemo", bearer=access)
         listing = mcp_call(GATEWAY_URL, "oauthdemo", session, "tools/list", bearer=access)
-        assert listing["result"]["tools"]
+        assert "echo__echo" in {tool["name"] for tool in listing["result"]["tools"]}
+        # the access token also carries a tool call through to the upstream
+        called = mcp_call(
+            GATEWAY_URL,
+            "oauthdemo",
+            session,
+            "tools/call",
+            {"name": "echo__echo", "arguments": {"text": "through oauth"}},
+            bearer=access,
+        )
+        assert called.get("error") is None, called
+        assert called["result"]["content"][0]["text"] == "through oauth"
 
         # 5. Refresh
         refreshed = client.post(

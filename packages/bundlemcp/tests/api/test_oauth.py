@@ -7,6 +7,7 @@ seeded directly so the authorize/consent/token machinery is tested hermetically.
 import base64
 import hashlib
 import secrets
+import uuid
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -1180,3 +1181,209 @@ async def test_auth20_authorize_sends_a_deactivated_users_session_back_to_login(
     )
     assert authorize.status_code == 302
     assert authorize.headers["location"].startswith("/login?next=")
+
+
+INITIALIZE = {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {"protocolVersion": "2025-11-25", "capabilities": {}},
+}
+
+
+async def _access_token(http) -> tuple[str, str]:
+    """An access token for ep1, and the client it was issued to."""
+    client_id = await _register_client(http)
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
+    return (await _exchange(http, client_id, code, verifier))["access_token"], client_id
+
+
+def _challenge(resp) -> str:
+    assert resp.status_code == 401
+    return resp.headers["WWW-Authenticate"]
+
+
+async def test_ep3a_a_token_for_another_endpoint_is_an_invalid_token(oauth_env):
+    """EP-3a: refused at ep2 with error="invalid_token" and ep2's own metadata."""
+    http, app, user = oauth_env
+    token, _ = await _access_token(http)
+    resp = await http.post(
+        "/ep2/mcp", headers={"Authorization": f"Bearer {token}"}, json=INITIALIZE
+    )
+    challenge = _challenge(resp)
+    assert 'error="invalid_token"' in challenge
+    assert f'resource_metadata="{PUBLIC_URL}/.well-known/oauth-protected-resource/ep2/mcp"' in (
+        challenge
+    )
+
+
+async def test_ep3a_expired_unknown_and_revoked_tokens_are_invalid(oauth_env):
+    """EP-3a: every refusal reason gets the same invalid_token challenge."""
+    from datetime import timedelta
+
+    http, app, user = oauth_env
+    unknown = await http.post(
+        "/ep1/mcp", headers={"Authorization": "Bearer bmcp_at_unknown"}, json=INITIALIZE
+    )
+    assert 'error="invalid_token"' in _challenge(unknown)
+
+    revoked, client_id = await _access_token(http)
+    await http.post("/oauth/revoke", data={"token": revoked, "client_id": client_id})
+    resp = await http.post(
+        "/ep1/mcp", headers={"Authorization": f"Bearer {revoked}"}, json=INITIALIZE
+    )
+    assert 'error="invalid_token"' in _challenge(resp)
+
+    expiring, _ = await _access_token(http)
+    app.state.container.clock.advance(timedelta(hours=1, seconds=1))
+    resp = await http.post(
+        "/ep1/mcp", headers={"Authorization": f"Bearer {expiring}"}, json=INITIALIZE
+    )
+    assert 'error="invalid_token"' in _challenge(resp)
+
+
+async def test_ep3a_no_credentials_keeps_the_plain_challenge(oauth_env):
+    """EP-3a: a request with no Authorization header gets resource_metadata and no error."""
+    http, app, user = oauth_env
+    challenge = _challenge(await http.post("/ep1/mcp", json=INITIALIZE))
+    assert "resource_metadata=" in challenge
+    assert "error=" not in challenge
+
+
+async def test_ep3a_a_refused_bearer_still_counts_toward_the_lockout(oauth_env):
+    """EP-3a/EP-20: the invalid_token answer is still an authentication failure."""
+    from bundlemcp.application.contracts.live_state.counters import AUTH_FAILURES
+
+    http, app, user = oauth_env
+    counters = app.state.container.counters
+    before = counters.get(AUTH_FAILURES)
+    await http.post("/ep1/mcp", headers={"Authorization": "Bearer bmcp_at_x"}, json=INITIALIZE)
+    assert counters.get(AUTH_FAILURES) == before + 1
+
+
+def test_ep3a_only_a_bearer_with_a_value_counts_as_presented():
+    from bundlemcp.api.mcp.routing.authentication import presents_bearer
+
+    assert presents_bearer("Bearer abc") and presents_bearer("bearer abc")
+    assert not presents_bearer(None)
+    assert not presents_bearer("Bearer ")
+    assert not presents_bearer("Basic abc")
+
+
+async def _code_for_ep1(http) -> tuple[str, str, str]:
+    client_id = await _register_client(http)
+    verifier, challenge = make_pkce()
+    code = await _authorize(http, client_id, challenge, f"{PUBLIC_URL}/ep1/mcp")
+    return client_id, code, verifier
+
+
+def _code_form(client_id: str, code: str, verifier: str, **extra: str) -> dict:
+    return {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": "https://client.example/cb",
+        "code_verifier": verifier,
+        "client_id": client_id,
+        **extra,
+    }
+
+
+async def _works_at(http, token: str, endpoint: str) -> bool:
+    resp = await http.post(
+        f"/{endpoint}/mcp", headers={"Authorization": f"Bearer {token}"}, json=INITIALIZE
+    )
+    return resp.status_code == 200
+
+
+@pytest.mark.parametrize("resource", [None, f"{PUBLIC_URL}/ep1/mcp"], ids=["absent", "matching"])
+async def test_auth10_code_redeemed_for_its_own_endpoint(oauth_env, resource):
+    """AUTH-10: without resource, or naming the code's endpoint, the tokens are bound to ep1."""
+    http, app, user = oauth_env
+    client_id, code, verifier = await _code_for_ep1(http)
+    extra = {"resource": resource} if resource else {}
+    resp = await http.post("/oauth/token", data=_code_form(client_id, code, verifier, **extra))
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["access_token"]
+    assert await _works_at(http, token, "ep1")
+    assert not await _works_at(http, token, "ep2")
+
+
+@pytest.mark.parametrize(
+    "resource",
+    [f"{PUBLIC_URL}/ep2/mcp", "https://elsewhere.example/ep1/mcp", f"{PUBLIC_URL}/nope/mcp"],
+    ids=["other-endpoint", "not-this-gateway", "unknown-endpoint"],
+)
+async def test_auth10_code_with_another_resource_is_invalid_target(oauth_env, resource):
+    """AUTH-10: a mismatched resource issues nothing and leaves the code redeemable."""
+    http, app, user = oauth_env
+    client_id, code, verifier = await _code_for_ep1(http)
+    refused = await http.post(
+        "/oauth/token", data=_code_form(client_id, code, verifier, resource=resource)
+    )
+    assert refused.status_code == 400
+    assert refused.json()["error"] == "invalid_target"
+    assert (await http.post("/oauth/token", data=_code_form(client_id, code, verifier))).is_success
+
+
+async def test_auth10_refresh_with_another_resource_neither_rotates_nor_revokes(oauth_env):
+    """AUTH-10: the refresh token survives a refused resource and still refreshes for ep1."""
+    http, app, user = oauth_env
+    client_id, code, verifier = await _code_for_ep1(http)
+    tokens = (await http.post("/oauth/token", data=_code_form(client_id, code, verifier))).json()
+    refresh = {
+        "grant_type": "refresh_token",
+        "refresh_token": tokens["refresh_token"],
+        "client_id": client_id,
+    }
+    refused = await http.post("/oauth/token", data={**refresh, "resource": f"{PUBLIC_URL}/ep2/mcp"})
+    assert refused.status_code == 400 and refused.json()["error"] == "invalid_target"
+    assert await _works_at(http, tokens["access_token"], "ep1")  # nothing was revoked
+
+    matching = await http.post(
+        "/oauth/token", data={**refresh, "resource": f"{PUBLIC_URL}/ep1/mcp"}
+    )
+    assert matching.status_code == 200, matching.text
+    assert await _works_at(http, matching.json()["access_token"], "ep1")
+
+
+async def test_auth11_a_user_lists_and_revokes_their_own_consent(oauth_env):
+    """AUTH-11: /me/consents lists the user's consent; revoking it kills its tokens too."""
+    http, app, user = oauth_env
+    token, client_id = await _access_token(http)
+    listed = (await http.get("/api/v1/me/consents")).json()
+    assert [(c["client_id"], c["endpoint_id"]) for c in listed] == [
+        (client_id, listed[0]["endpoint_id"])
+    ]
+    resp = await http.delete(
+        f"/api/v1/me/consents/{listed[0]['id']}", headers={"Origin": PUBLIC_URL}
+    )
+    assert resp.status_code == 204
+    assert (await http.get("/api/v1/me/consents")).json() == []
+    assert not await _works_at(http, token, "ep1")
+
+
+async def test_auth11_self_service_consents_need_a_signed_in_person(oauth_env):
+    """AUTH-11: a service key and an anonymous caller get 401; a cross-site delete gets 403."""
+    http, app, user = oauth_env
+    await _access_token(http)
+    consent_id = (await http.get("/api/v1/me/consents")).json()[0]["id"]
+
+    cross_site = await http.delete(
+        f"/api/v1/me/consents/{consent_id}", headers={"Origin": "https://evil.example"}
+    )
+    assert cross_site.status_code == 403
+
+    session = http.cookies.get(SESSION_COOKIE)
+    http.cookies.delete(SESSION_COOKIE)
+    assert (await http.get("/api/v1/me/consents")).status_code == 401
+    as_service = {"Authorization": f"Bearer {SERVICE_KEY}"}
+    assert (await http.get("/api/v1/me/consents", headers=as_service)).status_code == 401
+    http.cookies.set(SESSION_COOKIE, session)
+    assert len((await http.get("/api/v1/me/consents")).json()) == 1  # nothing was revoked
+
+
+async def test_auth11_another_users_consent_answers_404(oauth_env):
+    http, app, user = oauth_env
+    resp = await http.delete(f"/api/v1/me/consents/{uuid.uuid4()}", headers={"Origin": PUBLIC_URL})
+    assert resp.status_code == 404

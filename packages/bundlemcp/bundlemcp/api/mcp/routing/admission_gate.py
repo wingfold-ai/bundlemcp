@@ -15,6 +15,7 @@ from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_rejected import RequestRejected
 from bundlemcp.api.mcp.routing.authentication import (
     EndpointAuthentication,
+    presents_bearer,
     unauthorized_challenge,
 )
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
@@ -91,7 +92,10 @@ class AdmissionGate:
             identity = await self._authentication.authenticate(request, uow, view)
         if identity is None:
             locked = await self._auth_failures.note_failure(request)
-            raise RequestRejected(
-                locked or unauthorized_challenge(self._public_base, endpoint_name), cors
+            challenge = unauthorized_challenge(
+                self._public_base,
+                endpoint_name,
+                invalid_token=presents_bearer(request.headers.get("authorization")),
             )
+            raise RequestRejected(locked or challenge, cors)
         return EndpointContext(request=request, view=view, identity=identity, cors=cors)

@@ -7,6 +7,7 @@ import uuid
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import NotFoundError
 from bundlemcp.application.schemas import ConsentRead, Page, UserRead
+from bundlemcp.domain.oauth.oauth_consent import OAuthConsent
 from bundlemcp.domain.shared.clock import utcnow
 
 
@@ -62,6 +63,16 @@ class UserService:
         consent = await self._uow.consents.find(user_id, consent_id)
         if consent is None:
             return
+        await self._revoke(user_id, consent)
+
+    async def revoke_own_consent(self, user_id: uuid.UUID, consent_id: uuid.UUID) -> None:
+        """A user revoking one of their own consents; anyone else's is not found to them."""
+        consent = await self._uow.consents.find(user_id, consent_id)
+        if consent is None:
+            raise NotFoundError("consent not found")
+        await self._revoke(user_id, consent)
+
+    async def _revoke(self, user_id: uuid.UUID, consent: OAuthConsent) -> None:
         consent.revoked_at = utcnow()
         self._uow.consents.add(consent)
         await self._uow.oauth_tokens.revoke_for_consent(

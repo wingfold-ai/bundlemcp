@@ -70,4 +70,12 @@ screen.
 `DELETE /api/v1/users/{id}/consents/{consent_id}` also revokes every token issued under it, so the client has to ask
 again. The **Users** page exposes the same actions.
 
-Revoke a consent when a user reports a connector they no longer use, or when a client's registration is replaced.
+Users manage their own consents too, without an administrator: the catalogue page lists **Your connected clients**
+with a **Withdraw** action, backed by `GET /api/v1/me/consents` and `DELETE /api/v1/me/consents/{consent_id}`. These
+answer only a signed-in person (a service key gets `401`), never reveal another user's consents (an id that is not
+theirs is `404`), and the delete is a cookie-authenticated mutation, so it must come from the gateway's own origin or
+an allowed web app. Withdrawing revokes the tokens issued under the consent, exactly as an administrator's revocation
+does.
+
+Revoke a consent for a user when they report a connector they no longer use, or when a client's registration is
+replaced.

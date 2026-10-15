@@ -58,23 +58,28 @@ class ManagementAuth:
 
     @staticmethod
     def _check_origin(request: Request, settings: Settings) -> None:
-        # cookie-authenticated mutations require an Origin/Referer
-        # matching the gateway itself or an allowlisted web-app origin. An
-        # Origin is an origin and must match exactly; a Referer is a URL and
-        # must sit under one. A plain prefix test would let
-        # https://gw.example.com.evil.test through.
-        allowed = [settings.public_base] + [o.rstrip("/") for o in settings.web_origins]
-        origin = request.headers.get("origin")
-        if origin is not None:
-            if origin.rstrip("/") in allowed:
-                return
-        else:
-            referer = request.headers.get("referer")
-            if referer is not None and any(
-                referer == a or referer.startswith(a + "/") for a in allowed
-            ):
-                return
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF origin check failed (SEC-4)")
+        require_same_site_origin(request, settings)
+
+
+def require_same_site_origin(request: Request, settings: Settings) -> None:
+    """403 unless a cookie-authenticated mutation comes from the gateway or an allowed web app.
+
+    An Origin is an origin and must match exactly; a Referer is a URL and must
+    sit under one. A plain prefix test would let
+    https://gw.example.com.evil.test through.
+    """
+    allowed = [settings.public_base] + [o.rstrip("/") for o in settings.web_origins]
+    origin = request.headers.get("origin")
+    if origin is not None:
+        if origin.rstrip("/") in allowed:
+            return
+    else:
+        referer = request.headers.get("referer")
+        if referer is not None and any(
+            referer == a or referer.startswith(a + "/") for a in allowed
+        ):
+            return
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF origin check failed (SEC-4)")
 
 
 ServiceAuthProvider = Annotated[Principal, Depends(ManagementAuth())]

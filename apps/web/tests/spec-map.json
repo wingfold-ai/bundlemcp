@@ -257,6 +257,16 @@
         "AUTH-17"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-25",
+      "testFile": "oauth-consent.spec.ts",
+      "slug": "withdraw-own-consent",
+      "title": "A person withdraws a client they authorised from their connected clients",
+      "requirements": [
+        "AUTH-11"
+      ],
+      "new": true
     }
   ]
 }

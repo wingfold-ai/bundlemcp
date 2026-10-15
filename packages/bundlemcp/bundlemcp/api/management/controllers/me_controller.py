@@ -1,10 +1,14 @@
 """Caller identity routes: what the web app needs for any signed-in person, admin or
-not — who they are, and which endpoints they can connect a client to.
+not — who they are, which endpoints they can connect a client to, and the clients
+they have consented to.
 """
+
+import uuid
 
 from fastapi import HTTPException, Request, status
 
 from bundlemcp.api.http.controller import Controller
+from bundlemcp.api.http.management_auth import require_same_site_origin
 from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.http.service_providers import (
@@ -13,6 +17,7 @@ from bundlemcp.api.http.service_providers import (
     BundleServiceProvider,
     CallerResolverProvider,
     EndpointServiceProvider,
+    UserServiceProvider,
 )
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.application.schemas import (
@@ -20,6 +25,7 @@ from bundlemcp.application.schemas import (
     CataloguePromptRead,
     CatalogueResourceRead,
     CatalogueToolRead,
+    ConsentRead,
     MeRead,
 )
 from bundlemcp.domain.access.api_key import ApiKey
@@ -43,6 +49,36 @@ class MeController(Controller):
             case ApiKey() if caller.is_service_key:
                 return caller
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "not signed in")
+
+    @classmethod
+    async def _signed_in_user(cls, request: Request, callers) -> User:
+        """The person behind a browser session; a service key has no consents of its own."""
+        caller = await cls._caller(request, callers)
+        if not isinstance(caller, User):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "sign in as a person")
+        return caller
+
+    @route.get("/consents")
+    async def my_consents(
+        self, request: Request, callers: CallerResolverProvider, users: UserServiceProvider
+    ) -> list[ConsentRead]:
+        """The clients the signed-in person has authorised, one entry per client and endpoint."""
+        user = await self._signed_in_user(request, callers)
+        return await users.list_consents(user.id)
+
+    @route.delete("/consents/{consent_id}", status_code=status.HTTP_204_NO_CONTENT)
+    async def revoke_my_consent(
+        self,
+        consent_id: uuid.UUID,
+        request: Request,
+        callers: CallerResolverProvider,
+        users: UserServiceProvider,
+        settings: SettingsProvider,
+    ) -> None:
+        """Withdraw one of the signed-in person's consents, and the tokens issued under it."""
+        user = await self._signed_in_user(request, callers)
+        require_same_site_origin(request, settings)
+        await users.revoke_own_consent(user.id, consent_id)
 
     @route.get("")
     async def whoami(self, request: Request, callers: CallerResolverProvider) -> MeRead:

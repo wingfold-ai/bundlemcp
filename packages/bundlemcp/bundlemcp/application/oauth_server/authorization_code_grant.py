@@ -1,5 +1,6 @@
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import OAuthError
+from bundlemcp.application.oauth_server.requested_resource import ensure_resource_is_the_audience
 from bundlemcp.application.oauth_server.token_issuer import TokenIssuer
 from bundlemcp.application.oauth_server.token_request import TokenRequest
 from bundlemcp.application.schemas import TokenResponse
@@ -18,6 +19,7 @@ class AuthorizationCodeGrant:
     def __init__(
         self, uow: UnitOfWork, issuer: TokenIssuer, clock: Clock, hasher: SecretHasher
     ) -> None:
+        self._uow = uow
         self._codes = uow.authorization_codes
         self._issuer = issuer
         self._clock = clock
@@ -37,6 +39,7 @@ class AuthorizationCodeGrant:
             raise OAuthError(OAuthErrorCode.INVALID_GRANT, "redirect_uri mismatch")
         if not code.proves_possession(request.code_verifier):
             raise OAuthError(OAuthErrorCode.INVALID_GRANT, "PKCE verification failed")
+        await ensure_resource_is_the_audience(self._uow, request, code.endpoint_id)
         # the burn is a compare-and-set, so two concurrent redemptions
         # that both read an unused code cannot both be issued a pair.
         if not await self._codes.burn(code.code_hash):
