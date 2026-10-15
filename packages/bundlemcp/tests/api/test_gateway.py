@@ -261,7 +261,8 @@ async def test_initialize_tools_only_when_no_member_caps(gateway):
 
 
 async def test_initialize_aggregates_member_capabilities(gateway):
-    """PROT-11: prompts/resources/completions/logging advertised iff a member supports them."""
+    """PROT-11: prompts/resources/completions/logging advertised iff a member supports them, and
+    a member's list changes and resource updates not, since the gateway does not relay them."""
     http, app, hook = gateway
     await _set_capabilities(
         app,
@@ -276,8 +277,8 @@ async def test_initialize_aggregates_member_capabilities(gateway):
 
     caps = (await _initialize_raw(http)).json()["result"]["capabilities"]
     assert caps["tools"] == {"listChanged": True}
-    assert caps["prompts"] == {"listChanged": True}
-    assert caps["resources"]["subscribe"] is True
+    assert caps["prompts"] == {}
+    assert caps["resources"] == {}
     assert "completions" in caps and "logging" in caps
 
 

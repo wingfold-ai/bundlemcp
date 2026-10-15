@@ -148,11 +148,18 @@ class McpGatewayAssembly(BaseModel):
             ),
             connect_prompts,
         )
+        # each member is reached per request, so nothing listens for a member's
+        # list changes or resource updates; they are not advertised either
+        member_notifications = False
         methods = MethodRegistry(
             {
                 "ping": PingHandler(),
                 "server/discover": RateLimited(
-                    ServerDiscoverHandler(dialects, cache_hints), gate, tool_call=False
+                    ServerDiscoverHandler(
+                        dialects, cache_hints, member_notifications=member_notifications
+                    ),
+                    gate,
+                    tool_call=False,
                 ),
                 "tools/list": RateLimited(
                     ToolsListHandler(cache_hints, connect_prompts), gate, tool_call=False
@@ -177,7 +184,11 @@ class McpGatewayAssembly(BaseModel):
             signals=self.signals,
             dialects=dialects,
             initialize=RateLimited(
-                InitializeHandler(self.sessions, dialects), gate, tool_call=False
+                InitializeHandler(
+                    self.sessions, dialects, member_notifications=member_notifications
+                ),
+                gate,
+                tool_call=False,
             ),
             methods=methods,
             stream=stream,

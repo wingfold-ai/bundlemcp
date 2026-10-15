@@ -163,6 +163,25 @@ The `fleet` marker means an integration test needs private images and is skipped
 Browser tests are Playwright, in `apps/web/tests/`, with `npm run test:ui`. `apps/web/tests/TESTMAP.md` maps them to
 requirement IDs and is regenerated with `npm run test:map`.
 
+### MCP conformance
+
+`tests/conformance/run_conformance.py` runs the MCP project's published server conformance suite through the gateway.
+The suite checks fixed fixtures (`test_simple_text`, `test://static-text`, …), which
+[`examples/conformance-mcp`](examples/conformance-mcp/server.py) serves; the harness bundles it behind an open
+`conformance` endpoint and presents each fixture tool under its own name.
+
+```bash
+docker compose -f deploy/docker-compose.yml --profile conformance up -d --build --wait gateway conformance-mcp
+uv run python tests/conformance/run_conformance.py --revision 2025-11-25
+uv run python tests/conformance/run_conformance.py --list-revisions   # what CI runs
+```
+
+CI runs it once per served revision the suite has scenarios for, a list read from the gateway's own registry, so a new
+revision joins the matrix as soon as the suite covers it; that run is the conformance step of adding a revision
+(PROT-22). [`tests/conformance/baseline.yml`](tests/conformance/baseline.yml) lists what the gateway fails by design,
+each with its reason. A new failure fails the job, and so does a listed scenario that passes: remove its entry. To move
+to a newer suite, change the pinned suite version at the top of the harness.
+
 ## Adding a database column
 
 The column is declared **twice** — once on the entity, once on the row class — and the repository maps between them

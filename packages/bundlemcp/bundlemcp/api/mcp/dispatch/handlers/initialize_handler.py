@@ -16,9 +16,14 @@ from bundlemcp.domain.sessions.session_record import SessionRecord
 
 
 class InitializeHandler:
-    def __init__(self, sessions: SessionStore, dialects: DialectRegistry) -> None:
+    def __init__(
+        self, sessions: SessionStore, dialects: DialectRegistry, *, member_notifications: bool
+    ) -> None:
+        # member_notifications: whether members' list changes and resource
+        # updates reach clients, which decides whether they are advertised
         self._sessions = sessions
         self._dialects = dialects
+        self._member_notifications = member_notifications
 
     async def handle(self, ctx: EndpointContext, message: JsonRpcMessage) -> Response:
         requested = message.params.get("protocolVersion")
@@ -36,7 +41,9 @@ class InitializeHandler:
         await self._sessions.create(record)
         result = {
             "protocolVersion": dialect.version,
-            "capabilities": aggregate_capabilities(ctx.view),
+            "capabilities": aggregate_capabilities(
+                ctx.view, member_notifications=self._member_notifications
+            ),
             "serverInfo": server_info(ctx.view.bundle.name),
         }
         if ctx.view.bundle.description:

@@ -57,7 +57,8 @@ See [overview](openspec/README.md) and [architecture](openspec/specs/architectur
 - `uv run pytest -q` — hermetic tests (no Docker/network) grouped by layer under `packages/bundlemcp/tests/`: `domain/`
   and `application/` run on pure objects and the `infrastructure/memory` fakes, `infrastructure/` on sqlite and
   fakeredis, `api/` through the ASGI app. `testpaths` points there, so bare `pytest` collects them; a path argument
-  needs the full `packages/bundlemcp/tests/domain`. Root `tests/` holds only `integration/`. Must pass before any change
+  needs the full `packages/bundlemcp/tests/domain`. Root `tests/` holds `integration/` and the MCP conformance harness
+  `conformance/`. Must pass before any change
   is done. `uv run ruff check .` must be clean, and so must `uv run rumdl check .` (Markdown lines stay within 120
   columns; `uv run rumdl fmt .` rewraps longer ones).
 - `cd apps/web && npm run openapi` after any change to a `schemas/` DTO or a route — CI fails on a stale

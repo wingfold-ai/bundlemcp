@@ -8,6 +8,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[4]
 
 PYTHON_IMAGES = [
     "apps/gateway/Dockerfile",
+    "examples/conformance-mcp/Dockerfile",
     "examples/echo-mcp/Dockerfile",
     "examples/oauth-demo-mcp/Dockerfile",
 ]

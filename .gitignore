@@ -24,3 +24,6 @@ docs/brand/.fonts/
 
 # Local compose tweaks (ports, origins); compose merges this file only when it is named with -f
 deploy/docker-compose.override.yml
+
+# the MCP conformance suite writes its results here
+/results/

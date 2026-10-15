@@ -33,6 +33,7 @@ from mcp.types import (
     UNSUPPORTED_PROTOCOL_VERSION,
 )
 from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlmodel import select
 
 from tests.conftest import ENDPOINT_KEY, hermetic_settings, serving
 
@@ -173,6 +174,18 @@ async def test_discover_advertises_versions_capabilities_and_hints(http):
     assert result["resultType"] == "complete"
     assert result["_meta"][SERVER_INFO_META_KEY]["name"] == "bundlemcp/main"
     assert result["ttlMs"] == 300000 and result["cacheScope"] == "public"
+
+
+async def test_prot11_discover_does_not_promise_member_resource_updates(http, engine):
+    """PROT-11: a member advertising resources.subscribe and listChanged is not passed on as
+    such, because the gateway does not relay a member's updates."""
+    async with session_factory(engine)() as db:
+        echo = (await db.execute(select(McpServerRow))).scalar_one()
+        echo.capabilities = {"resources": {"subscribe": True, "listChanged": True}}
+        db.add(echo)
+        await db.commit()
+    result = (await _modern(http, "server/discover")).json()["result"]
+    assert result["capabilities"]["resources"] == {}
 
 
 async def test_tools_list_is_stateless_and_cacheable(http):

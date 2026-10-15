@@ -11,15 +11,22 @@ from bundlemcp.domain.bundles.bundle_capabilities import aggregate_capabilities
 
 
 class ServerDiscoverHandler:
-    def __init__(self, dialects: DialectRegistry, cache_hints: CacheHints) -> None:
+    def __init__(
+        self, dialects: DialectRegistry, cache_hints: CacheHints, *, member_notifications: bool
+    ) -> None:
+        # member_notifications: whether members' list changes and resource
+        # updates reach clients, which decides whether they are advertised
         self._dialects = dialects
         self._cache_hints = cache_hints
+        self._member_notifications = member_notifications
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         # versions from the registry, capabilities from the discovery snapshots.
         result = {
             "supportedVersions": self._dialects.modern_versions,
-            "capabilities": aggregate_capabilities(ctx.view),
+            "capabilities": aggregate_capabilities(
+                ctx.view, member_notifications=self._member_notifications
+            ),
         }
         if ctx.view.bundle.description:
             result["instructions"] = ctx.view.bundle.description
