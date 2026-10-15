@@ -29,6 +29,7 @@ from bundlemcp.infrastructure.postgres.rows.upstream_oauth_client_row import Ups
 from bundlemcp.infrastructure.postgres.rows.user_row import UserRow
 from cryptography.fernet import Fernet
 from fastmcp import Client, FastMCP
+from mcp.types import CLIENT_CAPABILITIES_META_KEY, PROTOCOL_VERSION_META_KEY
 from sqlmodel import select
 
 from tests.conftest import hermetic_settings, serving
@@ -202,3 +203,45 @@ async def test_connecting_discovers_tools_and_retires_the_connect_tool(engine, r
             await asyncio.sleep(0.02)
         assert await _tool_names(http, session) == ["seo__keyword_volume"]
     assert {"Authorization": "Bearer seo-user-token"} in factory.headers
+
+
+async def _modern_tools_list(http) -> dict:
+    body = {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/list",
+        "params": {
+            "_meta": {
+                PROTOCOL_VERSION_META_KEY: "2026-07-28",
+                CLIENT_CAPABILITIES_META_KEY: {},
+            }
+        },
+    }
+    headers = {"MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list"}
+    resp = await http.post("/e/mcp", headers=headers, json=body)
+    assert resp.status_code == 200, resp.text
+    return resp.json()["result"]
+
+
+async def test_prot16_a_list_with_a_connect_tool_is_private(engine, redis):
+    """PROT-16: a tools/list carrying this caller's connect-account tool is cacheScope private;
+    once the caller has connected, the list is the same for everyone again and public."""
+    user, _server = await _seed(engine, with_tool=True)
+    factory = HeaderRecordingFactory()
+    async with _running(engine, redis, factory) as (http, app):
+        before = await _modern_tools_list(http)
+        assert "seo__connect_account" in [t["name"] for t in before["tools"]]
+        assert before["cacheScope"] == "private"
+
+        sid = await app.state.container.admin_sessions.create(
+            AdminSession(user_id=str(user.id), email=user.email, is_admin=False)
+        )
+        http.cookies.set(SESSION_COOKIE, sid)
+        start = await http.get("/oauth/upstream/seo/connect", params={"as": "me"})
+        state = start.headers["location"].split("state=")[1]
+        callback = await http.get("/oauth/upstream/callback", params={"code": "c", "state": state})
+        assert callback.status_code == 200, callback.text
+
+        after = await _modern_tools_list(http)
+    assert [t["name"] for t in after["tools"]] == ["seo__keyword_volume"]
+    assert after["cacheScope"] == "public"

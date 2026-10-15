@@ -78,6 +78,7 @@ AUTH-31 were written for a pooled model that was deferred. This change builds it
   operations and configuration pages for the new keys.
 - **Related changes:** [complete-session-lifecycle](../complete-session-lifecycle/proposal.md)'s upstream-restart
   recovery test (SES-12) and its sweeper's binding release depend on this change.
-  [complete-protocol-passthrough](../complete-protocol-passthrough/proposal.md) gates `resources.subscribe` and member
-  `listChanged` on delivery (PROT-11); once this change lands those flags are advertised again.
+  [complete-protocol-passthrough](../archive/2026-10-15-complete-protocol-passthrough/proposal.md) gates
+  `resources.subscribe` and member `listChanged` on delivery (PROT-11): `member_notifications` in
+  `main/mcp_gateway_assembly.py` turns true once this change delivers them, and those flags are advertised again.
   [complete-upstream-health](../complete-upstream-health/proposal.md) provides the shared failure counter SES-7 feeds.

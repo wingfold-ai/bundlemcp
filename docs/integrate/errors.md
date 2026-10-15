@@ -57,7 +57,7 @@ answers for any signed-in user and says whether they are one.
 | `-32020` | header mismatch | A mirrored header disagrees with the body — see [Request envelope](/integrate/http-surface#request-envelope) | `400` |
 | `-32022` | unsupported protocol version | `data` carries `supported` and `requested` | `400` |
 | `-32000` | upstream failure | The upstream call failed, was denied by the metering hook, or needs an upstream connection the caller has not made | `200` |
-| `-32800` | cancelled | The call was cancelled, by the client or by the total-timeout ceiling | `200` |
+| `-32800` | cancelled | The call was cancelled: by the client's `notifications/cancelled` (a modern client sends it in a request of its own, with the same credentials as the call), by the client closing the connection, or by the total-timeout ceiling | `200` |
 
 `-32000` and `-32800` arrive with HTTP `200` because they are the *result* of a
 successfully routed call, and on a streamed `tools/call` they are the last SSE

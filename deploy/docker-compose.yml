@@ -8,7 +8,9 @@
 # gateway, web) starts by default; the maintainers' fleet is behind `--profile fleet` because
 # its images are private (deploy/TESTING.md); `--profile tunnel` (Cloudflare
 # quick tunnel) or `--profile ngrok` adds a reverse proxy plus a tunnel so
-# claude.ai, ChatGPT or Claude Desktop can reach the stack. deploy/stack.sh
+# claude.ai, ChatGPT or Claude Desktop can reach the stack; `--profile
+# conformance` adds the MCP conformance suite's fixture server
+# (tests/conformance/). deploy/stack.sh
 # drives that, since the gateway needs the tunnel's URL as BUNDLEMCP_PUBLIC_URL
 # before it boots.
 #
@@ -78,6 +80,15 @@ services:
 
   echo-mcp:
     build: ../examples/echo-mcp
+    restart: unless-stopped
+    expose:
+      - "9000"
+
+  # The MCP conformance suite's server fixtures (examples/conformance-mcp),
+  # only for tests/conformance/, which bundles it behind an open endpoint.
+  conformance-mcp:
+    profiles: ["conformance"]
+    build: ../examples/conformance-mcp
     restart: unless-stopped
     expose:
       - "9000"

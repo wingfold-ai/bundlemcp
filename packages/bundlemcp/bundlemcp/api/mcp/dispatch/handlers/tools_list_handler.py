@@ -34,6 +34,10 @@ class ToolsListHandler:
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         tools: list[ListedTool] = list(ctx.view.tools)
-        tools += await self._connect_prompts.pending(ctx.view, ctx.identity)
-        result = {"tools": [self._entry(t) for t in tools]}
-        return rpc_result(message.id, ctx.shape(result, await self._cache_hints.for_list()))
+        pending = await self._connect_prompts.pending(ctx.view, ctx.identity)
+        result = {"tools": [self._entry(t) for t in tools + pending]}
+        hint = await self._cache_hints.for_list()
+        if pending:
+            # a connect-account tool is this caller's alone, so no shared cache may keep the list
+            hint = hint.model_copy(update={"scope": "private"})
+        return rpc_result(message.id, ctx.shape(result, hint))

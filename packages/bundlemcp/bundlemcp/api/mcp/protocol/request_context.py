@@ -38,6 +38,20 @@ class RequestContext(EndpointContext):
         return self.dialect.era
 
     @property
+    def call_key(self) -> str:
+        """Key an in-flight call is registered under, and a cancellation addressed to.
+
+        A handshake client's calls belong to its session. A modern request has
+        none, so its calls belong to the caller on this endpoint: a later request
+        with the same credentials can cancel one by its request id, and no other
+        caller can. An anonymous modern caller is indistinguishable from any
+        other, so its calls stay addressable only by the request's own key.
+        """
+        if self.session is not None or self.identity.sub is None:
+            return self.routing_key
+        return f"call:{self.view.endpoint.id}:{self.identity.sub}"
+
+    @property
     def server_info(self) -> dict[str, Any]:
         return server_info(self.view.bundle.name)
 

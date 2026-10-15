@@ -24,7 +24,12 @@ Four protocol-passthrough requirements hold only in part:
 - `resources.subscribe` and members' prompt/resource `listChanged` are advertised only when the gateway delivers the
   corresponding notifications (PROT-11).
 - A `tools/list` containing per-caller tools is `cacheScope: "private"` (PROT-16).
-- A conformance-suite harness runs against the compose stack in CI for every served revision (PROT-22).
+- A conformance-suite harness runs the MCP project's published server suite through the gateway in CI, once for every
+  served revision the suite has scenarios for (PROT-22). The suite checks fixed fixtures, so a fixture upstream
+  (`examples/conformance-mcp`) serves them behind an open `conformance` endpoint, with each tool presented under its
+  own name and the two plain prompts added as the bundle's own; `tests/conformance/baseline.yml` lists, with reasons,
+  what the gateway fails by design (a member's prompts keep their prefix). The suite has no scenarios yet for
+  2025-03-26 or 2026-07-28, so those join the matrix when it does.
 
 ## Capabilities
 
@@ -44,7 +49,8 @@ Four protocol-passthrough requirements hold only in part:
   watcher for buffered calls in `api/mcp/tool_call/`; bundle capability aggregation (`domain/bundles/
   bundle_capabilities.py`) takes whether member notifications are delivered as an input; the tools-list handler picks
   the cache scope.
-- **CI:** a conformance job in `.github/workflows/ci.yml` against the compose stack, one run per served revision.
+- **CI:** a conformance job in `.github/workflows/ci.yml` against the compose stack, one run per served revision the
+  suite covers; the fixture server is a compose service behind a `conformance` profile.
 - **Docs:** the protocol and troubleshooting pages that describe cancellation and subscriptions; arc42 §11 entry for
   the advertised-but-undelivered capabilities is removed.
 - **Related changes:** [add-upstream-session-pooling](../add-upstream-session-pooling/proposal.md) delivers member list

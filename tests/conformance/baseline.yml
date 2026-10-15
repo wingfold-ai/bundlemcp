@@ -1,0 +1,9 @@
+# Scenarios the gateway fails by design, with the reason. The suite exits 1 on
+# a failure not listed here and on an entry here that passes again, so this
+# list stays exact.
+server:
+  # A member's prompts are served under its prefix (conformance__…), and only
+  # a bundle's own prompts keep their name; bundle prompts carry text and
+  # bundle resources, not an embedded resource named by an argument or an image.
+  - prompts-get-embedded-resource
+  - prompts-get-with-image

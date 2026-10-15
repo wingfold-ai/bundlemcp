@@ -103,8 +103,11 @@ what they were before the modern era was added.
 ### Requirement: PROT-22 Adding a protocol revision
 A new revision SHALL be supported by adding one dialect class (client hop) and, if the upstream SDK does not absorb it,
 one adapter (upstream hop), registering the version, running the MCP conformance suite for that revision against the
-compose stack, and recording an ADR. CI SHALL run the MCP conformance suite against the compose stack once per served
-revision, and a failing check fails the build. Handlers, the relay, metering and audit MUST NOT need to change for a
+compose stack, and recording an ADR. CI SHALL run the MCP conformance suite through the gateway on the compose stack
+once for every served revision the suite has scenarios for: the suite's server fixtures are served by an upstream in a
+bundle behind an open endpoint, each fixture tool presented under its own name. Scenarios the gateway fails by design
+are listed, each with its reason, in a baseline; a failure the baseline does not list, or a listed scenario that
+passes, fails the build. Handlers, the relay, metering and audit MUST NOT need to change for a
 revision that keeps the method set. The revision lists and the per-revision method sets are read from the MCP SDK's
 registry (`mcp_types.version`, `mcp_types.methods`); the gateway keeps only its own decisions, such as the floor of the
 handshake window.
@@ -119,5 +122,10 @@ handshake window.
 
 #### Scenario: Conformance runs per revision in CI
 - **WHEN** CI runs for a pull request
-- **THEN** the conformance job runs the MCP conformance suite against the compose stack's `demo` endpoint once for
-  every served revision, and a failing check fails the job
+- **THEN** the conformance job runs the MCP conformance suite through the gateway once for every served revision the
+  suite has scenarios for, and a failure outside the baseline fails the job
+
+#### Scenario: A fixed baseline entry fails the job
+- **GIVEN** a scenario listed in the baseline as failing by design
+- **WHEN** the gateway starts passing it
+- **THEN** the conformance job fails until the entry is removed

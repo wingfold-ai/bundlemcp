@@ -191,12 +191,65 @@ jobs:
         if: always()
         run: docker compose -f deploy/docker-compose.yml down -v
 
+  conformance-revisions:
+    # The served revisions the MCP conformance suite has scenarios for, read
+    # from the gateway's own registry, so a new revision joins the matrix.
+    runs-on: ubuntu-latest
+    outputs:
+      revisions: ${{ steps.list.outputs.revisions }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.14"
+      - run: uv sync --all-packages
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - id: list
+        run: echo "revisions=$(uv run python tests/conformance/run_conformance.py --list-revisions)" >> "$GITHUB_OUTPUT"
+
+  conformance:
+    needs: conformance-revisions
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        revision: ${{ fromJSON(needs.conformance-revisions.outputs.revisions) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.14"
+      - run: uv sync --all-packages
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: Bring up the gateway and the conformance fixture server
+        run: |
+          docker compose -f deploy/docker-compose.yml --profile conformance \
+            up -d --build --wait --wait-timeout 300 gateway conformance-mcp
+      - name: MCP conformance suite (PROT-22)
+        run: uv run python tests/conformance/run_conformance.py --revision "${{ matrix.revision }}"
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml --profile conformance logs --tail=200
+      - name: Tear down
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml --profile conformance down -v
+
   ci-passed:
     # The one check the branch ruleset requires; renaming a job above does not
     # silently drop it from the requirement.
     name: ci-passed
     if: always()
-    needs: [backend, frontend, docs, diagrams, image, integration]
+    needs: [backend, frontend, docs, diagrams, image, integration, conformance-revisions, conformance]
     runs-on: ubuntu-latest
     steps:
       - name: Fail unless every required job succeeded
