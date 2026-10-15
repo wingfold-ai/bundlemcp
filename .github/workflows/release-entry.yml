@@ -78,6 +78,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
+      checks: read
+      statuses: write
     concurrency:
       group: release-entry-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -165,6 +167,11 @@ jobs:
           if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$HEAD_REF")" ]; then
             git push origin "HEAD:$HEAD_REF"
           fi
+      - name: Carry CI's result onto CI's commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: uv run --no-project --with "$PYDANTIC" python tools/ci_result_relay.py "$(git rev-parse HEAD)"
 
   refresh:
     if: github.event_name == 'push'
@@ -172,6 +179,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      checks: read
+      statuses: write
     concurrency:
       group: release-entry-refresh
       cancel-in-progress: true
@@ -204,6 +213,7 @@ jobs:
                 apps/web/openapi.json
               git diff --cached --quiet || git commit -qm "chore(repo): Release $version [skip ci]"
               git push -q origin "HEAD:$branch"
+              uv run --no-project --with "$PYDANTIC" python tools/ci_result_relay.py "$(git rev-parse HEAD)"
             elif ! gh api "repos/$GH_REPO/issues/$number/comments" --jq '.[].body' | grep -qF "$marker"; then
               gh pr comment "$number" --body "$marker
           Merging main into this branch conflicts outside the changelog and the version files, so CI cannot renumber its release entry. Merge or rebase onto main; the next push renumbers it."

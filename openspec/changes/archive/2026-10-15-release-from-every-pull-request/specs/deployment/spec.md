@@ -66,6 +66,9 @@ A pull request into `main` SHALL carry the release its merge makes, so the squas
   CI adds under *Changed* unless the text already names the protocol. A release whose protocol changed since the
   previous release tag and whose entry does not say so is refused before anything is published. The release notes
   always end with the protocol version, as DEP-11 requires.
+- **The merge waits for CI.** `main` MUST only accept a pull request whose `ci-passed` check succeeded on its head.
+  CI's own commits on the branch run no CI, so the result CI reached on the commit before them is set on the head as
+  that check: pending until that run finishes, then its outcome.
 - **Branches CI cannot write.** A pull request from a fork cannot receive the commit; its check fails and says so,
   and a maintainer brings the branch into the repository before merging.
 
@@ -120,6 +123,11 @@ A pull request into `main` SHALL carry the release its merge makes, so the squas
 #### Scenario: Protocol change without a breaking title fails
 - **WHEN** a pull request titled `feat(metering): Tell the hook more` raises the metering-hook protocol version
 - **THEN** its entry check fails asking for `!` in the title, and no entry is committed
+
+#### Scenario: Merge waits for CI on the commit before CI's
+- **GIVEN** a pull request whose head is CI's entry commit, and CI still running on the author's commit before it
+- **WHEN** someone tries to merge it
+- **THEN** the merge is refused while the head's `ci-passed` is pending, and allowed once that run succeeds
 
 #### Scenario: The entry commit does not rerun CI
 - **WHEN** CI commits the entry and the bump to a pull request's branch

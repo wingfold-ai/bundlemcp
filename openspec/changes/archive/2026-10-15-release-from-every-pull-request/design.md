@@ -128,10 +128,14 @@ checks on the pull request's head. So every commit CI pushes to a branch, the me
 body (the repository's `squash_merge_commit_message` is `PR_BODY`), so the marker never reaches `main`, where it would
 skip CI, the image publish and this workflow's **tag** job.
 
-The ruleset requires no status check today, so a head without checks does not block the merge. If `ci-passed` is made
-required, job **entry** also sets a `ci-passed` commit status on the new head, but only after the run for the parent
-commit succeeded and only when the new commit changes nothing but the files `apply` owns (`statuses: write`). That is
-left out of the first cut, because the ruleset does not need it.
+The ruleset requires `ci-passed`, so a head without that check would block every merge. `tools/ci_result_relay.py`
+walks from the head back through CI's own commits (author `github-actions[bot]`, `[skip ci]` in the subject) to the
+commit CI ran on, and sets that commit's `ci-passed` result on the head as a commit status with the same name: pending
+while the run is going, then its outcome. Job **entry** and job **refresh** call it right after they push, and
+`ci-result-relay.yml` calls it on every completed CI run (`workflow_run`), which is when the pending status turns into
+the result. A required check named without a source accepts a commit status as well as a check run, which is what
+lets the relayed status satisfy it. `workflow_run` runs the workflow file from `main`, so the relay takes effect for
+pull requests opened after this change is merged.
 
 ### The Claude API key
 
