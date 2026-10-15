@@ -22,3 +22,7 @@ class UpstreamTokenRepository(Repository[UpstreamOAuthToken], Protocol):
     async def for_server(self, server_id: uuid.UUID) -> list[UpstreamOAuthToken]:
         """Every connection to one server, shared and per user."""
         ...
+
+    async def delete_for_user(self, user_id: uuid.UUID) -> int:
+        """Delete every upstream connection one user owns; shared ones are untouched."""
+        ...

@@ -49,23 +49,25 @@ the container, not your machine — and loopback is blocked deliberately. Use
 or attach your server to the compose network and use its service name. See
 [Network egress](/self-hosting/deploy#network-egress).
 
-## `401 admin session or service API key required`
+## The management API answers `401` or `403`
 
-**Cause, in order of likelihood.**
+**`401 admin session or service API key required`.** No valid credential reached the gateway: no key, a mistyped or
+deactivated key, or a browser session that expired or whose user was deactivated. Sign in again, or check the key.
 
-1. The key is an `endpoint`-kind key. The management API takes `service` keys
-   only — that case answers `403 key is not service-kind`, which distinguishes
-   it.
-2. You are signed in but not an administrator. A non-admin gets **401**, not
-   403, everywhere except `/api/v1/me/…`.
+**`403`.** The gateway knows the caller, who may not manage it:
+
+1. `403 key is not service-kind`: an `endpoint`-kind key. The management API takes `service` keys only.
+2. `403 signed in, but not an administrator`: neither your email is in `BUNDLEMCP_ADMIN_EMAILS` nor your ID token's
+   admin claim carries the admin value.
+3. `403 CSRF origin check failed`: a browser mutation from an origin outside `BUNDLEMCP_WEB_ORIGINS`.
 
 ```bash
 curl -s http://localhost:8000/api/v1/me -H "Authorization: Bearer $KEY"
 ```
 
-`GET /api/v1/me` answers for any signed-in caller and reports `kind` as
-`admin`, `user` or `service`. If it says `user`, add the address to
-`BUNDLEMCP_ADMIN_EMAILS` and log in again.
+`GET /api/v1/me` answers for any signed-in caller and reports `kind` as `admin`, `user` or `service`. If it says `user`,
+add the address to `BUNDLEMCP_ADMIN_EMAILS` or the admin group at your identity provider (see
+[Who is an admin](/self-hosting/identity-provider#who-is-an-admin)), and log in again.
 
 ## Login redirects, then bounces back — the cookie never sticks
 

@@ -28,6 +28,8 @@ Playwright test title, the recording filename, and this table.
 | E2E-20 | A tool the upstream stops listing is flagged stale, then refresh & prune deletes it **(new)** | `tests/curation.spec.ts` | [`upstreams`](../../../openspec/specs/upstreams/spec.md) | UPS-19, BND-16 | `E2E-20__upstreams__curation-stale-tool-refresh-and-prune.webm` |
 | E2E-21 | An admin reorders a bundle's members **(new)** | `tests/curation.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-1 | `E2E-21__bundles__bundle-member-order.webm` |
 | E2E-22 | An admin lists an endpoint's allowed browser origins, and they persist normalised **(new)** | `tests/endpoint-config.spec.ts` | [`endpoints`](../../../openspec/specs/endpoints/spec.md) | EP-24 | `E2E-22__endpoints__endpoint-allowed-origins.webm` |
+| E2E-23 | A deactivated user cannot sign in again until an admin reactivates them **(new)** | `tests/users.spec.ts` | [`auth`](../../../openspec/specs/auth/spec.md) | AUTH-20 | `E2E-23__auth__user-deactivation-sticky.webm` |
+| E2E-24 | A user demoted since the page loaded is sent to the catalogue on the API's 403 **(new)** | `tests/catalogue.spec.ts` | [`auth`](../../../openspec/specs/auth/spec.md) | AUTH-17 | `E2E-24__auth__demoted-session-to-catalogue.webm` |
 
 ## Requirements referenced
 

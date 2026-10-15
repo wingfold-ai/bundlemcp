@@ -49,29 +49,37 @@ up without a restart (`oidc.discovered`). The document is refreshed hourly; sign
 
 ## Who is an admin
 
-Users whose email appears in `BUNDLEMCP_ADMIN_EMAILS` get admin rights. The list is re-evaluated **on every login**, so
-removing an address demotes that person at their next login and adding one promotes them the same way.
+A user is an admin when their email appears in `BUNDLEMCP_ADMIN_EMAILS`, or when their ID token's admin claim carries
+the admin value: by default a `groups` claim containing `bundlemcp-admin`. Set `BUNDLEMCP_ADMIN_CLAIM` to another claim
+name, or a dotted path into nested claims, and `BUNDLEMCP_ADMIN_CLAIM_VALUE` to the group or role your provider issues;
+for Keycloak realm roles that is `BUNDLEMCP_ADMIN_CLAIM=realm_access.roles`. The claim may be a single value or a list.
+Both are re-evaluated **on every login**, so removing an address or a group demotes that person at their next login and
+adding one promotes them the same way.
 
 Everyone else can still log in, as a **user**: they see the catalogue of bundles and endpoints, authorise MCP clients
 for those endpoints, and connect their own accounts on per-user upstream servers. They see no management pages, and the
-management API answers 401 to them outside the `/api/v1/me/…` routes
+management API answers 403 to their session outside the `/api/v1/me/…` routes (401 is for a caller with no valid
+session or key)
 ([status codes](/integrate/management-api#authentication)). See
 [Administrators and users](/guide/authentication#administrators-and-users).
 
 ## Sessions
 
-A successful login sets a signed, `httpOnly` cookie whose `Domain` and `Secure` attributes derive from the public URL.
-The session record lives in Valkey, so any replica can serve it. Sessions have a maximum age that forces a periodic
-re-login, which is when the admin list and the provider's own state are re-checked.
+A successful login sets a cookie carrying an opaque random session id: `httpOnly`, host-only (no `Domain`),
+`SameSite=Lax`, and `Secure` exactly when the public URL is https. The session record lives in Valkey, so any replica
+can serve it. A session lasts `BUNDLEMCP_ADMIN_SESSION_LIFETIME` seconds (12 hours by default), which is also the
+cookie's max age; then the user signs in at the provider again, which is when the admin list, the admin claim and the
+provider's own state are re-checked.
 
 `POST /logout` ends the bundlemcp session. Single logout from the provider is not required.
 
 ## Deactivating a user
 
 An admin can deactivate a user from **Users** or with `POST /api/v1/users/{id}:deactivate`. That immediately revokes
-their admin sessions, every OAuth token issued to their connectors, their consents, and their upstream OAuth tokens. A
-user removed at the provider loses access at the latest when their session and token lifetimes expire, and immediately
-if you deactivate them here.
+their admin sessions, every OAuth token issued to their connectors, their consents, and their upstream OAuth tokens, and
+signing in at the provider again does not undo it: the gateway refuses a deactivated user until an admin reactivates
+them (`POST /api/v1/users/{id}:activate`). A user removed at the provider loses access at the latest when their session
+and token lifetimes expire, and immediately if you deactivate them here.
 
 ## The development provider
 

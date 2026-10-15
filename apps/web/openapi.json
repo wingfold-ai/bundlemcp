@@ -5991,6 +5991,50 @@
         ]
       }
     },
+    "/api/v1/users/{user_id}:activate": {
+      "post": {
+        "description": "Let a deactivated user sign in again; nothing revoked at deactivation comes back.",
+        "operationId": "activate_user_api_v1_users__user_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate User",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/api/v1/users/{user_id}:deactivate": {
       "post": {
         "operationId": "deactivate_user_api_v1_users__user_id__deactivate_post",

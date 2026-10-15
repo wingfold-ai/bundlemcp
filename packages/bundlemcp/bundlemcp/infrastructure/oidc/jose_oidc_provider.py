@@ -130,7 +130,7 @@ class JoseOidcProvider:
             sub=claims["sub"],
             email=claims.get("email"),
             name=claims.get("name"),
-            groups=claims.get("groups", []),
+            claims=claims,
         )
 
     def _verify(self, id_token: str, jwks: dict[str, Any]) -> dict[str, Any]:

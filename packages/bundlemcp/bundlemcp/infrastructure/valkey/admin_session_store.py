@@ -9,13 +9,13 @@ from bundlemcp.domain.sessions.admin_session import AdminSession
 log = structlog.get_logger(__name__)
 
 ADMIN_SESSION_KEY = "bmcp:adminsession:{session_id}"
-DEFAULT_MAX_AGE = 12 * 3600  # seconds; forces re-login
 
 
 class AdminSessionStore:
     """Browser sessions for the management UI, kept in Valkey under random ids."""
 
-    def __init__(self, redis: Redis, *, max_age: int = DEFAULT_MAX_AGE) -> None:
+    def __init__(self, redis: Redis, *, max_age: int) -> None:
+        # seconds a session lasts, and the cookie's max age; ends in a fresh IdP login
         self._redis = redis
         self.max_age = max_age
 

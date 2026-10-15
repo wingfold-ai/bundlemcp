@@ -33,3 +33,6 @@ class SqlAlchemyUpstreamTokenRepository(
 
     async def for_server(self, server_id: uuid.UUID) -> list[UpstreamOAuthToken]:
         return await self.all(UpstreamOAuthTokenRow.server_id == server_id)
+
+    async def delete_for_user(self, user_id: uuid.UUID) -> int:
+        return await self.delete_where(UpstreamOAuthTokenRow.user_id == user_id)

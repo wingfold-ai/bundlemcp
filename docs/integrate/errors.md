@@ -33,19 +33,18 @@ same `413` carries the usual `{"detail": …}` object.
 | Status | Meaning |
 |---|---|
 | `400` | A precondition of the operation does not hold. |
-| `401` | No credential, an invalid credential, **or a signed-in user who is not an administrator**. |
-| `403` | An endpoint-kind API key was used, or a cookie-authenticated mutation failed the `Origin`/`Referer` check. |
+| `401` | No credential, or an invalid or expired one. |
+| `403` | A signed-in user who is not an administrator, an endpoint-kind API key, or a cookie-authenticated mutation that failed the `Origin`/`Referer` check. |
 | `404` | The named resource does not exist. |
 | `409` | The write conflicts with an existing resource, such as a name already in use. |
 | `422` | Request validation, including a body `name` that differs from the path `name`. |
 | `429` | An auth-failure lockout, with `Retry-After`. |
 | `503` | A dependency the operation needs is unavailable, with `Retry-After` when it is the live-state store. |
 
-A non-administrator who is signed in receives `401`, not `403`. This is worth
-designing for explicitly: a browser client cannot distinguish "session
-expired" from "not an administrator" by status alone, so treat `401` on
-`/api/v1` as *either*, and use [`GET /api/v1/me`](/integrate/management-api)
-— which answers for any signed-in user — to tell them apart.
+A signed-in user who is not an administrator receives `403`, so a browser
+client can tell "session expired" (`401`, sign in again) from "not an
+administrator" (`403`) by status alone. [`GET /api/v1/me`](/integrate/management-api)
+answers for any signed-in user and says whether they are one.
 
 ## JSON-RPC codes on the MCP edge
 

@@ -134,7 +134,7 @@ async def test_me_for_non_admin_session(env):
 
     # but the management API itself stays closed to non-admins
     denied = await http.get("/api/v1/upstreams")
-    assert denied.status_code == 401
+    assert denied.status_code == 403  # signed in, but not an admin
 
 
 async def test_origin_must_match_exactly(env):
