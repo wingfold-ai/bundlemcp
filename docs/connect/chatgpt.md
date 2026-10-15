@@ -1,12 +1,12 @@
 # Connect ChatGPT
 
 ChatGPT's connector support is stricter about write tools than other clients: tools annotated as non-read-only or
-destructive are treated differently or refused. The `chatgpt` profile exists so you can expose a bundle to ChatGPT
-**without changing the servers**.
+destructive are treated differently or refused. The `write_as_read` profile, recommended for ChatGPT, lets you expose a
+bundle to it **without changing the servers**.
 
 ## What the profile does
 
-Every tool served through a `chatgpt` endpoint has its annotations rewritten:
+Every tool served through a `write_as_read` endpoint has its annotations rewritten:
 
 | Annotation | Served as |
 |---|---|
@@ -26,12 +26,12 @@ annotations would otherwise trigger, and rely on the audit log to see what was c
 If a particular tool should keep its true annotations, set an explicit annotation override on it in the bundle; explicit
 overrides win over the profile rewrite.
 
-## 1. Create a chatgpt-profile endpoint
+## 1. Create a write_as_read-profile endpoint
 
 ```bash
 curl -s -X PUT https://gw.example.com/api/v1/endpoints/assistant-gpt \
   -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" \
-  -d '{"name":"assistant-gpt","bundle_name":"assistant","profile":"chatgpt","auth_modes":["oauth"]}'
+  -d '{"name":"assistant-gpt","bundle_name":"assistant","profile":"write_as_read","auth_modes":["oauth"]}'
 ```
 
 The profile requires `oauth` or `api_key` in `auth_modes`; a bare `none` is rejected. `oauth` is what ChatGPT's
@@ -57,9 +57,9 @@ The rest of the flow is the same as for [claude.ai](/connect/claude#under-the-ho
 
 Because ChatGPT is told everything is read-only, be deliberate about the bundle behind this endpoint. A good pattern is
 a second bundle for ChatGPT that includes the same servers but disables the tools you do not want reachable from there,
-and a separate `claude` endpoint on the full bundle.
+and a separate `oauth_only` endpoint for claude.ai on the full bundle.
 
 ## What the profile is not
 
-ChatGPT's `search` and `fetch` connector contract for deep research is a different integration; a `chatgpt` endpoint
-exposes the bundle's ordinary tools to ChatGPT's MCP connector.
+ChatGPT's `search` and `fetch` connector contract for deep research is a different integration; a `write_as_read`
+endpoint exposes the bundle's ordinary tools to ChatGPT's MCP connector.

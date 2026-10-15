@@ -14,10 +14,10 @@ from bundlemcp.domain.bundles.presented_tool import PresentedTool
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.endpoints.endpoint_profile import EndpointProfile
 from bundlemcp.domain.endpoints.profiles import (
-    ChatgptProfile,
-    ClaudeProfile,
+    OauthOnlyProfile,
     ProfileCatalog,
     ProfileRuleViolation,
+    WriteAsReadProfile,
 )
 from bundlemcp.domain.shared.secrets import display_prefix, hash_token
 from bundlemcp.infrastructure.postgres.engine import session_factory
@@ -82,8 +82,8 @@ def catalog(default) -> ProfileCatalog:
     return ProfileCatalog(
         presets={
             EndpointProfile.DEFAULT: default,
-            EndpointProfile.CLAUDE: ClaudeProfile(),
-            EndpointProfile.CHATGPT: ChatgptProfile(),
+            EndpointProfile.OAUTH_ONLY: OauthOnlyProfile(),
+            EndpointProfile.WRITE_AS_READ: WriteAsReadProfile(),
         }
     )
 

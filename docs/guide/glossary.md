@@ -9,7 +9,7 @@ The vocabulary the rest of these pages assumes.
 | **Upstream server** (or **upstream**) | An MCP server you registered, addressed by a unique name, that bundlemcp forwards calls to. bundlemcp is a client of it. *Upstream* is the short form used interchangeably in these pages, and the one the management API uses in its paths (`/api/v1/upstreams`). See [Upstream servers](/manage/servers). |
 | **Bundle** | Several upstream servers composed into one virtual MCP server, with per-bundle tool curation. metamcp called this a *namespace*. See [Bundles](/manage/bundles). |
 | **Endpoint** | A public URL, `/{name}/mcp`, serving one bundle with its own auth modes, profile and rate limits. One bundle can have several. See [Endpoints](/manage/endpoints). |
-| **Profile** | A per-endpoint preset shaping the auth and tool surface for a particular client: `default`, `claude` or `chatgpt`. See [Endpoints](/manage/endpoints). |
+| **Profile** | A per-endpoint preset shaping the auth and tool surface: `default`, `oauth_only` or `write_as_read`, each named for what it changes. See [Endpoints](/manage/endpoints). |
 
 ## Tools
 

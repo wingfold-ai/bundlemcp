@@ -12,7 +12,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0004](../adr/0004-postgres-redis-state-split.md) | Postgres durable / Redis live | accepted | Any-replica sessions; Redis becomes availability-critical |
 | [0005](../adr/0005-streamable-http-only.md) | Streamable HTTP only | accepted | No process management; stdio via sidecar |
 | [0006](../adr/0006-oidc-only-admin-auth.md) | OIDC-only admin auth | accepted | No password surface; IdP is a hard dependency |
-| [0007](../adr/0007-endpoint-profiles.md) | Endpoint profiles | accepted (amended by 0046) | One bundle, per-client surfaces; chatgpt annotations lie deliberately |
+| [0007](../adr/0007-endpoint-profiles.md) | Endpoint profiles | accepted (amended by 0046, 0047) | One bundle, per-client surfaces; write_as_read annotations lie deliberately |
 | [0008](../adr/0008-full-bidirectional-proxy.md) | Full bidirectional proxy | accepted | No protocol degradation; hardest engineering item |
 | [0009](../adr/0009-endpoint-bound-tokens-consent.md) | Consent + endpoint-bound tokens | accepted | Token confined to one endpoint; extra consent step |
 | [0010](../adr/0010-single-workspace.md) | Single workspace | accepted | Simple model; no intra-instance tenanting |
@@ -52,6 +52,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0044](../adr/0044-bundle-owned-prompts-and-resources.md) | Bundle-authored prompts and resources, unprefixed names and `bundle://` URIs, served without upstream contact | accepted | One server serves several bundles with bundle-specific context; the gateway now stores and serves content |
 | [0045](../adr/0045-upstreams-on-the-published-surface.md) | Rename `servers` to `upstreams` in API paths, document keys and UI, without aliases | accepted | One name for one thing; done before anyone depends on the old names |
 | [0046](../adr/0046-profiles-as-registered-presets-and-tool-pipeline-stages.md) | Each profile one preset in one catalogue; curation filter → profile → overrides as ordered stages | accepted | A new profile is one class and one registration; the stage order is a tested contract |
+| [0047](../adr/0047-profiles-named-for-what-they-change.md) | Rename `claude`/`chatgpt` to `oauth_only`/`write_as_read`, without aliases, and migrate stored endpoints | accepted | A profile is named for its effect; the upgrade stops old replicas first |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).

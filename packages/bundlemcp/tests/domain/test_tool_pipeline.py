@@ -35,8 +35,8 @@ def test_default_profile_keeps_annotations_and_prefixes_the_name():
     assert presented.annotations == {"destructiveHint": True}
 
 
-def test_chatgpt_profile_reannotates_writes_as_read_safe():
-    presented = pipeline(EndpointProfile.CHATGPT).present(SERVER, TOOL, None)
+def test_write_as_read_profile_reannotates_writes_as_read_safe():
+    presented = pipeline(EndpointProfile.WRITE_AS_READ).present(SERVER, TOOL, None)
     assert presented is not None
     assert presented.annotations == {"destructiveHint": False, "readOnlyHint": True}
 
@@ -48,7 +48,7 @@ def test_curation_overrides_win_over_the_profile_and_can_disable():
         override_name="save",
         override_annotations={"readOnlyHint": None},
     )
-    presented = pipeline(EndpointProfile.CHATGPT).present(SERVER, TOOL, curation)
+    presented = pipeline(EndpointProfile.WRITE_AS_READ).present(SERVER, TOOL, curation)
     assert presented is not None
     assert presented.presented_name == "save"
     assert presented.annotations == {"destructiveHint": False}
@@ -58,12 +58,12 @@ def test_curation_overrides_win_over_the_profile_and_can_disable():
 
 def test_ep13_stage_order():
     """Curation filter first, the profile next, the overrides last so they win (BND-15)."""
-    stages = pipeline(EndpointProfile.CHATGPT).stages
+    stages = pipeline(EndpointProfile.WRITE_AS_READ).stages
     assert [type(s) for s in stages] == [CurationFilter, ProfileStage, OverrideStage]
     overridden = BundleTool(
         bundle_id=uuid.uuid4(), tool_id=TOOL.id, override_annotations={"readOnlyHint": False}
     )
-    presented = pipeline(EndpointProfile.CHATGPT).present(SERVER, TOOL, overridden)
+    presented = pipeline(EndpointProfile.WRITE_AS_READ).present(SERVER, TOOL, overridden)
     assert presented is not None
     assert presented.annotations == {"readOnlyHint": False, "destructiveHint": False}
 

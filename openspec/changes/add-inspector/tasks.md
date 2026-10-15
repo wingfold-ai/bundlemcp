@@ -14,8 +14,8 @@
 ## 2. Endpoint targets through the public path
 
 - [ ] 2.1 Add the `GatewayEndpointClientFactory` contract, its in-process ASGI adapter in `infrastructure/fastmcp/`, and
-  wire it in `main/`; verify with an API test that listing tools of a ChatGPT-profile endpoint returns the curated,
-  profile-annotated list a client sees (UI-8)
+      wire it in `main/`; verify with an API test that listing tools of a write_as_read-profile endpoint returns the
+      curated, profile-annotated list a client sees (UI-8)
 - [ ] 2.2 Verify with a test that a tool call through an endpoint target writes one audit record, and one through an
   upstream target writes none and logs `source=inspector` (UI-11)
 - [ ] 2.3 Verify `uv run lint-imports` passes: the controller and use case name only contracts

@@ -93,8 +93,8 @@ curl -s -X PUT $API/bundles/assistant/tools/$TOOL_ID -H "$AUTH" -H "Content-Type
 | `override_annotations` | Shallow-merged over the upstream annotations. Set a key to `null` to remove it. |
 
 Curation is **per bundle**: the same server can present differently in two bundles. Explicit annotation overrides also
-win over the `chatgpt` profile's rewrite, so you can keep one tool truthfully marked destructive on a ChatGPT endpoint
-if you accept that ChatGPT may then refuse it.
+win over the `write_as_read` profile's rewrite, so you can keep one tool truthfully marked destructive on a ChatGPT
+endpoint if you accept that ChatGPT may then refuse it.
 
 The bundle page in the UI shows the same table with enable toggles and inline override editing, and flags tools that are
 overridden or stale.

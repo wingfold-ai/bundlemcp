@@ -185,7 +185,7 @@ put("/api/v1/bundles/fleet", {"name": "fleet", "description": "Every discovered 
 for container in discover_mcp_containers():
     put(f"/api/v1/bundles/fleet/upstreams/{container.name}", {"enabled": True})
 put("/api/v1/endpoints/fleet", {
-    "name": "fleet", "bundle_name": "fleet", "profile": "claude", "auth_modes": ["oauth"],
+    "name": "fleet", "bundle_name": "fleet", "profile": "oauth_only", "auth_modes": ["oauth"],
 })
 ```
 

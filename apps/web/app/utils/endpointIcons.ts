@@ -2,13 +2,13 @@
 
 export const PROFILE_ICON: Record<string, string> = {
   default: "i-lucide-plug",
-  claude: "i-lucide-sparkles",
-  chatgpt: "i-lucide-message-square",
+  oauth_only: "i-lucide-shield-check",
+  write_as_read: "i-lucide-book-open",
 };
 export const PROFILE_HELP: Record<string, string> = {
   default: "Passthrough for any MCP client",
-  claude: "Shaped for claude.ai: OAuth only, tools passed through",
-  chatgpt: "Shaped for ChatGPT: every tool presented as read-only",
+  oauth_only: "OAuth sign-in only, tools passed through (recommended for claude.ai)",
+  write_as_read: "Every tool presented as read-only (recommended for ChatGPT)",
 };
 
 export const ENDPOINT_AUTH_ICON: Record<string, string> = {

@@ -43,7 +43,7 @@ built, not that anything failed.
 ::: tip Not empty on first boot
 The stack loads `deploy/seed.yaml` as a [bootstrap file](/self-hosting/bootstrap). It registers the two example
 upstream servers, puts them in a `demo` bundle, and publishes that bundle as three endpoints: `demo` for API keys,
-and `claude` and `chatgpt` for those clients.
+and `claude` and `chatgpt` for those clients, with the `oauth_only` and `write_as_read` profiles.
 :::
 
 ## 2. Sign in to the admin UI
@@ -244,7 +244,7 @@ deploy/stack.sh up
 
 It prints the URL to paste into each client, for example `https://<random-words>.trycloudflare.com/claude/mcp`. Then
 follow [Connect claude.ai](/connect/claude) or [Connect ChatGPT](/connect/chatgpt). The seeded `claude` and `chatgpt`
-endpoints are set up for them: OAuth sign-in, and the profile each client needs.
+endpoints are set up for them: OAuth sign-in, and the profile recommended for each client.
 
 ::: danger A tunnel publishes a development stack
 Everyone who learns the tunnel URL reaches a gateway with publicly known passwords and keys. Keep it up only while you

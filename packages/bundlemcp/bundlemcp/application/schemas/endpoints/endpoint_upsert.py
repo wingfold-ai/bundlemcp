@@ -15,7 +15,8 @@ class EndpointUpsert(BaseModel):
     bundle_name: str = Field(description="Bundle this endpoint exposes")
     profile: EndpointProfile = Field(
         default=EndpointProfile.DEFAULT,
-        description="Client profile shaping the responses for a particular consumer",
+        description="Profile shaping how the endpoint serves its bundle: default, oauth_only or "
+        "write_as_read; the profile listing says what each one changes",
     )
     auth_modes: list[EndpointAuthMode] = Field(
         default_factory=lambda: [EndpointAuthMode.API_KEY],

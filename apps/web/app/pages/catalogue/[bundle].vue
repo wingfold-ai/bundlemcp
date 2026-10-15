@@ -73,19 +73,19 @@ async function copyUrl(ep: AvailableEndpointRead) {
 
 const CLIENT_LABEL: Record<string, string> = {
   default: "any MCP client",
-  claude: "claude.ai",
-  chatgpt: "ChatGPT",
+  oauth_only: "claude.ai",
+  write_as_read: "ChatGPT",
 };
 
 function steps(ep: AvailableEndpointRead): string[] {
   switch (ep.profile) {
-    case "claude":
+    case "oauth_only":
       return [
         "In claude.ai open Settings → Connectors → Add custom connector.",
         "Enter a name and paste the URL; leave client id and secret empty.",
         "Click Connect: you sign in with your usual account and approve the consent screen.",
       ];
-    case "chatgpt":
+    case "write_as_read":
       return [
         "In ChatGPT open Settings → Connectors and create a custom connector.",
         "Paste the URL and choose OAuth; no client id or secret is needed.",

@@ -77,7 +77,8 @@ async def test_upstream_oauth_client_needs_encryption_keys(engine, redis):
         SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis),
         NoopToolDiscovery(),
         cipher=None,
-        connections=NoUpstreamConnections(),        profiles=ProfileCatalog.builtin(),
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
     )
     with pytest.raises(PreconditionError):
         await runner.apply(BootstrapDocument(**OAUTH_DOC))
@@ -230,3 +231,13 @@ async def test_mgmt15_unknown_keys_are_rejected():
         BootstrapDocument.model_validate({"servers": [{"name": "a", "url": "http://a/mcp"}]})
     with pytest.raises(ValidationError, match="servers"):
         BootstrapDocument.model_validate({"bundles": [{"name": "demo", "servers": ["a"]}]})
+
+
+def test_ep23_former_profile_identifier_fails_the_document():
+    """EP-23: a bootstrap endpoint naming a former profile fails on its profile field."""
+    from pydantic import ValidationError
+
+    document = {"endpoints": [{"name": "c", "bundle_name": "demo", "profile": "claude"}]}
+    with pytest.raises(ValidationError, match=r"endpoints\.0\.profile") as raised:
+        BootstrapDocument.model_validate(document)
+    assert "oauth_only" in str(raised.value)

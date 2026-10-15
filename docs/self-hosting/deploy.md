@@ -237,6 +237,20 @@ Because there are no versioned releases yet (see
 looking for new files under
 `packages/bundlemcp/bundlemcp/infrastructure/postgres/migrations/versions/`.
 
+### Upgrading past the endpoint-profile rename
+
+Revision `0009` renames the endpoint profiles for what they change: `claude` becomes `oauth_only` and `chatgpt`
+becomes `write_as_read`. It rewrites the profile stored on every endpoint, so existing endpoints keep their URL and
+behaviour. It is the one exception to the backward-compatibility convention above: an older replica cannot read a
+rewritten endpoint. For this upgrade:
+
+1. Stop every old gateway replica before starting the new ones; do not roll.
+2. Edit any [bootstrap file](/self-hosting/bootstrap) or script that names `profile: claude` or `profile: chatgpt` to
+   use `oauth_only` or `write_as_read`. The old names are rejected with a validation error that lists the accepted
+   ones.
+
+To roll back, run `alembic downgrade 0008`, which restores the old names, and then deploy the previous image.
+
 ## Scaling out
 
 Run more gateway replicas behind the proxy. There is no sticky-session requirement: handshake-era sessions live in

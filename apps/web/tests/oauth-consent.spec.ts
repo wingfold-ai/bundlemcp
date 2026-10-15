@@ -56,7 +56,7 @@ test(testTitle("E2E-17"), async ({ page, steps }) => {
         body: JSON.stringify({
           name: ENDPOINT,
           bundle_name: "demo",
-          profile: "claude",
+          profile: "oauth_only",
           auth_modes: ["oauth"],
         }),
       });
