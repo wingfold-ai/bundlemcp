@@ -45,9 +45,9 @@ Then:
    The seed also registers `oauth-demo`, an OAuth-protected example upstream, and two more endpoints on the `demo`
    bundle (`claude` and `chatgpt`). The maintainers' private fleet is not part of the default seed; it lives in
    `deploy/seed.fleet.yaml`.
-3. Create an endpoint with the `claude` profile and connect it in claude.ai; the gateway runs the OAuth authorization
-   server and the consent screen itself. claude.ai needs a public HTTPS URL, so this step wants a real deployment or a
-   tunnel.
+3. Create an endpoint with the `oauth_only` profile and connect it in claude.ai; the gateway runs the OAuth
+   authorization server and the consent screen itself. claude.ai needs a public HTTPS URL, so this step wants a real
+   deployment or a tunnel.
 
 The user guides (deployment, connecting clients, the management API) live in [docs/](docs/README.md); run
 `pnpm docs:install && pnpm docs:dev` to browse them. The management API is documented at

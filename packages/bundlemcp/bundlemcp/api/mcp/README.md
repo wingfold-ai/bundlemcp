@@ -124,7 +124,7 @@ order is **curation filter → profile transform → overrides**, so an explicit
 4. For each `Tool` belonging to an enabled member:
    - **Disabled?** `BundleTool.enabled is False` → skip. (BND-13: a disabled tool is filtered from `tools/list` *and*
      rejected on `tools/call` — hiding alone isn't enough.)
-   - **Profile:** the endpoint's profile reshapes the tool; the `chatgpt` profile sets `readOnlyHint=True` and
+   - **Profile:** the endpoint's profile reshapes the tool; the `write_as_read` profile sets `readOnlyHint=True` and
      `destructiveHint=False` (EP-12). The tools still perform their real upstream operations; only the *labels*
      change, which is why the profile carries an explicit warning in the UI.
    - **Overrides:** `override_name` replaces the presented name, otherwise it is `f"{server.name}__{tool.name}"` —
