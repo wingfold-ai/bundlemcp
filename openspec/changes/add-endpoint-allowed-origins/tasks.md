@@ -33,16 +33,16 @@
 
 ## 4. Admin UI
 
-- [ ] 4.1 Add an "Allowed browser origins" input (one origin per line, `*` for any) with help text saying it is not
+- [x] 4.1 Add an "Allowed browser origins" input (one origin per line, `*` for any) with help text saying it is not
   authentication to `apps/web/app/pages/endpoints/[name].vue`, sending `allowed_origins` on save. Verify with
   `npm run typecheck` and an e2e scenario in `apps/web/tests/endpoint-config.spec.ts` that an edited list persists
   across a reload (with its `spec-map.json` entry and `npm run test:map`).
 
 ## 5. Documentation and ADR
 
-- [ ] 5.1 Add `docs/adr/0049-browser-origins-are-an-endpoint-setting.md` and its index entries. Verify
+- [x] 5.1 Add `docs/adr/0049-browser-origins-are-an-endpoint-setting.md` and its index entries. Verify
   `python3 tools/check_adr_graph.py`.
-- [ ] 5.2 Document the field in `docs/manage/endpoints.md`, the CORS and `403` behaviour in
+- [x] 5.2 Document the field in `docs/manage/endpoints.md`, the CORS and `403` behaviour in
   `docs/integrate/http-surface.md` and `docs/integrate/errors.md`, the bootstrap example in
   `docs/self-hosting/bootstrap.md`, and the upgrade note (open endpoints refuse other origins) in
   `docs/self-hosting/deploy.md`. Verify `python3 tools/check_docs_links.py` and `check_docs_symbols.py`.

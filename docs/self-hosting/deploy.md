@@ -259,6 +259,13 @@ rewritten endpoint. For this upgrade:
 
 To roll back, run `alembic downgrade 0008`, which restores the old names, and then deploy the previous image.
 
+### Upgrading to per-endpoint browser origins
+
+Revision `0011` gives every endpoint `allowed_origins`. Endpoints that need a credential get `["*"]` and behave as
+before. An open endpoint (`auth_modes: ["none"]`) gets `[]`: a browser page on another site that called it is refused
+with `403` from now on, until you list that site's origin on the endpoint. Scripts and other clients that are not
+browsers are unaffected. The revision only adds a column, so rolling replicas is fine.
+
 ## Scaling out
 
 Run more gateway replicas behind the proxy. There is no sticky-session requirement: handshake-era sessions live in

@@ -20,19 +20,23 @@ Responses:
 | `204` | `DELETE` ended the session. |
 | `400` | A JSON-RPC error, including a malformed envelope. See [Request envelope](#request-envelope). |
 | `401` | Missing or invalid credentials, with a `WWW-Authenticate` challenge. |
+| `403` | A browser request from an origin the endpoint does not allow, as a JSON-RPC error with `id: null`, before any credential is checked. |
 | `404` | An unknown or disabled endpoint, or a session id the gateway does not hold for this endpoint and caller. |
 | `405` | `GET` or `DELETE` without `Mcp-Session-Id`, with `Allow: POST`. |
 | `413` | A request body over the limit (4 MiB by default), as a JSON-RPC error with `id: null`. |
 | `429` | A rate limit, with `Retry-After`. |
 | `503` | The live-state store (Valkey) is unreachable, with `Retry-After`. The session is kept; retry it. |
 
-CORS on these routes is permissive, so a browser-based MCP client works from any origin: the response reflects the
-request's `Origin` in `Access-Control-Allow-Origin` (with `Vary: Origin`), exposes `Mcp-Session-Id` and
-`WWW-Authenticate`, and answers the preflight for `GET`, `POST` and `DELETE` with the headers the MCP transport sends
-(`Authorization`, `Content-Type`, `Accept`, `Mcp-Session-Id`, `MCP-Protocol-Version`, `Mcp-Method`, `Last-Event-ID`,
-`X-API-Key`). Credentials are never allowed, and these routes never authenticate by cookie: a caller presents a bearer
-token or an API key in a header, so the admin UI's session cannot be used from another site. This holds whether or not
-`BUNDLEMCP_WEB_ORIGINS` is set; that list governs `/api/v1` and the rest of the gateway only.
+CORS on these routes follows each endpoint's [allowed browser origins](/manage/endpoints#browser-origins). For a request
+whose `Origin` the endpoint allows (or the gateway's own), the response reflects it in `Access-Control-Allow-Origin`
+(with `Vary: Origin`) and exposes `Mcp-Session-Id` and `WWW-Authenticate`, and an `OPTIONS` preflight is answered for
+`GET`, `POST` and `DELETE` with the headers the MCP transport sends (`Authorization`, `Content-Type`, `Accept`,
+`Mcp-Session-Id`, `MCP-Protocol-Version`, `Mcp-Method`, `Last-Event-ID`, `X-API-Key`), cacheable for ten minutes. A
+request or preflight from any other origin gets `403` and no CORS headers. A request without an `Origin` (any client
+that is not a browser) is not affected. Credentials are never allowed, and these routes never authenticate by cookie: a
+caller presents a bearer token or an API key in a header. Answers given before the endpoint is resolved (`404` for an
+unknown endpoint, a parse error, `413`) carry no CORS grant. `BUNDLEMCP_WEB_ORIGINS` governs `/api/v1` and the rest of
+the gateway only.
 
 ## Request envelope
 
