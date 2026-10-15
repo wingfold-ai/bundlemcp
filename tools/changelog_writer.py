@@ -42,6 +42,7 @@ EXCLUDED = (
     "CHANGELOG.md",
 )
 TOOL = "write_changelog_entry"
+BREAKING_TITLE = re.compile(r"^[a-z]+(?:\([^)]*\))?!:")
 FILE_HEADER = re.compile(r"^diff --git a/(\S+) b/", re.MULTILINE)
 INSTRUCTIONS = (Path(__file__).parent / "changelog_writer_prompt.md").read_text()
 
@@ -78,21 +79,19 @@ class EntryDraft(BaseModel):
         return not (self.added or self.changed or self.fixed or self.security or self.breaking)
 
 
-def tool_schema() -> dict:
+def tool_schema(breaking: bool) -> dict:
+    """The entry tool; only a pull request whose title is marked breaking can say what breaks."""
     bullets = {"type": "array", "items": {"type": "string", "maxLength": 400}, "maxItems": 8}
+    properties = {"added": bullets, "changed": bullets, "fixed": bullets, "security": bullets}
+    if breaking:
+        properties["breaking"] = {"type": "string", "maxLength": 400}
     return {
         "name": TOOL,
         "description": "Record the changelog entry for this pull request.",
         "input_schema": {
             "type": "object",
-            "properties": {
-                "added": bullets,
-                "changed": bullets,
-                "fixed": bullets,
-                "security": bullets,
-                "breaking": {"type": "string", "maxLength": 400},
-            },
-            "required": ["added", "changed", "fixed", "security", "breaking"],
+            "properties": properties,
+            "required": list(properties),
             "additionalProperties": False,
         },
     }
@@ -115,8 +114,12 @@ def filtered_diff(diff: str) -> str:
 
 
 def user_message(title: str, body: str, diff: str) -> str:
+    if BREAKING_TITLE.match(title):
+        verdict = "The title marks this change as breaking: say in `breaking` what readers must do."
+    else:
+        verdict = "The title does not mark this change as breaking: describe nothing as breaking."
     return (
-        f"Pull request title: {title}\n\n"
+        f"Pull request title: {title}\n{verdict}\n\n"
         f"<description>\n{body.strip()}\n</description>\n\n"
         f"<diff>\n{filtered_diff(diff)}\n</diff>"
     )
@@ -151,20 +154,28 @@ def request_draft(
     *,
     post: Callable[[dict, str], dict] = _post,
 ) -> EntryDraft:
-    """Ask the model for the entry; raises ValueError when the answer is unusable."""
+    """Ask the model for the entry; raises ValueError when the answer is unusable.
+
+    Whether the change is breaking is the title's to say, so a ``breaking`` text
+    for a title without ``!`` is dropped.
+    """
+    breaking = BREAKING_TITLE.match(title) is not None
     payload = {
         "model": MODEL,
         "max_tokens": 2000,
         "system": INSTRUCTIONS,
-        "tools": [tool_schema()],
+        "tools": [tool_schema(breaking)],
         "tool_choice": {"type": "auto"},
         "messages": [{"role": "user", "content": user_message(title, body, diff)}],
     }
     answer = post(payload, api_key)
     for block in answer.get("content", []):
         if block.get("type") == "tool_use" and block.get("name") == TOOL:
+            entry = block.get("input")
+            if not breaking and isinstance(entry, dict):
+                entry = {key: value for key, value in entry.items() if key != "breaking"}
             try:
-                draft = EntryDraft.model_validate(block.get("input"))
+                draft = EntryDraft.model_validate(entry)
             except ValidationError as exc:
                 raise ValueError(f"the entry did not match its schema: {exc}") from exc
             if draft.is_empty:

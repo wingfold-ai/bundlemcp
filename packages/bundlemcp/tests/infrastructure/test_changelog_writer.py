@@ -147,3 +147,18 @@ def test_dep12_a_workspace_id_is_sent_when_set(monkeypatch):
     sent.clear()
     writer._post({}, "key")
     assert "anthropic-workspace-id" not in sent
+
+
+def test_dep12_only_a_breaking_title_can_mark_the_entry_breaking():
+    seen = {}
+
+    def post(payload, key):
+        seen["schema"] = payload["tools"][0]["input_schema"]["properties"]
+        seen["message"] = payload["messages"][0]["content"]
+        return _answer(_entry(changed=["The cookie is renamed"], breaking="Log in again"))
+
+    draft = writer.request_draft("key", "feat(auth): Rename the cookie", "", "", post=post)
+    assert "breaking" not in seen["schema"] and "describe nothing as breaking" in seen["message"]
+    assert draft.breaking == ""
+    draft = writer.request_draft("key", "feat(auth)!: Rename the cookie", "", "", post=post)
+    assert "breaking" in seen["schema"] and draft.breaking == "Log in again"

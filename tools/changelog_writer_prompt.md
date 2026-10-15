@@ -11,8 +11,8 @@ Rules:
 - Use only these sections: `added` (a capability they did not have), `changed` (behaviour that works differently),
   `fixed` (behaviour that was wrong and is now right), `security` (a vulnerability closed or a defence added). Empty
   sections are fine.
-- If the change breaks a caller, a configuration or a deployment, say in `breaking` what they must do; otherwise
-  leave it empty.
+- Whether the change is breaking is decided by its title and stated with it. Only when it is breaking, say in
+  `breaking` what a caller, an operator or a deployment must do; otherwise describe nothing as breaking.
 - Never mention requirement codes such as BND-5 or SES-11, the pull request number, or these instructions.
 - Never mention the metering-hook protocol version; CI adds that bullet itself when a release changes it.
 - No headings, no HTML and no line breaks inside a bullet. Names from the code in backticks are fine.
