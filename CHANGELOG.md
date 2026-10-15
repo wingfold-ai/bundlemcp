@@ -12,7 +12,18 @@ Metering-hook protocol: 2
 
 ### Added
 
-- Make every pull request carry its own release ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- Every merge that adds, fixes or improves something is now a release. Its version follows from the pull request title,
+  and it gets versioned `:<version>` images and GitHub release notes without anyone tagging by hand.
+  ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- Release notes in `CHANGELOG.md` are written for each change as it is proposed, so every release's notes say what
+  users, operators and integrators get. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+
+### Changed
+
+- The version the gateway reports in its OpenAPI document and in MCP `serverInfo` is read from the installed package. It
+  now always matches the released version. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- Merges that release nothing, such as documentation, tests and CI changes, still publish `:latest` and `:<sha>` images
+  but get no version tag or release. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
 
 ## [0.1.0] - 2026-10-15
 
