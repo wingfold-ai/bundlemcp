@@ -11,7 +11,7 @@ Playwright test title, the recording filename, and this table.
 | E2E-03 | Check a server's URL, register it, discover its tools, delete it | `tests/server-flow.spec.ts` | [`upstreams`](../../../openspec/specs/upstreams/spec.md) | UPS-11, UI-6, UPS-2, UPS-17 | `E2E-03__upstreams__server-create-discover-delete.webm` |
 | E2E-04 | Form validation blocks a '__' server name client-side | `tests/server-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-4 | `E2E-04__admin-ui__server-name-validation.webm` |
 | E2E-05 | Compose a bundle, curate a tool, expose it as an endpoint | `tests/bundle-flow.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-6, BND-4, BND-12, BND-14, EP-7 | `E2E-05__bundles__bundle-compose-curate-expose.webm` |
-| E2E-06 | The chatgpt profile warns that write tools are re-annotated | `tests/bundle-flow.spec.ts` | [`endpoints`](../../../openspec/specs/endpoints/spec.md) | EP-12 | `E2E-06__endpoints__bundle-chatgpt-warning.webm` |
+| E2E-06 | The write_as_read profile warns that write tools are re-annotated | `tests/bundle-flow.spec.ts` | [`endpoints`](../../../openspec/specs/endpoints/spec.md) | EP-12 | `E2E-06__endpoints__bundle-write-as-read-warning.webm` |
 | E2E-07 | A UI-built endpoint serves MCP calls and records an audit trail **(new)** | `tests/endpoint-relay.spec.ts` | [`endpoints`](../../../openspec/specs/endpoints/spec.md) | EP-1, EP-3, OPS-1, BND-6, EP-7, AUTH-22 | `E2E-07__endpoints__endpoint-relay-mcp-and-audit.webm` |
 | E2E-08 | Endpoint rate limit and auth-mode edits persist across reload **(new)** | `tests/endpoint-config.spec.ts` | [`endpoints`](../../../openspec/specs/endpoints/spec.md) | EP-16, EP-3 | `E2E-08__endpoints__endpoint-config-persist.webm` |
 | E2E-09 | Users page lists the admin and drills into consents **(new)** | `tests/users.spec.ts` | [`auth`](../../../openspec/specs/auth/spec.md) | AUTH-20, AUTH-11, UI-1 | `E2E-09__auth__users-list-and-consents.webm` |
@@ -42,7 +42,7 @@ Playwright test title, the recording filename, and this table.
 | BND-12 | `bundles` | Each (bundle, tool) pair SHALL have enabled (default true) and optional overrides for name, title, description, annotations (domain model, BundleTool). A too… |
 | BND-14 | `bundles` | Name overrides SHALL replace the prefixed name (server__tool → override_name); the router MUST map override names back to the origin upstream/tool on call. O… |
 | EP-7 | `endpoints` | Endpoint CRUD SHALL be available via the management API and the UI, including a copy-paste connection card in the UI (URL + auth instructions per client type). |
-| EP-12 | `endpoints` | The chatgpt profile (ChatGPT connector, which restricts/behaves differently toward write tools): - re-annotates write tools as read-safe: every served tool's… |
+| EP-12 | `endpoints` | The write_as_read profile presents write tools as read-only. ChatGPT's connector, which restricts or behaves differently toward write tools, is the client it… |
 | EP-1 | `endpoints` | URL scheme: POST https://<host>/{endpoint_name}/mcp (Streamable HTTP). endpoint_name MUST be globally unique, slug-safe, and MUST NOT be a reserved first pat… |
 | EP-3 | `endpoints` | Each endpoint SHALL have a non-empty set of auth modes (auth_modes): - oauth — bearer token issued by bundlemcp's OAuth server (OAuth server); - api_key — Au… |
 | OPS-1 | `operations` | The gateway SHALL write one audit record per tools/call, after completion, from the tool-call pipeline (PROT-25): endpoint, bundle, server, original + presen… |

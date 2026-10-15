@@ -210,7 +210,7 @@ enforcement in both paths, as the first stage of the endpoint's tool pipeline, a
 - **AND** no upstream call is made
 
 #### Scenario: A disabled tool never reaches the profile transform
-- **GIVEN** tool `echo__say` is disabled in a bundle served through a `chatgpt`-profile endpoint
+- **GIVEN** tool `echo__say` is disabled in a bundle served through a `write_as_read`-profile endpoint
 - **WHEN** a client lists tools
 - **THEN** `echo__say` is absent, and no override name of `echo__say` is presented either
 
@@ -232,7 +232,7 @@ override names (validated on write).
 
 ### Requirement: BND-15 Annotation overrides as a shallow merge
 Annotation overrides SHALL be a shallow merge over the upstream annotations (setting a key to `null` removes it). This
-is the same mechanism the ChatGPT profile uses programmatically ([endpoint profiles](../endpoints/spec.md));
+is the same mechanism the `write_as_read` profile uses programmatically ([endpoint profiles](../endpoints/spec.md));
 explicit per-tool overrides MUST win over profile rewrites.
 
 #### Scenario: Override merges and removes keys
@@ -241,7 +241,8 @@ explicit per-tool overrides MUST win over profile rewrites.
 - **THEN** the tool is presented with `{"readOnlyHint": true}`
 
 #### Scenario: Explicit override wins over the chatgpt profile
-- **GIVEN** a tool with an annotation override `{"readOnlyHint": false}` served through a `chatgpt`-profile endpoint
+- **GIVEN** a tool with an annotation override `{"readOnlyHint": false}` served through a
+  `write_as_read`-profile endpoint
 - **WHEN** a client lists tools
 - **THEN** the tool's `readOnlyHint` is `false`, while `destructiveHint` is still rewritten to `false` by the profile
 
@@ -450,7 +451,7 @@ bundle resource MUST be `public` with the same TTL, because its content is ident
 Endpoint profiles ([endpoint profiles](../endpoints/spec.md)) MUST NOT rewrite bundle prompts or resources.
 
 #### Scenario: chatgpt endpoint serves prompts unchanged
-- **GIVEN** a `chatgpt`-profile and a `default`-profile endpoint over the same bundle
+- **GIVEN** a `write_as_read`-profile and a `default`-profile endpoint over the same bundle
 - **WHEN** a client calls `prompts/get` for a bundle prompt on each
 - **THEN** both return identical messages
 

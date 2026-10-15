@@ -34,7 +34,7 @@ bundles. Through the API:
 curl -s -X PUT $API/endpoints/assistant -H "$AUTH" -H "Content-Type: application/json" -d '{
   "name": "assistant",
   "bundle_name": "assistant",
-  "profile": "claude",
+  "profile": "oauth_only",
   "auth_modes": ["oauth"]
 }'
 ```
@@ -43,7 +43,7 @@ curl -s -X PUT $API/endpoints/assistant -H "$AUTH" -H "Content-Type: application
 |---|---|---|
 | `name` | required | Slug-safe and globally unique; becomes the URL path segment. |
 | `bundle_name` | required | The bundle to serve. |
-| `profile` | `default` | `default`, `claude` or `chatgpt`. |
+| `profile` | `default` | `default`, `oauth_only` or `write_as_read`. |
 | `auth_modes` | required | Non-empty list of `oauth`, `api_key`, `none`. |
 | `allow_unauthenticated` | `false` | Must be `true` when `auth_modes` is `["none"]`. |
 | `rate_limit` | none | See below. |
@@ -85,19 +85,19 @@ Unauthenticated requests receive a 401 with a `WWW-Authenticate` challenge point
 | Profile | Allowed `auth_modes` | Effect |
 |---|---|---|
 | `default` | any valid combination | Passthrough. |
-| `claude` | exactly `["oauth"]` | Passthrough; guarantees the OAuth discovery surface claude.ai requires. See [claude.ai](/connect/claude). |
-| `chatgpt` | must contain `oauth` or `api_key` | Presents every tool as read-only. See [ChatGPT](/connect/chatgpt). |
+| `oauth_only` | exactly `["oauth"]` | Passthrough; guarantees the OAuth discovery surface a sign-in client needs. Recommended for [claude.ai](/connect/claude). |
+| `write_as_read` | must contain `oauth` or `api_key` | Presents every tool as read-only. Recommended for [ChatGPT](/connect/chatgpt). |
 
-`GET /api/v1/endpoints/profiles` returns the list with a description and, for `chatgpt`, a warning the UI displays on
-the endpoint page.
+`GET /api/v1/endpoints/profiles` returns the list with a description and, for `write_as_read`, a warning the UI displays
+on the endpoint page.
 
-A profile is applied when the gateway builds the tools an endpoint serves, in this order: tools the bundle disabled
-are removed first, then the profile reshapes what is left, then the bundle's per-tool overrides are applied. Because
-the overrides come last, an explicit annotation override wins over the profile — for example a tool you mark
-`readOnlyHint: false` stays marked that way on a `chatgpt` endpoint. `tools/list` and `tools/call` use the same result,
-so a tool that is not listed cannot be called either.
+A profile is applied when the gateway builds the tools an endpoint serves, in this order: tools the bundle disabled are
+removed first, then the profile reshapes what is left, then the bundle's per-tool overrides are applied. Because the
+overrides come last, an explicit annotation override wins over the profile — for example a tool you mark
+`readOnlyHint: false` stays marked that way on a `write_as_read` endpoint. `tools/list` and `tools/call` use the same
+result, so a tool that is not listed cannot be called either.
 
-::: warning The chatgpt profile changes what clients are told, not what tools do
+::: warning The write_as_read profile changes what clients are told, not what tools do
 A tool that deletes records is still called and still deletes. Only the annotations shown to ChatGPT say
 `readOnlyHint: true`. The audit log records every call normally.
 :::

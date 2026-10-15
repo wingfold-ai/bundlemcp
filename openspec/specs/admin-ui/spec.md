@@ -24,12 +24,13 @@ The admin UI SHALL provide these pages:
   own prompts and resources ([bundles](../bundles/spec.md)), endpoints of this
   bundle, and the catalogue overview shown to users ([BND-11](../bundles/spec.md)).
 - **Catalogue** — what a signed-in non-admin sees: the bundles they can connect to, each with its overview and the
-  tools it serves ([BND-11](../bundles/spec.md)), and per endpoint the copy-paste URL and setup steps for the client it
-  is shaped for.
+  tools it serves ([BND-11](../bundles/spec.md)), and per endpoint the copy-paste URL and setup steps for the client its
+  profile is recommended for.
 - **Composition** — one grid of bundles against registered servers, marking each membership and whether it is enabled
   ([BND-4](../bundles/spec.md)). It answers what spans bundles: which bundles a server is used by, and which servers are
   registered but in no bundle, so unreachable through any endpoint.
-- **Endpoints** — list; detail: bundle, profile (with chatgpt-profile warning [EP-12](../endpoints/spec.md)),
+- **Endpoints** — list; detail: bundle, profile (with the write_as_read warning
+  [EP-12](../endpoints/spec.md)),
   auth modes, rate limits, connection card (copy-paste URL + per-client setup instructions —
   [EP-7](../endpoints/spec.md)).
 - **API keys** — create (one-time value display), kind, active/inactive state, deactivate and delete

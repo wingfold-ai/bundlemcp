@@ -1,7 +1,7 @@
 """Gateway MCP-serving tests: the full endpoint flow against in-process upstreams.
 
 Covers EP-3 auth, SES-1/2/3/3a/4 sessions, BND-2/3 prefix routing, BND-13/14
-curation, EP-12 chatgpt re-annotation, PROT-25/26 metering, OPS-1/2 audit,
+curation, EP-12 write_as_read re-annotation, PROT-25/26 metering, OPS-1/2 audit,
 AUTH-28/29 identity forwarding.
 """
 
@@ -139,7 +139,7 @@ async def _seed(engine: AsyncEngine) -> None:
                 BundleServerRow(bundle_id=bundle.id, server_id=notes.id),
                 EndpointRow(name="main", bundle_id=bundle.id, auth_modes=["api_key"]),
                 EndpointRow(
-                    name="gpt", bundle_id=bundle.id, profile="chatgpt", auth_modes=["api_key"]
+                    name="gpt", bundle_id=bundle.id, profile="write_as_read", auth_modes=["api_key"]
                 ),
             ]
         )
@@ -635,8 +635,8 @@ async def test_override_rename_routes_back(gateway):
     assert call.json()["result"]["content"][0]["text"] == "echo:y"
 
 
-async def test_chatgpt_profile_reannotates(gateway):
-    """EP-12: chatgpt endpoint presents every tool as read-safe."""
+async def test_write_as_read_profile_reannotates(gateway):
+    """EP-12: a write_as_read endpoint presents every tool as read-safe."""
     http, app, hook = gateway
     session = await _initialize(http, endpoint="gpt")
     listing = await _rpc(http, "gpt", session, "tools/list")

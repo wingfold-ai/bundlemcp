@@ -74,7 +74,7 @@ bundles:
 endpoints:
   - name: assistant
     bundle_name: assistant
-    profile: claude
+    profile: oauth_only
     auth_modes: [oauth]
 
   - name: assistant-scripts
@@ -124,8 +124,8 @@ from then on. Create further keys through the API with that key, then retire it.
 
 ## The demo seed
 
-`deploy/seed.yaml` is the document the reference stack applies. It registers the `echo` example server and
-`oauth-demo`, an upstream that is itself OAuth-protected (`examples/oauth-demo-mcp`, login `demo_user` /
-`demo_password`), bundles both as `demo`, and exposes the bundle at three endpoints: `demo` with API-key access, and
-`claude` and `chatgpt` with OAuth for those clients. It also registers the maintainers' fleet of upstream servers behind
-the `fleet` compose profile. Copy it as a starting point and remove the fleet entries.
+`deploy/seed.yaml` is the document the reference stack applies. It registers the `echo` example server and `oauth-demo`,
+an upstream that is itself OAuth-protected (`examples/oauth-demo-mcp`, login `demo_user` / `demo_password`), bundles
+both as `demo`, and exposes the bundle at three endpoints: `demo` with API-key access, and `claude` and `chatgpt` with
+OAuth for those clients, using the `oauth_only` and `write_as_read` profiles. It also registers the maintainers' fleet
+of upstream servers behind the `fleet` compose profile. Copy it as a starting point and remove the fleet entries.

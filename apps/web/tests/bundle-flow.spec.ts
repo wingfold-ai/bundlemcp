@@ -60,11 +60,11 @@ test(testTitle("E2E-05"), async ({ page, steps }) => {
 test(testTitle("E2E-06"), async ({ page, steps }) => {
   await steps.play([
     given("the create-endpoint form on a bundle's page", () => page.goto("/bundles/demo")),
-    when("selecting the chatgpt profile", { req: "EP-12" }, () =>
-      page.getByTestId("create-endpoint-profile").selectOption("chatgpt"),
+    when("selecting the write_as_read profile", { req: "EP-12" }, () =>
+      page.getByTestId("create-endpoint-profile").selectOption("write_as_read"),
     ),
     then("a re-annotation warning is shown", { req: "EP-12" }, async () => {
-      await expect(page.getByTestId("chatgpt-warning")).toBeVisible();
+      await expect(page.getByTestId("profile-warning")).toBeVisible();
     }),
   ]);
 });

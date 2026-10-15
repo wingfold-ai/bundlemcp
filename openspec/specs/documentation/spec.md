@@ -33,9 +33,9 @@ pages are the operator/integrator guides, grouped by reader task:
   the bootstrap file, day-two operations.
 - **manage/** — servers, bundles and tool curation, endpoints, API keys, users and consents, the audit log; each page
   shows the UI path and the equivalent management-API calls.
-- **connect/** — **claude.md** (claude-profile endpoint + OAuth walkthrough incl. consent), **chatgpt.md** (chatgpt
-  profile + the re-annotation warning, [EP-12](../endpoints/spec.md)), **scripts.md** (API-key access for
-  scripts/agents), **stdio-sidecar.md** (wrapping a stdio MCP server in a Streamable-HTTP sidecar with a compose
+- **connect/** — **claude.md** (an `oauth_only`-profile endpoint + OAuth walkthrough incl. consent), **chatgpt.md** (the
+  `write_as_read` profile + the re-annotation warning, [EP-12](../endpoints/spec.md)), **scripts.md** (API-key access
+  for scripts/agents), **stdio-sidecar.md** (wrapping a stdio MCP server in a Streamable-HTTP sidecar with a compose
   snippet — the [UPS-7](../upstreams/spec.md) deliverable).
 - **integrate/** — for application layers: the management API, the metering hook, identity forwarding + introspection
   for upstream servers ([protocol](../protocol/spec.md)/[management](../management/spec.md)), and the full
@@ -201,8 +201,8 @@ model with the three views.
 ### Docs and onboarding
 
 - The example MCP server for DOC-3 is `examples/echo-mcp`, a three-tool FastMCP server including an annotated write tool
-  so the chatgpt profile has something to re-annotate. The seed also registers `examples/oauth-demo-mcp` (a per-user
-  OAuth upstream) and `claude`/`chatgpt` endpoints on the same bundle.
+  so the write_as_read profile has something to re-annotate. The seed also registers `examples/oauth-demo-mcp` (a
+  per-user OAuth upstream) and `claude`/`chatgpt` endpoints on the same bundle.
 - VitePress was chosen over plain Markdown (2026-09) because the guides need navigation, search and a home page to be
   usable by someone who has not read the repo; the Markdown source stays reviewable in PRs, which keeps DOC-5
   enforceable.

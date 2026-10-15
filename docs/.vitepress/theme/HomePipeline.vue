@@ -20,8 +20,8 @@ const bundleTools = [
 ];
 
 const endpoints = [
-  { path: "/assistant/mcp", client: "claude.ai", auth: "OAuth 2.1", note: "profile: claude" },
-  { path: "/assistant-gpt/mcp", client: "ChatGPT", auth: "OAuth 2.1", note: "profile: chatgpt, tools re-annotated read-only" },
+  { path: "/assistant/mcp", client: "claude.ai", auth: "OAuth 2.1", note: "profile: oauth_only" },
+  { path: "/assistant-gpt/mcp", client: "ChatGPT", auth: "OAuth 2.1", note: "profile: write_as_read, tools re-annotated read-only" },
   { path: "/assistant-ci/mcp", client: "scripts & agents", auth: "API key", note: "profile: default, 120 calls/min per key" },
 ];
 </script>

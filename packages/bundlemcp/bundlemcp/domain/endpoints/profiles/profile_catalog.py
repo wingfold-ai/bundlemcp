@@ -1,10 +1,10 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from bundlemcp.domain.endpoints.endpoint_profile import EndpointProfile
-from bundlemcp.domain.endpoints.profiles.chatgpt_profile import ChatgptProfile
-from bundlemcp.domain.endpoints.profiles.claude_profile import ClaudeProfile
 from bundlemcp.domain.endpoints.profiles.default_profile import DefaultProfile
 from bundlemcp.domain.endpoints.profiles.endpoint_profile_preset import EndpointProfilePreset
+from bundlemcp.domain.endpoints.profiles.oauth_only_profile import OauthOnlyProfile
+from bundlemcp.domain.endpoints.profiles.write_as_read_profile import WriteAsReadProfile
 
 
 class ProfileCatalog(BaseModel):
@@ -34,7 +34,11 @@ class ProfileCatalog(BaseModel):
     @classmethod
     def builtin(cls) -> "ProfileCatalog":
         """The profiles the gateway ships."""
-        presets: list[EndpointProfilePreset] = [DefaultProfile(), ClaudeProfile(), ChatgptProfile()]
+        presets: list[EndpointProfilePreset] = [
+            DefaultProfile(),
+            OauthOnlyProfile(),
+            WriteAsReadProfile(),
+        ]
         return cls(presets={p.name: p for p in presets})
 
     def get(self, profile: EndpointProfile) -> EndpointProfilePreset:

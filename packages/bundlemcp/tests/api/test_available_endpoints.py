@@ -51,7 +51,7 @@ async def test_catalogue_lists_enabled_oauth_endpoints_for_non_admins(env):
     )
     assert created.status_code == 200, created.text
     for name, body in {
-        "connectors": {"profile": "claude", "auth_modes": ["oauth"]},
+        "connectors": {"profile": "oauth_only", "auth_modes": ["oauth"]},
         "scripts": {"profile": "default", "auth_modes": ["api_key"]},
         "paused": {"profile": "default", "auth_modes": ["oauth"], "enabled": False},
     }.items():
@@ -72,7 +72,7 @@ async def test_catalogue_lists_enabled_oauth_endpoints_for_non_admins(env):
         {
             "name": "connectors",
             "url": f"{PUBLIC_URL}/connectors/mcp",
-            "profile": "claude",
+            "profile": "oauth_only",
             "bundle_name": "b1",
             "bundle_description": "Tools",
             "bundle_overview": "Everything about b1.",

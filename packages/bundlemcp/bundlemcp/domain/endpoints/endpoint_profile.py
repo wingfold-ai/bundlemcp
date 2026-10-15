@@ -3,5 +3,5 @@ from enum import StrEnum
 
 class EndpointProfile(StrEnum):
     DEFAULT = "default"
-    CLAUDE = "claude"
-    CHATGPT = "chatgpt"
+    OAUTH_ONLY = "oauth_only"
+    WRITE_AS_READ = "write_as_read"

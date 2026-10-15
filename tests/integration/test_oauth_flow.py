@@ -62,7 +62,7 @@ def _ensure_oauth_endpoint(client: httpx.Client) -> None:
         json={
             "name": "oauthdemo",
             "bundle_name": "demo",
-            "profile": "claude",
+            "profile": "oauth_only",
             "auth_modes": ["oauth"],
         },
     ).raise_for_status()

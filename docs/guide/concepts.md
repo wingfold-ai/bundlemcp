@@ -120,11 +120,13 @@ MCP clients do not all behave alike. claude.ai insists on a particular OAuth set
 stricter with tools that are marked as changing data, and may refuse them or ask for confirmation each time. A
 **profile** adapts an endpoint to such habits, so you do not have to change your upstream servers to suit one client:
 
-| Profile | Use it for | What it changes |
+| Profile | What it changes | Recommended for |
 |---|---|---|
-| `default` | Scripts, agents, Claude Code, most clients | Nothing. Tools are served as the bundle defines them. |
-| `claude` | claude.ai and Claude Desktop | Requires OAuth and guarantees the sign-in metadata claude.ai looks for. Tools are unchanged. |
-| `chatgpt` | ChatGPT | Marks every tool as read-only so ChatGPT accepts it. The tools still do what they do — a delete still deletes — so only use it with tools you trust. |
+| `default` | Nothing. Tools are served as the bundle defines them. | Scripts, agents, Claude Code, most clients |
+| `oauth_only` | Requires OAuth as the only sign-in, with the metadata a client needs to find it. Tools are unchanged. | claude.ai and Claude Desktop |
+| `write_as_read` | Marks every tool as read-only so a client wary of write tools accepts it. The tools still do what they do — a delete still deletes — so only use it with tools you trust. | ChatGPT |
+
+A profile is named for what it does, not for a client: the recommendation can change without the profile changing.
 
 The endpoint says *who and how much*; the profile says *in which shape*. [Endpoints](/manage/endpoints) covers creating
 them, and [Connect clients](/connect/claude) has a page per client.

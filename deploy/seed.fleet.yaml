@@ -80,18 +80,18 @@ endpoints:
       - api_key
 
   # The URL to paste into claude.ai / Claude Desktop (<public url>/claude/mcp):
-  # the claude profile requires oauth only, so every caller is a signed-in user
+  # the oauth_only profile requires oauth alone, so every caller is a signed-in user
   # and can connect their own oauth-demo account.
   - name: claude
     bundle_name: demo
-    profile: claude
+    profile: oauth_only
     auth_modes:
       - oauth
 
   # The same bundle for a ChatGPT connector (<public url>/chatgpt/mcp).
   - name: chatgpt
     bundle_name: demo
-    profile: chatgpt
+    profile: write_as_read
     auth_modes:
       - oauth
 

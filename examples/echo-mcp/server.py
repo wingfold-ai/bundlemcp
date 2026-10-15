@@ -1,5 +1,5 @@
 """Tiny demo MCP server: a couple of tools incl. an annotated write tool
-so a fresh compose install has something to bundle, and the chatgpt profile has
+so a fresh compose install has something to bundle, and the write_as_read profile has
 a write tool to re-annotate.
 """
 

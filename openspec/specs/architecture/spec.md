@@ -333,7 +333,7 @@ carry the same fields.
   `size_bytes` (derived from `content`, stored so a listing never reads the content), `content` (text), timestamps;
   unique `(bundle_id, name)`. Both cascade with their bundle (ARC-17) and are config-class entities (ARC-20).
 - **Endpoint** ([endpoints](../endpoints/spec.md)): `id`, `name` (globally unique, slug-safe, appears in the public
-  URL), `bundle_id` FK (many endpoints may point at one bundle), `profile` (`default` | `claude` | `chatgpt`,
+  URL), `bundle_id` FK (many endpoints may point at one bundle), `profile` (`default` | `oauth_only` | `write_as_read`,
   [endpoints](../endpoints/spec.md)), `auth_modes` (json subset of `oauth`, `api_key`, `none`),
   `rate_limit` (json, [endpoints](../endpoints/spec.md)), `enabled`, timestamps.
 - **User** ([auth](../auth/spec.md), [auth](../auth/spec.md)): provisioned on first OIDC
