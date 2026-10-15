@@ -1148,3 +1148,35 @@ def test_other_auth_pages_stay_same_origin():
         "X-Frame-Options": "DENY",
         "Cache-Control": "no-store",
     }
+
+
+async def test_auth20_authorize_sends_a_deactivated_users_session_back_to_login(oauth_env):
+    """AUTH-20: a deactivated user's unexpired session no longer counts at authorize.
+
+    Authorize sends them to /login, which refuses a deactivated user (see the OIDC tests),
+    so no code is ever issued to them.
+    """
+    http, app, user = oauth_env
+    client_id = await _register_client(http)
+    _, challenge = make_pkce()
+    session = http.cookies.get(SESSION_COOKIE)
+    http.cookies.delete(SESSION_COOKIE)  # the admin action is the service key's, not the user's
+    resp = await http.post(
+        f"/api/v1/users/{user.id}:deactivate",
+        headers={"Authorization": f"Bearer {SERVICE_KEY}"},
+    )
+    assert resp.status_code == 200
+    http.cookies.set(SESSION_COOKIE, session)  # the deactivated user's own, still unexpired
+    authorize = await http.get(
+        "/oauth/authorize",
+        params={
+            "client_id": client_id,
+            "redirect_uri": "https://client.example/cb",
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "resource": f"{PUBLIC_URL}/ep1/mcp",
+        },
+    )
+    assert authorize.status_code == 302
+    assert authorize.headers["location"].startswith("/login?next=")

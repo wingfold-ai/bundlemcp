@@ -2,7 +2,9 @@
 
 Credential resolution is framework-free (``bundlemcp.application``); this module
 owns the transport concerns the edge decides — the CSRF origin check on
-cookie-authenticated mutations and the accept-either 401/403 status policy.
+cookie-authenticated mutations and the status policy: 401 when no valid session
+or key was presented, 403 when the caller is known but may not manage the
+gateway (a signed-in user who is not an admin, or an endpoint-kind key).
 """
 
 from typing import Annotated
@@ -43,6 +45,11 @@ class ManagementAuth:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="key is not service-kind (AUTH-23)",
+                )
+            case User():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="signed in, but not an administrator (AUTH-17)",
                 )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

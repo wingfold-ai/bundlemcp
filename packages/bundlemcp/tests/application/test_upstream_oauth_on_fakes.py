@@ -305,3 +305,26 @@ async def test_connect_tool_is_not_offered_to_callers_who_cannot_connect(uow):
     prompts = AccountConnectPrompts(UpstreamCredentialResolver(token_service(uow), PUBLIC_BASE))
     key_caller = CallerIdentity.with_api_key(uuid.uuid4())
     assert await prompts.pending(view_of(server, bundle), key_caller) == []
+
+
+async def test_auth20_deactivation_removes_the_users_upstream_connections(uow):
+    """AUTH-20: a deactivated user's upstream tokens are gone, so discovery cannot borrow them."""
+    from bundlemcp.application.management.user_service import UserService
+
+    server, _ = seed_member(uow)
+    user = User(oidc_issuer="i", oidc_sub="u", email="u@x")
+    uow.users.add(user)
+    tokens = token_service(uow)
+    user_tokens = UpstreamTokens(access_token="user-token", expires_in=3600)
+    await tokens.save(server.id, user.id, user_tokens)
+    await tokens.save(server.id, None, UpstreamTokens(access_token="shared", expires_in=3600))
+    assert await uow.upstream_tokens.any_valid_user_connection(server.id) is not None
+
+    await UserService(uow).deactivate(user.id)
+
+    assert await uow.upstream_tokens.any_valid_user_connection(server.id) is None
+    assert await uow.upstream_tokens.find(server.id, None) is not None  # shared one kept
+    probe = RecordingProbe()
+    result = await discovery(uow, tokens, probe).discover(server.id)
+    assert result.error == "upstream not connected"
+    assert probe.headers == []

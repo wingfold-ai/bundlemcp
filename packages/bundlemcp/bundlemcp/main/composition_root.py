@@ -268,7 +268,7 @@ class CompositionRoot:
             token_cipher=cipher,
             upstream_tokens=upstream_tokens,
             upstream_connections=upstream_tokens or NoUpstreamConnections(),
-            admin_sessions=AdminSessionStore(redis),
+            admin_sessions=AdminSessionStore(redis, max_age=settings.admin_session_lifetime),
             readiness=StoreReadinessProbe(sessions, redis),
             pending_authorizations=ValkeySingleUseState(
                 redis,

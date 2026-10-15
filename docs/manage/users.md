@@ -25,13 +25,14 @@ Admins configure the gateway. Everyone else is a **user**: after signing in
 they see the catalogue, the bundles with endpoints they can connect an MCP
 client to, and nothing else. They authorise connectors, connect their own
 accounts on per-user servers, and that is the extent of it; the management
-API answers 401 to them outside the `/api/v1/me/…` routes
+API answers 403 to them outside the `/api/v1/me/…` routes
 ([status codes](/integrate/management-api#authentication)). The division of
 responsibilities is spelled out on
 [Authentication](/guide/authentication#administrators-and-users).
 
-Admin status is re-evaluated at every login from the email list. To promote or demote someone, edit
-`BUNDLEMCP_ADMIN_EMAILS` and have them log in again.
+Admin status is re-evaluated at every login, from the email list and the admin claim (see
+[Who is an admin](/self-hosting/identity-provider#who-is-an-admin)). To promote or demote someone, change
+`BUNDLEMCP_ADMIN_EMAILS` or their group at the identity provider, and have them log in again.
 
 ## Deactivating a user
 
@@ -40,16 +41,24 @@ curl -s -X POST https://gw.example.com/api/v1/users/$USER_ID:deactivate \
   -H "Authorization: Bearer $SERVICE_KEY"
 ```
 
-Deactivation is immediate for the gateway's own credentials: the user's admin sessions end, and every OAuth token
-issued to their connectors and their consents are revoked. Two gaps remain:
+Deactivation is immediate: the user's admin sessions end, every OAuth token issued to their connectors and their
+consents are revoked, and their upstream OAuth connections are deleted, so neither their own calls nor discovery of a
+per-user upstream can use them any more.
 
-- Their upstream OAuth tokens are **not** revoked, so a per-user upstream can still be reached with them.
-- It does not stick: the next time the user signs in at the identity provider, the gateway marks them active again.
-  To keep someone out, disable them at the identity provider as well.
+It also sticks. When a deactivated user signs in at the identity provider again, through the admin UI or an MCP
+client's OAuth flow, the gateway refuses them with a page saying their account is deactivated, creates no session and
+issues no code. Only an administrator brings them back:
 
-When someone leaves, do both: deactivate them here, which ends their access at once, and disable them at the identity
-provider, which keeps them from signing in again. Either alone falls short — the identity provider alone takes effect
-only when their sessions and tokens expire.
+```bash
+curl -s -X POST https://gw.example.com/api/v1/users/$USER_ID:activate \
+  -H "Authorization: Bearer $SERVICE_KEY"
+```
+
+or **Reactivate** on the Users page. Nothing revoked at deactivation is restored: the user consents to their clients
+and connects their upstream accounts again.
+
+When someone leaves, deactivating them here is enough to keep them out of this gateway. Disable them at the identity
+provider as well, so they lose access to everything else that trusts it.
 
 ## Consents
 

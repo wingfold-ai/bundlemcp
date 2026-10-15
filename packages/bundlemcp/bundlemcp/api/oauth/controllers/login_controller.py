@@ -5,13 +5,15 @@ from typing import Annotated
 
 import structlog
 from fastapi import HTTPException, Query, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.post_login_redirect import clamp_post_login_redirect
+from bundlemcp.api.oauth.pages.page_headers import PAGE_HEADERS
+from bundlemcp.api.oauth.pages.page_templates import PAGE_TEMPLATES
 from bundlemcp.api.oauth.providers import (
     AdminSessionsProvider,
     OidcLoginStatesProvider,
@@ -99,6 +101,11 @@ class LoginController(Controller):
         except OidcError as exc:
             raise HTTPException(400, str(exc)) from None
         user = await provisioning.provision(VerifiedClaims.model_validate(claims.model_dump()))
+        if not user.is_active:
+            # the authorize flow signs people in here too, so it is refused the same way
+            log.info("admin.login_refused_deactivated", user_id=str(user.id))
+            html = PAGE_TEMPLATES.get_template("account_deactivated.html").render()
+            return HTMLResponse(html, status_code=403, headers=PAGE_HEADERS)
 
         session_id = await admin_sessions.create(
             AdminSession(user_id=str(user.id), email=user.email, is_admin=user.is_admin)

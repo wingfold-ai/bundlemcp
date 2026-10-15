@@ -17,3 +17,9 @@ class InMemoryUpstreamTokenRepository(InMemoryRepository[UpstreamOAuthToken]):
 
     async def for_server(self, server_id: uuid.UUID) -> list[UpstreamOAuthToken]:
         return self.where(lambda t: t.server_id == server_id)
+
+    async def delete_for_user(self, user_id: uuid.UUID) -> int:
+        owned = self.where(lambda t: t.user_id == user_id)
+        for token in owned:
+            await self.delete(token)
+        return len(owned)

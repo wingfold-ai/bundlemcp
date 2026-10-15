@@ -237,6 +237,26 @@
         "EP-24"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-23",
+      "testFile": "users.spec.ts",
+      "slug": "user-deactivation-sticky",
+      "title": "A deactivated user cannot sign in again until an admin reactivates them",
+      "requirements": [
+        "AUTH-20"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-24",
+      "testFile": "catalogue.spec.ts",
+      "slug": "demoted-session-to-catalogue",
+      "title": "A user demoted since the page loaded is sent to the catalogue on the API's 403",
+      "requirements": [
+        "AUTH-17"
+      ],
+      "new": true
     }
   ]
 }

@@ -86,11 +86,12 @@ What to take from this:
 
 - The **person** is authenticated by the identity provider, not by bundlemcp. The gateway trusts the provider's ID token
   and creates a local user record the first time it sees that person.
-- A **session** is a signed cookie in the browser plus a record in Valkey, so any gateway replica can serve it. It has a
-  maximum age that forces a periodic re-login.
-- **Administrator or user** is decided at every login from `BUNDLEMCP_ADMIN_EMAILS`. A user can still log in, but only
-  sees the catalogue: the management API answers 401 to them on every route except `/api/v1/me/…`. See
-  [status codes](/integrate/management-api#authentication) — 401 rather than 403 is deliberate but easy to misread.
+- A **session** is a cookie carrying an opaque random id in the browser plus a record in Valkey, so any gateway replica
+  can serve it. It lasts `BUNDLEMCP_ADMIN_SESSION_LIFETIME` (12 hours by default), which forces a periodic re-login.
+- **Administrator or user** is decided at every login from `BUNDLEMCP_ADMIN_EMAILS` and the admin claim
+  (`BUNDLEMCP_ADMIN_CLAIM`, by default a `groups` claim containing `bundlemcp-admin`). A user can still log in, but only
+  sees the catalogue: the management API answers 403 to them on every route except `/api/v1/me/…`, and 401 only to a
+  caller with no valid session or key. See [status codes](/integrate/management-api#authentication).
 - A **service API key** can also call the management API, which is how automation configures the gateway without a
   browser. That is the only place API keys and sessions overlap; the cookie wins when both are present.
 

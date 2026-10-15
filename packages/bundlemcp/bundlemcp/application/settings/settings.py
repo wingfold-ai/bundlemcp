@@ -52,6 +52,25 @@ class Settings(BaseModel):
         default=[],
         description="Email addresses granted admin rights, re-evaluated at every login",
     )
+    admin_claim: str = Field(
+        default="groups",
+        min_length=1,
+        description="ID-token claim that grants admin rights when it equals or contains "
+        "admin_claim_value; a dotted path reaches into nested claims, e.g. "
+        "'realm_access.roles' for Keycloak realm roles. Re-evaluated at every login",
+    )
+    admin_claim_value: str = Field(
+        default="bundlemcp-admin",
+        min_length=1,
+        description="Value of admin_claim that grants admin rights, e.g. a group or role name",
+    )
+    admin_session_lifetime: int = Field(
+        default=43200,
+        ge=300,
+        le=2592000,
+        description="Seconds an admin UI login lasts before the user must sign in again at the "
+        "identity provider (12 hours by default); between 300 and 2592000 (30 days)",
+    )
 
     web_origins: list[str] = Field(
         default=[],

@@ -64,7 +64,7 @@ async def test_catalogue_lists_enabled_oauth_endpoints_for_non_admins(env):
 
     await _login(http, provider, sub="u2", email="user@example.com")
     denied = await http.get("/api/v1/endpoints")
-    assert denied.status_code == 401
+    assert denied.status_code == 403  # signed in, but not an admin
 
     catalogue = await http.get("/api/v1/me/endpoints")
     assert catalogue.status_code == 200

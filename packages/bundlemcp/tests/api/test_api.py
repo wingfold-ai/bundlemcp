@@ -254,3 +254,13 @@ async def test_bnd5_changing_a_members_url_to_the_gateway_answers_409(client: As
     )
     assert resp.status_code == 409
     assert (await client.get("/api/v1/upstreams/weather")).json()["url"] == "http://w/mcp"
+
+
+async def test_auth26_a_deactivated_key_is_refused_on_the_next_request(client: AsyncClient):
+    """AUTH-26: no validation cache: deactivating a key stops it on the very next request."""
+    created = await client.post("/api/v1/api-keys", json={"name": "ops", "kind": "service"})
+    key, key_id = created.json()["key"], created.json()["id"]
+    as_key = {"Authorization": f"Bearer {key}"}
+    assert (await client.get("/api/v1/upstreams", headers=as_key)).status_code == 200
+    await client.post(f"/api/v1/api-keys/{key_id}:deactivate")
+    assert (await client.get("/api/v1/upstreams", headers=as_key)).status_code == 401

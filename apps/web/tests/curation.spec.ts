@@ -92,8 +92,11 @@ test(testTitle("E2E-20"), async ({ page, steps }) => {
     await api.put(`endpoints/${inner}`, {
       data: { name: inner, bundle_name: inner, auth_modes: ["none"], allow_unauthenticated: true },
     });
+    // The gateway serves the inner bundle to itself as an upstream whose tool list the test
+    // can change. It is reached under its compose service name: the same endpoint under the
+    // public URL is refused as a bundle member, since a bundle may not include the gateway.
     await api.put(`upstreams/${outer}`, {
-      data: { name: outer, url: `http://localhost:8000/${inner}/mcp` },
+      data: { name: outer, url: `http://gateway:8000/${inner}/mcp` },
     });
     await api.put(`bundles/${outer}`, { data: { name: outer, description: "e2e" } });
     await api.put(`bundles/${outer}/upstreams/${outer}`, { data: { enabled: true } });
