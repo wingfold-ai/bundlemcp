@@ -62,7 +62,7 @@ Playwright test title, the recording filename, and this table.
 | AUTH-30 | `auth` | Upstreams that need to verify the forwarded bearer SHALL be able to call POST /oauth/introspect (AUTH-5) — the sequence the first consumer's servers use toda… |
 | AUTH-33 | `auth` | A forward_headers entry that forwards authorization passes the caller's gateway token to the upstream — token passthrough, which the MCP authorization spec f… |
 | UPS-25 | `upstreams` | A server with auth_mode=upstream_oauth (UPS-1) needs a client identity at the upstream authorization server. The gateway SHALL use the MCP authorization spec… |
-| AUTH-17 | `auth` | Users listed in BUNDLEMCP_ADMIN_EMAILS, or whose groups claim contains bundlemcp-admin, SHALL get is_admin=true. The role is re-evaluated on every login — de… |
+| AUTH-17 | `auth` | Users listed in BUNDLEMCP_ADMIN_EMAILS, or whose configured admin claim (BUNDLEMCP_ADMIN_CLAIM, a claim name or a dotted path into nested claims, default gro… |
 | BND-11 | `bundles` | A bundle MUST also have an overview: a long-form, admin-managed description written for the person browsing the catalogue, separate from description because … |
 | SEC-6 | `security` | OAuth browser pages (authorize, consent, upstream connect) MUST carry standard hardening headers: a CSP of default-src 'none'; style-src 'unsafe-inline'; fra… |
 | AUTH-2 | `auth` | The gateway SHALL accept RFC 7591 registration at POST /oauth/register: open registration, public clients (token_endpoint_auth_method: none) by default, redi… |
