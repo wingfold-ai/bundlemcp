@@ -34,7 +34,7 @@ def _entry(**sections) -> dict:
     return {"added": [], "changed": [], "fixed": [], "security": [], "breaking": "", **sections}
 
 
-def test_dep12_the_model_is_asked_through_a_forced_tool_with_the_filtered_diff():
+def test_dep12_the_model_is_asked_through_its_one_tool_with_the_filtered_diff():
     sent = {}
 
     def post(payload, api_key):
@@ -44,7 +44,8 @@ def test_dep12_the_model_is_asked_through_a_forced_tool_with_the_filtered_diff()
     writer.request_draft("key", "feat(bundles): Order", "Body", DIFF, post=post)
     assert sent["api_key"] == "key"
     assert sent["model"] == writer.MODEL
-    assert sent["tool_choice"] == {"type": "tool", "name": writer.TOOL}
+    assert sent["tool_choice"] == {"type": "auto"}
+    assert [tool["name"] for tool in sent["tools"]] == [writer.TOOL]
     message = sent["messages"][0]["content"]
     assert "+code" in message and "Body" in message
     assert "+lock" not in message and "+entry" not in message and "+schema" not in message

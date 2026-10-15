@@ -157,7 +157,7 @@ def request_draft(
         "max_tokens": 2000,
         "system": INSTRUCTIONS,
         "tools": [tool_schema()],
-        "tool_choice": {"type": "tool", "name": TOOL},
+        "tool_choice": {"type": "auto"},
         "messages": [{"role": "user", "content": user_message(title, body, diff)}],
     }
     answer = post(payload, api_key)
