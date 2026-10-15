@@ -19,7 +19,7 @@ Responses:
 | `202` | A client's JSON-RPC *response* to a server request, accepted on a session. |
 | `204` | `DELETE` ended the session. |
 | `400` | A JSON-RPC error, including a malformed envelope. See [Request envelope](#request-envelope). |
-| `401` | Missing or invalid credentials, with a `WWW-Authenticate` challenge. |
+| `401` | Missing or invalid credentials, with a `WWW-Authenticate` challenge carrying the endpoint's `resource_metadata`. A bearer that was presented and refused (issued for another endpoint, expired, revoked or unknown) adds `error="invalid_token"`, which tells an OAuth client to authorise again for this endpoint; a request with no credential gets the challenge without an error. |
 | `403` | A browser request from an origin the endpoint does not allow, as a JSON-RPC error with `id: null`, before any credential is checked. |
 | `404` | An unknown or disabled endpoint, or a session id the gateway does not hold for this endpoint and caller. |
 | `405` | `GET` or `DELETE` without `Mcp-Session-Id`, with `Allow: POST`. |

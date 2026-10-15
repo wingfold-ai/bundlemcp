@@ -31,7 +31,7 @@ See [proposal.md](proposal.md) for the motivation. Today:
 - A durable outbox (Valkey stream or Postgres-first write). A process killed with `SIGKILL` still loses its in-memory
   queue; the key in the pre-call is what lets a consumer detect that (the "identifiable as lost" half of OPS-7).
 - Changing the status codes of refused requests (EP-3a in
-  [complete-oauth-server](../complete-oauth-server/proposal.md) owns those).
+  [complete-oauth-server](../archive/2026-10-15-complete-oauth-server/proposal.md) owns those).
 - Argument capture (OPS-4 stays as is).
 
 ## Decisions

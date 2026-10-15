@@ -2,6 +2,7 @@
 import type { components } from "~~/types/api";
 
 type AvailableEndpointRead = components["schemas"]["AvailableEndpointRead"];
+type ConsentRead = components["schemas"]["ConsentRead"];
 
 // The catalogue: the bundles a signed-in person can connect to, grouped
 // from the endpoints that accept their identity. Admins see it inside the
@@ -15,6 +16,9 @@ const layout = computed(() => (me.value?.is_admin ? "default" : "user"));
 const endpoints = ref<AvailableEndpointRead[]>([]);
 const errorMsg = ref("");
 
+// the clients this person has authorised; each can be withdrawn here
+const consents = ref<ConsentRead[]>([]);
+
 async function load() {
   const { data, error } = await api.GET("/api/v1/me/endpoints");
   if (error) {
@@ -22,8 +26,23 @@ async function load() {
     return;
   }
   endpoints.value = data ?? [];
+  // a service key has no consents of its own and is answered 401, which shows as none
+  const mine = await api.GET("/api/v1/me/consents");
+  consents.value = mine.data ?? [];
 }
 await load();
+
+async function revokeConsent(consentId: string) {
+  errorMsg.value = "";
+  const { error } = await api.DELETE("/api/v1/me/consents/{consent_id}", {
+    params: { path: { consent_id: consentId } },
+  });
+  if (error) {
+    errorMsg.value = apiErrorMessage(error);
+    return;
+  }
+  await load();
+}
 
 interface CatalogueBundle {
   name: string;
@@ -88,6 +107,45 @@ const bundles = computed<CatalogueBundle[]>(() => {
             </UBadge>
           </div>
         </NuxtLink>
+      </div>
+
+      <div class="space-y-2" data-testid="my-connections">
+        <h2 class="font-medium">Your connected clients</h2>
+        <p class="text-sm text-muted">
+          MCP clients you have allowed to act as you on an endpoint. Withdrawing one signs it out
+          there; it asks for your consent again the next time it connects.
+        </p>
+        <p v-if="consents.length === 0" class="text-sm text-muted" data-testid="my-connections-empty">
+          You have not connected any client yet.
+        </p>
+        <table v-else class="wf-table text-sm">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Endpoint</th>
+              <th>Connected</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in consents" :key="c.id" :data-testid="`my-consent-${c.client_id}`">
+              <td class="font-mono text-xs break-all">{{ c.client_id }}</td>
+              <td class="font-mono text-xs">{{ c.endpoint_id }}</td>
+              <td><TimestampText :value="c.granted_at" /></td>
+              <td>
+                <UButton
+                  size="xs"
+                  color="error"
+                  variant="outline"
+                  :data-testid="`revoke-my-consent-${c.client_id}`"
+                  @click="revokeConsent(c.id)"
+                >
+                  Withdraw
+                </UButton>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </NuxtLayout>

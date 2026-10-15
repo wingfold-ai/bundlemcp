@@ -19,3 +19,11 @@ class TokenRequest(BaseModel):
     refresh_token: str | None = Field(
         default=None, repr=False, description="Refresh token being rotated"
     )
+    resource: str | None = Field(
+        default=None, description="Target resource the client named (RFC 8707), as sent"
+    )
+    resource_endpoint: str | None = Field(
+        default=None,
+        description="Endpoint name the resource identifies; None when it names no endpoint "
+        "of this gateway or no resource was sent",
+    )

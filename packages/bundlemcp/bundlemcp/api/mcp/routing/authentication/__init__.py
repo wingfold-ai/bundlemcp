@@ -6,7 +6,10 @@ from bundlemcp.api.mcp.routing.authentication.anonymous_authenticator import (
 from bundlemcp.api.mcp.routing.authentication.api_key_authenticator import (
     ApiKeyAuthenticator,
 )
-from bundlemcp.api.mcp.routing.authentication.auth_challenge import unauthorized_challenge
+from bundlemcp.api.mcp.routing.authentication.auth_challenge import (
+    presents_bearer,
+    unauthorized_challenge,
+)
 from bundlemcp.api.mcp.routing.authentication.credential_authenticator import (
     CredentialAuthenticator,
 )
@@ -25,5 +28,6 @@ __all__ = [
     "CredentialAuthenticator",
     "EndpointAuthentication",
     "OAuthBearerAuthenticator",
+    "presents_bearer",
     "unauthorized_challenge",
 ]
