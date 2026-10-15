@@ -24,6 +24,9 @@ Playwright test title, the recording filename, and this table.
 | E2E-16 | A bundle's catalogue overview and tool list are written by an admin and read by a user | `tests/bundle-flow.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-11, BND-6 | `E2E-16__bundles__bundle-catalogue-overview-and-tools.webm` |
 | E2E-17 | Approving or denying consent in a browser reaches the client's redirect URI on another origin | `tests/oauth-consent.spec.ts` | [`security`](../../../openspec/specs/security/spec.md) | SEC-6, AUTH-11, AUTH-2 | `E2E-17__security__oauth-consent-reaches-client-redirect.webm` |
 | E2E-18 | An admin writes a bundle's own resource and prompt, previews both, and cannot orphan the prompt | `tests/bundle-flow.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-31, BND-6, BND-23, BND-20 | `E2E-18__bundles__bundle-own-prompts-and-resources.webm` |
+| E2E-19 | Saving a curation row keeps the overrides set through the API, and edits description and annotations inline **(new)** | `tests/curation.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-16, BND-17 | `E2E-19__bundles__curation-save-keeps-api-overrides.webm` |
+| E2E-20 | A tool the upstream stops listing is flagged stale, then refresh & prune deletes it **(new)** | `tests/curation.spec.ts` | [`upstreams`](../../../openspec/specs/upstreams/spec.md) | UPS-19, BND-16 | `E2E-20__upstreams__curation-stale-tool-refresh-and-prune.webm` |
+| E2E-21 | An admin reorders a bundle's members **(new)** | `tests/curation.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-1 | `E2E-21__bundles__bundle-member-order.webm` |
 
 ## Requirements referenced
 
@@ -63,3 +66,7 @@ Playwright test title, the recording filename, and this table.
 | BND-31 | `bundles` | Bundle prompts and resources MUST be managed by admins only, through the management API under the bundle — GET, PUT (idempotent upsert by name) and DELETE on… |
 | BND-23 | `bundles` | A bundle SHALL have zero or more bundle resources. Each has a name (natural key (bundle, name), matching ^[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)$ so it can be orga… |
 | BND-20 | `bundles` | A message SHALL have a role (user or assistant) and content that is either text or a reference to one of the same bundle's resources (BND-23), which prompts/… |
+| BND-16 | `bundles` | The bundle detail page SHALL list all member tools with an enable toggle and inline editing of the override name and override title, and SHALL flag tools who… |
+| BND-17 | `bundles` | All curation operations MUST be available via the management API: listing a bundle's member tools with their curation state, and setting a tool's enable flag… |
+| UPS-19 | `upstreams` | Tools that disappear from the upstream MUST NOT be deleted: they keep their BundleTool curation, and last_seen_at lets the UI mark them stale. |
+| BND-1 | `bundles` | A bundle MUST have a unique slug-safe name, a description, and a set of member servers, which the gateway orders by server name wherever order matters. The d… |

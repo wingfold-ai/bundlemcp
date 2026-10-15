@@ -27,12 +27,12 @@ carries the bundle's own prompts and resources (BND-25).
 
 ### Cache listings at discovery, not on page view
 
-`UpstreamProbe` gains optional `list_prompts` / `list_resources` steps run in the same connection as `tools/list`
-when the negotiated capabilities advertise them. New domain entities `MemberPrompt` (server, name, title,
-description, hash, stale marker) and `MemberResource` (server, uri, name, title, description, hash, stale marker) in
-`domain/servers/`, synced by a sibling of `sync_tools` with the same hash-gating and staleness rules
-([complete-tool-curation](../complete-tool-curation/design.md)). The bound is 500 entries per server and kind,
-following list pagination up to it; truncation logs `discovery.listing_truncated`.
+`UpstreamProbe` gains optional `list_prompts` / `list_resources` steps run in the same connection as `tools/list` when
+the negotiated capabilities advertise them. New domain entities `MemberPrompt` (server, name, title, description, hash,
+stale marker) and `MemberResource` (server, uri, name, title, description, hash, stale marker) in `domain/servers/`,
+synced by a sibling of `sync_tools` with the same hash-gating and staleness rules
+([complete-tool-curation](../archive/2026-10-13-complete-tool-curation/design.md)). The bound is 500 entries per server
+and kind, following list pagination up to it; truncation logs `discovery.listing_truncated`.
 
 *Alternative:* the admin UI fetches the member's live listing through a management action when the curation card
 opens. Rejected: it contacts the upstream on every page view (ADR-0043), fails while the upstream is down, and leaves

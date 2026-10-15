@@ -195,6 +195,38 @@
         "BND-23",
         "BND-20"
       ]
+    },
+    {
+      "id": "E2E-19",
+      "testFile": "curation.spec.ts",
+      "slug": "curation-save-keeps-api-overrides",
+      "title": "Saving a curation row keeps the overrides set through the API, and edits description and annotations inline",
+      "requirements": [
+        "BND-16",
+        "BND-17"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-20",
+      "testFile": "curation.spec.ts",
+      "slug": "curation-stale-tool-refresh-and-prune",
+      "title": "A tool the upstream stops listing is flagged stale, then refresh & prune deletes it",
+      "requirements": [
+        "UPS-19",
+        "BND-16"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-21",
+      "testFile": "curation.spec.ts",
+      "slug": "bundle-member-order",
+      "title": "An admin reorders a bundle's members",
+      "requirements": [
+        "BND-1"
+      ],
+      "new": true
     }
   ]
 }

@@ -7,7 +7,6 @@ from typing import Any
 from sqlalchemy import JSON, Column, ForeignKey, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.infrastructure.postgres.utc_datetime import timestamp_column
 
 
@@ -40,9 +39,10 @@ class ToolRow(SQLModel, table=True):
     schema_hash: str = Field(
         description="Hash of the definition, so an unchanged tool costs no write on re-probe"
     )
-    last_seen_at: datetime = Field(
-        default_factory=utcnow,
-        sa_column=timestamp_column(),
-        description="When the tool was last reported. A stale value means it has disappeared "
-        "upstream; its curation is kept, and it is still served until it is pruned",
+    stale_since: datetime | None = Field(
+        default=None,
+        sa_column=timestamp_column(nullable=True),
+        description="When a successful discovery of the server first stopped listing the tool; "
+        "None while the server lists it. A stale tool is not served but keeps its curation, "
+        "and is served again if the server lists it again",
     )

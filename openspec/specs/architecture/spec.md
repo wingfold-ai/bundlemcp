@@ -317,13 +317,15 @@ carry the same fields.
   `static_headers` | `upstream_oauth` | `delegated_token`), `identity_mode`, `send_identity_header`, `capabilities`
   (json snapshot captured at discovery, [UPS-22](../upstreams/spec.md)), `protocol_mode` (`auto` | `legacy` |
   pinned revision) and `protocol_version` ([UPS-10](../upstreams/spec.md)), `health_status` + `last_error`,
-  `connection_state` ([UPS-12](../upstreams/spec.md)), `created_at`, `updated_at`.
+  `connection_state` ([UPS-12](../upstreams/spec.md)), `last_discovered_at` (last successful discovery),
+  `created_at`, `updated_at`.
 - **Tool** ([upstreams](../upstreams/spec.md)): discovered tool cache. `id`, `server_id` FK, `name`,
-  `title`, `description`, `input_schema` (json), `annotations` (json), `schema_hash`, `last_seen_at`. Unique
-  `(server_id, name)`.
+  `title`, `description`, `input_schema` (json), `annotations` (json), `schema_hash`, `stale_since` (set when a
+  successful discovery stops listing the tool, [UPS-19](../upstreams/spec.md)). Unique `(server_id, name)`.
 - **Bundle** ([bundles](../bundles/spec.md)): `id`, `name` (unique, slug-safe), `description` (served as MCP
   `instructions`), `overview` (catalogue text, [BND-11](../bundles/spec.md)), timestamps.
-- **BundleServer**: M:N bundle↔server. `bundle_id`, `server_id`, `enabled`. Unique `(bundle_id, server_id)`.
+- **BundleServer**: M:N bundle↔server. `bundle_id`, `server_id`, `enabled`, `position` (member order,
+  [BND-1](../bundles/spec.md)). Unique `(bundle_id, server_id)`.
 - **BundleTool** ([bundles](../bundles/spec.md)): per-bundle tool state. `bundle_id`, `tool_id`,
   `enabled`, `override_name`, `override_title`, `override_description`, `override_annotations` (json). Unique
   `(bundle_id, tool_id)`. Rows exist only where state deviates from the default (enabled, no overrides).

@@ -250,6 +250,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bundles/{name}/upstreams:order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Order Members
+         * @description Set the order of the bundle's members; the first answers first where several could.
+         */
+        put: operations["order_members_api_v1_bundles__name__upstreams_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/config": {
         parameters: {
             query?: never;
@@ -953,6 +973,17 @@ export interface components {
             url: string;
         };
         /**
+         * BundleMemberOrder
+         * @description Body for setting the order of a bundle's member upstreams.
+         */
+        BundleMemberOrder: {
+            /**
+             * Upstreams
+             * @description Every member upstream of the bundle, each exactly once, first member first. The first member in this order answers first wherever more than one could, such as a resource URI two members both list
+             */
+            upstreams: string[];
+        };
+        /**
          * BundleMemberRead
          * @description A server's membership in a bundle.
          */
@@ -1240,6 +1271,13 @@ export interface components {
              */
             name: string;
             /**
+             * Override Annotations
+             * @description Replacement MCP annotations set on this bundle, such as read-only and destructive hints
+             */
+            override_annotations: {
+                [key: string]: unknown;
+            } | null;
+            /**
              * Override Description
              * @description Replacement description set on this bundle
              */
@@ -1264,6 +1302,11 @@ export interface components {
              * @description Server that provides the tool
              */
             server_name: string;
+            /**
+             * Stale
+             * @description True when the latest successful discovery of the owning server no longer listed the tool. A stale tool is not served but keeps this curation, and is served with it again if the server lists it again
+             */
+            stale: boolean;
             /**
              * Title
              * @description Upstream display title, before any override
@@ -1480,7 +1523,7 @@ export interface components {
         DiscoveryResult: {
             /**
              * Changed
-             * @description Tools written to the cache because their definition hash moved
+             * @description Tools whose cached state changed: new, redefined, no longer listed (now stale) or listed again
              * @default 0
              */
             changed?: number;
@@ -1500,6 +1543,12 @@ export interface components {
              * @description Why the probe failed; None when it succeeded
              */
             error?: string | null;
+            /**
+             * Pruned
+             * @description Stale tools deleted, with their curation in every bundle; only a refresh that asks to prune deletes any
+             * @default 0
+             */
+            pruned?: number;
         };
         /**
          * EndpointAuthMode
@@ -2461,10 +2510,9 @@ export interface components {
             };
             /**
              * Last Seen At
-             * Format: date-time
-             * @description When the tool was last reported by its server. A stale value means the tool has disappeared upstream; endpoints still serve it for now
+             * @description When a successful discovery last listed the tool; for a stale tool, when a discovery first found it missing. Absent only for a server with no recorded successful discovery
              */
-            last_seen_at: string;
+            last_seen_at: string | null;
             /**
              * Name
              * @description Tool name as the upstream server reports it
@@ -2476,6 +2524,11 @@ export interface components {
              * @description Server that provides the tool
              */
             server_id: string;
+            /**
+             * Stale
+             * @description True when the latest successful discovery of the server no longer listed the tool. A stale tool is not served by any endpoint but keeps its curation; it is served again if the server lists it again, and a refresh with prune deletes it
+             */
+            stale: boolean;
             /**
              * Title
              * @description Display title the upstream server reports
@@ -3386,6 +3439,41 @@ export interface operations {
             };
         };
     };
+    order_members_api_v1_bundles__name__upstreams_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BundleMemberOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleMemberRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_config_api_v1_config_get: {
         parameters: {
             query?: never;
@@ -4075,7 +4163,10 @@ export interface operations {
     };
     refresh_tools_api_v1_upstreams__name__refresh_tools_post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Also delete the tools the upstream no longer lists, with their curation in every bundle; only done when the probe succeeds */
+                prune?: boolean;
+            };
             header?: never;
             path: {
                 name: string;

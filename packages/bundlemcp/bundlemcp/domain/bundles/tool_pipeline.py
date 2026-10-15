@@ -6,6 +6,7 @@ from bundlemcp.domain.bundles.override_stage import OverrideStage
 from bundlemcp.domain.bundles.presented_name import PresentedName
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
 from bundlemcp.domain.bundles.profile_stage import ProfileStage
+from bundlemcp.domain.bundles.stale_tool_filter import StaleToolFilter
 from bundlemcp.domain.bundles.tool_stage import ToolStage
 from bundlemcp.domain.endpoints.profiles.endpoint_profile_preset import EndpointProfilePreset
 from bundlemcp.domain.servers.mcp_server import McpServer
@@ -25,8 +26,15 @@ class ToolPipeline(BaseModel):
 
     @classmethod
     def for_profile(cls, preset: EndpointProfilePreset) -> "ToolPipeline":
-        """Curation filter, then the profile, then the per-tool overrides, which win."""
-        return cls(stages=(CurationFilter(), ProfileStage(preset=preset), OverrideStage()))
+        """Stale and curation filters, then the profile, then the per-tool overrides, which win."""
+        return cls(
+            stages=(
+                StaleToolFilter(),
+                CurationFilter(),
+                ProfileStage(preset=preset),
+                OverrideStage(),
+            )
+        )
 
     def present(
         self, server: McpServer, tool: Tool, curation: BundleTool | None

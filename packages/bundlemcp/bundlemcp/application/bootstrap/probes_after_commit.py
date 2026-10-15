@@ -24,8 +24,8 @@ class ProbesAfterCommit:
         if server_id not in self._held:
             self._held.append(server_id)
 
-    async def discover(self, server_id: UUID) -> DiscoveryResult:
-        return await self._discovery.discover(server_id)
+    async def discover(self, server_id: UUID, *, prune: bool = False) -> DiscoveryResult:
+        return await self._discovery.discover(server_id, prune=prune)
 
     async def release(self) -> None:
         """Schedule every held probe on the real discovery, in the order they were asked for."""

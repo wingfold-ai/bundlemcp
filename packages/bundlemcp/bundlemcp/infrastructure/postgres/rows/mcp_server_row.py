@@ -78,6 +78,11 @@ class McpServerRow(SQLModel, table=True):
         description="What the last probe found out about the upstream, classified from its "
         "HTTP response",
     )
+    last_discovered_at: datetime | None = Field(
+        default=None,
+        sa_column=timestamp_column(nullable=True),
+        description="When a probe last read the server's tools successfully; None until one has",
+    )
     created_at: datetime = Field(
         default_factory=utcnow,
         sa_column=timestamp_column(),

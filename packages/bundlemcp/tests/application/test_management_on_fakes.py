@@ -1,8 +1,12 @@
 """Use cases run on the in-memory fakes: no database, no live store, no app."""
 
+import uuid
+
 import pytest
 from bundlemcp.application.bootstrap.bootstrap_document import BootstrapDocument
 from bundlemcp.application.bootstrap.bootstrap_runner import BootstrapRunner
+from bundlemcp.application.contracts.upstream.upstream_probe import ProbeResult
+from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.errors import ConflictError, NotFoundError
 from bundlemcp.application.management.bundle_service import BundleService
 from bundlemcp.application.management.endpoint_service import EndpointService
@@ -18,6 +22,7 @@ from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.endpoints.profiles import ProfileCatalog
 from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.identity_mode import IdentityMode
+from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
@@ -240,3 +245,90 @@ async def test_bootstrap_document_lands_in_one_commit(uow):
     assert uow.committed == 1
     assert await uow.endpoints.by_name("ep") is not None
     assert len(await uow.memberships.for_bundle((await uow.bundles.by_name("demo")).id)) == 1
+
+
+class ScriptedProbe:
+    """An upstream probe that lists whichever tools the test sets."""
+
+    def __init__(self, *names: str) -> None:
+        self.names = list(names)
+
+    async def probe(self, server, headers) -> ProbeResult:
+        return ProbeResult(
+            tools=[ProbedTool(name=n) for n in self.names], capabilities=None, protocol_version=None
+        )
+
+
+async def _discovered_member(uow) -> tuple[DiscoveryService, ScriptedProbe, uuid.UUID]:
+    """Server echo, probed once with tools alpha and beta, as a member of bundle demo."""
+    await ServerService(uow, discovery=NoopToolDiscovery()).upsert(
+        ServerUpsert(name="echo", url="http://echo/mcp")
+    )
+    bundles = BundleService(uow)
+    await bundles.upsert(BundleUpsert(name="demo"))
+    await bundles.set_member("demo", "echo", BundleServerUpdate())
+    probe = ScriptedProbe("alpha", "beta")
+    discovery = DiscoveryService(InMemoryUnitOfWorkFactory(uow), probe)
+    server = await uow.servers.by_name("echo")
+    await discovery.discover(server.id)
+    return discovery, probe, server.id
+
+
+async def test_ups18_unchanged_run_invalidates_nothing(uow):
+    """UPS-18: a discovery that finds nothing new announces nothing to the bundles."""
+    discovery, _probe, server_id = await _discovered_member(uow)
+    uow.published.clear()
+
+    result = await discovery.discover(server_id)
+
+    assert result.changed == 0
+    assert [e for e in uow.published if e.entity_type == "bundle"] == []
+
+
+async def test_ups19_vanished_tool_invalidates_the_bundle(uow):
+    """UPS-18/UPS-19: a tool going stale is a change of the tool set, so bundles re-list."""
+    discovery, probe, server_id = await _discovered_member(uow)
+    uow.published.clear()
+    probe.names = ["alpha"]
+
+    result = await discovery.discover(server_id)
+
+    assert result.changed == 1
+    assert [e.key for e in uow.published if e.entity_type == "bundle"] == ["demo"]
+
+
+async def test_bnd17_catalogue_leaves_out_stale_tools(uow):
+    """BND-17/UPS-19: the catalogue shows what is served, so a stale tool is not in it."""
+    discovery, probe, server_id = await _discovered_member(uow)
+    probe.names = ["alpha"]
+    await discovery.discover(server_id)
+
+    bundle = await uow.bundles.by_name("demo")
+    catalogue = await BundleService(uow).catalogue_tools(bundle.id)
+
+    assert [tool.name for tool in catalogue] == ["echo__alpha"]
+
+
+async def test_bnd1_bootstrap_sets_order(uow):
+    """BND-1: a bootstrap document's member list sets the order of the members it names; a
+    member it does not name follows them."""
+    servers = ServerService(uow, discovery=NoopToolDiscovery())
+    for name in ("alpha", "extra", "zeta"):
+        await servers.upsert(ServerUpsert(name=name, url=f"http://{name}/mcp"))
+    bundles = BundleService(uow)
+    await bundles.upsert(BundleUpsert(name="demo"))
+    await bundles.set_member("demo", "extra", BundleServerUpdate())
+
+    document = BootstrapDocument.model_validate(
+        {"bundles": [{"name": "demo", "upstreams": ["zeta", "alpha"]}]}
+    )
+    await BootstrapRunner(
+        InMemoryUnitOfWorkFactory(uow),
+        NoopToolDiscovery(),
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
+    ).apply(document)
+
+    members = await BundleService(uow).list_members("demo")
+    assert [m.server_name for m in members] == ["zeta", "alpha", "extra"]
