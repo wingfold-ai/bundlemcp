@@ -2,20 +2,20 @@
 
 ## 1. Domain rule
 
-- [ ] 1.1 Add `OriginPolicy` in `domain/endpoints/origin_policy.py` (normalise an entry, `allows(origin,
+- [x] 1.1 Add `OriginPolicy` in `domain/endpoints/origin_policy.py` (normalise an entry, `allows(origin,
   public_origin)`, `default_for(auth_modes)`) and `allowed_origins` on `Endpoint`. Verify with domain tests citing EP-24
   for normalisation, every invalid form, `*` alone, the public origin, `null`, and both defaults.
 
 ## 2. Persistence and API
 
-- [ ] 2.1 Add the column to the endpoint row and repository mapping, and Alembic revision `0011` (add, backfill from
+- [x] 2.1 Add the column to the endpoint row and repository mapping, and Alembic revision `0011` (add, backfill from
   `auth_modes`, downgrade drops it). Verify with a hermetic migration test citing EP-24 (an `oauth` row gets `["*"]`,
   a `none` row `[]`) and the sqlite repository tests.
-- [ ] 2.2 Add the field to `EndpointUpsert` (optional, validated through `OriginPolicy`) and `EndpointRead`, and resolve
+- [x] 2.2 Add the field to `EndpointUpsert` (optional, validated through `OriginPolicy`) and `EndpointRead`, and resolve
   the default in `EndpointService.upsert`. Verify with API tests citing EP-24: an omitted field gets the default for
   each auth mode, a listed one round-trips normalised, and each invalid form answers `422` naming the entry; and with a
   bootstrap test that a document's endpoint accepts the field.
-- [ ] 2.3 Run `cd apps/web && npm run openapi` and verify the generated files list the field.
+- [x] 2.3 Run `cd apps/web && npm run openapi` and verify the generated files list the field.
 
 ## 3. MCP edge
 

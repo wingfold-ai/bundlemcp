@@ -10,6 +10,7 @@ from bundlemcp.application.schemas import AvailableEndpointRead, EndpointRead, E
 from bundlemcp.domain.endpoints.endpoint import Endpoint
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.endpoints.endpoint_resource import EndpointResource
+from bundlemcp.domain.endpoints.origin_policy import default_allowed_origins
 from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 from bundlemcp.domain.endpoints.profiles.profile_rule_violation import ProfileRuleViolation
 from bundlemcp.domain.shared.resource_names import endpoint_name as endpoint_name_type
@@ -45,6 +46,12 @@ class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
         endpoint.auth_modes = list(body.auth_modes)
         endpoint.rate_limit = body.rate_limit.model_dump() if body.rate_limit else None
         endpoint.enabled = body.enabled
+        # a full replace: an omitted list falls back to the default for the auth modes
+        endpoint.allowed_origins = (
+            body.allowed_origins
+            if body.allowed_origins is not None
+            else default_allowed_origins(body.auth_modes)
+        )
         return await self._save(endpoint, name=body.name, created=created)
 
     async def rename(self, name: str, new_name: str, *, force: bool) -> EndpointRead:

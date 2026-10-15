@@ -2,10 +2,15 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.endpoints.endpoint_profile import EndpointProfile
+from bundlemcp.domain.endpoints.origin_policy import (
+    default_allowed_origins,
+    normalise_allowed_origins,
+    origin_allowed,
+)
 from bundlemcp.domain.shared.clock import utcnow
 
 
@@ -32,6 +37,10 @@ class Endpoint(BaseModel):
     enabled: bool = Field(
         default=True, description="Whether the endpoint currently serves requests"
     )
+    allowed_origins: list[str] = Field(
+        description="Browser origins that may use the endpoint from another site, or ['*'] "
+        "for any; when omitted, [] for an open endpoint and ['*'] otherwise",
+    )
     created_at: datetime = Field(
         default_factory=utcnow,
         description="When the record was created",
@@ -40,6 +49,23 @@ class Endpoint(BaseModel):
         default_factory=utcnow,
         description="When the record was last changed",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _default_allowed_origins(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get("allowed_origins") is None:
+            modes = data.get("auth_modes") or [EndpointAuthMode.API_KEY]
+            data = {**data, "allowed_origins": default_allowed_origins(modes)}
+        return data
+
+    @field_validator("allowed_origins")
+    @classmethod
+    def _normalised(cls, value: list[str]) -> list[str]:
+        return normalise_allowed_origins(value)
+
+    def allows_origin(self, origin: str, public_origin: str) -> bool:
+        """Whether a browser request carrying this ``Origin`` may use the endpoint."""
+        return origin_allowed(origin, self.allowed_origins, public_origin)
 
     def accepts(self, mode: EndpointAuthMode) -> bool:
         return mode in self.auth_modes
