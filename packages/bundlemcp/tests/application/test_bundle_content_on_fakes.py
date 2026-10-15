@@ -22,7 +22,7 @@ from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscover
 @pytest.fixture
 async def uow() -> InMemoryUnitOfWork:
     uow = InMemoryUnitOfWork()
-    await BundleService(uow).upsert(BundleUpsert(name="charts"))
+    await BundleService(uow, public_base="http://gw").upsert(BundleUpsert(name="charts"))
     uow.published.clear()
     return uow
 
@@ -199,6 +199,7 @@ async def test_bootstrap_applies_resources_before_the_prompts_that_embed_them(uo
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     )
     await runner.apply(document)
     await runner.apply(document)  # applying twice changes nothing

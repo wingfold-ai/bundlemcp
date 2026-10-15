@@ -74,6 +74,10 @@ curl -s -X PUT $API/upstreams/weather -H "$AUTH" -H "Content-Type: application/j
 The gateway immediately probes the URL, negotiates the protocol revision, runs `tools/list` and stores the tools. The
 response is the server including `health_status`, `protocol_version` and `capabilities`.
 
+An upstream that belongs to no bundle may have any URL. Once it is a member, its URL cannot be changed to one of this
+gateway's own MCP endpoints: the update answers `409` and the stored URL stays as it was (see
+[Bundles](/manage/bundles#members) for the rule).
+
 ::: tip Registering a server that is not up yet
 A failed probe does not reject the request. The server is stored with `health_status: error` and `last_error` explaining
 why, and it is probed again on the next refresh or the next live call. This is what lets a discovery loop converge by

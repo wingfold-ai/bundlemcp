@@ -226,3 +226,31 @@ async def test_ep24_invalid_allowed_origins_are_rejected(client: AsyncClient, or
     )
     assert resp.status_code == 422
     assert named in resp.text
+
+
+GATEWAY = "http://localhost:8000"  # the hermetic app's public URL
+
+
+async def test_bnd5_own_endpoint_answers_409_and_stores_no_membership(client: AsyncClient):
+    """BND-5: adding the gateway itself to a bundle answers 409 naming the self-reference."""
+    await client.put("/api/v1/bundles/b1", json={"name": "b1"})
+    registered = await client.put(
+        "/api/v1/upstreams/loop", json={"name": "loop", "url": f"{GATEWAY}/loop-ep/mcp"}
+    )
+    assert registered.status_code == 200  # a non-member may point anywhere
+    resp = await client.put("/api/v1/bundles/b1/upstreams/loop", json={"enabled": True})
+    assert resp.status_code == 409
+    assert "own MCP endpoints" in resp.text
+    assert (await client.get("/api/v1/bundles/b1/upstreams")).json() == []
+
+
+async def test_bnd5_changing_a_members_url_to_the_gateway_answers_409(client: AsyncClient):
+    """BND-5: the URL change is refused and the stored URL is unchanged."""
+    await client.put("/api/v1/bundles/b1", json={"name": "b1"})
+    await client.put("/api/v1/upstreams/weather", json={"name": "weather", "url": "http://w/mcp"})
+    await client.put("/api/v1/bundles/b1/upstreams/weather", json={"enabled": True})
+    resp = await client.put(
+        "/api/v1/upstreams/weather", json={"name": "weather", "url": f"{GATEWAY}/b1-ep/mcp"}
+    )
+    assert resp.status_code == 409
+    assert (await client.get("/api/v1/upstreams/weather")).json()["url"] == "http://w/mcp"

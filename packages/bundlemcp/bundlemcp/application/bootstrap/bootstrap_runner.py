@@ -49,6 +49,7 @@ class BootstrapRunner:
         cipher: SecretCipher | None,
         connections: UpstreamConnectionRegistry,
         profiles: ProfileCatalog,
+        public_base: str,
     ) -> None:
         # cipher is None exactly when no token encryption keys are configured
         self._units = units
@@ -56,15 +57,16 @@ class BootstrapRunner:
         self._cipher = cipher
         self._connections = connections
         self._profiles = profiles
+        self._public_base = public_base
 
     async def apply(self, doc: BootstrapDocument) -> None:
         probes = ProbesAfterCommit(self._discovery)
         async with self._units.open() as uow, uow.atomic():
-            servers = ServerService(uow, discovery=probes)
+            servers = ServerService(uow, discovery=probes, public_base=self._public_base)
             upstream_clients = UpstreamOAuthConfigService(
                 uow, cipher=self._cipher, connections=self._connections
             )
-            bundles = BundleService(uow)
+            bundles = BundleService(uow, public_base=self._public_base)
             bundle_prompts = BundlePromptService(uow)
             bundle_resources = BundleResourceService(uow)
             endpoints = EndpointService(uow, profiles=self._profiles)

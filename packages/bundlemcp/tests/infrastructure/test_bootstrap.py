@@ -57,6 +57,7 @@ async def test_upstream_oauth_client_is_applied_with_the_server(engine, redis):
         cipher=cipher,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     )
 
     await runner.apply(BootstrapDocument(**OAUTH_DOC))
@@ -79,6 +80,7 @@ async def test_upstream_oauth_client_needs_encryption_keys(engine, redis):
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     )
     with pytest.raises(PreconditionError):
         await runner.apply(BootstrapDocument(**OAUTH_DOC))
@@ -95,6 +97,7 @@ async def test_apply_is_idempotent(engine, redis):
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     )
 
     await runner.apply(doc)
@@ -154,6 +157,7 @@ async def test_inline_json_document_is_applied_after_the_file(engine, redis, tmp
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     ).run(settings)
 
     async with factory() as db:
@@ -189,6 +193,7 @@ async def test_fresh_bootstrap_serves_discovered_tools(engine, redis):
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     ).apply(BootstrapDocument(**DOC))
 
     async with factory() as db:
@@ -215,6 +220,7 @@ async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis)
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     ).run(settings)
 
     async with factory() as db:
@@ -259,3 +265,25 @@ def test_ep24_a_bootstrap_endpoint_accepts_allowed_origins():
         }
     )
     assert document.endpoints[0].allowed_origins == ["https://app.example"]
+
+
+async def test_bnd5_a_bootstrap_document_cannot_make_the_gateway_a_member(engine, redis):
+    """BND-5: a document listing one of the gateway's own endpoints as a member fails whole."""
+    from bundlemcp.application.errors import ConflictError
+
+    document = BootstrapDocument(
+        upstreams=[{"name": "loop", "url": "http://gw/loop-ep/mcp"}],
+        bundles=[{"name": "demo", "upstreams": ["loop"]}],
+    )
+    runner = BootstrapRunner(
+        SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis),
+        NoopToolDiscovery(),
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
+    )
+    with pytest.raises(ConflictError, match="BND-5"):
+        await runner.apply(document)
+    async with session_factory(engine)() as db:
+        assert (await db.execute(select(BundleServerRow))).first() is None
