@@ -37,12 +37,18 @@ class McpGatewayRouter:
             message = await self._admission.parse_envelope(request)
             ctx = await self._admission.admit_caller(request, endpoint_name)
         except RequestRejected as rejected:
-            return rejected.response
+            return rejected.answer
 
         # the client's opening decides the era adapter, once per request.
         if message.has_modern_meta:
-            return await self._stateless.handle_post(ctx, message, endpoint_name)
-        return await self._session.handle_post(ctx, message, endpoint_name)
+            response = await self._stateless.handle_post(ctx, message, endpoint_name)
+        else:
+            response = await self._session.handle_post(ctx, message, endpoint_name)
+        return ctx.cors.apply(response)
+
+    async def preflight(self, request: Request, endpoint_name: str) -> Response:
+        """A browser's CORS preflight, answered from the endpoint's allowed origins."""
+        return await self._admission.preflight(request, endpoint_name)
 
     async def close_session(self, request: Request, endpoint_name: str) -> Response:
         """Explicit session termination (session era only)."""
@@ -51,8 +57,8 @@ class McpGatewayRouter:
         try:
             ctx = await self._admission.admit_caller(request, endpoint_name)
         except RequestRejected as rejected:
-            return rejected.response
-        return await self._session.close_session(ctx, endpoint_name)
+            return rejected.answer
+        return ctx.cors.apply(await self._session.close_session(ctx, endpoint_name))
 
     async def open_stream(self, request: Request, endpoint_name: str) -> Response:
         """The server->client event stream of a session connection (SSE)."""
@@ -60,6 +66,6 @@ class McpGatewayRouter:
             return _method_not_allowed()
         try:
             ctx = await self._admission.admit_caller(request, endpoint_name)
-            return await self._session.open_stream(ctx, endpoint_name)
+            return ctx.cors.apply(await self._session.open_stream(ctx, endpoint_name))
         except RequestRejected as rejected:
-            return rejected.response
+            return rejected.answer

@@ -46,6 +46,12 @@ class EndpointRow(SQLModel, table=True):
     enabled: bool = Field(
         default=True, description="Whether the endpoint currently serves requests"
     )
+    allowed_origins: list[str] | None = Field(
+        default=None,
+        sa_column=Column(JSON),
+        description="Browser origins that may use the endpoint from another site, or ['*']; "
+        "null means the default for its auth modes",
+    )
     created_at: datetime = Field(
         default_factory=utcnow,
         sa_column=timestamp_column(),

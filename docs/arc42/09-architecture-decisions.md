@@ -54,6 +54,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0046](../adr/0046-profiles-as-registered-presets-and-tool-pipeline-stages.md) | Each profile one preset in one catalogue; curation filter → profile → overrides as ordered stages | accepted | A new profile is one class and one registration; the stage order is a tested contract |
 | [0047](../adr/0047-profiles-named-for-what-they-change.md) | Rename `claude`/`chatgpt` to `oauth_only`/`write_as_read`, without aliases, and migrate stored endpoints | accepted | A profile is named for its effect; the upgrade stops old replicas first |
 | [0048](../adr/0048-egress-policy-enforced-at-connect-time.md) | A guarded network backend dials the address the policy judged, for both HTTP stacks and every redirect hop | accepted | Closes DNS rebinding; relies on a private pool attribute, guarded by tests |
+| [0049](../adr/0049-browser-origins-are-an-endpoint-setting.md) | Each endpoint lists the browser origins that may use it; checked before authentication | accepted | Open endpoints refuse cross-site browsers by default; pre-lookup errors carry no CORS |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).

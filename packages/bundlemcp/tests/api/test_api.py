@@ -175,3 +175,54 @@ async def test_pagination_bounds(client: AsyncClient):
         assert (await client.get("/api/v1/upstreams", params=params)).status_code == 422, params
     default = (await client.get("/api/v1/upstreams")).json()
     assert default["offset"] == 0 and default["limit"] == 50
+
+
+async def test_ep24_allowed_origins_default_by_auth_mode(client: AsyncClient):
+    """EP-24: an omitted list is [] for an open endpoint and ['*'] for one needing a credential."""
+    await client.put("/api/v1/bundles/b1", json={"name": "b1"})
+    keyed = await client.put("/api/v1/endpoints/k", json={"name": "k", "bundle_name": "b1"})
+    assert keyed.json()["allowed_origins"] == ["*"]
+    open_ = await client.put(
+        "/api/v1/endpoints/o",
+        json={
+            "name": "o",
+            "bundle_name": "b1",
+            "auth_modes": ["none"],
+            "allow_unauthenticated": True,
+        },
+    )
+    assert open_.json()["allowed_origins"] == []
+
+
+async def test_ep24_allowed_origins_round_trip_normalised(client: AsyncClient):
+    """EP-24: a listed origin is stored normalised, and an upsert without it resets the default."""
+    await client.put("/api/v1/bundles/b1", json={"name": "b1"})
+    body = {"name": "e", "bundle_name": "b1", "allowed_origins": ["https://App.example/"]}
+    saved = await client.put("/api/v1/endpoints/e", json=body)
+    assert saved.status_code == 200
+    assert saved.json()["allowed_origins"] == ["https://app.example"]
+    assert (await client.get("/api/v1/endpoints/e")).json()["allowed_origins"] == [
+        "https://app.example"
+    ]
+    replaced = await client.put("/api/v1/endpoints/e", json={"name": "e", "bundle_name": "b1"})
+    assert replaced.json()["allowed_origins"] == ["*"]
+
+
+@pytest.mark.parametrize(
+    ("origins", "named"),
+    [
+        (["https://app.example/path"], "https://app.example/path"),
+        (["app.example"], "app.example"),
+        (["*", "https://app.example"], "'*'"),
+    ],
+    ids=["path", "no-scheme", "wildcard-mixed"],
+)
+async def test_ep24_invalid_allowed_origins_are_rejected(client: AsyncClient, origins, named):
+    """EP-24: each invalid entry answers 422 naming it."""
+    await client.put("/api/v1/bundles/b1", json={"name": "b1"})
+    resp = await client.put(
+        "/api/v1/endpoints/e",
+        json={"name": "e", "bundle_name": "b1", "allowed_origins": origins},
+    )
+    assert resp.status_code == 422
+    assert named in resp.text

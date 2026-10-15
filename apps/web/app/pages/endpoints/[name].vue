@@ -29,6 +29,8 @@ const errorMsg = ref("");
 const profile = ref<EndpointProfile>("default");
 const authModes = ref<EndpointAuthMode[]>([]);
 const enabled = ref(true);
+// one origin per line; "*" alone allows every site
+const allowedOrigins = ref("");
 // Bound to <input type="number">, for which Vue's v-model assigns a number (or
 // "" when the field is cleared) — never assume these hold a string.
 const rlEndpointLimit = ref<string | number>("");
@@ -53,6 +55,7 @@ async function load() {
     profile.value = endpoint.value.profile as EndpointProfile;
     authModes.value = endpoint.value.auth_modes as EndpointAuthMode[];
     enabled.value = endpoint.value.enabled;
+    allowedOrigins.value = endpoint.value.allowed_origins.join("\n");
     const rl = endpoint.value.rate_limit as {
       endpoint?: { limit?: number; window_seconds?: number } | null;
       per_client?: { limit?: number; window_seconds?: number } | null;
@@ -136,6 +139,10 @@ async function saveEndpoint() {
       auth_modes: authModes.value,
       allow_unauthenticated: authModes.value.includes("none"),
       enabled: enabled.value,
+      allowed_origins: allowedOrigins.value
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line !== ""),
       ...(rateLimit !== undefined ? { rate_limit: rateLimit } : {}),
     },
   });
@@ -282,6 +289,24 @@ async function deleteEndpoint() {
           <input v-model="enabled" type="checkbox" data-testid="input-enabled" />
           Enabled
         </label>
+      </div>
+      <div>
+        <label class="wf-label" for="allowed-origins">Allowed browser origins</label>
+        <textarea
+          id="allowed-origins"
+          v-model="allowedOrigins"
+          rows="3"
+          class="wf-input font-mono text-sm"
+          placeholder="https://app.example"
+          data-testid="input-allowed-origins"
+        />
+        <p class="wf-help">
+          Websites whose pages may call this endpoint from a browser, one per line, such as
+          <code>https://app.example</code>; <code>*</code> alone allows every site, and an empty list
+          allows none but this gateway's own. This is not authentication: scripts and other clients
+          that are not browsers are unaffected, and every caller still signs in with the auth modes
+          above.
+        </p>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>

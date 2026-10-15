@@ -241,3 +241,21 @@ def test_ep23_former_profile_identifier_fails_the_document():
     with pytest.raises(ValidationError, match=r"endpoints\.0\.profile") as raised:
         BootstrapDocument.model_validate(document)
     assert "oauth_only" in str(raised.value)
+
+
+def test_ep24_a_bootstrap_endpoint_accepts_allowed_origins():
+    """EP-24: a bootstrap document may list an endpoint's allowed browser origins."""
+    document = BootstrapDocument.model_validate(
+        {
+            "endpoints": [
+                {
+                    "name": "web",
+                    "bundle_name": "demo",
+                    "auth_modes": ["none"],
+                    "allow_unauthenticated": True,
+                    "allowed_origins": ["https://App.example"],
+                }
+            ]
+        }
+    )
+    assert document.endpoints[0].allowed_origins == ["https://app.example"]

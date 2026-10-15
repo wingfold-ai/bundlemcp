@@ -48,6 +48,7 @@ curl -s -X PUT $API/endpoints/assistant -H "$AUTH" -H "Content-Type: application
 | `allow_unauthenticated` | `false` | Must be `true` when `auth_modes` is `["none"]`. |
 | `rate_limit` | none | See below. |
 | `enabled` | `true` | A disabled endpoint answers 404 and keeps its configuration. |
+| `allowed_origins` | see below | Websites whose pages may call the endpoint from a browser. See [Browser origins](#browser-origins). |
 | `force` | `false` | Acknowledge a rename. |
 
 Reserved names are rejected: `api`, `oauth`, `.well-known`, `healthz`, `readyz`, `metrics`, `docs`, `login`, `consent`,
@@ -101,6 +102,25 @@ result, so a tool that is not listed cannot be called either.
 A tool that deletes records is still called and still deletes. Only the annotations shown to ChatGPT say
 `readOnlyHint: true`. The audit log records every call normally.
 :::
+
+## Browser origins
+
+`allowed_origins` lists the websites whose pages may call the endpoint from a visitor's browser, such as
+`["https://app.example"]`; `["*"]` allows every site. A browser request from any other site is refused with `403`
+before its credential is looked at, and the gateway's own address is always allowed.
+
+It is **not authentication**. Only browsers send a trustworthy `Origin`; scripts, agents, Claude Desktop and other
+servers send none and are unaffected, and every caller still signs in with the endpoint's `auth_modes`. What the list
+prevents is a website using its visitors' browsers to reach an endpoint those visitors can reach and the website
+cannot, such as a gateway on a company network.
+
+| `auth_modes` | Default `allowed_origins` | Why |
+|---|---|---|
+| `["none"]` | `[]` | Anyone who can reach an open endpoint can use it, so no other website should be able to make a visitor's browser do so. List your own web app's origin if it calls the endpoint. |
+| anything else | `["*"]` | A page can only present tokens it already holds, so allowing every site adds no access and lets browser-based MCP clients work. |
+
+An upsert that leaves the field out gets the default for its `auth_modes`, like every other field of a full replace.
+In the UI the list is edited one origin per line on the endpoint page.
 
 ## Rate limits
 

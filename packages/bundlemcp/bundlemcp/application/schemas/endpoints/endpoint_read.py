@@ -26,5 +26,9 @@ class EndpointRead(EntityRead):
         description="Rate-limit configuration; null when the endpoint is unlimited"
     )
     enabled: bool = Field(description="Whether the endpoint currently serves requests")
+    allowed_origins: list[str] = Field(
+        description="Browser origins whose pages may call this endpoint from another site, or "
+        "['*'] for any site; a browser request from any other origin is refused with 403"
+    )
     created_at: datetime = Field(description="When the endpoint was created")
     updated_at: datetime = Field(description="When the endpoint was last changed")

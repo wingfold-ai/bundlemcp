@@ -51,6 +51,9 @@ class RouteDecorators:
     def delete(self, path: str, **options: Any) -> Callable[[Callable], Callable]:
         return _mark("DELETE", path, options)
 
+    def options(self, path: str, **options: Any) -> Callable[[Callable], Callable]:
+        return _mark("OPTIONS", path, options)
+
 
 route = RouteDecorators()
 
