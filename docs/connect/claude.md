@@ -1,24 +1,25 @@
 # Connect claude.ai
 
 claude.ai connects to remote MCP servers as **custom connectors** and expects the server to be an OAuth 2.1 resource
-with a discoverable authorization server. bundlemcp provides all of that: an endpoint with the `claude` profile
+with a discoverable authorization server. bundlemcp provides all of that: an endpoint with the `oauth_only` profile
 publishes the protected-resource metadata, the gateway registers the client dynamically or via its metadata document,
 runs the authorisation flow with PKCE, and shows a consent screen. Nothing needs to be configured in claude.ai beyond
 the URL.
 
-## 1. Create a claude-profile endpoint
+## 1. Create an oauth_only-profile endpoint
 
 ```bash
 curl -s -X PUT https://gw.example.com/api/v1/endpoints/assistant \
   -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" \
-  -d '{"name":"assistant","bundle_name":"assistant","profile":"claude","auth_modes":["oauth"]}'
+  -d '{"name":"assistant","bundle_name":"assistant","profile":"oauth_only","auth_modes":["oauth"]}'
 ```
 
-The `claude` profile requires `auth_modes` to be exactly `["oauth"]`; the gateway rejects anything else. Tools pass
+The `oauth_only` profile requires `auth_modes` to be exactly `["oauth"]`; the gateway rejects anything else. Tools pass
 through unchanged.
 
-In the UI: open the bundle, and in its **Endpoints** card create one with the `claude` profile. The endpoint page shows
-the URL to paste into claude.ai, and every signed-in user finds the same URL in the catalogue.
+In the UI: open the bundle, and in its **Endpoints** card create one with the `oauth_only` profile, the one recommended
+for claude.ai. The endpoint page shows the URL to paste into claude.ai, and every signed-in user finds the same URL in
+the catalogue.
 
 ## 2. Add the connector in claude.ai
 
@@ -71,7 +72,7 @@ in
 
 **"Connection failed" right after entering the URL.** claude.ai fetched the protected-resource metadata and did not get
 what it expected. Check that `BUNDLEMCP_PUBLIC_URL` is exactly the URL you typed, that the endpoint is enabled, and that
-the profile is `claude`.
+the profile is `oauth_only`.
 
 **The browser lands on the identity provider and errors.** The redirect URI `<public url>/login/callback` is not
 registered with the provider, or the provider's discovery URL is blocked by the egress policy. See

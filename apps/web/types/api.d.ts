@@ -944,7 +944,7 @@ export interface components {
              * @description Endpoint name, the last path segment before /mcp
              */
             name: string;
-            /** @description Client the endpoint is shaped for: default for any MCP client, claude for claude.ai, chatgpt for ChatGPT */
+            /** @description How the endpoint is shaped: default passes tools through, oauth_only signs people in (recommended for claude.ai), write_as_read presents every tool as read-only (recommended for ChatGPT) */
             profile: components["schemas"]["EndpointProfile"];
             /**
              * Url
@@ -1510,7 +1510,7 @@ export interface components {
          * EndpointProfile
          * @enum {string}
          */
-        EndpointProfile: "default" | "claude" | "chatgpt";
+        EndpointProfile: "default" | "oauth_only" | "write_as_read";
         /**
          * EndpointProfileRead
          * @description One of the client profiles an endpoint can be shaped for.
@@ -1567,7 +1567,7 @@ export interface components {
              * @description Unique endpoint name; it forms the URL path segment
              */
             name: string;
-            /** @description Client profile shaping the responses, such as the claude or chatgpt profile */
+            /** @description Profile shaping how the endpoint serves its bundle: default, oauth_only or write_as_read; the profile listing says what each one changes */
             profile: components["schemas"]["EndpointProfile"];
             /**
              * Rate Limit
@@ -1622,7 +1622,7 @@ export interface components {
              */
             name: string;
             /**
-             * @description Client profile shaping the responses for a particular consumer
+             * @description Profile shaping how the endpoint serves its bundle: default, oauth_only or write_as_read; the profile listing says what each one changes
              * @default default
              */
             profile?: components["schemas"]["EndpointProfile"];

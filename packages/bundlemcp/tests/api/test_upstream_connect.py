@@ -256,7 +256,7 @@ async def test_ups30_allows_oauth_endpoint_with_per_user_upstream(engine, redis)
                 "name": "e",
                 "bundle_name": "b",
                 "auth_modes": ["oauth"],
-                "profile": "claude",
+                "profile": "oauth_only",
             },
         )
     assert resp.status_code == 200

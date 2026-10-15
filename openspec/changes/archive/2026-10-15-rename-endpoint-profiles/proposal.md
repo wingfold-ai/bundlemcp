@@ -40,9 +40,9 @@ None.
 
 ### Modified Capabilities
 
-- `endpoints`: renames EP-11 and EP-12 and modifies them, with EP-4, EP-14 and EP-15, to name the profiles `oauth_only`
-  and `write_as_read`. Adds EP-23: profile identifiers name what the profile changes, and an endpoint stored under a
-  former identifier is migrated.
+- `endpoints`: renames EP-11 and EP-12 and modifies them, with EP-4, EP-13, EP-14 and EP-15, to name the profiles
+  `oauth_only` and `write_as_read`. Adds EP-23: profile identifiers name what the profile changes, and an endpoint
+  stored under a former identifier is migrated.
 - `bundles`: modifies BND-13, BND-15 and BND-30, whose scenarios name the `chatgpt` profile.
 - `admin-ui`: modifies UI-1, which names the chatgpt-profile warning.
 - `documentation`: modifies DOC-2, which describes connect/claude.md and connect/chatgpt.md in terms of the old

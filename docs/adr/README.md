@@ -23,7 +23,7 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0004](0004-postgres-redis-state-split.md) | Postgres = durable, Redis = live state | accepted |
 | [0005](0005-streamable-http-only.md) | Streamable HTTP only (no stdio/SSE) | accepted |
 | [0006](0006-oidc-only-admin-auth.md) | OIDC-only admin authentication | accepted |
-| [0007](0007-endpoint-profiles.md) | Endpoint profiles incl. ChatGPT re-annotation | accepted (amended by 0046) |
+| [0007](0007-endpoint-profiles.md) | Endpoint profiles incl. ChatGPT re-annotation | accepted (amended by 0046, 0047) |
 | [0008](0008-full-bidirectional-proxy.md) | Full bidirectional MCP proxy fidelity | accepted |
 | [0009](0009-endpoint-bound-tokens-consent.md) | OAuth consent + endpoint-bound tokens | accepted |
 | [0010](0010-single-workspace.md) | Single shared workspace, no multi-tenancy | accepted |
@@ -63,3 +63,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0044](0044-bundle-owned-prompts-and-resources.md) | Bundles own prompts and resources, served by the gateway | accepted |
 | [0045](0045-upstreams-on-the-published-surface.md) | The published surface says "upstreams" | accepted |
 | [0046](0046-profiles-as-registered-presets-and-tool-pipeline-stages.md) | Profiles are registered presets; the served tool set is built by ordered stages | accepted |
+| [0047](0047-profiles-named-for-what-they-change.md) | Profiles are named for what they change | accepted |

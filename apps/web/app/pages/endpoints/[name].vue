@@ -73,13 +73,9 @@ const bundleName = computed(
   () => bundles.value.find((b) => b.id === endpoint.value?.bundle_id)?.name ?? "",
 );
 
-const chatgptWarning = computed(() => {
-  if (profile.value !== "chatgpt") return "";
-  return (
-    (profiles.value.find((p) => p.name === "chatgpt")?.warning as string | undefined) ??
-    "ChatGPT profile re-annotates all tools; verify tool behavior before exposing this endpoint."
-  );
-});
+const profileWarning = computed(
+  () => profiles.value.find((p) => p.name === profile.value)?.warning ?? "",
+);
 
 async function copyUrl() {
   await navigator.clipboard.writeText(connectionUrl.value);
@@ -242,11 +238,11 @@ async function deleteEndpoint() {
           </option>
         </select>
         <p
-          v-if="profile === 'chatgpt'"
+          v-if="profileWarning"
           class="text-amber-600 text-sm mt-1"
-          data-testid="chatgpt-warning"
+          data-testid="profile-warning"
         >
-          {{ chatgptWarning }}
+          {{ profileWarning }}
         </p>
       </div>
       <div>

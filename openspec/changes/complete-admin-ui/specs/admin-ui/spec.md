@@ -21,7 +21,7 @@ The admin UI SHALL provide these pages:
 - **Composition** — one grid of bundles against registered servers, marking each membership and whether it is enabled
   ([BND-4](../bundles/spec.md)). It answers what spans bundles: which bundles a server is used by, and
   which servers are registered but in no bundle, so unreachable through any endpoint.
-- **Endpoints** — list; detail: bundle, profile (with chatgpt-profile warning
+- **Endpoints** — list; detail: bundle, profile (with write_as_read-profile warning
   [EP-12](../endpoints/spec.md)), auth modes, rate limits, connection card (copy-paste URL +
   per-client setup instructions — [EP-7](../endpoints/spec.md)).
 - **API keys** — create (one-time value display) with a kind and, for an endpoint-kind key, an endpoint-scope picker

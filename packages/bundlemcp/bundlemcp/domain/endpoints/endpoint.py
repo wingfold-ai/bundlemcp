@@ -19,7 +19,7 @@ class Endpoint(BaseModel):
     )
     profile: EndpointProfile = Field(
         default=EndpointProfile.DEFAULT,
-        description="Client profile shaping the responses for a particular consumer",
+        description="Profile shaping how the endpoint serves its bundle",
     )
     auth_modes: list[EndpointAuthMode] = Field(
         default_factory=lambda: [EndpointAuthMode.API_KEY],

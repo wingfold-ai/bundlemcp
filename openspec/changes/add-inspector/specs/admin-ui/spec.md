@@ -12,7 +12,7 @@ arbitrary URL with headers entered ad hoc.
 - **THEN** the upstream receives the stored header, and no response to the browser contains its value
 
 #### Scenario: An endpoint is inspected through its public path
-- **GIVEN** endpoint `b1-chatgpt` with the ChatGPT profile and a disabled tool in its bundle
+- **GIVEN** endpoint `b1-chatgpt` with the `write_as_read` profile and a disabled tool in its bundle
 - **WHEN** an admin lists tools of `b1-chatgpt` in the inspector with a valid credential for it
 - **THEN** the list matches what a client of that endpoint sees: curated, profile-annotated, without the disabled tool
 

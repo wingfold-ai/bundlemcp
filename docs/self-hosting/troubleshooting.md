@@ -108,7 +108,7 @@ Check in this order:
 1. **Is the URL reachable from the internet?** claude.ai cannot reach
    `localhost`. You need a real deployment or a tunnel, with
    `BUNDLEMCP_PUBLIC_URL` set to the tunnel's URL.
-2. **Is the profile `claude`?** And is `auth_modes` exactly `["oauth"]`? The
+2. **Is the profile `oauth_only`?** And is `auth_modes` exactly `["oauth"]`? The
    gateway refuses any other combination for that profile, so if the endpoint
    saved, this is already true.
 3. **Does `BUNDLEMCP_PUBLIC_URL` match the URL claude.ai dialled?** The OAuth

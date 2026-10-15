@@ -20,8 +20,8 @@ metering hook's `post_call` receives as its `pre_call` left it.
   `None`
 
 #### Scenario: Profile and session reach the hook
-- **WHEN** a handshake-era client calls a tool on an endpoint with profile `chatgpt`
-- **THEN** the context carries profile `chatgpt` and the client's session id
+- **WHEN** a handshake-era client calls a tool on an endpoint with profile `write_as_read`
+- **THEN** the context carries profile `write_as_read` and the client's session id
 
 #### Scenario: Headers without credentials
 - **WHEN** a client calls a tool sending `authorization`, `user-agent` and `x-request-source` headers
@@ -58,7 +58,7 @@ bundlemcp's contract regardless of the underlying library.
 
 #### Scenario: List passes the same stages
 - **WHEN** a client lists tools on an endpoint whose bundle disables one tool and overrides another's name, with
-  profile `chatgpt`
+  profile `write_as_read`
 - **THEN** the disabled tool is absent, the overridden name is listed, and the profile's annotations apply to the
   overridden tool under its new name
 

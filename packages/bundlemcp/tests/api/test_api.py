@@ -85,17 +85,44 @@ async def test_endpoint_validation_matrix(client: AsyncClient):
     )
     assert none_unflagged.status_code == 422
 
-    claude_bad = await client.put(
+    oauth_only_bad = await client.put(
         "/api/v1/endpoints/e1",
-        json={"name": "e1", "bundle_name": "b1", "profile": "claude", "auth_modes": ["api_key"]},
+        json={
+            "name": "e1",
+            "bundle_name": "b1",
+            "profile": "oauth_only",
+            "auth_modes": ["api_key"],
+        },
     )
-    assert claude_bad.status_code == 422
+    assert oauth_only_bad.status_code == 422
 
     ok = await client.put(
         "/api/v1/endpoints/e1",
-        json={"name": "e1", "bundle_name": "b1", "profile": "claude", "auth_modes": ["oauth"]},
+        json={"name": "e1", "bundle_name": "b1", "profile": "oauth_only", "auth_modes": ["oauth"]},
     )
     assert ok.status_code == 200
+
+
+@pytest.mark.parametrize("former", ["claude", "chatgpt"])
+async def test_ep23_former_profile_identifier_rejected(client: AsyncClient, former: str):
+    """EP-23: a former profile identifier is a validation error listing the accepted values."""
+    await client.put("/api/v1/bundles/b1", json={"name": "b1"})
+    resp = await client.put(
+        "/api/v1/endpoints/e1",
+        json={"name": "e1", "bundle_name": "b1", "profile": former, "auth_modes": ["oauth"]},
+    )
+    assert resp.status_code == 422
+    for accepted in ("default", "oauth_only", "write_as_read"):
+        assert accepted in resp.text
+
+
+async def test_ep14_ep23_profile_listing(client: AsyncClient):
+    """EP-14/EP-23: the listing names each profile for its effect; only write_as_read warns."""
+    listing = (await client.get("/api/v1/endpoints/profiles")).json()
+    assert [p["name"] for p in listing] == ["default", "oauth_only", "write_as_read"]
+    assert all(p["description"] for p in listing)
+    warned = [p["name"] for p in listing if p.get("warning")]
+    assert warned == ["write_as_read"]
 
 
 async def test_endpoint_rename_needs_force(client: AsyncClient):

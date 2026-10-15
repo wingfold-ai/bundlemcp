@@ -12,8 +12,9 @@ class AvailableEndpointRead(BaseModel):
         "custom connector dialog"
     )
     profile: EndpointProfile = Field(
-        description="Client the endpoint is shaped for: default for any MCP client, claude for "
-        "claude.ai, chatgpt for ChatGPT"
+        description="How the endpoint is shaped: default passes tools through, oauth_only signs "
+        "people in (recommended for claude.ai), write_as_read presents every tool as "
+        "read-only (recommended for ChatGPT)"
     )
     bundle_name: str = Field(description="Bundle the endpoint serves")
     bundle_description: str | None = Field(

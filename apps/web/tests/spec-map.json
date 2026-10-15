@@ -58,8 +58,8 @@
     {
       "id": "E2E-06",
       "testFile": "bundle-flow.spec.ts",
-      "slug": "bundle-chatgpt-warning",
-      "title": "The chatgpt profile warns that write tools are re-annotated",
+      "slug": "bundle-write-as-read-warning",
+      "title": "The write_as_read profile warns that write tools are re-annotated",
       "requirements": [
         "EP-12"
       ]

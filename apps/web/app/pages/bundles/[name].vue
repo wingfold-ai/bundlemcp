@@ -215,13 +215,9 @@ async function loadProfiles() {
   profiles.value = (data ?? []) as ProfileInfo[];
 }
 
-const chatgptWarning = computed(() => {
-  if (createProfile.value !== "chatgpt") return "";
-  return (
-    profiles.value.find((p) => p.name === "chatgpt")?.warning ??
-    "ChatGPT profile re-annotates all tools; verify tool behavior before exposing this endpoint."
-  );
-});
+const profileWarning = computed(
+  () => profiles.value.find((p) => p.name === createProfile.value)?.warning ?? "",
+);
 
 function toggleAuthMode(mode: EndpointAuthMode, checked: boolean) {
   if (checked) {
@@ -604,11 +600,11 @@ onMounted(async () => {
               </option>
             </select>
             <p
-              v-if="createProfile === 'chatgpt'"
+              v-if="profileWarning"
               class="text-amber-600 text-sm mt-1"
-              data-testid="chatgpt-warning"
+              data-testid="profile-warning"
             >
-              {{ chatgptWarning }}
+              {{ profileWarning }}
             </p>
           </div>
           <div>

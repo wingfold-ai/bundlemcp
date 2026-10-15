@@ -16,7 +16,8 @@ class EndpointRead(EntityRead):
     name: str = Field(description="Unique endpoint name; it forms the URL path segment")
     bundle_id: uuid.UUID = Field(description="Bundle this endpoint exposes")
     profile: EndpointProfile = Field(
-        description="Client profile shaping the responses, such as the claude or chatgpt profile"
+        description="Profile shaping how the endpoint serves its bundle: default, oauth_only or "
+        "write_as_read; the profile listing says what each one changes"
     )
     auth_modes: list[EndpointAuthMode] = Field(
         description="Accepted credentials: oauth, api_key, or none for an open endpoint"

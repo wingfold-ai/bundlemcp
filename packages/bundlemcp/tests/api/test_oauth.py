@@ -73,8 +73,12 @@ async def oauth_env(engine: AsyncEngine, redis: FakeRedis):
         await db.commit()
         await db.refresh(user)
         await db.refresh(bundle)
-        ep1 = EndpointRow(name="ep1", bundle_id=bundle.id, auth_modes=["oauth"], profile="claude")
-        ep2 = EndpointRow(name="ep2", bundle_id=bundle.id, auth_modes=["oauth"], profile="claude")
+        ep1 = EndpointRow(
+            name="ep1", bundle_id=bundle.id, auth_modes=["oauth"], profile="oauth_only"
+        )
+        ep2 = EndpointRow(
+            name="ep2", bundle_id=bundle.id, auth_modes=["oauth"], profile="oauth_only"
+        )
         db.add_all([ep1, ep2])
         await db.commit()
 
@@ -946,7 +950,9 @@ async def test_registration_without_allow_list_accepts_any_https_redirect_uri(en
         http,
         _app,
     ):
-        resp = await http.post("/oauth/register", json={"redirect_uris": ["https://evil.example/cb"]})
+        resp = await http.post(
+            "/oauth/register", json={"redirect_uris": ["https://evil.example/cb"]}
+        )
         assert resp.status_code == 201
 
 
@@ -964,9 +970,7 @@ async def test_registration_rate_limit_and_window_are_configurable(engine, redis
         assert (await http.post("/oauth/register", json=body)).status_code == 201
 
 
-async def test_allow_listed_registrations_skip_the_per_ip_limit_not_the_global_quota(
-    engine, redis
-):
+async def test_allow_listed_registrations_skip_the_per_ip_limit_not_the_global_quota(engine, redis):
     """AUTH-12/SEC-8: allow-listed redirect URIs skip the per-IP budget; the global quota holds."""
     settings = hermetic_settings(
         public_url=PUBLIC_URL,
