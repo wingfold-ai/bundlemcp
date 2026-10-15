@@ -85,6 +85,12 @@ endpoints:
       per_client:
         limit: 600
         window_seconds: 60
+
+  - name: assistant-web
+    bundle_name: assistant
+    auth_modes: [none]
+    allow_unauthenticated: true
+    allowed_origins: ["https://app.example"]   # only this site's pages, from a browser
 ```
 
 The entries use exactly the same schemas as the management API's `PUT` routes:

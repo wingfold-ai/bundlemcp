@@ -23,7 +23,9 @@ refused before any JSON-RPC message is parsed: an unknown endpoint answers
 another endpoint or by another caller: only the user or API key that opened a
 session can use or end it, and the answer does not reveal that it exists. A body over the size cap
 (`max_request_bytes`, 4 MiB by default) answers `413` with a JSON-RPC error,
-`id: null` and code `-32600`, before anything else is checked; on `/api/v1` the
+`id: null` and code `-32600`, before anything else is checked. A browser request from
+an origin the endpoint does not [allow](/manage/endpoints#browser-origins) answers `403`
+with the same JSON-RPC shape, before its credential is checked; on `/api/v1` the
 same `413` carries the usual `{"detail": …}` object.
 
 ## Management API status codes

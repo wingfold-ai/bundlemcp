@@ -40,3 +40,37 @@ test(testTitle("E2E-08"), async ({ page, steps }) => {
 
   await deleteEndpointAndBundle(page, endpoint, bundle);
 });
+
+// Allowed browser origins are edited one per line and stored normalised; the save is
+// awaited before reloading so the reload cannot race it.
+test(testTitle("E2E-22"), async ({ page, steps }) => {
+  const bundle = "e2e-origins-bundle";
+  const endpoint = "e2e-origins";
+  page.on("dialog", (d) => d.accept());
+  await deleteEndpointAndBundle(page, endpoint, bundle);
+
+  await steps.play([
+    given("an api_key endpoint, which allows every origin by default", { req: "EP-24" }, async () => {
+      await createEchoBundle(page, bundle);
+      await createApiKeyEndpoint(page, endpoint, bundle);
+      await page.goto(`/endpoints/${endpoint}`);
+      await expect(page.getByTestId("input-allowed-origins")).toHaveValue("*");
+    }),
+    when("listing two origins and saving", { req: "EP-24" }, async () => {
+      await page.getByTestId("input-allowed-origins").fill("https://App.example/\nhttp://localhost:3000");
+      const saved = page.waitForResponse(
+        (r) => r.url().endsWith(`/api/v1/endpoints/${endpoint}`) && r.request().method() === "PUT",
+      );
+      await page.getByTestId("save-endpoint").click();
+      expect((await saved).status()).toBe(200);
+    }),
+    then("they persist across a reload, normalised", { req: "EP-24" }, async () => {
+      await page.reload();
+      await expect(page.getByTestId("input-allowed-origins")).toHaveValue(
+        "https://app.example\nhttp://localhost:3000",
+      );
+    }),
+  ]);
+
+  await deleteEndpointAndBundle(page, endpoint, bundle);
+});

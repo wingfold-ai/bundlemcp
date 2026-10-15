@@ -227,6 +227,16 @@
         "BND-1"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-22",
+      "testFile": "endpoint-config.spec.ts",
+      "slug": "endpoint-allowed-origins",
+      "title": "An admin lists an endpoint's allowed browser origins, and they persist normalised",
+      "requirements": [
+        "EP-24"
+      ],
+      "new": true
     }
   ]
 }

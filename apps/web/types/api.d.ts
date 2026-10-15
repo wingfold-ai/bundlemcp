@@ -1584,6 +1584,11 @@ export interface components {
          */
         EndpointRead: {
             /**
+             * Allowed Origins
+             * @description Browser origins whose pages may call this endpoint from another site, or ['*'] for any site; a browser request from any other origin is refused with 403
+             */
+            allowed_origins: string[];
+            /**
              * Auth Modes
              * @description Accepted credentials: oauth, api_key, or none for an open endpoint
              */
@@ -1643,6 +1648,11 @@ export interface components {
              * @default false
              */
             allow_unauthenticated?: boolean;
+            /**
+             * Allowed Origins
+             * @description Browser origins (e.g. 'https://app.example') whose pages may call this endpoint from another site, or ['*'] for any site. Not authentication: clients that are not browsers are unaffected, and every caller still authenticates per auth_modes. A browser request from any other origin is refused with 403. Omit for the default: [] when auth_modes is ['none'], ['*'] otherwise
+             */
+            allowed_origins?: string[] | null;
             /**
              * Auth Modes
              * @description Accepted credentials. 'none' is only valid on its own and additionally requires allow_unauthenticated

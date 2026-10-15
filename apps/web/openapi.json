@@ -1412,6 +1412,14 @@
       "EndpointRead": {
         "description": "An endpoint as stored.",
         "properties": {
+          "allowed_origins": {
+            "description": "Browser origins whose pages may call this endpoint from another site, or ['*'] for any site; a browser request from any other origin is refused with 403",
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Origins",
+            "type": "array"
+          },
           "auth_modes": {
             "description": "Accepted credentials: oauth, api_key, or none for an open endpoint",
             "items": {
@@ -1480,6 +1488,7 @@
           "auth_modes",
           "rate_limit",
           "enabled",
+          "allowed_origins",
           "created_at",
           "updated_at"
         ],
@@ -1494,6 +1503,22 @@
             "description": "Confirms an intentionally open endpoint. Required whenever auth_modes is ['none'], so an endpoint is never left unauthenticated by accident",
             "title": "Allow Unauthenticated",
             "type": "boolean"
+          },
+          "allowed_origins": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Browser origins (e.g. 'https://app.example') whose pages may call this endpoint from another site, or ['*'] for any site. Not authentication: clients that are not browsers are unaffected, and every caller still authenticates per auth_modes. A browser request from any other origin is refused with 403. Omit for the default: [] when auth_modes is ['none'], ['*'] otherwise",
+            "title": "Allowed Origins"
           },
           "auth_modes": {
             "description": "Accepted credentials. 'none' is only valid on its own and additionally requires allow_unauthenticated",
