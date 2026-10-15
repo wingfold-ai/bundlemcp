@@ -16,9 +16,10 @@ no `engines`, and the docs and diagrams jobs run Node 22.
 - **Releases (DEP-11):** pushing a `v<semver>` tag publishes both images under that version, and a GitHub release whose
   notes come from a maintained `CHANGELOG.md`; every release note states the metering-hook protocol version and calls
   out a change to it.
-- **Runtime versions (ARC-2):** `apps/web/package.json` declares `engines.node >= 24`, every CI and publishing job that
-  runs Node uses 24 or later, and the gateway is built, tested and shipped on the latest stable Python — see the open
-  decision.
+- **Runtime versions (ARC-2):** `apps/web/package.json` declares `engines.node >= 24`, and every CI and publishing job
+  that runs Node uses 24 or later. The Python half of ARC-2 moved to its own change,
+  [adopt-python-3-14](../../changes/archive/2026-10-15-adopt-python-3-14/proposal.md), which settled it as 3.14; the
+  ARC-2 delta here carries that text unchanged so archiving this change does not undo it.
 
 ## Capabilities
 
@@ -30,22 +31,14 @@ None.
 
 - `deployment`: DEP-8 (restore rehearsed once per release cycle), DEP-10 (frontend typecheck in CI), DEP-11 (tagged
   semver releases with changelog and release notes naming the metering-hook protocol version).
-- `architecture`: ARC-2 (Node ≥ 24 enforced by `engines` and used by every job; Python on the latest stable release).
-
-## Open decision
-
-- **Python 3.14.** The original ARC-2 read "Python ≥ 3.13 (or latest stable at implementation time)", and 3.14 is the
-  latest stable release. The delta moves the images and CI to 3.14 while keeping `requires-python = ">=3.13"`.
-  Alternative: **amend** — keep 3.13 everywhere and drop the Python half of the ARC-2 delta, so the main spec's pinned
-  3.13 stands. Maintainers decide before applying.
+- `architecture`: ARC-2 (Node ≥ 24 enforced by `engines` and used by every job).
 
 ## Impact
 
-- **CI:** `.github/workflows/ci.yml` (typecheck step, Node 24 in the docs and diagrams jobs, possibly Python 3.14),
+- **CI:** `.github/workflows/ci.yml` (typecheck step, Node 24 in the docs and diagrams jobs),
   `.github/workflows/publish-docs.yml` (Node 24), `.github/workflows/publish.yml` (tag trigger and semver image tags), a
   new release workflow and a restore-rehearsal workflow.
-- **Repository:** a new `CHANGELOG.md`; `apps/web/package.json` (`engines`); `apps/gateway/Dockerfile`, `pyproject.toml`
-  (`target-version`) if Python moves.
+- **Repository:** a new `CHANGELOG.md`; `apps/web/package.json` (`engines`).
 - **Docs:** `docs/self-hosting/deploy.md` (*Backups* — where the rehearsal runs; image tags for pinning a release),
   `docs/integrate/metering-hook.md` (where the protocol version is announced), `CONTRIBUTING.md` (how a release is cut).
 - **Depends on** nothing. No ADR: these are operational rules, not architectural decisions.

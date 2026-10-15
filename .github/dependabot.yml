@@ -34,9 +34,14 @@ updates:
         update-types: ["minor", "patch"]
     labels: ["dependencies"]
   - package-ecosystem: docker
-    directories: ["/apps/gateway", "/apps/web", "/examples/echo-mcp"]
+    directories: ["/apps/gateway", "/apps/web", "/examples/echo-mcp", "/examples/oauth-demo-mcp"]
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+    # One pull request moves every Python image: the gateway's builder and runtime stages must
+    # agree, and a test fails any image or CI job that differs from .python-version.
+    groups:
+      python-images:
+        patterns: ["python", "*astral-sh/uv"]
     labels: ["dependencies"]
