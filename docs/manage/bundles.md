@@ -56,6 +56,18 @@ membership or its per-tool curation. `DELETE` on the route removes the membershi
 `GET /api/v1/bundles/{name}/upstreams` lists members with their health, so you can see at a glance which upstream is
 down.
 
+Members are **ordered**. A new member joins at the end, and the list above comes back in that order. The order decides
+who answers first wherever more than one member could: the first member listing a resource URI is the one that serves
+it. Set it with the whole list:
+
+```bash
+curl -s -X PUT $API/bundles/assistant/upstreams:order -H "$AUTH" \
+  -H "Content-Type: application/json" -d '{"upstreams": ["weather", "calendar"]}'
+```
+
+The list must name every member exactly once, or the request answers `422` and nothing changes. A bootstrap document's
+`upstreams` list puts the members it names first, in its order. The bundle page has up and down buttons for the same.
+
 Do not add an upstream whose URL is one of this gateway's own endpoints: nothing refuses that self-reference yet, and
 a call through it re-enters the gateway until a timeout stops it.
 
@@ -66,7 +78,8 @@ gateway splits a presented name on the first `__` to find the owning server, and
 `weather` server's `forecast` tool is `weather__forecast` in every bundle.
 
 A member's prompts follow the same rule. Its resources are keyed by URI, which is passed through unchanged; on a
-collision the first enabled member wins. The bundle's own prompts and resources are named differently; see below.
+collision the first enabled member in member order wins. The bundle's own prompts and resources are named differently;
+see below.
 
 ## Curating tools
 
@@ -87,7 +100,7 @@ curl -s -X PUT $API/bundles/assistant/tools/$TOOL_ID -H "$AUTH" -H "Content-Type
 | Field | Effect |
 |---|---|
 | `enabled: false` | The tool is absent from `tools/list` and a call to it is rejected with an MCP error. |
-| `override_name` | Replaces the whole presented name. Must match `[a-zA-Z0-9_-]+` and be unique among the bundle's override names. It is not yet checked against other tools' prefixed `server__tool` names, so do not choose one that has that shape. |
+| `override_name` | Replaces the whole presented name. Must match `[a-zA-Z0-9_-]+` and differ from every other name the bundle presents, override or prefixed `server__tool`; a clash answers `409` naming the tool that holds the name. |
 | `override_title` | Replaces the display title. |
 | `override_description` | Replaces the description the model reads. This is the most useful override: tailor what the model is told about the tool to the bundle's purpose. |
 | `override_annotations` | Shallow-merged over the upstream annotations. Set a key to `null` to remove it. |
@@ -96,8 +109,20 @@ Curation is **per bundle**: the same server can present differently in two bundl
 win over the `write_as_read` profile's rewrite, so you can keep one tool truthfully marked destructive on a ChatGPT
 endpoint if you accept that ChatGPT may then refuse it.
 
-The bundle page in the UI shows the same table with enable toggles and inline override editing, and flags tools that are
-overridden or stale.
+The PUT replaces the tool's whole curation: a field left out is cleared. Send every override you want to keep.
+
+Presented names stay unique when the bundle's prefixed names change, too. Adding a member, or renaming a member
+upstream, answers `409` when one of its tools would be presented under a name an override already holds; rename or
+clear the override first. Only discovery cannot be refused: if an upstream adds a tool whose prefixed name an override
+already holds, the override keeps the name, the new tool is not served, and the gateway logs
+`bundle.presented_name_collision`.
+
+The listing also reports `override_annotations` and `stale`. A stale tool is one its upstream no longer lists
+([stale tools](./servers#stale-tools)); it is not served, but its curation is kept for when it comes back.
+
+The bundle page in the UI shows the same table with enable toggles and inline editing of every override, name, title,
+description and annotations (as JSON). Saving a row sends all of them, so it never clears an override set through the
+API. Rows are flagged when overridden, when their member is disabled, and when stale.
 
 ## The bundle's own prompts and documents {#bundle-prompts-and-documents}
 

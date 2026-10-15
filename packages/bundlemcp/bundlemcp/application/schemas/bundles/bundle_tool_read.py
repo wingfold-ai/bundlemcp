@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -25,4 +26,13 @@ class BundleToolRead(BaseModel):
     override_title: str | None = Field(description="Replacement title set on this bundle")
     override_description: str | None = Field(
         description="Replacement description set on this bundle"
+    )
+    override_annotations: dict[str, Any] | None = Field(
+        description="Replacement MCP annotations set on this bundle, such as read-only and "
+        "destructive hints"
+    )
+    stale: bool = Field(
+        description="True when the latest successful discovery of the owning server no longer "
+        "listed the tool. A stale tool is not served but keeps this curation, and is served "
+        "with it again if the server lists it again"
     )

@@ -128,13 +128,24 @@ async function loadTools() {
   tools.value = data.items;
 }
 
-async function refreshTools() {
+const staleTools = computed(() => tools.value.filter((t) => t.stale));
+
+async function refreshAndPrune() {
+  const names = staleTools.value.map((t) => `  ${t.name}`).join("\n");
+  const question =
+    `Refresh the tools of "${serverName.value}" and, if the upstream answers, delete these ` +
+    `tools it no longer lists, with their curation in every bundle?\n\n${names}`;
+  if (!window.confirm(question)) return;
+  await refreshTools(true);
+}
+
+async function refreshTools(prune = false) {
   errorMsg.value = "";
   refreshResult.value = "";
   refreshing.value = true;
   try {
     const { data, error } = await api.POST("/api/v1/upstreams/{name}:refresh-tools", {
-      params: { path: { name: serverName.value } },
+      params: { path: { name: serverName.value }, query: { prune } },
     });
     if (error) {
       errorMsg.value = apiErrorMessage(error);
@@ -142,7 +153,8 @@ async function refreshTools() {
     }
     refreshResult.value = data.error
       ? `${CONNECTION_STATE_LABEL[data.connection_state ?? "error"]}: ${data.error}`
-      : `${data.discovered} tools, ${data.changed} changed`;
+      : `${data.discovered} tools, ${data.changed} changed` +
+        (prune ? `, ${data.pruned} pruned` : "");
     await Promise.all([loadTools(), loadServer()]);
   } finally {
     refreshing.value = false;
@@ -475,8 +487,18 @@ onMounted(async () => {
             variant="soft"
             :loading="refreshing"
             data-testid="refresh-tools"
-            @click="refreshTools"
+            @click="refreshTools()"
             >Refresh tools</UButton
+          >
+          <UButton
+            v-if="staleTools.length > 0"
+            size="xs"
+            color="warning"
+            variant="soft"
+            :loading="refreshing"
+            data-testid="refresh-and-prune"
+            @click="refreshAndPrune"
+            >Refresh &amp; prune</UButton
           >
           <span v-if="refreshResult" class="text-sm text-muted" data-testid="refresh-result">{{
             refreshResult
@@ -494,7 +516,18 @@ onMounted(async () => {
             </thead>
             <tbody>
               <tr v-for="t in tools" :key="t.id" :data-testid="`tool-${t.name}`">
-                <td>{{ t.name }}</td>
+                <td>
+                  {{ t.name }}
+                  <UBadge
+                    v-if="t.stale"
+                    icon="i-lucide-ghost"
+                    color="warning"
+                    variant="subtle"
+                    title="The upstream no longer lists this tool, so no endpoint serves it; its curation is kept in case it returns"
+                    :data-testid="`tool-stale-${t.name}`"
+                    >stale</UBadge
+                  >
+                </td>
                 <td>{{ t.title }}</td>
                 <td>{{ t.description }}</td>
                 <td><TimestampText :value="t.last_seen_at" /></td>

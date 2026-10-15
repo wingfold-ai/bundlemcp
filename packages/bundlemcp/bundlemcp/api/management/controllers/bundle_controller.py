@@ -9,6 +9,7 @@ from bundlemcp.api.http.route import route
 from bundlemcp.api.http.service_providers import BundleServiceProvider
 from bundlemcp.api.management.controllers.management_controller import ManagementController
 from bundlemcp.application.schemas import (
+    BundleMemberOrder,
     BundleMemberRead,
     BundleMembershipRead,
     BundleRead,
@@ -54,6 +55,13 @@ class BundleController(ManagementController):
         self, name: str, service: BundleServiceProvider
     ) -> list[BundleMemberRead]:
         return await service.list_members(name)
+
+    @route.put("/{name}/upstreams:order")
+    async def order_members(
+        self, name: str, body: BundleMemberOrder, service: BundleServiceProvider
+    ) -> list[BundleMemberRead]:
+        """Set the order of the bundle's members; the first answers first where several could."""
+        return await service.order_members(name, body)
 
     @route.get("/{name}/tools")
     async def list_tools(self, name: str, service: BundleServiceProvider) -> list[BundleToolRead]:

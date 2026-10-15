@@ -76,6 +76,7 @@ class BootstrapRunner:
                 await bundles.upsert(bundle)
                 for server_name in bundle.upstreams:
                     await bundles.set_member(bundle.name, server_name, BundleServerUpdate())
+                await bundles.place_members_first(bundle.name, bundle.upstreams)
                 # resources first, since a prompt may embed one
                 for resource in bundle.resources:
                     await bundle_resources.upsert(bundle.name, resource)

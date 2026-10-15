@@ -12,7 +12,9 @@ class SqlAlchemyMembershipRepository(SqlAlchemyRepository[BundleServer, BundleSe
         super().__init__(session, BundleServer, BundleServerRow)
 
     async def for_bundle(self, bundle_id: uuid.UUID) -> list[BundleServer]:
-        return await self.all(BundleServerRow.bundle_id == bundle_id)
+        return await self.all(
+            BundleServerRow.bundle_id == bundle_id, order_by=(BundleServerRow.position,)
+        )
 
     async def for_server(self, server_id: uuid.UUID) -> list[BundleServer]:
         return await self.all(BundleServerRow.server_id == server_id)

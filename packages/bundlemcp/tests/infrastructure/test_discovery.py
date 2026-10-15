@@ -124,7 +124,7 @@ async def test_rediscovery_is_hash_stable(engine, redis):
 
 
 async def test_vanished_tool_kept_stale(engine, redis):
-    """UPS-19: tools that disappear upstream stay cached with old last_seen_at."""
+    """UPS-19: a tool that disappears upstream stays cached, marked stale."""
     server = await seed_server(engine)
     svc = DiscoveryService(
         _units(engine, redis), FastMcpUpstreamProbe(factory_for(make_upstream(["alpha", "beta"])))
@@ -139,7 +139,25 @@ async def test_vanished_tool_kept_stale(engine, redis):
     async with session_factory(engine)() as db:
         tools = {t.name: t for t in (await db.execute(select(ToolRow))).scalars()}
         assert set(tools) == {"alpha", "beta"}  # beta kept
-        assert tools["alpha"].last_seen_at > tools["beta"].last_seen_at
+        assert tools["alpha"].stale_since is None
+        assert tools["beta"].stale_since is not None
+
+
+async def test_ups19_failed_probe_makes_nothing_stale(engine, redis):
+    """UPS-19: a probe that fails leaves every cached tool as it was."""
+    server = await seed_server(engine)
+    ok = DiscoveryService(
+        _units(engine, redis), FastMcpUpstreamProbe(factory_for(make_upstream(["alpha"])))
+    )
+    await ok.discover(server.id)
+
+    down = DiscoveryService(_units(engine, redis), FastMcpUpstreamProbe(failing_factory))
+    result = await down.discover(server.id, prune=True)
+
+    assert result.error is not None
+    async with session_factory(engine)() as db:
+        [alpha] = (await db.execute(select(ToolRow))).scalars().all()
+        assert alpha.stale_since is None
 
 
 async def test_health_error_after_consecutive_failures_and_self_heal(engine, redis):

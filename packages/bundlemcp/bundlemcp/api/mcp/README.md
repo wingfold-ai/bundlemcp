@@ -153,9 +153,10 @@ Discovery is the **only writer of the `Tool` cache** in Postgres; `tools/list` r
   result. Advertised capabilities are snapshotted onto `McpServer.capabilities` (UPS-22) to feed capability aggregation
   at `initialize`.
 - **Change detection:** each upstream tool is hashed (`tool_schema_hash` = SHA-256 over a canonical JSON of
-  name/title/description/ input_schema/annotations). A row is rewritten only when its hash changed (UPS-18);
-  `last_seen_at` is always bumped. Tools that vanish upstream are **not deleted** — they keep their old `last_seen_at`
-  (UPS-19).
+  name/title/description/ input_schema/annotations). A row is written only when the tool is new, its hash changed, it
+  vanished or it reappeared, so an unchanged run writes no tool (UPS-18). A tool that vanishes upstream is **not
+  deleted**: `stale_since` is set, the tool pipeline's stale filter stops serving it, and its curation is kept for when
+  it reappears; `:refresh-tools?prune=true` deletes stale tools after a successful probe (UPS-19).
 - **Health (UPS-4):** a per-server consecutive-failure counter flips `health_status` to `error` after 3 failed probes
   and self-heals to `ok` on the next success. The threshold is fixed (the `server_error_attempts` setting is not read
   yet), and the counter lives in the memory of the replica running the probes.

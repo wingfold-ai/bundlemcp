@@ -5,6 +5,7 @@ from bundlemcp.application.contracts.upstream.tool_discovery import ToolDiscover
 from bundlemcp.application.errors import ConflictError, PreconditionError
 from bundlemcp.application.management.named_resource_service import NamedResourceService
 from bundlemcp.application.management.per_user_upstream_check import PerUserUpstreamCheck
+from bundlemcp.application.management.presented_name_check import PresentedNameCheck
 from bundlemcp.application.schemas import DiscoveryResult, Page, ServerRead, ServerUpsert, ToolRead
 from bundlemcp.domain.servers.internal_host import is_internal_host
 from bundlemcp.domain.servers.mcp_server import McpServer
@@ -87,14 +88,21 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
                 "server is a bundle member; renaming changes client-visible tool names — "
                 "retry with force=true to acknowledge (UPS-5)"
             )
+        await PresentedNameCheck(self._uow).ensure_rename_allowed(server, new_name)
         return await self._rename(server, new_name, server_name_type)
 
     async def list_tools(self, name: str, *, offset: int, limit: int) -> Page[ToolRead]:
         server = await self._get(name)
         total, rows = await self._uow.tools.page_for_server(server.id, offset=offset, limit=limit)
-        return Page.of(rows, total, offset=offset, limit=limit, read=ToolRead.from_entity)
+        return Page.of(
+            rows, total, offset=offset, limit=limit, read=lambda tool: ToolRead.of(tool, server)
+        )
 
-    async def refresh_tools(self, name: str) -> DiscoveryResult:
-        """Explicit refresh: runs tool discovery now and reports the result."""
+    async def refresh_tools(self, name: str, *, prune: bool = False) -> DiscoveryResult:
+        """Explicit refresh: runs tool discovery now and reports the result.
+
+        ``prune`` also deletes the tools the server no longer lists, with their
+        curation in every bundle, but only when the probe succeeds.
+        """
         server = await self._get(name)
-        return await self._discovery.discover(server.id)
+        return await self._discovery.discover(server.id, prune=prune)

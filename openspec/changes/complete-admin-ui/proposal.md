@@ -13,7 +13,7 @@ page's title. The main spec was narrowed to what exists; this change restores th
 - **API keys page:** an endpoint-scope picker for endpoint-kind keys, the scope shown in the list, and a *Re-activate*
   action for an inactive key, backed by a new `POST /api/v1/api-keys/{id}:activate` action.
 - **Upstream detail page:** a *Refresh & prune* action and *stale* badges on discovered tools, once the backend offers
-  them ([complete-tool-curation](../complete-tool-curation/proposal.md)).
+  them ([complete-tool-curation](../archive/2026-10-13-complete-tool-curation/proposal.md)).
 - **Bundle detail page:** curation table edits description and annotation overrides and flags stale tools (BND-16, from
   complete-tool-curation).
 - **Audit page:** filters for bundle, upstream and caller as well as endpoint, status, tool and time range, and a CSV
@@ -50,10 +50,10 @@ None.
 
 ## Impact
 
-- **Depends on** [complete-tool-curation](../complete-tool-curation/proposal.md) (refresh & prune, stale tools,
-  description and annotation overrides — BND-16, UPS-19) and [harden-audit-log](../harden-audit-log/proposal.md) (the
-  bundle, upstream and caller filters and the full-result CSV — OPS-6). The UI-1 parts that rely on them land after
-  those changes; the rest of this change does not wait.
+- **Depends on** [complete-tool-curation](../archive/2026-10-13-complete-tool-curation/proposal.md) (refresh & prune,
+  stale tools, description and annotation overrides — BND-16, UPS-19) and
+  [harden-audit-log](../harden-audit-log/proposal.md) (the bundle, upstream and caller filters and the full-result CSV —
+  OPS-6). The UI-1 parts that rely on them land after those changes; the rest of this change does not wait.
 - **Coordination:** the per-server *probe* action of the original UI-1 is the *Refresh tools* action that already
   re-probes; a separate `:probe` route is decided in [align-management-api](../align-management-api/proposal.md)
   (MGMT-1). The Settings page's export/import belongs to [add-export-import](../add-export-import/proposal.md)

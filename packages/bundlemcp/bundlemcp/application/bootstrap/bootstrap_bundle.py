@@ -11,7 +11,8 @@ class BootstrapBundle(BundleUpsert):
 
     upstreams: list[str] = Field(
         default=[],
-        description="Names of the upstream servers that belong to this bundle",
+        description="Names of the upstream servers that belong to this bundle, first member "
+        "first; members added elsewhere and not named here follow them",
     )
     prompts: list[BundlePromptUpsert] = Field(
         default=[],

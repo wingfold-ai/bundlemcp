@@ -6,6 +6,7 @@ from bundlemcp.domain.bundles.bundle_tool import BundleTool
 from bundlemcp.domain.bundles.curation_filter import CurationFilter
 from bundlemcp.domain.bundles.override_stage import OverrideStage
 from bundlemcp.domain.bundles.profile_stage import ProfileStage
+from bundlemcp.domain.bundles.stale_tool_filter import StaleToolFilter
 from bundlemcp.domain.bundles.tool_pipeline import ToolPipeline
 from bundlemcp.domain.endpoints.endpoint_profile import EndpointProfile
 from bundlemcp.domain.endpoints.profiles import ProfileCatalog
@@ -57,9 +58,15 @@ def test_curation_overrides_win_over_the_profile_and_can_disable():
 
 
 def test_ep13_stage_order():
-    """Curation filter first, the profile next, the overrides last so they win (BND-15)."""
+    """Stale and curation filters first, the profile next, the overrides last so they win
+    (BND-15, UPS-19)."""
     stages = pipeline(EndpointProfile.WRITE_AS_READ).stages
-    assert [type(s) for s in stages] == [CurationFilter, ProfileStage, OverrideStage]
+    assert [type(s) for s in stages] == [
+        StaleToolFilter,
+        CurationFilter,
+        ProfileStage,
+        OverrideStage,
+    ]
     overridden = BundleTool(
         bundle_id=uuid.uuid4(), tool_id=TOOL.id, override_annotations={"readOnlyHint": False}
     )

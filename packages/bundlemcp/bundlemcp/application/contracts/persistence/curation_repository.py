@@ -17,6 +17,10 @@ class CurationRepository(Repository[BundleTool], Protocol):
         """The curation of one tool in one bundle, or None."""
         ...
 
+    async def delete_for_tools(self, tool_ids: list[uuid.UUID]) -> int:
+        """Delete every bundle's curation of these tools; returns how many records went."""
+        ...
+
     async def override_name_taken(
         self, bundle_id: uuid.UUID, override_name: str, *, except_tool_id: uuid.UUID
     ) -> bool:

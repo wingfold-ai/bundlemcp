@@ -33,6 +33,16 @@ export async function withUpstream(
   }
 }
 
+// A management-API client authenticated with the service key, for setup the UI
+// under test does not offer. Like withUpstream it carries no session cookie.
+export async function adminApi(): Promise<APIRequestContext> {
+  return apiRequest.newContext({
+    baseURL: `${GATEWAY_URL}/api/v1/`,
+    storageState: { cookies: [], origins: [] },
+    extraHTTPHeaders: { Authorization: `Bearer ${SERVICE_KEY}` },
+  });
+}
+
 // Compose a bundle over the seeded `echo` server through the UI.
 export async function createEchoBundle(page: Page, bundle: string): Promise<void> {
   await page.goto("/bundles");

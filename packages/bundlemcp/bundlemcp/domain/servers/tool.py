@@ -4,8 +4,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from bundlemcp.domain.shared.clock import utcnow
-
 
 class Tool(BaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="Identifier of the cached tool")
@@ -28,8 +26,14 @@ class Tool(BaseModel):
     schema_hash: str = Field(
         description="Hash of the definition, so an unchanged tool costs no write on re-probe"
     )
-    last_seen_at: datetime = Field(
-        default_factory=utcnow,
-        description="When the tool was last reported. A stale value means it has disappeared "
-        "upstream; its curation is kept, and it is still served until it is pruned",
+    stale_since: datetime | None = Field(
+        default=None,
+        description="When a successful discovery of the server first stopped listing the tool; "
+        "None while the server lists it. A stale tool is not served but keeps its curation, "
+        "and is served again if the server lists it again",
     )
+
+    @property
+    def is_stale(self) -> bool:
+        """The latest successful discovery of the server did not list this tool."""
+        return self.stale_since is not None

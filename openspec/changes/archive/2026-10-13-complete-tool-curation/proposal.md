@@ -17,7 +17,7 @@ Member order is also fixed to server-name order, so an admin cannot say which me
 - **Refresh & prune** (UPS-19): `POST /api/v1/upstreams/{name}:refresh-tools?prune=true` probes now and, only if the
   probe succeeds, deletes the stale tools and their curation in every bundle. The UI offers it on the upstream page.
 - **Write-free sync in the common case** (UPS-18): a discovery run that finds nothing new, changed, vanished or
-  reappeared writes no tool row. See the open decision.
+  reappeared writes no tool row. See the decision below.
 - **Override names unique against prefixed names** (BND-14): validated on write against every other override and every
   prefixed name of the bundle, and re-checked when a member is added or a member upstream is renamed.
 - **Full curation UI** (BND-16): inline editing of override name, title, description and annotations; saving a row never
@@ -43,19 +43,14 @@ None.
   curation UI, stale flag, no wiped overrides), BND-17 (curation listing returns annotation overrides and staleness).
 - `upstreams`: UPS-18 (write-free sync in the common case), UPS-19 (stale tools are not served; refresh & prune).
 - `bundles`: BND-1 (admin-controlled member order), BND-8 (first-member-wins and fan-out follow that order).
+- `protocol`: PROT-25 (the tool filter drops stale tools as well as disabled ones).
 
-## Open decision
+## Decision
 
-**UPS-18 — write-free sync.** Today every run writes `last_seen_at` on every tool it saw, so a run is never
-write-free. The delta restores the original intent (no tool row is written unless something changed). The maintainers
-choose one before applying:
-
-1. **Build write-free** (the delta as written): record when a tool *goes* stale instead of when it was last seen, so an
-   unchanged run touches no tool row.
-2. **Batch**: keep `last_seen_at`, but move it for every seen tool in one statement per run; reword UPS-18 to "one write
-   per run, not per tool".
-3. **Amend**: keep today's per-row write and restore the current UPS-18 wording, keeping only the counting sentence the
-   delta adds (a vanished or reappearing tool is a change of the tool set).
+**UPS-18 — write-free sync: build it** (option 1 of the three the proposal offered; the alternatives were to batch the
+`last_seen_at` write into one statement per run, or to amend UPS-18 to today's per-row write). A tool records when it
+*goes* stale instead of when it was last seen, so an unchanged run writes no tool row. `last_seen_at` stays a published
+field, derived from the server's last successful discovery, or from `stale_since` for a stale tool.
 
 ## Impact
 
@@ -65,14 +60,15 @@ choose one before applying:
   `apps/web/types/api.d.ts`.
 - **Behaviour change:** clients stop seeing tools that vanished upstream; an admin who relied on a vanished tool still
   being listed sees it disappear. Override writes that collide with a prefixed name now answer `409`.
-- **Data:** an Alembic migration adds a member position (backfilled in server-name order) and the stale marker on cached
-  tools.
+- **Data:** an Alembic migration adds a member position (backfilled in server-name order), the stale marker on cached
+  tools and the server's last discovery time (backfilled from the newest `last_seen_at` of its tools), and drops
+  `tools.last_seen_at`.
 - **Code:** `domain/servers/tool_sync.py`, `domain/bundles/` (view composition, membership), `application/discovery/`,
   `application/management/bundle_service.py` and `server_service.py`, the Postgres and in-memory repositories, the
   bundle and upstream pages of `apps/web`.
 - **Docs:** `docs/manage/bundles.md`, `docs/manage/servers.md`, `docs/integrate/management-api.md`.
-- **Related changes:** [complete-admin-ui](../complete-admin-ui/proposal.md) takes the stale badges and "refresh &
-  prune" from here (UI-1). [add-member-prompt-curation](../add-member-prompt-curation/proposal.md) also modifies BND-8
-  and must archive after this change. [add-export-import](../add-export-import/proposal.md) should carry the member
-  position in its document once both land.
+- **Related changes:** [complete-admin-ui](../../complete-admin-ui/proposal.md) takes the stale badges and "refresh &
+  prune" from here (UI-1). [add-member-prompt-curation](../../add-member-prompt-curation/proposal.md) also modifies
+  BND-8 and must archive after this change. [add-export-import](../../add-export-import/proposal.md) should carry the
+  member position in its document once both land.
 - No ADR: the change completes existing decisions (ADR-0038 periodic refresh) rather than making a new one.
