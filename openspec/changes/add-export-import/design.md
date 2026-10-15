@@ -98,8 +98,9 @@ generated OpenAPI client.
 
 - [A secret-bearing export file leaks] → admin session only, `warning` field, docs say to treat it as a credential;
   the default is placeholders.
-- [Large documents (4 MiB of resources per bundle) exceed the request size limit] → `/api/v1` has no body limit today;
-  if `harden-http-edge` adds one, import may need a higher limit for this route — revisit then.
+- [Large documents (4 MiB of resources per bundle) exceed the request size limit] → `/api/v1` refuses bodies over
+  `max_request_bytes` (4 MiB by default, up to 64 MiB, SEC-7); an export with several full bundles can exceed it, so
+  the import docs say to raise that runtime setting first, or to import bundle by bundle.
 - [Curation silently incomplete after import to a fresh instance] → `skipped` results name each tool and the reason;
   docs say to re-import after discovery.
 - [Bootstrap behaviour changes through the shared use case] → bootstrap tests stay green and keep their strict-mode

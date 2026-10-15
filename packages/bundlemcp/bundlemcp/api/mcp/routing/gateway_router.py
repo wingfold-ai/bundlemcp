@@ -8,9 +8,6 @@ from bundlemcp.api.mcp.routing.adapters.session_adapter import SessionMcpAdapter
 from bundlemcp.api.mcp.routing.adapters.stateless_adapter import StatelessMcpAdapter
 from bundlemcp.api.mcp.routing.admission_gate import AdmissionGate
 
-# Upper bound on request body size before reading into memory (4 MB)
-MAX_PAYLOAD_BYTES = 4 * 1024 * 1024
-
 
 def _method_not_allowed() -> Response:
     # the stateless era is POST-only; GET/DELETE exist for session clients.
@@ -32,10 +29,10 @@ class McpGatewayRouter:
         self._session = session_adapter
 
     async def post(self, request: Request, endpoint_name: str) -> Response:
-        """Admit caller, validate payload, and dispatch to the matching era adapter."""
-        if self._is_oversized(request):
-            return Response(status_code=413, content="Payload Too Large")
+        """Admit caller, validate payload, and dispatch to the matching era adapter.
 
+        The body size is already bounded by the request body limit middleware.
+        """
         try:
             message = await self._admission.parse_envelope(request)
             ctx = await self._admission.admit_caller(request, endpoint_name)
@@ -66,13 +63,3 @@ class McpGatewayRouter:
             return await self._session.open_stream(ctx, endpoint_name)
         except RequestRejected as rejected:
             return rejected.response
-
-    @staticmethod
-    def _is_oversized(request: Request) -> bool:
-        content_length = request.headers.get("content-length")
-        if content_length:
-            try:
-                return int(content_length) > MAX_PAYLOAD_BYTES
-            except ValueError:
-                pass
-        return False

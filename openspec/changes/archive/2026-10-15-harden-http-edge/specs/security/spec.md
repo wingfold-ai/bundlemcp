@@ -44,7 +44,7 @@ connection, including each hop of a followed redirect. A host that does not reso
 
 ### Requirement: SEC-7 Request body size limit
 `/{endpoint}/mcp` and `/api/v1` MUST reject a request body larger than the request limit (runtime-configurable,
-default 1 MiB) with `413 Payload Too Large`, before the body is parsed and before any database connection is taken.
+default 4 MiB) with `413 Payload Too Large`, before the body is parsed and before any database connection is taken.
 A declared `Content-Length` above the limit is refused before the body is read; a body without one (chunked) is
 refused as soon as the bytes read exceed the limit. The 413 carries a structured body: a JSON-RPC error on MCP
 routes, the API's error object on `/api/v1`. A single upstream response message larger than the upstream response cap
@@ -65,9 +65,9 @@ result cannot exhaust a replica's memory. Either limit accepts values from 64 Ki
 - **THEN** the gateway answers `413` with the API's error object and changes nothing
 
 #### Scenario: Limit changed at runtime
-- **GIVEN** an admin sets the request limit to 2 MiB through the runtime configuration
+- **GIVEN** an admin lowers the request limit to 1 MiB through the runtime configuration
 - **WHEN** a 1.5 MiB request then arrives at any replica
-- **THEN** it is accepted once the configuration change has propagated
+- **THEN** it is refused with `413` once the configuration change has propagated
 
 #### Scenario: Oversized upstream response
 - **WHEN** an upstream answers a `tools/call` with a single message larger than the upstream response cap

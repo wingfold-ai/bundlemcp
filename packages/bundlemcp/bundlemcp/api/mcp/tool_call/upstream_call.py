@@ -134,6 +134,11 @@ class UpstreamCall:
     async def _watchdog(self, task: asyncio.Task[Any]) -> None:
         while not task.done():
             await asyncio.sleep(WATCHDOG_INTERVAL)
+            if self.responses.oversized_limit is not None:
+                # the connection abandoned a message; the client may still be waiting on it
+                self._timeout_reason = self._oversized_reason()
+                task.cancel()
+                return
             now = self._loop.time()
             if now - self._started > self._timeouts.max_total:
                 self._timeout_reason = "max_total_timeout"
@@ -144,6 +149,12 @@ class UpstreamCall:
                 self._timeout_reason = "call_timeout"
                 task.cancel()
                 return
+
+    def _oversized_reason(self) -> str:
+        return (
+            f"upstream response too large: a message exceeded the "
+            f"{self.responses.oversized_limit}-byte limit"
+        )
 
     async def _canceller(self, task: asyncio.Task[Any]) -> None:
         if self._handle is None:
@@ -178,8 +189,13 @@ class UpstreamCall:
             log.warning(
                 "upstream.call_failed", server=self._tool.server.name, tool=self._tool.tool.name
             )
+            message = (
+                self._oversized_reason()
+                if self.responses.oversized_limit is not None
+                else str(exc)[:500]
+            )
             return CallOutcome(
-                status=CallStatus.ERROR, error_message=str(exc)[:500], code=UPSTREAM_FAILURE
+                status=CallStatus.ERROR, error_message=message, code=UPSTREAM_FAILURE
             )
         finally:
             watchdog.cancel()

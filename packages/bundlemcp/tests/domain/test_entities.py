@@ -64,3 +64,23 @@ def test_config_values_are_validated_strictly():
             coerce(key, value)
     with pytest.raises(UnknownConfigKey):
         coerce("nope", 1)
+
+
+@pytest.mark.parametrize("key", ["max_request_bytes", "max_upstream_response_bytes"])
+def test_sec7_size_limits_are_bounded(key):
+    """SEC-7: a size limit outside 64 KiB to 64 MiB is refused with a message naming the key."""
+    from bundlemcp.domain.config.config_registry import KIB, MIB, coerce
+
+    assert coerce(key, 64 * KIB) == 64 * KIB
+    assert coerce(key, 64 * MIB) == 64 * MIB
+    for value in (64 * KIB - 1, 64 * MIB + 1):
+        with pytest.raises(ValueError, match=key):
+            coerce(key, value)
+
+
+def test_sec7_request_limit_keeps_the_shipped_default():
+    """SEC-7: the request limit defaults to 4 MiB, the upstream response cap to 16 MiB."""
+    from bundlemcp.domain.config.config_registry import DEFAULTS, MIB
+
+    assert DEFAULTS["max_request_bytes"].default == 4 * MIB
+    assert DEFAULTS["max_upstream_response_bytes"].default == 16 * MIB

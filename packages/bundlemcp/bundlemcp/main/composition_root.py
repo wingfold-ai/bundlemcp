@@ -131,7 +131,10 @@ class CompositionRoot:
             self._stack.push_async_callback(redis.aclose)
         units = SqlAlchemyUnitOfWorkFactory(sessions, redis)
 
-        client_factory = overrides.client_factory or default_client_factory(settings)
+        runtime_config = RuntimeConfig(units)
+        client_factory = overrides.client_factory or default_client_factory(
+            settings, lambda: runtime_config.current("max_upstream_response_bytes")
+        )
 
         cipher = self._build_cipher()
         upstream_oauth = overrides.upstream_oidc_provider or HttpxUpstreamProvider(settings)
@@ -165,7 +168,6 @@ class CompositionRoot:
         await audit.start()
         self._stack.push_async_callback(audit.stop)
 
-        runtime_config = RuntimeConfig(units)
         registry = InProcessStreamRegistry()
         signals = ValkeySignalBus(redis, registry)
         await signals.start()
@@ -216,8 +218,11 @@ class CompositionRoot:
         ).run(settings)
 
         subscriber = InvalidationSubscriber(redis)  # one subscriber per replica
+        await runtime_config.refresh()  # the snapshot holds stored values before serving
+        # a gap only drops the cache: the next config read reloads it, snapshot included,
+        # without a load racing the requests that are already being served
         subscriber.on_reconnect_flush(runtime_config.flush)
-        subscriber.on_event(self._config_flush(runtime_config))
+        subscriber.on_event(self._config_refresh(runtime_config))
         subscriber.on_event(ListChangedNotifier(registry).on_invalidation)
         await subscriber.start()
         self._stack.push_async_callback(subscriber.stop)
@@ -299,9 +304,7 @@ class CompositionRoot:
     def _registration_policy(self) -> RegistrationPolicy:
         """The redirect URIs and registration limits the operator configured."""
         return RegistrationPolicy(
-            allowed_redirect_uris=RedirectUriAllowList.of(
-                self._settings.dcr_allowed_redirect_uris
-            ),
+            allowed_redirect_uris=RedirectUriAllowList.of(self._settings.dcr_allowed_redirect_uris),
             per_ip_limit=self._settings.dcr_rate_limit,
             per_ip_window=self._settings.dcr_rate_window,
             max_unused_clients=self._settings.dcr_max_unused_clients,
@@ -353,9 +356,9 @@ class CompositionRoot:
         return provider
 
     @staticmethod
-    def _config_flush(runtime_config: RuntimeConfig):
+    def _config_refresh(runtime_config: RuntimeConfig):
         async def on_event(event) -> None:
             if event.entity_type == "config":
-                await runtime_config.flush()
+                await runtime_config.refresh()
 
         return on_event
