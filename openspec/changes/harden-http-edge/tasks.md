@@ -50,7 +50,7 @@
   reading, streamed bodies counted), rendering a JSON-RPC error on MCP routes and the API error object on `/api/v1`;
   remove `MAX_PAYLOAD_BYTES` and `_is_oversized` from the router; verify with ASGI tests citing SEC-7 and EP-9 for
   declared, chunked and under-limit bodies on both surfaces, and that no unit of work is opened for a rejected request
-- [ ] 4.4 Wrap upstream response streams in a per-message byte counter in the MCP client factory and map the overflow to
+- [x] 4.4 Wrap upstream response streams in a per-message byte counter in the MCP client factory and map the overflow to
   a structured MCP error in the tool-call pipeline; verify with a test against an in-process upstream returning a
   message over a lowered cap, citing SEC-7
 - [ ] 4.5 Update the size figures in `docs/self-hosting/deploy.md` (proxy limits, checklist, summary table),

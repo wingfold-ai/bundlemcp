@@ -1,5 +1,7 @@
 """The HTTP client the MCP transport uses toward upstreams."""
 
+from collections.abc import Callable
+
 import httpx2
 from mcp.shared._httpx_utils import (
     MCP_DEFAULT_SSE_READ_TIMEOUT,
@@ -8,11 +10,21 @@ from mcp.shared._httpx_utils import (
 )
 
 from bundlemcp.application.settings.settings import Settings
+from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.infrastructure.egress.guarded_backend import guard_pool
+from bundlemcp.infrastructure.fastmcp.response_cap import CappedResponses
 
 
-def guarded_mcp_http_client(settings: Settings) -> McpHttpClientFactory:
+def guarded_mcp_http_client(
+    settings: Settings,
+    *,
+    response_cap: Callable[[], int] | None = None,
+    log: ResponseLog | None = None,
+) -> McpHttpClientFactory:
     """The MCP SDK's client factory, with every connection passing the egress policy.
+
+    With a ``response_cap``, each upstream message larger than it is abandoned
+    and the overflow recorded on ``log``.
 
     Keeps the SDK's defaults: its timeouts, and redirects left to the MCP
     transport, which follows them only within the upstream's origin. FastMCP
@@ -29,8 +41,11 @@ def guarded_mcp_http_client(settings: Settings) -> McpHttpClientFactory:
         auth: httpx2.Auth | None = None,
         follow_redirects: bool = False,
     ) -> httpx2.AsyncClient:
-        transport = httpx2.AsyncHTTPTransport(trust_env=False)
-        guard_pool(transport._pool, settings)
+        pool = httpx2.AsyncHTTPTransport(trust_env=False)
+        guard_pool(pool._pool, settings)
+        transport: httpx2.AsyncBaseTransport = (
+            pool if response_cap is None else CappedResponses(pool, response_cap, log)
+        )
         return httpx2.AsyncClient(
             headers=headers,
             timeout=timeout

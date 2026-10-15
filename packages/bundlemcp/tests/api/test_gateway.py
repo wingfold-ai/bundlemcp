@@ -5,6 +5,7 @@ curation, EP-12 write_as_read re-annotation, PROT-25/26 metering, OPS-1/2 audit,
 AUTH-28/29 identity forwarding.
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 
 import pytest
@@ -888,3 +889,43 @@ async def test_store_unreachable_answers_503_not_500(gateway, redis, monkeypatch
 
     # Once the store answers again the session resumes, because it was never discarded.
     assert await _still_alive(http, session)
+
+
+async def test_sec7_oversized_upstream_response_is_a_structured_error(engine, redis):
+    """SEC-7: one upstream message over the cap ends the call with an error, not a timeout."""
+    import httpx2
+    from bundlemcp.domain.config.config_registry import KIB
+    from bundlemcp.infrastructure.fastmcp.response_cap import CappedResponses
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    big = FastMCP("echo")
+
+    @big.tool
+    def say(text: str) -> str:
+        return text * 200_000
+
+    upstream_app = big.http_app(path="/mcp")
+
+    def capped_factory(server, extra_headers, *, observer=None, **handlers):
+        def http_client(headers=None, timeout=None, auth=None, follow_redirects=False):
+            transport = CappedResponses(
+                httpx2.ASGITransport(app=upstream_app), lambda: 64 * KIB, observer
+            )
+            return httpx2.AsyncClient(headers=headers, auth=auth, transport=transport)
+
+        transport = StreamableHttpTransport(
+            "http://upstream.test/mcp", httpx_client_factory=http_client
+        )
+        return Client(transport, **handlers)
+
+    async with upstream_app.router.lifespan_context(upstream_app):
+        async with _running(engine, redis, client_factory=capped_factory) as (http, _app):
+            session = await _initialize(http)
+            started = asyncio.get_running_loop().time()
+            call = {"name": "echo__say", "arguments": {"text": "x"}}
+            resp = await _rpc(http, "main", session, "tools/call", call)
+            elapsed = asyncio.get_running_loop().time() - started
+    error = resp.json()["error"]
+    assert "too large" in error["message"]
+    assert str(64 * KIB) in error["message"]
+    assert elapsed < 10  # ended by the cap, not by the call timeout

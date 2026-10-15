@@ -26,8 +26,8 @@ from bundlemcp.infrastructure.fastmcp.response_observer import ResponseObserver
 ClientFactory = Callable[..., Client]
 
 
-def default_client_factory(settings: Settings) -> ClientFactory:
-    http_client = guarded_mcp_http_client(settings)
+def default_client_factory(settings: Settings, response_cap: Callable[[], int]) -> ClientFactory:
+    """Clients over the guarded HTTP stack, each upstream message capped at ``response_cap()``."""
 
     def factory(
         server: McpServer,
@@ -41,7 +41,12 @@ def default_client_factory(settings: Settings) -> ClientFactory:
         auth = ResponseObserver(observer) if observer is not None else None
         return Client(
             StreamableHttpTransport(
-                server.url, headers=headers, auth=auth, httpx_client_factory=http_client
+                server.url,
+                headers=headers,
+                auth=auth,
+                httpx_client_factory=guarded_mcp_http_client(
+                    settings, response_cap=response_cap, log=observer
+                ),
             ),
             mode=server.protocol_mode,
             **handlers,
