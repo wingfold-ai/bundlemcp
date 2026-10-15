@@ -16,7 +16,7 @@
       the given text or the branch's current one) and bump the two `pyproject.toml` files, `uv.lock` and `openapi.json`
       `info.version`; idempotent, and `none` restores `main`'s content; verify with tests over a temporary tree,
       including rerun and retitle, and that `release_notes.py --check` passes on the result
-- [ ] 2.4 `tools/changelog_writer.py`: the Claude call with the entry schema, the diff filter and cut, rendering, and
+- [x] 2.4 `tools/changelog_writer.py`: the Claude call with the entry schema, the diff filter and cut, rendering, and
   the title fallback when the call fails or the key is absent; verify with tests against a stubbed API (rendering,
   schema limits, no heading in a bullet, the fallback) and one manual run on a merged pull request's diff
 - [x] 2.5 Hand-edit detection: compare the branch's entry text with the bot's newest commit on the branch; verify
@@ -45,6 +45,6 @@
   uv run lint-imports`, the four `tools/check_*.py` scripts, `python3 tools/check_spec_ids.py`,
   `python3 tools/release_notes.py --check`, `cd apps/web && npm run openapi` (no diff) and
   `openspec validate --all --strict`; all pass
-- [ ] 5.2 Open this change's pull request and verify the workflow, which runs from the branch, labels it, commits a
-  `0.2.0` entry written by Claude and the bump without a second CI run; after the merge, verify the **tag** job tags
-  `v0.2.0` and the release succeeds
+- [x] 5.2 Open this change's pull request and verify the workflow, which runs from the branch, labels it, commits a
+  `0.1.1` entry written by Claude and the bump with `[skip ci]`, and creates no further run; the **tag** and
+  **release** jobs run from `main` after the merge and are checked there
