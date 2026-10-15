@@ -49,6 +49,6 @@
 
 ## 6. Gates
 
-- [ ] 6.1 Run `uv run pytest -q`, `uv run ruff check .`, `uv run rumdl check .`, `uv run lint-imports`, the four
+- [x] 6.1 Run `uv run pytest -q`, `uv run ruff check .`, `uv run rumdl check .`, `uv run lint-imports`, the four
   `tools/check_*.py` scripts, `python3 tools/check_spec_ids.py`, `cd apps/web && npm run openapi` (no diff), and
   `openspec validate --all --strict`; then the integration suite and `npx playwright test` against the rebuilt stack.
