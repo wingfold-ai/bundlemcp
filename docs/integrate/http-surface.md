@@ -26,10 +26,13 @@ Responses:
 | `429` | A rate limit, with `Retry-After`. |
 | `503` | The live-state store (Valkey) is unreachable, with `Retry-After`. The session is kept; retry it. |
 
-CORS on these routes is the same app-wide policy as `/api/v1`: origins are allow-listed from `BUNDLEMCP_WEB_ORIGINS`,
-credentials are permitted, and `Mcp-Session-Id` is the one exposed response header. A browser MCP client on an origin
-that is not listed receives no CORS headers, so it cannot read the `WWW-Authenticate` challenge. Browser-based clients
-therefore need their origin added to `BUNDLEMCP_WEB_ORIGINS`; clients that are not browsers are unaffected.
+CORS on these routes is permissive, so a browser-based MCP client works from any origin: the response reflects the
+request's `Origin` in `Access-Control-Allow-Origin` (with `Vary: Origin`), exposes `Mcp-Session-Id` and
+`WWW-Authenticate`, and answers the preflight for `GET`, `POST` and `DELETE` with the headers the MCP transport sends
+(`Authorization`, `Content-Type`, `Accept`, `Mcp-Session-Id`, `MCP-Protocol-Version`, `Mcp-Method`, `Last-Event-ID`,
+`X-API-Key`). Credentials are never allowed, and these routes never authenticate by cookie: a caller presents a bearer
+token or an API key in a header, so the admin UI's session cannot be used from another site. This holds whether or not
+`BUNDLEMCP_WEB_ORIGINS` is set; that list governs `/api/v1` and the rest of the gateway only.
 
 ## Request envelope
 

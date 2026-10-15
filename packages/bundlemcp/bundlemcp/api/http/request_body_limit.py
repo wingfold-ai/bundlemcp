@@ -15,10 +15,10 @@ from fastapi import HTTPException, Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from bundlemcp.api.http.mcp_route_path import MCP_PATH
 from bundlemcp.api.http.providers import current_request_limit
 
 API_PATH = re.compile(r"^/api/v1(/|$)")
-MCP_PATH = re.compile(r"^/[^/]+/mcp/?$")
 INVALID_REQUEST = -32600  # JSON-RPC: the request is not a valid request object
 
 

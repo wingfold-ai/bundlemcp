@@ -3,12 +3,12 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from redis.exceptions import ConnectionError as StoreConnectionError
 from redis.exceptions import TimeoutError as StoreTimeoutError
 
 from bundlemcp.api.health.controllers.health_controller import HealthController
 from bundlemcp.api.http.live_state_unavailable_handler import live_state_unavailable_handler
+from bundlemcp.api.http.path_scoped_cors import PathScopedCors
 from bundlemcp.api.http.request_body_limit import (
     BodyTooLarge,
     RequestBodyLimit,
@@ -80,16 +80,8 @@ def create_app(
     # bounds request bodies before routing, parsing or admission
     app.add_middleware(RequestBodyLimit)
 
-    if settings.web_origins:
-        # credentials-enabled CORS for exactly the web app's origin(s)
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=[o.rstrip("/") for o in settings.web_origins],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-            expose_headers=["Mcp-Session-Id"],
-        )
+    # outermost, so every answer carries CORS, a 413 from the body limit included
+    app.add_middleware(PathScopedCors, web_origins=settings.web_origins)
 
     for controller in (
         ServerController(),

@@ -58,12 +58,12 @@
 
 ## 5. CORS on MCP endpoints (SEC-5)
 
-- [ ] 5.1 Replace the global CORS middleware in `main/app.py` with a path-scoped pair (MCP routes permissive without
+- [x] 5.1 Replace the global CORS middleware in `main/app.py` with a path-scoped pair (MCP routes permissive without
   credentials, everything else the SEC-4 allow-list, also when no web origins are configured), and verify with ASGI
   tests citing SEC-5 and SEC-4 for a cross-origin POST, a preflight, a readable 401 challenge, and a non-allow-listed
   origin on `/api/v1`
-- [ ] 5.2 Add a test citing SEC-5 that an admin session cookie never authenticates a request to `/{endpoint}/mcp`
-- [ ] 5.3 Rewrite the CORS paragraph of `docs/integrate/http-surface.md` and verify the docs link check passes
+- [x] 5.2 Add a test citing SEC-5 that an admin session cookie never authenticates a request to `/{endpoint}/mcp`
+- [x] 5.3 Rewrite the CORS paragraph of `docs/integrate/http-surface.md` and verify the docs link check passes
 
 ## 6. Gates
 
