@@ -22,6 +22,7 @@ CHANGELOG = ROOT / "CHANGELOG.md"
 HOOK_SOURCE = "packages/bundlemcp/bundlemcp/application/metering/metering_hook.py"
 TAG = re.compile(r"^v(\d+\.\d+\.\d+)$")
 HEADING = re.compile(r"^## \[([^\]]+)\][^\n]*$", re.MULTILINE)
+SECTION = re.compile(r"^## ", re.MULTILINE)
 PROTOCOL_LINE = re.compile(r"^Metering-hook protocol: (\d+)\s*$", re.MULTILINE)
 SOURCE_VERSION = re.compile(r"^METERING_PROTOCOL_VERSION = (\d+)", re.MULTILINE)
 VERSIONING = "https://bundlemcp.com/integrate/metering-hook#versioning"
@@ -32,12 +33,19 @@ class ReleaseError(Exception):
 
 
 def entries(changelog: str) -> dict[str, str]:
-    """Each entry's body by its heading, ``Unreleased`` or a version, newest first."""
-    marks = list(HEADING.finditer(changelog))
+    """Each entry's body by its heading, ``Unreleased`` or a version, newest first.
+
+    An entry ends at the next second-level heading of any kind, so a section
+    such as the pre-release history below the versions is part of no entry.
+    """
     found: dict[str, str] = {}
-    for mark, following in zip(marks, [*marks[1:], None], strict=True):
+    sections = list(SECTION.finditer(changelog))
+    for section, following in zip(sections, [*sections[1:], None], strict=True):
+        heading = HEADING.match(changelog, section.start())
+        if heading is None:
+            continue
         end = following.start() if following else len(changelog)
-        found[mark.group(1)] = changelog[mark.end() : end].strip()
+        found[heading.group(1)] = changelog[heading.end() : end].strip()
     return found
 
 
