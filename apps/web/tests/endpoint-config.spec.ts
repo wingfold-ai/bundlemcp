@@ -74,3 +74,41 @@ test(testTitle("E2E-22"), async ({ page, steps }) => {
 
   await deleteEndpointAndBundle(page, endpoint, bundle);
 });
+
+// The rename control must say what breaks before it lets the admin do it: the old and
+// new URL, the warning, and a rename button that waits for an acknowledgement.
+test(testTitle("E2E-26"), async ({ page, steps }) => {
+  const bundle = "e2e-rename-bundle";
+  const endpoint = "e2e-rename";
+  const renamed = "e2e-renamed";
+  page.on("dialog", (d) => d.accept());
+  await deleteEndpointAndBundle(page, endpoint, bundle);
+  await deleteEndpointAndBundle(page, renamed, bundle);
+
+  await steps.play([
+    given("an endpoint over the echo bundle", async () => {
+      await createEchoBundle(page, bundle);
+      await createApiKeyEndpoint(page, endpoint, bundle);
+      await page.goto(`/endpoints/${endpoint}`);
+    }),
+    when("typing a new name into the rename control", { req: "EP-8" }, async () => {
+      await page.getByTestId("rename-input").fill(renamed);
+    }),
+    then("the current and resulting URL and the warning show, and rename waits", { req: "EP-8" }, async () => {
+      await expect(page.getByTestId("rename-current-url")).toContainText(`/${endpoint}/mcp`);
+      await expect(page.getByTestId("rename-new-url")).toContainText(`/${renamed}/mcp`);
+      await expect(page.getByTestId("rename-consequence")).toContainText("stops working");
+      await expect(page.getByTestId("rename-submit")).toBeDisabled();
+    }),
+    when("acknowledging the consequence and renaming", { req: "EP-8" }, async () => {
+      await page.getByTestId("rename-ack").check();
+      await expect(page.getByTestId("rename-submit")).toBeEnabled();
+      await page.getByTestId("rename-submit").click();
+    }),
+    then("the endpoint is served under its new name", { req: "EP-8" }, async () => {
+      await expect(page).toHaveURL(new RegExp(`/endpoints/${renamed}$`));
+    }),
+  ]);
+
+  await deleteEndpointAndBundle(page, renamed, bundle);
+});

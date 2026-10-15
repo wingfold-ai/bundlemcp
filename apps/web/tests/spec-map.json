@@ -267,6 +267,16 @@
         "AUTH-11"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-26",
+      "testFile": "endpoint-config.spec.ts",
+      "slug": "endpoint-rename-consequence-first",
+      "title": "Renaming an endpoint states the URL change and the broken clients before it is allowed",
+      "requirements": [
+        "EP-8"
+      ],
+      "new": true
     }
   ]
 }

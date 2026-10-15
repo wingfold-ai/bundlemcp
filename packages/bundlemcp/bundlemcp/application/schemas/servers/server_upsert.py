@@ -71,6 +71,17 @@ class ServerUpsert(BaseModel):
         "and tool names derived from the old name change with it",
     )
 
+    @field_validator("transport", mode="before")
+    @classmethod
+    def _only_streamable_http(cls, value: object) -> object:
+        # Pydantic's literal error lists the allowed value but not why; name both
+        if value is not None and value != "streamable-http":
+            raise ValueError(
+                f"transport must be 'streamable-http', the only transport this gateway "
+                f"supports; got {value!r}"
+            )
+        return value
+
     @field_validator("forward_headers")
     @classmethod
     def forwardable(cls, v: dict[str, str]) -> dict[str, str]:
