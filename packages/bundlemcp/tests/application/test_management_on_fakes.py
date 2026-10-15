@@ -39,7 +39,7 @@ def uow() -> InMemoryUnitOfWork:
 
 async def test_server_upsert_is_idempotent_and_publishes_invalidation(uow):
     """UPS-1/SES-17: the second upsert updates in place and each commit announces the change."""
-    servers = ServerService(uow, discovery=NoopToolDiscovery())
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
     first = await servers.upsert(ServerUpsert(name="echo", url="http://echo/mcp"))
     second = await servers.upsert(
         ServerUpsert(name="echo", url="http://echo/mcp", description="renamed")
@@ -52,8 +52,8 @@ async def test_server_upsert_is_idempotent_and_publishes_invalidation(uow):
 
 async def test_rename_of_a_bundle_member_needs_force(uow):
     """UPS-5: renaming a member changes client-visible tool names, so it must be acknowledged."""
-    servers = ServerService(uow, discovery=NoopToolDiscovery())
-    bundles = BundleService(uow)
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
+    bundles = BundleService(uow, public_base="http://gw")
     await servers.upsert(ServerUpsert(name="echo", url="http://echo/mcp"))
     await bundles.upsert(BundleUpsert(name="demo"))
     await bundles.set_member("demo", "echo", BundleServerUpdate())
@@ -65,8 +65,8 @@ async def test_rename_of_a_bundle_member_needs_force(uow):
 
 async def test_anonymous_endpoint_cannot_expose_a_per_user_upstream(uow):
     """UPS-30 at the endpoint edge, checked through the ports alone."""
-    servers = ServerService(uow, discovery=NoopToolDiscovery())
-    bundles = BundleService(uow)
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
+    bundles = BundleService(uow, public_base="http://gw")
     endpoints = EndpointService(uow, profiles=ProfileCatalog.builtin())
     await servers.upsert(
         ServerUpsert(
@@ -132,6 +132,7 @@ async def test_bootstrap_discovers_its_servers_after_the_commit(uow):
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     ).apply(document)
     assert discovery.probes == [("echo", 1), ("weather", 1)]
 
@@ -152,6 +153,7 @@ async def test_failed_bootstrap_probes_nothing(uow):
             cipher=None,
             connections=NoUpstreamConnections(),
             profiles=ProfileCatalog.builtin(),
+            public_base="http://gw",
         ).apply(document)
     assert discovery.probes == []
 
@@ -166,7 +168,7 @@ async def _mark_reachable(uow: InMemoryUnitOfWork, name: str) -> None:
 async def test_unchanged_upsert_of_a_working_server_does_not_probe(uow):
     """UPS-2: re-applying the same config to a reachable server stays off the upstream."""
     discovery = CommitAwareDiscovery(uow)
-    servers = ServerService(uow, discovery=discovery)
+    servers = ServerService(uow, discovery=discovery, public_base="http://gw")
     body = ServerUpsert(name="echo", url="http://echo/mcp", forward_headers={"x-a": "x-a"})
     await servers.upsert(body)
     await _mark_reachable(uow, "echo")
@@ -189,7 +191,7 @@ async def test_unchanged_upsert_of_a_working_server_does_not_probe(uow):
 async def test_upsert_that_changes_discovery_inputs_probes(uow, change):
     """UPS-2: a change to how the upstream is reached is probed again."""
     discovery = CommitAwareDiscovery(uow)
-    servers = ServerService(uow, discovery=discovery)
+    servers = ServerService(uow, discovery=discovery, public_base="http://gw")
     body = ServerUpsert(name="echo", url="http://echo/mcp")
     await servers.upsert(body)
     await _mark_reachable(uow, "echo")
@@ -200,7 +202,7 @@ async def test_upsert_that_changes_discovery_inputs_probes(uow, change):
 async def test_unchanged_upsert_retries_a_server_whose_last_probe_failed(uow):
     """UPS-2: re-applying a config still retries a server that was never reached."""
     discovery = CommitAwareDiscovery(uow)
-    servers = ServerService(uow, discovery=discovery)
+    servers = ServerService(uow, discovery=discovery, public_base="http://gw")
     body = ServerUpsert(name="echo", url="http://echo/mcp")
     await servers.upsert(body)
     await servers.upsert(body)
@@ -219,6 +221,7 @@ async def test_reapplied_bootstrap_does_not_probe_working_servers(uow):
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     )
     await runner.apply(document)
     await _mark_reachable(uow, "echo")
@@ -241,6 +244,7 @@ async def test_bootstrap_document_lands_in_one_commit(uow):
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     ).apply(document)
     assert uow.committed == 1
     assert await uow.endpoints.by_name("ep") is not None
@@ -261,10 +265,10 @@ class ScriptedProbe:
 
 async def _discovered_member(uow) -> tuple[DiscoveryService, ScriptedProbe, uuid.UUID]:
     """Server echo, probed once with tools alpha and beta, as a member of bundle demo."""
-    await ServerService(uow, discovery=NoopToolDiscovery()).upsert(
+    await ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw").upsert(
         ServerUpsert(name="echo", url="http://echo/mcp")
     )
-    bundles = BundleService(uow)
+    bundles = BundleService(uow, public_base="http://gw")
     await bundles.upsert(BundleUpsert(name="demo"))
     await bundles.set_member("demo", "echo", BundleServerUpdate())
     probe = ScriptedProbe("alpha", "beta")
@@ -304,7 +308,7 @@ async def test_bnd17_catalogue_leaves_out_stale_tools(uow):
     await discovery.discover(server_id)
 
     bundle = await uow.bundles.by_name("demo")
-    catalogue = await BundleService(uow).catalogue_tools(bundle.id)
+    catalogue = await BundleService(uow, public_base="http://gw").catalogue_tools(bundle.id)
 
     assert [tool.name for tool in catalogue] == ["echo__alpha"]
 
@@ -312,10 +316,10 @@ async def test_bnd17_catalogue_leaves_out_stale_tools(uow):
 async def test_bnd1_bootstrap_sets_order(uow):
     """BND-1: a bootstrap document's member list sets the order of the members it names; a
     member it does not name follows them."""
-    servers = ServerService(uow, discovery=NoopToolDiscovery())
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
     for name in ("alpha", "extra", "zeta"):
         await servers.upsert(ServerUpsert(name=name, url=f"http://{name}/mcp"))
-    bundles = BundleService(uow)
+    bundles = BundleService(uow, public_base="http://gw")
     await bundles.upsert(BundleUpsert(name="demo"))
     await bundles.set_member("demo", "extra", BundleServerUpdate())
 
@@ -328,7 +332,52 @@ async def test_bnd1_bootstrap_sets_order(uow):
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
     ).apply(document)
 
-    members = await BundleService(uow).list_members("demo")
+    members = await BundleService(uow, public_base="http://gw").list_members("demo")
     assert [m.server_name for m in members] == ["zeta", "alpha", "extra"]
+
+
+GATEWAY = "https://gw.example.com"
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["https://gw.example.com/loop-ep/mcp", "https://GW.Example.com:443/later/mcp/"],
+    ids=["own-endpoint", "spelling-variant-of-an-endpoint-not-created-yet"],
+)
+async def test_bnd5_own_endpoint_is_refused_as_a_member(uow, url):
+    """BND-5: adding the gateway itself to a bundle is a conflict, and nothing is stored."""
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base=GATEWAY)
+    bundles = BundleService(uow, public_base=GATEWAY)
+    await servers.upsert(ServerUpsert(name="loop", url=url))  # a non-member may point anywhere
+    await bundles.upsert(BundleUpsert(name="b1"))
+    with pytest.raises(ConflictError, match="BND-5"):
+        await bundles.set_member("b1", "loop", BundleServerUpdate())
+    assert await bundles.list_members("b1") == []
+
+
+async def test_bnd5_other_paths_and_hosts_are_members_like_any_other(uow):
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base=GATEWAY)
+    bundles = BundleService(uow, public_base=GATEWAY)
+    await bundles.upsert(BundleUpsert(name="b1"))
+    for name, url in (
+        ("weather", "https://gw.example.com/tools/weather/mcp"),
+        ("api", "https://api.example.com/loop-ep/mcp"),
+    ):
+        await servers.upsert(ServerUpsert(name=name, url=url))
+        await bundles.set_member("b1", name, BundleServerUpdate())
+    assert len(await bundles.list_members("b1")) == 2
+
+
+async def test_bnd5_a_members_url_cannot_be_changed_to_the_gateway(uow):
+    """BND-5: the URL change is refused and the stored URL stays as it was."""
+    servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base=GATEWAY)
+    bundles = BundleService(uow, public_base=GATEWAY)
+    await servers.upsert(ServerUpsert(name="weather", url="http://weather/mcp"))
+    await bundles.upsert(BundleUpsert(name="b1"))
+    await bundles.set_member("b1", "weather", BundleServerUpdate())
+    with pytest.raises(ConflictError, match="BND-5"):
+        await servers.upsert(ServerUpsert(name="weather", url=f"{GATEWAY}/b1-ep/mcp"))
+    assert (await servers.get("weather")).url == "http://weather/mcp"
