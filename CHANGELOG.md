@@ -10,25 +10,17 @@ protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) say
 
 ### Added
 
-- Every merge into `main` that adds, fixes or improves something is now a release, with its version worked out from the
-  pull request title and its changelog entry written during review. The merge tags `v<version>` and publishes the
-  versioned images and the GitHub release automatically. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
-- Pull requests are labelled `type: <type>` and `semver: <bump>` from their Conventional Commit title, so the coming
-  version is visible before the merge. Below 1.0 each bump moves one place to the right.
-  ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- Every merge into `main` that adds, fixes or improves something is now a release: its version follows from the pull
+  request title, and the merge tags it and publishes the versioned images and the GitHub release without anyone pushing
+  a tag. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
 
 ### Changed
 
-- Each release's changelog entry no longer carries a `Metering-hook protocol: <n>` line. An entry mentions the protocol
-  only in a release that changes it, as a breaking change, while the GitHub release notes still end with the protocol
-  version and whether it changed. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
-- A release whose metering-hook protocol changed since the previous release is refused unless its changelog entry says
-  so. A pull request that raises the protocol version must have a breaking title.
-  ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
-- The gateway's reported version (OpenAPI `info.version` and MCP `serverInfo.version`) is now read from the installed
+- Changelog entries name the metering-hook protocol only in a release that changes it, as a breaking bullet; the
+  `Metering-hook protocol: <n>` line is gone from entries. The GitHub release notes still end with the protocol version
+  and whether it changed. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- The gateway's reported version (OpenAPI `info.version` and MCP `serverInfo.version`) is read from the installed
   package, so it always matches the release. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
-- Pushing a `v*.*.*` tag by hand still publishes a release as before, as long as the changelog has an entry for it.
-  ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
 
 ## [0.1.0] - 2026-10-15
 
