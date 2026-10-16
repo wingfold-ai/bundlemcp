@@ -69,3 +69,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0050](0050-one-stage-chain-and-once-per-invocation-metering.md) | Tools pass one stage chain, and an invocation is metered once | accepted |
 | [0051](0051-request-context-readiness-report-and-optional-tracing.md) | Requests carry one log context, readiness reports each check, and tracing is optional | accepted |
 | [0052](0052-per-replica-prometheus-metrics-with-a-closed-label-set.md) | Each replica exports Prometheus metrics, behind management credentials, with a closed label set | accepted |
+| [0053](0053-audit-durability-and-the-idempotency-key-join.md) | The audit log is written durably, names every loss by idempotency key, and is purged by retention | accepted |

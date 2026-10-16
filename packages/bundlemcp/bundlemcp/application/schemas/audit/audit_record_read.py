@@ -31,6 +31,11 @@ class AuditRecordRead(EntityRead):
         description="How the caller authenticated: oauth, api_key or none"
     )
     session_id: str | None = Field(description="MCP session the call belonged to")
+    idempotency_key: str | None = Field(
+        description="The metering idempotency key the hook received for this invocation, the "
+        "same on every leg; join the metering ledger on it. Null for a call denied before "
+        "metering, such as an unknown tool"
+    )
     status: AuditStatus = Field(
         description="Outcome: success, error, denied, or input_required when the call paused for "
         "the client's input and continues on its retry"

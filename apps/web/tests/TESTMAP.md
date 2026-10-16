@@ -32,6 +32,8 @@ Playwright test title, the recording filename, and this table.
 | E2E-24 | A user demoted since the page loaded is sent to the catalogue on the API's 403 **(new)** | `tests/catalogue.spec.ts` | [`auth`](../../../openspec/specs/auth/spec.md) | AUTH-17 | `E2E-24__auth__demoted-session-to-catalogue.webm` |
 | E2E-25 | A person withdraws a client they authorised from their connected clients **(new)** | `tests/oauth-consent.spec.ts` | [`auth`](../../../openspec/specs/auth/spec.md) | AUTH-11 | `E2E-25__auth__withdraw-own-consent.webm` |
 | E2E-26 | Renaming an endpoint states the URL change and the broken clients before it is allowed **(new)** | `tests/endpoint-config.spec.ts` | [`endpoints`](../../../openspec/specs/endpoints/spec.md) | EP-8 | `E2E-26__endpoints__endpoint-rename-consequence-first.webm` |
+| E2E-27 | The audit page filters by bundle, upstream and the calling API key **(new)** | `tests/audit.spec.ts` | [`operations`](../../../openspec/specs/operations/spec.md) | OPS-6 | `E2E-27__operations__audit-filters-bundle-server-caller.webm` |
+| E2E-28 | Export CSV downloads every record the filters match, not only the rows shown **(new)** | `tests/audit.spec.ts` | [`operations`](../../../openspec/specs/operations/spec.md) | OPS-6 | `E2E-28__operations__audit-csv-export-whole-result.webm` |
 
 ## Requirements referenced
 
@@ -77,3 +79,4 @@ Playwright test title, the recording filename, and this table.
 | BND-1 | `bundles` | A bundle MUST have a unique slug-safe name, a description, and an ordered set of member servers. The order is admin-controlled: a new member is appended at t… |
 | EP-24 | `endpoints` | Each endpoint SHALL carry allowed_origins, the browser origins that may use /{endpoint}/mcp from another site. An entry is an http or https origin (scheme, h… |
 | EP-8 | `endpoints` | Renaming an endpoint changes its public URL and breaks every connected client. Renames MUST be rejected unless the request carries an explicit force flag (mi… |
+| OPS-6 | `operations` | GET /api/v1/audit-records (MGMT-5) SHALL list records newest first, paginated, with filters for time range, endpoint, bundle, server, tool, caller (user_id, … |

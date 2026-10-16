@@ -1,7 +1,7 @@
 """Resolving the credentials a request carries: API keys and endpoint access tokens."""
 
-import uuid
 
+from bundlemcp.application.auth.resolved_bearer import ResolvedBearer
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.domain.access.api_key import ApiKey
 from bundlemcp.domain.access.caller_identity import CallerIdentity
@@ -55,14 +55,12 @@ class AuthService:
         """Extract a key from request headers and resolve it in one step."""
         return await self.resolve_api_key(self.extract_key(authorization, x_api_key))
 
-    async def authenticate_oauth_bearer(
-        self, *, authorization: str | None, endpoint_id: uuid.UUID
-    ) -> CallerIdentity | None:
-        """Validate an endpoint access token against the database.
+    async def resolve_oauth_bearer(self, *, authorization: str | None) -> ResolvedBearer | None:
+        """Validate an endpoint access token against the database, whatever its audience.
 
-        Returns the user's identity, or None when the header carries no such token,
-        the token is unknown, revoked or expired, its audience is a different
-        endpoint, or its user is gone or deactivated.
+        Returns its user and the endpoint it was issued for, or None when the
+        header carries no such token, the token is unknown, revoked or expired,
+        or its user is gone or deactivated. The caller checks the audience.
         """
         if not authorization or not authorization.lower().startswith("bearer "):
             return None
@@ -72,9 +70,7 @@ class AuthService:
         row = await self._tokens.by_access_hash(self._hasher.digest(token))
         if row is None or not row.is_usable_at(self._clock.now()):
             return None
-        if row.endpoint_id != endpoint_id:
-            return None  # audience mismatch
         user = await self._users.get(row.user_id)
         if user is None or not user.is_active:
             return None
-        return CallerIdentity.oauth_user(user)
+        return ResolvedBearer(identity=CallerIdentity.oauth_user(user), endpoint_id=row.endpoint_id)

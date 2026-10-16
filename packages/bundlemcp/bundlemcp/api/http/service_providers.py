@@ -13,6 +13,7 @@ from bundlemcp.application.auth.admin_session_service import AdminSessionService
 from bundlemcp.application.auth.auth_service import AuthService
 from bundlemcp.application.auth.caller_resolver import CallerResolver
 from bundlemcp.application.management.api_key_service import ApiKeyService
+from bundlemcp.application.management.audit_export_service import AuditExportService
 from bundlemcp.application.management.audit_service import AuditService
 from bundlemcp.application.management.bundle_prompt_service import BundlePromptService
 from bundlemcp.application.management.bundle_resource_service import BundleResourceService
@@ -98,6 +99,10 @@ def get_audit_service(uow: UnitOfWorkProvider) -> AuditService:
     return AuditService(uow)
 
 
+def get_audit_export_service(request: Request) -> AuditExportService:
+    return AuditExportService(request.app.state.container.unit_of_work_factory)
+
+
 def get_auth_service(request: Request, uow: UnitOfWorkProvider) -> AuthService:
     container = request.app.state.container
     return AuthService(uow, clock=container.clock, hasher=container.secret_hasher)
@@ -133,6 +138,7 @@ ApiKeyServiceProvider = Annotated[ApiKeyService, Depends(get_api_key_service)]
 UserServiceProvider = Annotated[UserService, Depends(get_user_service)]
 ConfigServiceProvider = Annotated[ConfigService, Depends(get_config_service)]
 AuditServiceProvider = Annotated[AuditService, Depends(get_audit_service)]
+AuditExportServiceProvider = Annotated[AuditExportService, Depends(get_audit_export_service)]
 AuthServiceProvider = Annotated[AuthService, Depends(get_auth_service)]
 AdminSessionServiceProvider = Annotated[AdminSessionService, Depends(get_admin_session_service)]
 CallerResolverProvider = Annotated[CallerResolver, Depends(get_caller_resolver)]

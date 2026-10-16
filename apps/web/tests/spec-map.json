@@ -277,6 +277,26 @@
         "EP-8"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-27",
+      "testFile": "audit.spec.ts",
+      "slug": "audit-filters-bundle-server-caller",
+      "title": "The audit page filters by bundle, upstream and the calling API key",
+      "requirements": [
+        "OPS-6"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-28",
+      "testFile": "audit.spec.ts",
+      "slug": "audit-csv-export-whole-result",
+      "title": "Export CSV downloads every record the filters match, not only the rows shown",
+      "requirements": [
+        "OPS-6"
+      ],
+      "new": true
     }
   ]
 }

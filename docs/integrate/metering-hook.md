@@ -253,23 +253,24 @@ once, make it idempotent on `idempotency_key` too.
 
 ## Crash reconciliation
 
-If the gateway dies between `pre_call` and `post_call`, no `post_call` fires
-and nothing refunds. The [audit log](/manage/audit) is the reconciliation
-source: for an invocation that passed `pre_call` and ran to completion, an audit
-record with a terminal status exists.
+If the gateway dies between `pre_call` and `post_call`, no `post_call` fires and nothing refunds. The
+[audit log](/manage/audit) is the reconciliation source, and every audit record of a metered invocation carries the
+`idempotency_key` your hook received, on every leg of it. Reconcile by that key:
 
-::: warning There is no shared key between your ledger and an audit record
-The audit record does **not** carry `idempotency_key` or any correlation id, so
-you cannot look a debit up directly. Reconcile on `(sub, tool_name, created_at)`
-within your window, and accept that two identical calls in the same instant are
-ambiguous — which is exactly what a retry produces.
-:::
+```bash
+curl -s -H "Authorization: Bearer $SERVICE_KEY" \
+  "$GATEWAY/api/v1/audit-records?idempotency_key=$KEY"
+```
 
-Two cases produce a debit with no terminal audit record, and both need a
-time-based sweep rather than a lookup: a crash between the two calls, and an
-`input_required` call the client never resumed. Keep your audit retention
-longer than your reconciliation window — noting that
-[nothing purges the audit log for you](/manage/audit#retention).
+- **A terminal record** (`success`, `error` or `denied`) means the invocation ended; settle the debit by its outcome.
+- **No record at all** after your reconciliation window means the record was lost. Every loss the gateway knows of is
+  logged with the key (`audit.queue_overflow`, `audit.write_failed`, `audit.lost_on_shutdown`); only a process killed
+  outright loses one silently, and the key in your `pre_call` is still how you find it.
+- **Only an `input_required` record** means the client never came back; the gateway delivers `post_call` with
+  `no_result` once the request state expires.
+
+A call denied before metering, such as an unknown tool, has no key and was never debited. Keep the audit retention
+(`audit_retention_days`, 90 days by default) longer than your reconciliation window.
 
 ## Versioning
 

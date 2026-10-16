@@ -1,5 +1,8 @@
 from fastapi import Request
 
+from bundlemcp.api.mcp.routing.authentication.authentication_outcome import (
+    AuthenticationOutcome,
+)
 from bundlemcp.application.auth.auth_service import AuthService
 from bundlemcp.domain.access.caller_identity import CallerIdentity
 from bundlemcp.domain.bundles.bundle_view import BundleView
@@ -13,11 +16,14 @@ class ApiKeyAuthenticator:
 
     async def authenticate(
         self, request: Request, view: BundleView, auth: AuthService
-    ) -> CallerIdentity | None:
+    ) -> AuthenticationOutcome:
         key = await auth.authenticate_api_key(
             authorization=request.headers.get("authorization"),
             x_api_key=request.headers.get("x-api-key"),
         )
-        if key is None or not key.reaches(view.endpoint.id):
-            return None
-        return CallerIdentity.with_api_key(key.id)
+        if key is None:
+            return AuthenticationOutcome.nobody()
+        holder = CallerIdentity.with_api_key(key.id)
+        if not key.reaches(view.endpoint.id):
+            return AuthenticationOutcome.not_entitled(holder)
+        return AuthenticationOutcome.authenticated(holder)

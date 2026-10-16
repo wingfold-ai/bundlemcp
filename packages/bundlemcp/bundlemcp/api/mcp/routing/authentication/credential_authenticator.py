@@ -2,8 +2,10 @@ from typing import Protocol, runtime_checkable
 
 from fastapi import Request
 
+from bundlemcp.api.mcp.routing.authentication.authentication_outcome import (
+    AuthenticationOutcome,
+)
 from bundlemcp.application.auth.auth_service import AuthService
-from bundlemcp.domain.access.caller_identity import CallerIdentity
 from bundlemcp.domain.bundles.bundle_view import BundleView
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 
@@ -19,6 +21,6 @@ class CredentialAuthenticator(Protocol):
 
     async def authenticate(
         self, request: Request, view: BundleView, auth: AuthService
-    ) -> CallerIdentity | None:
-        """The caller's identity if the request carries a valid credential of this kind."""
+    ) -> AuthenticationOutcome:
+        """Who a credential of this kind on the request proves the caller to be, if anyone."""
         ...

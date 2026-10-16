@@ -1,7 +1,9 @@
 from fastapi import Request
 
+from bundlemcp.api.mcp.routing.authentication.authentication_outcome import (
+    AuthenticationOutcome,
+)
 from bundlemcp.application.auth.auth_service import AuthService
-from bundlemcp.domain.access.caller_identity import CallerIdentity
 from bundlemcp.domain.bundles.bundle_view import BundleView
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 
@@ -13,7 +15,10 @@ class OAuthBearerAuthenticator:
 
     async def authenticate(
         self, request: Request, view: BundleView, auth: AuthService
-    ) -> CallerIdentity | None:
-        return await auth.authenticate_oauth_bearer(
-            authorization=request.headers.get("authorization"), endpoint_id=view.endpoint.id
-        )
+    ) -> AuthenticationOutcome:
+        bearer = await auth.resolve_oauth_bearer(authorization=request.headers.get("authorization"))
+        if bearer is None:
+            return AuthenticationOutcome.nobody()
+        if bearer.endpoint_id != view.endpoint.id:  # issued for another endpoint
+            return AuthenticationOutcome.not_entitled(bearer.identity)
+        return AuthenticationOutcome.authenticated(bearer.identity)

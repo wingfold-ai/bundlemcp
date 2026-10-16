@@ -1,6 +1,7 @@
 from typing import Any
 
 from bundlemcp.application.contracts.observability.gateway_metrics import (
+    AuditDropReason,
     RateLimitScope,
     ToolCallStatus,
 )
@@ -49,3 +50,6 @@ class RecordingMetrics:
 
     def tools_list_degraded(self, *, endpoint: str, server: str) -> None:
         self._record("tools_list_degraded", endpoint=endpoint, server=server)
+
+    def audit_dropped(self, *, reason: AuditDropReason) -> None:
+        self._record("audit_dropped", reason=reason)
