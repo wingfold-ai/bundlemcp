@@ -65,6 +65,7 @@ def test_sec7_the_production_mcp_client_caps_responses_behind_the_egress_guard()
     from bundlemcp.infrastructure.egress.guarded_backend import GuardedNetworkBackend
     from bundlemcp.infrastructure.fastmcp.guarded_mcp_http_client import guarded_mcp_http_client
     from bundlemcp.infrastructure.fastmcp.response_cap import CappedResponses
+    from bundlemcp.infrastructure.fastmcp.transport_failures import RecordedTransportFailures
 
     log = ResponseLog()
     client = guarded_mcp_http_client(
@@ -72,4 +73,6 @@ def test_sec7_the_production_mcp_client_caps_responses_behind_the_egress_guard()
     )()
     capped = client._transport
     assert isinstance(capped, CappedResponses)
-    assert isinstance(capped._inner._pool._network_backend, GuardedNetworkBackend)
+    recorded = capped._inner  # notes connection failures on the log, under the cap
+    assert isinstance(recorded, RecordedTransportFailures)
+    assert isinstance(recorded._inner._pool._network_backend, GuardedNetworkBackend)

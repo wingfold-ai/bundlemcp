@@ -59,6 +59,8 @@ from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscover
 from bundlemcp.infrastructure.memory.sequential_secret_generator import SequentialSecretGenerator
 from cryptography.fernet import Fernet
 
+from tests.application.upstream_health_on_fakes import health_on
+
 PUBLIC_BASE = "https://gw.example"
 DOCUMENT_URL = f"{PUBLIC_BASE}/oauth/upstream/client.json"
 CALLBACK = f"{PUBLIC_BASE}/oauth/upstream/callback"
@@ -417,7 +419,10 @@ async def test_ups12_discovery_records_what_each_probe_found(uow):
     uow.servers.add(server)
     probe = ScriptedProbe({"https://api.example/mcp": refused(401, OAUTH_CHALLENGE)})
     service = DiscoveryService(
-        InMemoryUnitOfWorkFactory(uow), probe, diagnoser=ConnectionDiagnoser(Provider())
+        InMemoryUnitOfWorkFactory(uow),
+        probe,
+        health=health_on(uow),
+        diagnoser=ConnectionDiagnoser(Provider()),
     )
     result = await service.discover(server.id)
     assert result.connection_state == ConnectionState.OAUTH_REQUIRED
@@ -435,7 +440,10 @@ async def test_ups12_a_refused_key_is_not_mistaken_for_oauth(uow):
     uow.servers.add(server)
     probe = ScriptedProbe({"https://k.example/mcp": refused(401)})
     service = DiscoveryService(
-        InMemoryUnitOfWorkFactory(uow), probe, diagnoser=ConnectionDiagnoser(Provider())
+        InMemoryUnitOfWorkFactory(uow),
+        probe,
+        health=health_on(uow),
+        diagnoser=ConnectionDiagnoser(Provider()),
     )
     result = await service.discover(server.id)
     assert result.connection_state == ConnectionState.CREDENTIAL_REQUIRED

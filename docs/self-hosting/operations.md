@@ -23,8 +23,10 @@ Two log events deserve alerts:
 | `GET /readyz` | Readiness: Postgres and Valkey reachable, migrations applied. |
 
 Server health is visible per server in the UI and API (`health_status`, `last_error`, `protocol_version`). A server is
-marked `error` after 3 consecutive failed discovery probes and back to `ok` on the next successful connection (the
-`server_error_attempts` setting is not read yet).
+marked `error` after `server_error_attempts` (default 3) consecutive connection failures, counted across discovery,
+the periodic refresh and live tool calls on every replica, and back to `ok` on the next answer. The count lives in
+Valkey (`bmcp:health:streak:*`, expiring after a day without failures); while Valkey is unreachable nothing is
+counted and calls are unaffected.
 
 ## Rotating credentials
 

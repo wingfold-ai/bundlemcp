@@ -52,7 +52,8 @@ DEFAULTS: dict[str, ConfigSetting] = {
     "session_lifetime": ConfigSetting(default=86400, value_type=int),
     # milliseconds a client may keep a tools/prompts/resources list
     "list_cache_ttl_ms": ConfigSetting(default=300000, value_type=int),
-    "server_error_attempts": ConfigSetting(default=3, value_type=int),
+    # consecutive connection failures before an upstream is marked error
+    "server_error_attempts": ConfigSetting(default=3, value_type=int, minimum=1),
     # audit retention (days)
     "audit_retention_days": ConfigSetting(default=90, value_type=int),
     # lifetimes (seconds) of what the gateway's own OAuth server issues

@@ -282,9 +282,13 @@ bundle, and the result reports how many in `pruned`. A failed probe deletes noth
 as **Refresh & prune** once the server has stale tools, and asks for confirmation with the list of tools it will
 delete.
 
-`health_status` is `ok`, `error` or `unknown`. It turns `error` after 3 consecutive failed discovery probes and returns
-to `ok` on the next successful connection. The runtime setting `server_error_attempts` is meant to change that
-threshold, but nothing reads it yet: the threshold is fixed at 3.
+`health_status` is `ok`, `error` or `unknown`. It turns `error` after `server_error_attempts` (default 3) consecutive
+connection failures, with the last one's message in `last_error`, and returns to `ok` on the next answer from the
+upstream. Discovery probes, the periodic refresh and live `tools/call` requests all count: a call counts as a failure
+when the upstream could not be reached or answered with something that is not MCP, and as a success when it got any
+MCP answer, a tool error included. A refused credential, a timeout and a cancelled call count as neither. The count is
+shared by every gateway replica, so failures seen on different replicas add up, and a change to
+`server_error_attempts` applies from the next failure without a restart.
 
 `connection_state` says *why*, and is updated on every probe: the states of
 [inspection](#inspecting-a-server-before-registering-it), plus `account_required` (upstream OAuth is set up but nobody
