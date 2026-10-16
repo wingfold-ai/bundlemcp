@@ -3,9 +3,10 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, ForeignKey, Index, String
+from sqlalchemy import Column, ForeignKey, Index, String, text
 from sqlmodel import Field, SQLModel
 
+from bundlemcp.domain.audit.audit_kind import AuditKind
 from bundlemcp.domain.audit.audit_status import AuditStatus
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.shared.clock import utcnow
@@ -26,7 +27,16 @@ class AuditRecordRow(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=utcnow,
         sa_column=timestamp_column(index=True),
-        description="When the call was recorded",
+        description="When the call or action was recorded",
+    )
+    kind: AuditKind = Field(
+        default=AuditKind.TOOL_CALL,
+        sa_column=Column(String, nullable=False, server_default=text("'tool_call'")),
+        description="What the record is about: a tool call, or a management action",
+    )
+    action: str | None = Field(
+        default=None,
+        description="What a management record says happened; null on a tool-call record",
     )
     endpoint_id: uuid.UUID | None = Field(
         default=None,
@@ -34,9 +44,13 @@ class AuditRecordRow(SQLModel, table=True):
         description="Endpoint the call arrived on; cleared if that endpoint is later deleted",
     )
     endpoint_name: str = Field(
-        description="Endpoint name as it was at the time, kept so the record survives a delete"
+        description="Endpoint name as it was at the time, kept so the record survives a delete; "
+        "empty on a management record"
     )
-    bundle_name: str = Field(description="Bundle the endpoint exposed at the time of the call")
+    bundle_name: str = Field(
+        description="Bundle the endpoint exposed at the time of the call; empty on a management "
+        "record"
+    )
     server_name: str | None = Field(
         default=None,
         description="Upstream server the call was routed to; null if it never got that far",

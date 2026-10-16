@@ -63,6 +63,8 @@ class SqlAlchemyAuditRepository(SqlAlchemyRepository[AuditRecord, AuditRecordRow
             clauses.append(AuditRecordRow.created_at >= filter_.created_from)
         if filter_.created_to is not None:
             clauses.append(AuditRecordRow.created_at <= filter_.created_to)
+        if filter_.kind is not None:
+            clauses.append(AuditRecordRow.kind == filter_.kind)
         if filter_.endpoint_name is not None:
             clauses.append(AuditRecordRow.endpoint_name == filter_.endpoint_name)
         if filter_.bundle_name is not None:

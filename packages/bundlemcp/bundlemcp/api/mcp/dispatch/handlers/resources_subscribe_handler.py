@@ -49,4 +49,3 @@ class ResourcesSubscribeHandler:
                 ctx.session.session_id, ResourceSubscription(server_name=server.name, uri=uri)
             )
         return rpc_result(message.id, ctx.shape({}))
-

@@ -71,3 +71,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0052](0052-per-replica-prometheus-metrics-with-a-closed-label-set.md) | Each replica exports Prometheus metrics, behind management credentials, with a closed label set | accepted |
 | [0053](0053-audit-durability-and-the-idempotency-key-join.md) | The audit log is written durably, names every loss by idempotency key, and is purged by retention | accepted |
 | [0054](0054-upstream-session-pooling.md) | Upstream sessions are pooled per replica and continued from the session record | accepted |
+| [0055](0055-export-and-bootstrap-share-one-document.md) | Export, import and bootstrap share one document, with secrets as placeholders | accepted |

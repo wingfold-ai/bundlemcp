@@ -54,7 +54,7 @@ far. A no-go closes this change unapplied; BND-37 then stays out of the main spe
 - **Code:** `domain/servers/` (cached entries, sync), `domain/bundles/` (curation entities, view), the discovery probe
   and service, the `prompts/*` and `resources/*` handlers, repositories (Postgres and in-memory), the bundle page.
 - **Not covered:** export/import and bootstrap of this curation (follow-up for
-  [add-export-import](../add-export-import/proposal.md) if this goes ahead); resource templates.
+  [add-export-import](../archive/2026-10-16-add-export-import/proposal.md) if this goes ahead); resource templates.
 - **Docs:** `docs/manage/bundles.md`, `docs/integrate/management-api.md`, arc42 §5 and §8. A new ADR (next free
   number) records the decision to cache member prompt and resource listings for curation only, which partly reverses
   the "no cache for prompts/resources" stance of ADR-0021.

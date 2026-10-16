@@ -8,6 +8,9 @@ from bundlemcp.api.management.controllers.bundle_resource_controller import (
     BundleResourceController,
 )
 from bundlemcp.api.management.controllers.config_controller import ConfigController
+from bundlemcp.api.management.controllers.config_transfer_controller import (
+    ConfigTransferController,
+)
 from bundlemcp.api.management.controllers.endpoint_controller import EndpointController
 from bundlemcp.api.management.controllers.management_controller import ManagementController
 from bundlemcp.api.management.controllers.me_controller import MeController
@@ -21,6 +24,7 @@ __all__ = [
     "BundlePromptController",
     "BundleResourceController",
     "ConfigController",
+    "ConfigTransferController",
     "EndpointController",
     "ManagementController",
     "MeController",

@@ -84,9 +84,23 @@ inherited): `GET /export` with `include_secrets`, `POST /import` with `dry_run`,
 refuses `include_secrets=true` with `403` unless the `Principal` is `ADMIN` (SEC-11) and passes the principal to the
 service, which writes the record and sets `warning`.
 
-The SEC-11 record is a WARN structured log line `export.secrets_included` with the admin user id (never values), as
-the audit log has no management-event kind. This is the proposal's open decision; if a management-event audit kind is
-chosen instead, it lands in this change with its own task.
+The SEC-11 record is an audit record of kind `management` (D7) with action `export.secrets_included` and the admin's
+user id, written in the export's own unit of work, never with a value.
+
+### D7. Management events share the audit table
+
+`AuditRecord` gains `kind` (`tool_call`, the default, or `management`) and a nullable `action`; migration `0014` adds
+both columns, `kind` with server default `tool_call`, so existing rows and the previous release are unaffected. A
+management record leaves endpoint, bundle and tool empty. The list route and the CSV export expose both; the audit
+page shows the action where a tool call shows its tool. A separate events table was rejected: one place to read what
+happened, one retention purge.
+
+### D8. Bundle rename
+
+`BundleService.rename(name, new_name, force)` follows `ServerService.rename`: without `force` it raises a conflict
+naming the consequence for documents keyed on the old name; with it, it changes the name in place (every relation is
+by id) and publishes `bundle` invalidations for both names. The bundle page gets a rename card with the warning and an
+acknowledgement checkbox, as the endpoint page has.
 
 ### D6. UI
 

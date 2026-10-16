@@ -37,6 +37,7 @@ class InMemoryAuditRepository(InMemoryRepository[AuditRecord]):
         return (
             (f.created_from is None or record.created_at >= f.created_from)
             and (f.created_to is None or record.created_at <= f.created_to)
+            and (f.kind is None or record.kind == f.kind)
             and (f.endpoint_name is None or record.endpoint_name == f.endpoint_name)
             and (f.bundle_name is None or record.bundle_name == f.bundle_name)
             and (f.server_name is None or record.server_name == f.server_name)

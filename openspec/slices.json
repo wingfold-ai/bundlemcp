@@ -79,7 +79,7 @@
       "group": "Runtime and platform",
       "title": "Management",
       "summary": "Configuring the gateway without clicking.",
-      "description": "The versioned management REST API under /api/v1 (the admin UI uses nothing else, so everything is automatable), authenticated by admin session or service key, with its DTOs, pagination, retry-safe writes and browser-facing protections. Bootstrap provisions upstreams, bundles and endpoints idempotently from a document at startup, through the same code paths as the API. Export and import of the whole configuration will live here once built.",
+      "description": "The versioned management REST API under /api/v1 (the admin UI uses nothing else, so everything is automatable), authenticated by admin session or service key, with its DTOs, pagination, retry-safe writes and browser-facing protections. Bootstrap provisions upstreams, bundles and endpoints idempotently from a document at startup, through the same code paths as the API. Export and import move the whole configuration between gateways as that same document, secrets as placeholders.",
       "boundary": "The UI on top of this API is the admin-ui slice."
     },
     {
