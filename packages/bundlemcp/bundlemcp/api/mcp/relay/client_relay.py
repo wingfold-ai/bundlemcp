@@ -18,6 +18,7 @@ from bundlemcp.api.mcp.protocol.log_levels import at_least
 from bundlemcp.api.mcp.relay.input_channel import InputChannel
 from bundlemcp.api.mcp.relay.relay_rejected import RelayRejected
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
+from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
 
 NotificationSink = Callable[[dict[str, Any]], Awaitable[None]]
@@ -50,6 +51,7 @@ class ClientRelay:
         self,
         registry: StreamRegistry,
         signals: SignalBus,
+        presence: StreamPresence,
         routing_key: str,
         wait_timeout: float,
         *,
@@ -63,6 +65,7 @@ class ClientRelay:
         # stream, and set for a modern client
         self._registry = registry
         self._signals = signals
+        self._presence = presence
         self._routing_key = routing_key
         self._wait_timeout = wait_timeout
         self._log_level = log_level
@@ -89,6 +92,9 @@ class ClientRelay:
     async def _roundtrip(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         if self._channel is not None:
             return await self._channel.ask(method, params)
+        if not await self._presence.is_held(self._routing_key):
+            # nobody could answer; refuse now instead of waiting out the call timeout
+            raise RelayRejected("the client has no open stream to receive the request")
         correlation_id = uuid.uuid4().hex
         future = self._registry.register_reply(correlation_id)
         request = {"jsonrpc": "2.0", "id": correlation_id, "method": method, "params": params}

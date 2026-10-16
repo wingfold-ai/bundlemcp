@@ -54,6 +54,6 @@ Documentation and docstrings only — no behaviour change, so no spec delta (`sk
 ## Impact
 
 - Files: the docs, READMEs and docstrings listed above. No code paths, API, schema or settings change.
-- Overlaps by design: [complete-session-lifecycle](../../complete-session-lifecycle/proposal.md) rewrites the
+- Overlaps by design: [complete-session-lifecycle](../2026-10-16-complete-session-lifecycle/proposal.md) rewrites the
   `session_lifetime` sentence again when the setting works; the observability and metrics changes rewrite their
   docstrings again when they ship. Land this change first; the later ones edit text that is already true.

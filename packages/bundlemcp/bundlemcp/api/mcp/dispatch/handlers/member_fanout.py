@@ -12,6 +12,7 @@ from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.relay.client_relay import ClientRelay
 from bundlemcp.api.mcp.relay.input_channel import InputChannel
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
+from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
@@ -48,8 +49,10 @@ class MemberFanout:
         header_forwarding: HeaderForwarding,
         registry: StreamRegistry,
         signals: SignalBus,
+        presence: StreamPresence,
         runtime_config: RuntimeConfig,
     ) -> None:
+        self._presence = presence
         self._client_factory = client_factory
         self._credentials = credentials
         self._header_forwarding = header_forwarding
@@ -84,6 +87,7 @@ class MemberFanout:
             relay = ClientRelay(
                 self._registry,
                 self._signals,
+                self._presence,
                 ctx.routing_key,
                 timeouts.max_total,
                 log_level=ctx.log_level,

@@ -1,9 +1,11 @@
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from bundlemcp.domain.access.caller_identity import CallerIdentity
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
+from bundlemcp.domain.shared.clock import utcnow
 
 SESSION_RECORD_VERSION = 2  # bump only with cross-release read compat
 
@@ -38,6 +40,14 @@ class SessionRecord(BaseModel):
     bindings: dict[str, UpstreamBinding] = Field(
         default_factory=dict,
         description="Attachments to upstream sessions, keyed by server name",
+    )
+    # both default, so a record written by the previous build still loads at the same version
+    created_at: datetime = Field(
+        default_factory=utcnow, description="When the session was opened with initialize"
+    )
+    last_active_at: datetime = Field(
+        default_factory=utcnow,
+        description="When a request last named the session; the idle lifetime counts from here",
     )
 
     def is_owned_by(self, caller: CallerIdentity) -> bool:

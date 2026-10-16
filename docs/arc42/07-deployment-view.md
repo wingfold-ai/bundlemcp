@@ -21,6 +21,8 @@ Operator's reverse proxy (TLS, `X-Forwarded-*`) → N stateless **gateway** repl
 | Migrations | Dedicated step + advisory lock; expand/contract for rolling deploys | DEP-4/5 |
 | Session compat | Redis records versioned; new release reads previous release's records | DEP-6 |
 | Probes | `/healthz` (live), `/readyz` (PG+Redis+schema current) | [OPS-10](../../openspec/specs/operations/spec.md) |
+| Shutdown | SIGTERM drains within `BUNDLEMCP_SHUTDOWN_DRAIN_SECONDS` (20 s); the orchestrator's grace period must exceed it (compose: `stop_grace_period: 30s`); `/readyz` answers `503` from the first moment | [SES-11](../../openspec/specs/sessions/spec.md) |
+| Replicas | Any number behind a round-robin proxy; the integration suite runs two (`deploy/docker-compose.replicas.yml`) and asserts restarts, rolling updates and the 2-second propagation budget across them | SES-12, SES-19, DEP-7 |
 | Backups | Postgres dump = full durable state; Redis deliberately unbacked; restore rehearsed for every release (`deploy/rehearse_restore.py`) | DEP-8 |
 | CI gates | One `ci-passed` check over ruff, rumdl, import contracts, pytest, OpenAPI drift, frontend typecheck and build, docs, LikeC4, OpenSpec, images, integration | DEP-10 |
 | Releases | each pull request carries its version (from its title) and `CHANGELOG.md` entry; its merge tags `v<semver>` → restore rehearsal → images `:<version>` → GitHub release from the entry, naming the metering-hook protocol version; `main` publishes `:latest` and `:<sha>` | DEP-11, DEP-12 |

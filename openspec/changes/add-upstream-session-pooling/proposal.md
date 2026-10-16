@@ -76,8 +76,8 @@ AUTH-31 were written for a pooled model that was deferred. This change builds it
 - **ADR:** a new ADR (next free number in `docs/adr/`) supersedes ADR-0012 and amends ADR-0021's per-call boundary.
 - **Docs:** arc42 §5/§6/§8/§11, `docs/adr/README.md`, `packages/bundlemcp/bundlemcp/api/mcp/README.md`, the
   operations and configuration pages for the new keys.
-- **Related changes:** [complete-session-lifecycle](../complete-session-lifecycle/proposal.md)'s upstream-restart
-  recovery test (SES-12) and its sweeper's binding release depend on this change.
+- **Related changes:** [complete-session-lifecycle](../archive/2026-10-16-complete-session-lifecycle/proposal.md)'s
+  upstream-restart recovery test (SES-12) and its sweeper's binding release depend on this change.
   [complete-protocol-passthrough](../archive/2026-10-15-complete-protocol-passthrough/proposal.md) gates
   `resources.subscribe` and member `listChanged` on delivery (PROT-11): `member_notifications` in
   `main/mcp_gateway_assembly.py` turns true once this change delivers them, and those flags are advertised again.

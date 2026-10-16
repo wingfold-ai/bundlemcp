@@ -33,12 +33,27 @@ Three load-bearing scenarios (normative details in the linked specs).
 
 ## 6.3 Gateway restart under load (the metamcp fix)
 
-1. Replica receives SIGTERM: stops accepting, drains in-flight (SES-11), exits.
-2. Session records persist in Redis; nothing is "lost" with the process.
-3. Client's next request lands on another replica (or the restarted one), which loads the session record and serves —
+1. Replica receives SIGTERM (the image `exec`s the gateway, so the signal reaches it). It starts draining (SES-11):
+   `/readyz` and new MCP requests answer `503` with `Retry-After`, every notification stream it holds ends, and the
+   load balancer has two seconds to notice before connections close.
+2. In-flight calls finish within `BUNDLEMCP_SHUTDOWN_DRAIN_SECONDS`; one still running just before the window ends is
+   cancelled through its handle, answers with an error and is metered `cancelled`. Then the process exits.
+3. Session records persist in Redis; nothing is "lost" with the process.
+4. Client's next request lands on another replica (or the restarted one), which loads the session record and serves —
    **no 404, no re-initialize** (SES-2/3). Its pinned streams reconnect; upstream bindings re-establish lazily
    (SES-5/7).
-4. Verified continuously by the restart-under-load and two-replica integration tests (SES-12, DEP-7).
+5. Verified by the integration suite on two replicas behind a round-robin proxy
+   (`deploy/docker-compose.replicas.yml`): restart under load and a rolling update of a new image, neither answering
+   any request `404` or `500` (SES-12, DEP-7).
+
+## 6.3a An idle session expires
+
+1. Every request on a session, and every keep-alive of its open GET stream, records `last_active_at` and indexes the
+   session by it; the record's TTL is `session_lifetime` plus two sweep intervals (SES-1).
+2. Once a minute one replica takes the sweep lease and removes every session idle past `session_lifetime`, checking
+   each record before it goes, and logs `session.expired` (SES-10).
+3. If no replica sweeps, the TTL removes the record. A request naming an expired session gets `404` and the client
+   re-initializes. `session_lifetime = 0` keeps sessions until they are deleted.
 
 ## 6.4 Long-running call with progress, then a cross-replica cancel
 

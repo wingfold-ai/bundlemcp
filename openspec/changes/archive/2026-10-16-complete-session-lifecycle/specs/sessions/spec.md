@@ -8,9 +8,10 @@ On `initialize`, the gateway SHALL create a session record in the RESP store key
 (`bmcp:session:{id}`): endpoint, bundle, resolved caller identity, negotiated protocol version, the client's advertised
 capabilities, the client's requested log level ([PROT-7](../protocol/spec.md)), the time the
 session was created and the time of its last activity, and a record-schema `version` field
-([DEP-6](../deployment/spec.md)). The record's TTL is the idle session lifetime, the runtime-configurable
-`session_lifetime` (SES-10), refreshed together with the last-activity time on every request on the session (a `ping`
-counts — [PROT-8](../protocol/spec.md)).
+([DEP-6](../deployment/spec.md)). The session lives for the idle session lifetime, the runtime-configurable
+`session_lifetime` (SES-10), counted from its last activity, which every request on the session refreshes (a `ping`
+counts — [PROT-8](../protocol/spec.md)). The record's TTL in the store is that lifetime plus a margin of two sweeper
+intervals, so the sweeper normally expires the session first and the TTL is the backstop.
 
 #### Scenario: Initialize writes a record and returns its id
 - **WHEN** a handshake-era client sends `initialize` to `/main/mcp` with an API key
@@ -20,11 +21,13 @@ counts — [PROT-8](../protocol/spec.md)).
 
 #### Scenario: Activity refreshes the TTL
 - **WHEN** a client sends `ping` on an existing session
-- **THEN** the record's TTL is reset to the session lifetime and its last-activity time is the time of the `ping`
+- **THEN** the record's TTL is reset to the session lifetime plus the sweeper's margin and its last-activity time is
+  the time of the `ping`
 
 #### Scenario: Lifetime follows the runtime setting
 - **WHEN** an operator sets `session_lifetime` to 3600 and a client then initializes
-- **THEN** the new record's TTL is 3600 seconds
+- **THEN** the session expires 3600 seconds after its last activity, and the new record's TTL is 3600 seconds plus
+  the sweeper's margin
 
 #### Scenario: A record of another schema version is treated as expired
 - **WHEN** a stored record's `version` is not one this build reads

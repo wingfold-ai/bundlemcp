@@ -152,8 +152,10 @@ jobs:
         # default stack is exactly what CI can build; its tests are marked
         # `fleet` and skipped below — run them locally per deploy/TESTING.md.
         # No deploy/.env in CI, so BUNDLEMCP_PUBLIC_URL falls back to
-        # http://localhost:8000. --wait blocks on the health checks.
-        run: docker compose -f deploy/docker-compose.yml up -d --build --wait --wait-timeout 300
+        # http://localhost:8000. --wait blocks on the health checks. The replica
+        # overlay adds a second gateway and a round-robin proxy for the restart,
+        # rolling-update and propagation tests.
+        run: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.replicas.yml up -d --build --wait --wait-timeout 300
       - name: Discover the seeded demo upstream
         # Bootstrap schedules tool discovery best-effort (async), so a fresh boot
         # can race echo-mcp's startup. Force + confirm discovery so the demo
@@ -186,10 +188,10 @@ jobs:
           npx playwright test oauth-consent.spec.ts
       - name: Logs on failure
         if: failure()
-        run: docker compose -f deploy/docker-compose.yml logs --tail=200
+        run: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.replicas.yml logs --tail=200
       - name: Tear down
         if: always()
-        run: docker compose -f deploy/docker-compose.yml down -v
+        run: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.replicas.yml down -v
 
   conformance-revisions:
     # The served revisions the MCP conformance suite has scenarios for, read

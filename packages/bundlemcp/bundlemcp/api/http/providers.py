@@ -12,6 +12,7 @@ from fastapi import Depends, FastAPI, Request
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from bundlemcp.application.contracts.readiness_probe import ReadinessProbe
+from bundlemcp.application.serving.replica_drain import ReplicaDrain
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.config.config_registry import DEFAULTS
 
@@ -24,6 +25,10 @@ async def get_unit_of_work(request: Request) -> AsyncIterator[UnitOfWork]:
 
 def get_readiness(request: Request) -> ReadinessProbe:
     return request.app.state.container.readiness
+
+
+def get_drain(request: Request) -> ReplicaDrain:
+    return request.app.state.container.drain
 
 
 def get_app_settings(request: Request) -> Settings:
@@ -44,4 +49,5 @@ def current_request_limit(app: FastAPI) -> int:
 
 UnitOfWorkProvider = Annotated[UnitOfWork, Depends(get_unit_of_work)]
 ReadinessProvider = Annotated[ReadinessProbe, Depends(get_readiness)]
+DrainProvider = Annotated[ReplicaDrain, Depends(get_drain)]
 SettingsProvider = Annotated[Settings, Depends(get_app_settings)]

@@ -13,8 +13,10 @@ from fastapi import FastAPI
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
 from bundlemcp.api.jobs.invocation_sweep_job import InvocationSweepJob
 from bundlemcp.api.jobs.secret_reencryption_job import SecretReencryptionJob
+from bundlemcp.api.jobs.session_sweep_job import SessionSweepJob
 from bundlemcp.api.jobs.token_purger import TokenPurger
 from bundlemcp.api.jobs.tool_refresher import ToolRefresher
+from bundlemcp.api.mcp.protocol.sse import KEEPALIVE_SECONDS
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
 from bundlemcp.application.bootstrap import BootstrapRunner
@@ -34,7 +36,9 @@ from bundlemcp.application.oauth_server import (
     RegisteredClientSource,
 )
 from bundlemcp.application.serving.list_changed_notifier import ListChangedNotifier
+from bundlemcp.application.serving.replica_drain import ReplicaDrain
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
+from bundlemcp.application.sessions.session_sweeper import SessionSweeper
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.application.upstream_oauth.secret_reencryption import SecretReencryption
 from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
@@ -74,6 +78,7 @@ from bundlemcp.infrastructure.valkey.rate_limiter import ValkeyRateLimiter
 from bundlemcp.infrastructure.valkey.refresh_lock import ValkeyRefreshLock
 from bundlemcp.infrastructure.valkey.session_store import ValkeySessionStore
 from bundlemcp.infrastructure.valkey.signal_bus import ValkeySignalBus
+from bundlemcp.infrastructure.valkey.stream_presence_store import ValkeyStreamPresence
 from bundlemcp.infrastructure.valkey.valkey_single_use_state import ValkeySingleUseState
 from bundlemcp.main.composition_overrides import CompositionOverrides
 from bundlemcp.main.container import AppContainer
@@ -138,7 +143,7 @@ class CompositionRoot:
             self._stack.push_async_callback(redis.aclose)
         units = SqlAlchemyUnitOfWorkFactory(sessions, redis)
 
-        runtime_config = RuntimeConfig(units)
+        runtime_config = RuntimeConfig(units, cache_disabled=settings.config_cache_disabled)
         client_factory = overrides.client_factory or default_client_factory(
             settings, lambda: runtime_config.current("max_upstream_response_bytes")
         )
@@ -179,6 +184,8 @@ class CompositionRoot:
         self._stack.push_async_callback(audit.stop)
 
         registry = InProcessStreamRegistry()
+        drain = ReplicaDrain(registry, settings.shutdown_drain_seconds)
+        self._stack.callback(drain.stop)
         signals = ValkeySignalBus(redis, registry)
         await signals.start()
         self._stack.push_async_callback(signals.stop)
@@ -203,6 +210,9 @@ class CompositionRoot:
             unit_of_work_factory=units,
             sessions=session_store,
             registry=registry,
+            drain=drain,
+            # a holder is believed for three missed keep-alives at most
+            presence=ValkeyStreamPresence(redis, hold_seconds=3 * KEEPALIVE_SECONDS),
             signals=signals,
             metering=metering,
             paused_invocations=paused_invocations,
@@ -270,6 +280,13 @@ class CompositionRoot:
         invocation_sweep.start()
         self._stack.callback(invocation_sweep.stop)
 
+        # a session idle past session_lifetime is removed on one replica per interval
+        session_sweep = SessionSweepJob(
+            SessionSweeper(session_store, runtime_config, clock), ValkeyRefreshLock(redis)
+        )
+        session_sweep.start()
+        self._stack.callback(session_sweep.stop)
+
         client_metadata = overrides.client_metadata_fetcher or HttpxClientMetadataFetcher(
             settings, redis
         )
@@ -300,6 +317,7 @@ class CompositionRoot:
             upstream_connections=upstream_tokens or NoUpstreamConnections(),
             admin_sessions=AdminSessionStore(redis, max_age=settings.admin_session_lifetime),
             readiness=StoreReadinessProbe(sessions, redis),
+            drain=drain,
             pending_authorizations=ValkeySingleUseState(
                 redis,
                 prefix=PENDING_CONSENT_PREFIX,

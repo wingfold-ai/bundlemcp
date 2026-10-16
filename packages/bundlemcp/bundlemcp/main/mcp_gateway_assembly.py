@@ -38,6 +38,7 @@ from bundlemcp.application.contracts.live_state.paused_invocations import Paused
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
+from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
@@ -49,6 +50,7 @@ from bundlemcp.application.metering.metering_hook import MeteringHook
 from bundlemcp.application.metering.metering_stage import MeteringStage
 from bundlemcp.application.serving.audit_stage import AuditStage
 from bundlemcp.application.serving.bundle_content_reader import BundleContentReader
+from bundlemcp.application.serving.replica_drain import ReplicaDrain
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.application.upstream_oauth.account_connect_prompts import AccountConnectPrompts
@@ -76,7 +78,11 @@ class McpGatewayAssembly(BaseModel):
     )
     sessions: SessionStore = Field(description="Session records in Valkey")
     registry: StreamRegistry = Field(description="This replica's open streams and in-flight calls")
+    drain: ReplicaDrain = Field(description="Refuses new requests once this replica is draining")
     signals: SignalBus = Field(description="Cross-replica delivery of cancels, replies and events")
+    presence: StreamPresence = Field(
+        description="Which notification streams some replica holds, for failing fast without one"
+    )
     metering: MeteringHook = Field(description="Billing hook consulted around every tool call")
     paused_invocations: PausedInvocations = Field(
         description="Metered invocations waiting for client input, shared by every replica"
@@ -123,6 +129,7 @@ class McpGatewayAssembly(BaseModel):
             header_forwarding,
             self.registry,
             self.signals,
+            self.presence,
             self.runtime_config,
         )
         content = BundleContentReader(self.unit_of_work_factory)
@@ -147,6 +154,7 @@ class McpGatewayAssembly(BaseModel):
                 sessions=self.sessions,
                 registry=self.registry,
                 signals=self.signals,
+                presence=self.presence,
                 runtime_config=self.runtime_config,
                 upstream_health=self.upstream_health,
                 state_cipher=self.state_cipher,
@@ -179,18 +187,24 @@ class McpGatewayAssembly(BaseModel):
                 "resources/subscribe": ResourcesSubscribeHandler(),
                 "resources/unsubscribe": ResourcesSubscribeHandler(),
                 "logging/setLevel": LoggingSetLevelHandler(self.sessions),
-                "subscriptions/listen": SubscriptionsListenHandler(self.registry),
+                "subscriptions/listen": SubscriptionsListenHandler(
+                    self.registry, self.presence
+                ),
                 "notifications/cancelled": CancelledNotificationHandler(self.signals),
             }
         )
-        stream = SessionStream(self.registry, self.sessions)
+        stream = SessionStream(self.registry, self.sessions, self.runtime_config, self.presence)
         session_adapter = SessionMcpAdapter(
             sessions=self.sessions,
+            runtime_config=self.runtime_config,
             signals=self.signals,
             dialects=dialects,
             initialize=RateLimited(
                 InitializeHandler(
-                    self.sessions, dialects, member_notifications=member_notifications
+                    self.sessions,
+                    dialects,
+                    self.runtime_config,
+                    member_notifications=member_notifications,
                 ),
                 gate,
                 tool_call=False,
@@ -207,6 +221,7 @@ class McpGatewayAssembly(BaseModel):
             profiles=self.profiles,
         )
         return McpGatewayRouter(
+            drain=self.drain,
             admission=admission,
             stateless_adapter=stateless_adapter,
             session_adapter=session_adapter,

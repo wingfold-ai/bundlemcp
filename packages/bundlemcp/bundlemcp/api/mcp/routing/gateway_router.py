@@ -1,12 +1,30 @@
 """Front Controller for the Streamable-HTTP edge: admit caller, route by era."""
 
 from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 
 from bundlemcp.api.mcp.protocol.request_rejected import RequestRejected
 from bundlemcp.api.mcp.protocol.session_header import SESSION_HEADER
 from bundlemcp.api.mcp.routing.adapters.session_adapter import SessionMcpAdapter
 from bundlemcp.api.mcp.routing.adapters.stateless_adapter import StatelessMcpAdapter
 from bundlemcp.api.mcp.routing.admission_gate import AdmissionGate
+from bundlemcp.application.serving.replica_drain import ReplicaDrain
+
+# seconds a client refused by a draining replica waits before retrying; another replica answers
+DRAINING_RETRY_AFTER = 1
+
+
+def _draining() -> Response:
+    """The refusal of a replica that is shutting down: retry, another replica serves it."""
+    return JSONResponse(
+        status_code=503,
+        content={
+            "jsonrpc": "2.0",
+            "id": None,
+            "error": {"code": -32000, "message": "this replica is shutting down; retry"},
+        },
+        headers={"Retry-After": str(DRAINING_RETRY_AFTER)},
+    )
 
 
 def _method_not_allowed() -> Response:
@@ -20,10 +38,12 @@ class McpGatewayRouter:
     def __init__(
         self,
         *,
+        drain: ReplicaDrain,
         admission: AdmissionGate,
         stateless_adapter: StatelessMcpAdapter,
         session_adapter: SessionMcpAdapter,
     ) -> None:
+        self._drain = drain
         self._admission = admission
         self._stateless = stateless_adapter
         self._session = session_adapter
@@ -32,7 +52,10 @@ class McpGatewayRouter:
         """Admit caller, validate payload, and dispatch to the matching era adapter.
 
         The body size is already bounded by the request body limit middleware.
+        A draining replica refuses before reading anything.
         """
+        if self._drain.draining:
+            return _draining()
         try:
             message = await self._admission.parse_envelope(request)
             ctx = await self._admission.admit_caller(request, endpoint_name)
@@ -64,6 +87,8 @@ class McpGatewayRouter:
         """The server->client event stream of a session connection (SSE)."""
         if not request.headers.get(SESSION_HEADER):
             return _method_not_allowed()
+        if self._drain.draining:
+            return _draining()
         try:
             ctx = await self._admission.admit_caller(request, endpoint_name)
             return ctx.cors.apply(await self._session.open_stream(ctx, endpoint_name))

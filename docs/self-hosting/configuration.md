@@ -87,6 +87,8 @@ claude.ai only.
 | Variable | Default | Meaning |
 |---|---|---|
 | `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` | `1800` (30 minutes) | Seconds between re-reading every server's tool list. Picks up a server that was unreachable when you registered it, and tools that changed without the upstream announcing it. One replica refreshes per interval. **Unset** means the default, every 30 minutes. **`0` turns the refresh off entirely**: no server is re-read until you call `:refresh-tools` or change its definition. Any other value is the interval itself, so keep it in minutes, not seconds: every refresh contacts every upstream server, and a value such as `1` probes all of them about once a second. 300–3600 suits most deployments. |
+| `BUNDLEMCP_SHUTDOWN_DRAIN_SECONDS` | `20` | Seconds a stopping replica gives in-flight requests to finish. On the stop signal it reports not ready and refuses new requests with `503` and `Retry-After`, ends its notification streams, and answers calls still running at the end with an error (metered as `cancelled`), then exits. Keep your orchestrator's stop grace period above it; the compose file uses `stop_grace_period: 30s`. |
+| `BUNDLEMCP_CONFIG_CACHE_DISABLED` | `false` | Read runtime settings from the database on every access instead of caching them per replica. A debugging aid when you suspect a stale value: behaviour is identical, only slower. Endpoints, bundles and keys are never cached either way. |
 
 ### Provisioning
 
