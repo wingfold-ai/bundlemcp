@@ -6,6 +6,7 @@ from fastapi import Response
 from fastapi.responses import JSONResponse
 from mcp.types import INVALID_PARAMS
 
+from bundlemcp.api.http.log_context import bind_request_fields
 from bundlemcp.api.mcp.dispatch.method_handler import MethodHandler
 from bundlemcp.api.mcp.dispatch.method_registry import MethodRegistry
 from bundlemcp.api.mcp.protocol.dialect import DialectRegistry
@@ -104,6 +105,7 @@ class SessionMcpAdapter:
             or not record.is_owned_by(ctx.identity)  # indistinguishable from unknown
         ):
             raise RequestRejected(JSONResponse({"error": "session not found"}, status_code=404))
+        bind_request_fields(session_id=record.session_id)
         return self._session_context(ctx, record, dialect)
 
     @staticmethod

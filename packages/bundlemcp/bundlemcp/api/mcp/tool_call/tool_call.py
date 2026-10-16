@@ -9,6 +9,7 @@ from typing import Any
 import structlog
 from fastapi import Response
 
+from bundlemcp.api.http.log_context import bind_request_fields
 from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error, rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
@@ -86,6 +87,7 @@ class ToolCall:
         self._ctx = ctx
         self._message = message
         self._tool = tool
+        bind_request_fields(server=tool.server.name, tool=tool.tool.name)
         self._resume = resume
         self._preanswered = preanswered
         self._correlation_id = uuid.uuid4().hex

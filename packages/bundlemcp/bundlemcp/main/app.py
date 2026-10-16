@@ -14,6 +14,7 @@ from bundlemcp.api.http.request_body_limit import (
     RequestBodyLimit,
     body_too_large_handler,
 )
+from bundlemcp.api.http.request_context_middleware import RequestContextMiddleware
 from bundlemcp.api.http.service_error_handler import service_error_handler
 from bundlemcp.api.management.controllers import (
     ApiKeyController,
@@ -83,6 +84,8 @@ def create_app(
 
     # outermost, so every answer carries CORS, a 413 from the body limit included
     app.add_middleware(PathScopedCors, web_origins=settings.web_origins)
+    # outermost of all, so every request, a refused one included, has its id and access line
+    app.add_middleware(RequestContextMiddleware, settings=settings)
 
     for controller in (
         ServerController(),

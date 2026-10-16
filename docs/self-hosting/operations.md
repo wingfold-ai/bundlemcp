@@ -4,9 +4,21 @@ Day-two topics: what to watch, how to rotate credentials, and what the gateway d
 
 ## Logs
 
-The gateway writes structured logs to stdout, JSON by default (`BUNDLEMCP_LOG_FORMAT=text` for a terminal). Every
-request line carries a request id, the endpoint, the session id and the caller once resolved. Secrets, tokens, header
-values and tool arguments never appear.
+The gateway writes structured logs to standard error, one line per event, JSON by default
+(`BUNDLEMCP_LOG_FORMAT=text` for a terminal). Every line written while serving a request carries these fields once
+they are known; secrets, tokens, header values and tool arguments never appear.
+
+| Field | What it is |
+|---|---|
+| `request_id` | One per HTTP request, also returned to the client as the `X-Request-Id` response header |
+| `client_ip` | The client's address as the trusted-proxy policy derives it (`BUNDLEMCP_TRUSTED_PROXIES`), not the proxy's |
+| `endpoint` | The endpoint the request is for |
+| `session_id` | The MCP session the request names (handshake-era clients) |
+| `auth_method`, `user_id`, `api_key_id` | Who is calling: the user for OAuth, the key's id (never the key) otherwise |
+| `server`, `tool` | The upstream server and tool name of a `tools/call` |
+
+Each request ends with one `http.request` line (method, path template, status, `duration_ms`); uvicorn's own access
+line is not written, because its client address is the proxy's.
 
 Two log events deserve alerts:
 

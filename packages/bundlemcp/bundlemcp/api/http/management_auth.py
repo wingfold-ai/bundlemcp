@@ -11,6 +11,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 
+from bundlemcp.api.http.log_context import bind_request_fields
 from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.service_providers import CallerResolverProvider
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
@@ -38,8 +39,10 @@ class ManagementAuth:
             case User(is_admin=True):
                 if request.method not in self.SAFE_METHODS:
                     self._check_origin(request, settings)
+                bind_request_fields(auth_method="admin_session", user_id=str(caller.id))
                 return Principal(kind=PrincipalKind.ADMIN, user_id=str(caller.id))
             case ApiKey() if caller.is_service_key:
+                bind_request_fields(auth_method="service_key", api_key_id=str(caller.id))
                 return Principal(kind=PrincipalKind.SERVICE, api_key_id=str(caller.id))
             case ApiKey():
                 raise HTTPException(

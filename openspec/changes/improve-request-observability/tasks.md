@@ -2,21 +2,21 @@
 
 ## 1. Log stream and request context (OPS-8, DEP-2)
 
-- [ ] 1.1 Apply the maintainers' log-stream decision (proposal "Open decision"): keep stderr, or pass `sys.stdout` to
+- [x] 1.1 Apply the maintainers' log-stream decision (proposal "Open decision"): keep stderr, or pass `sys.stdout` to
       the handler in `configure_logging`; correct the module and function docstrings to the chosen stream and verify
       `test_obs1_logs_written_to_<stream>` captures a line on that stream only
-- [ ] 1.2 Add the pure ASGI request-context middleware in `api/http/` (clear, `request_id`, `client_ip` via
+- [x] 1.2 Add the pure ASGI request-context middleware in `api/http/` (clear, `request_id`, `client_ip` via
   `client_ip()`, `X-Request-Id` response header, one `http.request` line, clear in `finally`) and register it in
   `main/app.py`; verify `test_obs1_request_id_returned_and_logged` and `test_dep2_logs_carry_derived_client_ip`
-- [ ] 1.3 Silence uvicorn's access logger in `configure_logging` and verify
+- [x] 1.3 Silence uvicorn's access logger in `configure_logging` and verify
   `test_obs1_one_access_line_per_request`
-- [ ] 1.4 Add the closed-set `bind_request_fields` helper and bind endpoint and caller in `AdmissionGate.admit_caller`,
+- [x] 1.4 Add the closed-set `bind_request_fields` helper and bind endpoint and caller in `AdmissionGate.admit_caller`,
   session id in `SessionMcpAdapter`, server and tool in the tool-call pipeline, caller in `ManagementAuth`; verify
   `test_obs1_tool_call_lines_carry_request_context` (and that no key value appears) and
   `test_obs1_rejected_before_auth_has_no_caller`
-- [ ] 1.5 Verify `test_obs1_context_does_not_leak_between_concurrent_requests` with two concurrent requests on
+- [x] 1.5 Verify `test_obs1_context_does_not_leak_between_concurrent_requests` with two concurrent requests on
   different endpoints
-- [ ] 1.6 Document the context fields and `X-Request-Id` in `docs/self-hosting/operations.md` (log fields table) and
+- [x] 1.6 Document the context fields and `X-Request-Id` in `docs/self-hosting/operations.md` (log fields table) and
   `docs/self-hosting/troubleshooting.md` (find a request by id); verify `python3 tools/check_docs_links.py`
 
 ## 2. Readiness (OPS-10, DEP-4)

@@ -11,6 +11,8 @@ import logging
 import structlog
 
 FOREIGN_LOGGERS = ("uvicorn", "uvicorn.access", "uvicorn.error")
+# replaced by the gateway's own http.request line, which names the client rather than the proxy
+SILENCED_LOGGERS = ("uvicorn.access",)
 
 
 def configure_logging(level: str, log_format: str = "json") -> None:
@@ -55,3 +57,5 @@ def configure_logging(level: str, log_format: str = "json") -> None:
         foreign.handlers.clear()
         foreign.setLevel(logging.NOTSET)
         foreign.propagate = True
+    for name in SILENCED_LOGGERS:
+        logging.getLogger(name).setLevel(logging.WARNING)
