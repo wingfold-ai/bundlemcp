@@ -50,5 +50,6 @@ reads the logs.
   `/metrics`; a scrape-config example. An ADR records the export model (per-replica scrape, service-key auth, closed
   label set) — next free number in `docs/adr/`.
 - **Dependents:** [harden-audit-log](../harden-audit-log/proposal.md) counts audit overflow and failed writes through
-  this change's metrics; [improve-request-observability](../improve-request-observability/proposal.md) is independent.
+  this change's metrics;
+  [improve-request-observability](../archive/2026-10-16-improve-request-observability/proposal.md) is independent.
 - No API DTO changes; `/metrics` is excluded from the OpenAPI document.

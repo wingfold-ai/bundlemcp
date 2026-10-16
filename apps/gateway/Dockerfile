@@ -1,14 +1,18 @@
 # bundlemcp gateway; build from the repo root:
 #   docker build -f apps/gateway/Dockerfile .
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS builder
+# optional extras of the library, e.g. --build-arg LIBRARY_EXTRAS=otel for tracing
+ARG LIBRARY_EXTRAS=""
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY packages/bundlemcp/pyproject.toml packages/bundlemcp/pyproject.toml
-RUN uv sync --frozen --no-install-workspace --no-dev --all-packages
+RUN uv sync --frozen --no-install-workspace --no-dev --all-packages \
+    ${LIBRARY_EXTRAS:+--extra $LIBRARY_EXTRAS}
 COPY packages/ packages/
 # --no-editable installs the library into the venv, so the runtime stage
 # needs no source tree
-RUN uv sync --frozen --no-dev --all-packages --no-editable
+RUN uv sync --frozen --no-dev --all-packages --no-editable \
+    ${LIBRARY_EXTRAS:+--extra $LIBRARY_EXTRAS}
 
 FROM python:3.14-slim-bookworm
 # names the build; a new value makes a new image from the cached layers, which is

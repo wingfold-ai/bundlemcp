@@ -7,6 +7,7 @@ downstream receives what it needs rather than reaching for it.
 """
 
 from contextlib import AsyncExitStack
+from typing import Any
 
 from fastapi import FastAPI
 
@@ -21,6 +22,7 @@ from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
 from bundlemcp.application.bootstrap import BootstrapRunner
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
+from bundlemcp.application.contracts.observability.call_tracer import CallTracer
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
 from bundlemcp.application.discovery.connection_diagnoser import ConnectionDiagnoser
@@ -60,11 +62,13 @@ from bundlemcp.infrastructure.httpx.upstream_oauth_provider import HttpxUpstream
 from bundlemcp.infrastructure.inprocess.counters import InProcessCounters
 from bundlemcp.infrastructure.inprocess.stream_registry import InProcessStreamRegistry
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
+from bundlemcp.infrastructure.memory.noop_call_tracer import NoopCallTracer
 from bundlemcp.infrastructure.metering.hook_loader import load_metering_hook
 from bundlemcp.infrastructure.metering.http_metering_hook import HttpMeteringHook
 from bundlemcp.infrastructure.oidc.build_provider import build_provider
 from bundlemcp.infrastructure.postgres.audit_writer import QueuedAuditWriter
 from bundlemcp.infrastructure.postgres.engine import create_engine, session_factory
+from bundlemcp.infrastructure.postgres.shipped_migrations import ShippedMigrations
 from bundlemcp.infrastructure.postgres.sqlalchemy_unit_of_work import SqlAlchemyUnitOfWorkFactory
 from bundlemcp.infrastructure.readiness.store_readiness_probe import StoreReadinessProbe
 from bundlemcp.infrastructure.valkey.admin_session_store import AdminSessionStore
@@ -102,12 +106,20 @@ class CompositionRoot:
     a failure partway through startup releases exactly what was acquired so far.
     """
 
-    def __init__(self, app: FastAPI, settings: Settings, overrides: CompositionOverrides) -> None:
+    def __init__(
+        self,
+        app: FastAPI,
+        settings: Settings,
+        overrides: CompositionOverrides,
+        tracing: Any = None,
+    ) -> None:
         # Starlette builds app.state once and never rebinds it, so holding the
         # reference here saves every method from reaching through the app.
+        # tracing is None unless an OpenTelemetry exporter is configured.
         self._state = app.state
         self._settings = settings
         self._overrides = overrides
+        self._tracing = tracing
         self._stack = AsyncExitStack()
 
     async def __aenter__(self) -> "CompositionRoot":
@@ -137,6 +149,11 @@ class CompositionRoot:
         engine = overrides.engine or create_engine(settings.database_url)
         if overrides.engine is None:
             self._stack.push_async_callback(engine.dispose)
+        tracer: CallTracer = NoopCallTracer()
+        if self._tracing is not None:
+            self._tracing.instrument_stores(engine)
+            self._stack.callback(self._tracing.shutdown)
+            tracer = self._tracing.call_tracer
         sessions = session_factory(engine)
         redis = overrides.redis or create_redis(settings.redis_url)
         if overrides.redis is None:
@@ -220,6 +237,7 @@ class CompositionRoot:
             client_factory=client_factory,
             runtime_config=runtime_config,
             upstream_health=upstream_health,
+            tracer=tracer,
             upstream_tokens=upstream_tokens,
             delegated_tokens=delegated_tokens,
             state_cipher=cipher,
@@ -316,7 +334,7 @@ class CompositionRoot:
             upstream_tokens=upstream_tokens,
             upstream_connections=upstream_tokens or NoUpstreamConnections(),
             admin_sessions=AdminSessionStore(redis, max_age=settings.admin_session_lifetime),
-            readiness=StoreReadinessProbe(sessions, redis),
+            readiness=StoreReadinessProbe(sessions, redis, ShippedMigrations.read()),
             drain=drain,
             pending_authorizations=ValkeySingleUseState(
                 redis,

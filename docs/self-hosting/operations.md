@@ -4,9 +4,21 @@ Day-two topics: what to watch, how to rotate credentials, and what the gateway d
 
 ## Logs
 
-The gateway writes structured logs to stdout, JSON by default (`BUNDLEMCP_LOG_FORMAT=text` for a terminal). Every
-request line carries a request id, the endpoint, the session id and the caller once resolved. Secrets, tokens, header
-values and tool arguments never appear.
+The gateway writes structured logs to standard error, one line per event, JSON by default
+(`BUNDLEMCP_LOG_FORMAT=text` for a terminal). Every line written while serving a request carries these fields once
+they are known; secrets, tokens, header values and tool arguments never appear.
+
+| Field | What it is |
+|---|---|
+| `request_id` | One per HTTP request, also returned to the client as the `X-Request-Id` response header |
+| `client_ip` | The client's address as the trusted-proxy policy derives it (`BUNDLEMCP_TRUSTED_PROXIES`), not the proxy's |
+| `endpoint` | The endpoint the request is for |
+| `session_id` | The MCP session the request names (handshake-era clients) |
+| `auth_method`, `user_id`, `api_key_id` | Who is calling: the user for OAuth, the key's id (never the key) otherwise |
+| `server`, `tool` | The upstream server and tool name of a `tools/call` |
+
+Each request ends with one `http.request` line (method, path template, status, `duration_ms`); uvicorn's own access
+line is not written, because its client address is the proxy's.
 
 Two log events deserve alerts:
 
@@ -14,6 +26,14 @@ Two log events deserve alerts:
   server's `health_status` flips to `error` at the same time.
 - **rate limiter unavailable**: Valkey could not be reached. Traffic limits fail open by default, so this is a warning,
   not an outage.
+
+### Traces
+
+With tracing configured ([Tracing](configuration.md#tracing)), each HTTP request is a span, with child spans for its
+database statements (placeholders, never values), its Valkey commands (arguments masked) and each upstream tool call
+(`mcp.upstream_call`, with `bundlemcp.endpoint`, `bundlemcp.server`, `bundlemcp.tool` and `bundlemcp.status`). The OAuth
+and login routes are not traced, because their query strings carry codes and state. No span carries a key, a header
+value or tool arguments.
 
 ## Health
 

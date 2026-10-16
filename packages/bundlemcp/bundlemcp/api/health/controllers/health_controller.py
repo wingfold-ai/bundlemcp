@@ -16,8 +16,20 @@ class HealthController(Controller):
 
     @route.get("/readyz")
     async def readyz(self, readiness: ReadinessProvider, drain: DrainProvider) -> JSONResponse:
-        """Ready means both stores are reachable and the replica is not shutting down."""
+        """Ready means both stores answer, the schema is current and the replica is not stopping.
+
+        Not ready is 503 with the failing checks named; nothing here answers 500.
+        """
         if drain.draining:
             return JSONResponse(status_code=503, content={"status": "draining"})
-        await readiness.check()
-        return JSONResponse(content={"status": "ready"})
+        report = await readiness.check()
+        if report.ready:
+            return JSONResponse(content={"status": "ready"})
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "not ready",
+                "failing": report.failing,
+                "checks": report.model_dump(exclude_none=True),
+            },
+        )

@@ -34,5 +34,5 @@ if __name__ == "__main__":
         path="/mcp",
         # fastmcp >= 3.4.3 rejects non-localhost Host headers unless allowed;
         # the gateway reaches this container by its compose service name.
-        allowed_hosts=["echo-mcp", "echo-mcp:9000"],
+        allowed_hosts=["echo-mcp", "echo-mcp:9000", "localhost:9100", "127.0.0.1:9100"],
     )
