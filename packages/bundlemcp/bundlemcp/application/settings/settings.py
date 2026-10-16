@@ -250,6 +250,14 @@ class Settings(BaseModel):
         "either way; a session-era client then fails at initialize",
     )
 
+    upstream_pooling_enabled: bool = Field(
+        default=True,
+        description="Whether upstream MCP sessions are kept open and reused across requests. "
+        "Switched off, every request opens its own upstream connection and closes it after, "
+        "and nothing is heard from a member between calls: no list changes, resource updates "
+        "or log messages",
+    )
+
     log_level: str = Field(
         default="INFO",
         pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
@@ -277,7 +285,5 @@ class Settings(BaseModel):
     def _one_metering_hook(self) -> "Settings":
         # one hook per deployment, in-process or over HTTP
         if self.metering_hook and self.metering_http_url:
-            raise ValueError(
-                "set BUNDLEMCP_METERING_HOOK or BUNDLEMCP_METERING_HTTP_URL, not both"
-            )
+            raise ValueError("set BUNDLEMCP_METERING_HOOK or BUNDLEMCP_METERING_HTTP_URL, not both")
         return self

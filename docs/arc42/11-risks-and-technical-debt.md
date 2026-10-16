@@ -20,15 +20,11 @@
   — by design no per-bundle curation like tools have, which would need prompt/resource discovery (BND-37, optional). A
   bundle adds context of its own instead: prompts and resources authored on the bundle and served without upstream
   contact ([ADR-0044](../adr/0044-bundle-owned-prompts-and-resources.md)).
-- **Upstream→client push between calls is pooling-dependent** ([ADR-0021](../adr/0021-mcp-surface-completion.md)):
-  `resources/subscribe` updates, PROT-7 upstream log push, and PROT-10 upstream `list_changed` outside an active call
-  need a persistent upstream connection that the per-call model (ADR-0012) lacks. None of them is delivered today,
-  neither between calls nor within one, so none is advertised either: a member's `resources.subscribe` and its prompt
-  and resource `listChanged` are dropped from the bundle's capabilities (PROT-11) until pooling (SES-8, change
-  `add-upstream-session-pooling`) delivers them.
-- `subscriptions/listen` delivers prompt/resource list changes only for the bundle's own entries
-  ([PROT-17](../../openspec/specs/protocol/spec.md), BND-28) — a member's list changes and resource
-  subscriptions wait for the same pooling.
+- **Between-call messages need the transport that heard them**
+  ([ADR-0054](../adr/0054-upstream-session-pooling.md)): a handshake upstream session's GET stream is held only by
+  the replica that initialized it, so a session continued on another replica hears list changes, log messages and
+  resource updates only while that first replica still holds the transport. Missed notifications are not replayed;
+  the periodic tool refresh ([ADR-0038](../adr/0038-periodic-tool-refresh.md)) still catches tool changes.
 - Protocol extensions (Tasks, MCP Apps) are not proxied and not advertised (PROT-11).
 - Single scope in OAuth; audience-only binding (AUTH-10) — fine-grained scopes deferred.
 - There is no built-in inspector yet (change `add-inspector`).

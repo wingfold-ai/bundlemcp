@@ -97,15 +97,28 @@ def test_ses12_sessions_survive_a_restart_under_load():
     _all_serve(sessions)
 
 
-@pytest.mark.skip(reason="needs SES-7 from add-upstream-session-pooling")
 def test_ses12_an_upstream_restart_costs_no_client_visible_error():
     """SES-12: an upstream restarted between two calls of a session; the second succeeds."""
     session = initialize(LB_URL, "demo", api_key=SERVICE_KEY)
     call = {"name": "echo__echo", "arguments": {"text": "x"}}
     mcp_call(LB_URL, "demo", session, "tools/call", call, api_key=SERVICE_KEY)
     subprocess.run([*COMPOSE, "restart", "echo-mcp"], check=True)
+    # restarted since: the upstream is serving again, and has forgotten the session
+    deadline = time.monotonic() + 30
+    while not _echo_serves():
+        assert time.monotonic() < deadline, "echo-mcp did not come back"
+        time.sleep(0.2)
     result = mcp_call(LB_URL, "demo", session, "tools/call", call, api_key=SERVICE_KEY)
     assert result["result"]["content"][0]["text"] == "x"
+
+
+def _echo_serves() -> bool:
+    """Whether the demo upstream accepts connections on its published port."""
+    try:
+        httpx.get("http://127.0.0.1:9100/mcp", timeout=2)
+    except httpx.TransportError:
+        return False
+    return True
 
 
 def _initialize_status(base_url: str, endpoint: str, key: str) -> int:

@@ -17,6 +17,7 @@ from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.protocol.request_rejected import RequestRejected
 from bundlemcp.api.mcp.protocol.session_header import SESSION_HEADER
 from bundlemcp.api.mcp.routing.session_stream import SessionStream
+from bundlemcp.api.mcp.upstream.upstream_leases import UpstreamLeases
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
@@ -36,8 +37,10 @@ class SessionMcpAdapter:
         initialize: MethodHandler[EndpointContext],
         methods: MethodRegistry,
         stream: SessionStream,
+        leases: UpstreamLeases,
     ) -> None:
         self._sessions = sessions
+        self._leases = leases
         self._runtime_config = runtime_config
         self._signals = signals
         self._dialects = dialects
@@ -81,6 +84,7 @@ class SessionMcpAdapter:
             return rejected.response
         assert request_ctx.session is not None
         await self._sessions.delete(request_ctx.session.session_id)
+        await self._leases.end_session(request_ctx)  # its upstream sessions end with it
         return Response(status_code=204)
 
     async def _admit_session(self, ctx: EndpointContext, endpoint_name: str) -> RequestContext:

@@ -28,7 +28,7 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0009](0009-endpoint-bound-tokens-consent.md) | OAuth consent + endpoint-bound tokens | accepted |
 | [0010](0010-single-workspace.md) | Single shared workspace, no multi-tenancy | accepted |
 | [0011](0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge; FastMCP upstream-only | accepted (amended by 0027, 0029, 0035) |
-| [0012](0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | accepted (amended by 0030) |
+| [0012](0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | superseded by 0054 (amended by 0030) |
 | [0013](0013-service-key-auth-first.md) | Service-key auth first; admin OIDC with the UI | accepted (OIDC sessions have since shipped) |
 | [0014](0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB token validation | accepted (amended by 0028, 0031, 0036) |
 | [0015](0015-keycloak-dev-idp.md) | Keycloak as the bundled dev IdP | accepted |
@@ -37,7 +37,7 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0018](0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted |
 | [0019](0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020, 0026) |
 | [0020](0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted (amended by 0023, 0025, 0033) |
-| [0021](0021-mcp-surface-completion.md) | Complete the MCP surface: prompts/resources/completions passthrough, capability aggregation, version negotiation, roots/logging relay | accepted (amended by 0029, 0043, 0044) |
+| [0021](0021-mcp-surface-completion.md) | Complete the MCP surface: prompts/resources/completions passthrough, capability aggregation, version negotiation, roots/logging relay | accepted (amended by 0029, 0043, 0044, 0054) |
 | [0022](0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | accepted |
 | [0023](0023-import-contracts-and-shared-providers.md) | Import contracts enforce layer direction; shared providers at library level | accepted (amended by 0025, 0033) |
 | [0024](0024-value-objects-and-rich-entities.md) | Value objects for what crosses the edge; behavior on the entities that own it | accepted |
@@ -70,3 +70,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0051](0051-request-context-readiness-report-and-optional-tracing.md) | Requests carry one log context, readiness reports each check, and tracing is optional | accepted |
 | [0052](0052-per-replica-prometheus-metrics-with-a-closed-label-set.md) | Each replica exports Prometheus metrics, behind management credentials, with a closed label set | accepted |
 | [0053](0053-audit-durability-and-the-idempotency-key-join.md) | The audit log is written durably, names every loss by idempotency key, and is purged by retention | accepted |
+| [0054](0054-upstream-session-pooling.md) | Upstream sessions are pooled per replica and continued from the session record | accepted |

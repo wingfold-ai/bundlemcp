@@ -94,9 +94,9 @@ Each pooled session keeps its standalone stream open: the GET stream for a hands
 request for a modern upstream that advertised list changes or holds resource subscriptions. Messages on it go to
 `UpstreamNotificationRouter` (`application/serving/upstream_notification_router.py`, contracts only):
 
-- `*/list_changed` → take a short Valkey gate `bmcp:rediscover:{server}` (`SET NX EX`), so N replicas re-discover once
-  (PROT-10); tool changes then flow through discovery's existing bundle invalidation (BND-7), while prompt/resource list
-  changes are signalled straight to the bundles' streams.
+- `*/list_changed` → take a short Valkey gate `bmcp:rediscover:{server}:{list}` (`SET NX EX`), so N replicas re-discover
+  once (PROT-10); tool changes then flow through discovery's existing bundle invalidation (BND-7), while prompt/resource
+  list changes are signalled straight to the bundles' streams.
 - `notifications/resources/updated` → look the URI up in the resource-subscription index
   (`application/contracts/live_state/resource_subscriptions.py`, Valkey adapter
   `infrastructure/valkey/resource_subscription_index.py`, keys `bmcp:rsub:{server}:{uri}` → stream ids) and
@@ -146,6 +146,22 @@ its upstream session is ended when the downstream session ends (SES-4).
 | Resource-subscription index, re-discovery gate | `infrastructure/valkey/` |
 | `UpstreamCall`, `MemberFanout`, setLevel / subscribe / unsubscribe / listen handlers | `api/mcp/` |
 | Pool construction, invalidation wiring, shutdown close | `main/` |
+
+### Spike results (task 1.1)
+
+Against FastMCP 4.0.11 and MCP SDK 2.3.0, with a FastMCP server served over HTTP:
+
+- **Resuming without `initialize` works.** A client built with `auto_initialize=False`, whose `httpx` auth flow adds
+  the stored `Mcp-Session-Id` and `MCP-Protocol-Version` to every request, continues the upstream session: a tool call
+  on it succeeds and the upstream sees no second `initialize`. D7 needs no fallback; the lease-header auth flow of D3
+  carries the session headers too.
+- **The related request id is not exposed.** A client callback receives a `ClientRequestContext` with the
+  server→client request's own id and `meta` `None`; nothing names the client request it relates to. D5's fallback
+  applies: a lease is exclusive, and a concurrent request on the same key is served on another transport — for a
+  bound session, another transport resuming the same upstream session id — within the caps.
+- **The stateless revision has no sessions.** A client in `auto` mode against a 2026-07-28 upstream never sends
+  `initialize` and gets no session id; pooling such an upstream reuses connections only, and its bindings carry no
+  upstream session id.
 
 ## Risks / Trade-offs
 

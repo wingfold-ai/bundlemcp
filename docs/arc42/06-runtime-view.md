@@ -22,8 +22,11 @@ Three load-bearing scenarios (normative details in the linked specs).
 2. Middleware chain: tool enabled? → override reverse-map → profile check → **metering pre-call**
    (`{sub, email, bundle, server, tool, idempotency_key}`) — deny ends the call with a structured error
    ([PROT-26](../../openspec/specs/protocol/spec.md)).
-3. Prefix parsed (first `__`), upstream binding resolved or lazily created (identity-keyed when headers are forwarded,
-   [AUTH-31](../../openspec/specs/auth/spec.md)).
+3. Prefix parsed (first `__`); the call leases the upstream session bound to the client's session — continued from
+   the binding's upstream session id without `initialize`, on any replica, or opened and bound on the first call
+   (identity-keyed when headers are forwarded, [AUTH-31](../../openspec/specs/auth/spec.md),
+   [SES-5/6](../../openspec/specs/sessions/spec.md)). A 404 for that session re-initializes, rebinds and retries once
+   under the same idempotency key (SES-7).
 4. Upstream call runs with progress-aware timeouts; `notifications/progress` relayed to the client
    ([PROT-1/2](../../openspec/specs/protocol/spec.md)). A client cancel reaching another replica is routed
    via pub/sub ([PROT-3](../../openspec/specs/protocol/spec.md), SES-13).
@@ -70,3 +73,16 @@ Three load-bearing scenarios (normative details in the linked specs).
    while it waits for a buffered (non-streamed) result, cancels the call the same way.
 4. If instead the upstream raises `elicitation/create`, it is delivered on the client's GET event stream (possibly on a
    third replica) and the client's reply routed back by correlation id — capability-gated (PROT-4/5/6).
+
+## 6.5 A member's notification between calls
+
+1. Replica A holds a pooled upstream session to member `echo`: the SDK's GET stream for a handshake upstream, a
+   standing `subscriptions/listen` for a modern one ([ADR-0054](../adr/0054-upstream-session-pooling.md)).
+2. `echo` sends `notifications/tools/list_changed` while no call is in flight. `UpstreamNotificationRouter` takes the
+   Valkey gate `bmcp:rediscover:echo:tools` (`SET NX EX`); a replica B hearing the same change on its own session
+   finds the gate taken and stands down ([PROT-10](../../openspec/specs/protocol/spec.md)).
+3. A re-discovers `echo` and invalidates its bundles; every replica's `ListChangedNotifier` tells the GET and listen
+   streams it holds (BND-7).
+4. A `notifications/resources/updated` instead goes to the streams the Valkey subscription index lists for that URI,
+   and a log message on a session bound to a client's session to that client's GET stream, through the signal bus to
+   whichever replica holds the stream ([PROT-7/23](../../openspec/specs/protocol/spec.md)).

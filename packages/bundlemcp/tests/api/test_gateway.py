@@ -262,7 +262,7 @@ async def test_initialize_tools_only_when_no_member_caps(gateway):
 
 async def test_initialize_aggregates_member_capabilities(gateway):
     """PROT-11: prompts/resources/completions/logging advertised iff a member supports them, and
-    a member's list changes and resource updates not, since the gateway does not relay them."""
+    a member's list changes and resource updates too, which pooled sessions relay."""
     http, app, hook = gateway
     await _set_capabilities(
         app,
@@ -277,8 +277,8 @@ async def test_initialize_aggregates_member_capabilities(gateway):
 
     caps = (await _initialize_raw(http)).json()["result"]["capabilities"]
     assert caps["tools"] == {"listChanged": True}
-    assert caps["prompts"] == {}
-    assert caps["resources"] == {}
+    assert caps["prompts"] == {"listChanged": True}
+    assert caps["resources"] == {"listChanged": True, "subscribe": True}
     assert "completions" in caps and "logging" in caps
 
 
@@ -403,7 +403,7 @@ async def test_resources_read_unknown_uri(gateway):
 
 
 async def test_resources_subscribe_accepted(gateway):
-    """Subscribe is accepted (request/response half); push is pooling-dependent."""
+    """PROT-23: subscribe is answered even when no member accepts subscriptions."""
     http, app, hook = gateway
     session = await _initialize(http)
     resp = await _rpc(http, "main", session, "resources/subscribe", {"uri": "res://greeting"})

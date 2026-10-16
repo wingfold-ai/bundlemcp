@@ -67,6 +67,11 @@ DEFAULTS: dict[str, ConfigSetting] = {
     "max_upstream_response_bytes": ConfigSetting(
         default=16 * MIB, value_type=int, minimum=64 * KIB, maximum=64 * MIB
     ),
+    # upstream sessions one replica holds open, in all and per server
+    "upstream_sessions_max": ConfigSetting(default=256, value_type=int, minimum=1),
+    "upstream_sessions_per_server_max": ConfigSetting(default=32, value_type=int, minimum=1),
+    # seconds an unused pooled upstream session is kept before it is closed
+    "upstream_session_idle_timeout": ConfigSetting(default=300, value_type=int, minimum=1),
 }
 
 

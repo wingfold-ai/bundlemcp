@@ -63,7 +63,7 @@ honest and retryable, and the clause stays out of SES-14.
   `signals.py`, `_drive_upstream` — and claims `session_lifetime` works); `docs/self-hosting/operations.md` and
   `configuration.md`; arc42 §6/§7.
 - **Dependencies:** the upstream-restart recovery test (SES-12) and the sweeper's release of upstream sessions need
-  [add-upstream-session-pooling](../add-upstream-session-pooling/proposal.md)'s SES-7; until it lands the sweeper only
-  removes records. [add-prometheus-metrics](../2026-10-16-add-prometheus-metrics/proposal.md) can export the sweeper's
-  expiry count; without it the count is logged.
+  [add-upstream-session-pooling](../2026-10-16-add-upstream-session-pooling/proposal.md)'s SES-7; until it lands the
+  sweeper only removes records. [add-prometheus-metrics](../2026-10-16-add-prometheus-metrics/proposal.md) can export
+  the sweeper's expiry count; without it the count is logged.
 - No ADR: the decisions follow ADR-0004 and ADR-0016; no DTO or route changes.

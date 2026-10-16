@@ -97,5 +97,5 @@ Settled by the maintainers on 2026-10-15:
   paused-invocation record, amending [ADR-0042](../../../docs/adr/0042-http-metering-hook-and-outcome-kinds.md).
 - **Related changes:** [harden-audit-log](../2026-10-16-harden-audit-log/proposal.md) records the idempotency key on
   audit records (OPS-7); the paused-invocation record uses the same key.
-  [add-upstream-session-pooling](../add-upstream-session-pooling/proposal.md)'s SES-7 retry already reuses the key
-  without a second `pre_call`.
+  [add-upstream-session-pooling](../2026-10-16-add-upstream-session-pooling/proposal.md)'s SES-7 retry already reuses
+  the key without a second `pre_call`.

@@ -1,11 +1,13 @@
 """Expiring handshake-era sessions that have been idle past their lifetime."""
 
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 
 import structlog
 
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
+from bundlemcp.domain.sessions.session_record import SessionRecord
 from bundlemcp.domain.shared.clock import Clock
 
 log = structlog.get_logger(__name__)
@@ -19,13 +21,21 @@ class SessionSweeper:
     A session is checked against its own record before it is removed, so one
     that became active again after it was indexed survives. Ids whose record is
     already gone (the store's TTL removed it) leave the index too. A lifetime of
-    0 means sessions never expire, and nothing is swept.
+    0 means sessions never expire, and nothing is swept. ``release`` lets go
+    of what an expired session held upstream.
     """
 
-    def __init__(self, sessions: SessionStore, runtime_config: RuntimeConfig, clock: Clock) -> None:
+    def __init__(
+        self,
+        sessions: SessionStore,
+        runtime_config: RuntimeConfig,
+        clock: Clock,
+        release: Callable[[SessionRecord], Awaitable[None]],
+    ) -> None:
         self._sessions = sessions
         self._runtime_config = runtime_config
         self._clock = clock
+        self._release = release
 
     async def sweep(self) -> int:
         """Expire every idle session; returns how many this sweep expired."""
@@ -42,6 +52,7 @@ class SessionSweeper:
                     continue  # active again since it was indexed
                 await self._sessions.delete(session_id)
                 if record is not None:
+                    await self._release(record)
                     expired += 1
                     idle = self._clock.now() - record.last_active_at
                     log.info(

@@ -208,9 +208,8 @@ class InputRequiredBridge:
         last: tuple[McpServer | None, Exception | None] = (None, None)
         for server in members:
             try:
-                client = await self._fanout.client_for(read.ctx, server, channel=channel)
-                async with client:
-                    result = await read.read(client, answers, upstream_state)
+                async with self._fanout.lease(read.ctx, server, channel=channel) as lease:
+                    result = await read.read(lease.client, answers, upstream_state)
             except Exception as exc:
                 log.warning("passthrough.member_failed", server=server.name)
                 last = (server, exc)

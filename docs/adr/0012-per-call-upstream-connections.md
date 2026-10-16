@@ -1,6 +1,7 @@
 # ADR-0012: Per-call upstream connections in v1; pooling deferred
 
-**Status:** accepted · **Date:** 2026-07-02 · **Amended by:** [ADR-0030](0030-fastmcp-4.md)
+**Status:** superseded by [ADR-0054](0054-upstream-session-pooling.md) · **Date:** 2026-07-02 · **Amended by:**
+[ADR-0030](0030-fastmcp-4.md)
 
 ## Context
 

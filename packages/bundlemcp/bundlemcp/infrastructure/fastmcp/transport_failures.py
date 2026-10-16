@@ -7,6 +7,9 @@ import httpx2
 from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.infrastructure.fastmcp.response_cap import UpstreamResponseTooLarge
 
+# failures that happen before any byte of the request is written
+UNSENT = (httpx2.ConnectError, httpx2.ConnectTimeout, httpx2.PoolTimeout, ConnectionRefusedError)
+
 
 class RecordedStream(httpx2.AsyncByteStream):
     """A response body that notes on the log when reading it fails below HTTP."""
@@ -46,8 +49,11 @@ class RecordedTransportFailures(httpx2.AsyncBaseTransport):
             response = await self._inner.handle_async_request(request)
         except UpstreamResponseTooLarge:
             raise
-        except (httpx2.TransportError, OSError):
-            self._log.record_transport_failure()
+        except (httpx2.TransportError, OSError) as exc:
+            if request.method == "POST" and isinstance(exc, UNSENT):
+                self._log.record_unsent()  # a message that never left cannot have been acted on
+            else:
+                self._log.record_transport_failure()
             raise
         assert isinstance(response.stream, httpx2.AsyncByteStream)
         response.stream = RecordedStream(response.stream, self._log)

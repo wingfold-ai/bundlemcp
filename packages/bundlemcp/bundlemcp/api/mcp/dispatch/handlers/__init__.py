@@ -20,6 +20,9 @@ from bundlemcp.api.mcp.dispatch.handlers.resources_read_handler import Resources
 from bundlemcp.api.mcp.dispatch.handlers.resources_subscribe_handler import (
     ResourcesSubscribeHandler,
 )
+from bundlemcp.api.mcp.dispatch.handlers.resources_unsubscribe_handler import (
+    ResourcesUnsubscribeHandler,
+)
 from bundlemcp.api.mcp.dispatch.handlers.server_discover_handler import (
     ServerDiscoverHandler,
 )
@@ -41,6 +44,7 @@ __all__ = [
     "ResourcesListHandler",
     "ResourcesReadHandler",
     "ResourcesSubscribeHandler",
+    "ResourcesUnsubscribeHandler",
     "ServerDiscoverHandler",
     "SubscriptionsListenHandler",
     "ToolsListHandler",
