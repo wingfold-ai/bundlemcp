@@ -41,6 +41,7 @@ Playwright test title, the recording filename, and this table.
 | E2E-33 | A bundle is renamed only after its warning is acknowledged, and keeps its endpoint **(new)** | `tests/bundle-flow.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-10 | `E2E-33__bundles__bundle-rename-acknowledged.webm` |
 | E2E-34 | The configuration exports as a file, and an import is previewed before anything is written **(new)** | `tests/keys-settings.spec.ts` | [`management`](../../../openspec/specs/management/spec.md) | MGMT-22, MGMT-19 | `E2E-34__management__config-export-and-previewed-import.webm` |
 | E2E-35 | A bundle over upstreams that list no prompts or resources shows both member curation cards empty **(new)** | `tests/bundle-flow.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-37 | `E2E-35__bundles__member-entry-curation-cards.webm` |
+| E2E-36 | The live log pauses, and resuming shows the entries logged meanwhile in order without duplicates **(new)** | `tests/live-logs.spec.ts` | [`operations`](../../../openspec/specs/operations/spec.md) | OPS-15 | `E2E-36__operations__live-logs-pause-resume.webm` |
 
 ## Requirements referenced
 
@@ -93,3 +94,4 @@ Playwright test title, the recording filename, and this table.
 | MGMT-22 | `management` | The admin UI SHALL offer an export button that downloads the document, and an import that first shows the dry-run report and applies the document only after … |
 | MGMT-19 | `management` | POST /api/v1/import SHALL apply a document transactionally as upserts by natural key, through the same operations the management API uses, and report a resul… |
 | BND-37 | `bundles` | Member prompts and resources SHALL be curatable per bundle like tools (bundles): an admin can disable a member's prompt or resource in one bundle, or overrid… |
+| OPS-15 | `operations` | The admin UI SHALL show a page that streams new buffer entries from the management API (a server-push stream, admin-authenticated) with pause and resume, a l… |

@@ -534,6 +534,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent Logs */
+        get: operations["recent_logs_api_v1_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream Logs */
+        get: operations["stream_logs_api_v1_logs_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -2315,6 +2349,60 @@ export interface components {
             name: string;
             /** @description 'created', 'updated', 'skipped' when nothing would change, or 'error' */
             outcome: components["schemas"]["ImportOutcome"];
+        };
+        /**
+         * LiveLogEntry
+         * @description One log event as the live log view shows it: the already-redacted process log line.
+         */
+        LiveLogEntry: {
+            /**
+             * Endpoint
+             * @description Endpoint the event concerns, if any
+             */
+            endpoint?: string | null;
+            /**
+             * Event
+             * @description The event's name or message
+             */
+            event: string;
+            /**
+             * Fields
+             * @description Every other key and value the event carried
+             */
+            fields?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * @description Position in the buffer, assigned when stored; resume after it
+             * @default
+             */
+            id?: string;
+            /**
+             * Level
+             * @description Severity: debug, info, warning, error or critical
+             */
+            level: string;
+            /**
+             * Logger
+             * @description Logger that wrote the event
+             */
+            logger?: string | null;
+            /**
+             * Replica
+             * @description The gateway replica that logged it
+             */
+            replica: string;
+            /**
+             * Timestamp
+             * @description When the event was logged, ISO 8601
+             */
+            timestamp: string;
+            /**
+             * Upstream
+             * @description Upstream server the event concerns, if any
+             */
+            upstream?: string | null;
         };
         /**
          * MeRead
@@ -4759,6 +4847,86 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ImportReport"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recent_logs_api_v1_logs_get: {
+        parameters: {
+            query?: {
+                /** @description Most entries returned */
+                limit?: number;
+                /** @description Lowest severity */
+                level?: string | null;
+                /** @description Text the event or a field contains */
+                q?: string | null;
+                /** @description Only events about this upstream */
+                upstream?: string | null;
+                /** @description Only events about this endpoint */
+                endpoint?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveLogEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_logs_api_v1_logs_stream_get: {
+        parameters: {
+            query?: {
+                /** @description Id of the last entry seen; omitted, only new entries are sent */
+                since?: string | null;
+                /** @description Lowest severity */
+                level?: string | null;
+                /** @description Text the event or a field contains */
+                q?: string | null;
+                /** @description Only events about this upstream */
+                upstream?: string | null;
+                /** @description Only events about this endpoint */
+                endpoint?: string | null;
+            };
+            header?: {
+                "Last-Event-ID"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

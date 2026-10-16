@@ -27,6 +27,19 @@ Two log events deserve alerts:
 - **rate limiter unavailable**: Valkey could not be reached. Traffic limits fail open by default, so this is a warning,
   not an outage.
 
+### Live logs
+
+The admin UI's **Live logs** page tails every replica's events in one view, as they happen. Each replica copies the
+events at or above `BUNDLEMCP_LIVE_LOG_LEVEL` (`INFO` by default; an event must also pass `BUNDLEMCP_LOG_LEVEL`) into
+one capped Valkey stream, `bmcp:logs`, which keeps about the newest 10,000 entries. The page filters by level, text,
+upstream and endpoint, pauses and resumes from the last entry it showed, and marks which replica wrote each line.
+
+An entry is the same line the process log writes, so it can never hold more: no secret, token, header value or tool
+argument. Copying never slows a request: events go through a bounded queue, and when Valkey is unreachable they reach
+only the process log. The buffer is ephemeral by design — a Valkey restart without persistence empties it — so use the
+container platform's log stack for history and search. The same view is scriptable: `GET /api/v1/logs` returns the
+recent entries, and `GET /api/v1/logs/stream` is a Server-Sent Events stream that resumes from `Last-Event-ID`.
+
 ### Traces
 
 With tracing configured ([Tracing](configuration.md#tracing)), each HTTP request is a span, with child spans for its
@@ -152,6 +165,5 @@ reconciliation window; see [Audit log](/manage/audit#retention).
 
 ## Not part of this release
 
-There is no live log stream in the UI and no built-in MCP inspector; the UI's Live logs and Inspector pages are
-placeholders. Use the container logs and the audit API instead. To back up or move the configuration, use
-[Export and import](/manage/export-import).
+There is no built-in MCP inspector; the UI's Inspector page is a placeholder. To back up or move the configuration,
+use [Export and import](/manage/export-import).

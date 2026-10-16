@@ -369,6 +369,16 @@
         "BND-37"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-36",
+      "testFile": "live-logs.spec.ts",
+      "slug": "live-logs-pause-resume",
+      "title": "The live log pauses, and resuming shows the entries logged meanwhile in order without duplicates",
+      "requirements": [
+        "OPS-15"
+      ],
+      "new": true
     }
   ]
 }

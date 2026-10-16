@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.live_state.auth_failure_limiter import AuthFailureLimiter
+from bundlemcp.application.contracts.live_state.live_log_buffer import LiveLogBuffer
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
 from bundlemcp.application.contracts.observability.gateway_metrics import GatewayMetrics
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
@@ -46,6 +47,9 @@ class CompositionOverrides(BaseModel):
     )
     client_metadata_fetcher: ClientMetadataFetcher | None = Field(
         default=None, description="Resolver for URL-shaped OAuth client ids"
+    )
+    live_log_buffer: LiveLogBuffer | None = Field(
+        default=None, description="Where the live log view's events go, instead of Valkey"
     )
     metering_hook: MeteringHook | None = Field(
         default=None, description="Billing hook consulted around every tool call"

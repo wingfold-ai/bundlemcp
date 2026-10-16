@@ -1,5 +1,6 @@
 """Exporting the configuration and importing it again (MGMT-17..21, SEC-11, OPS-18, BND-10/32)."""
 
+import asyncio
 import json
 import uuid
 
@@ -41,6 +42,11 @@ async def _configure(http, engine) -> None:
         "static_headers": {"Authorization": SECRET},
     }
     assert (await http.put("/api/v1/upstreams/weather", json=weather)).status_code == 200
+    # the create's background probe shares sqlite's one connection; let it finish first
+    for _ in range(100):
+        if (await http.get("/api/v1/upstreams/weather")).json()["connection_state"] != "unknown":
+            break
+        await asyncio.sleep(0.02)
     oauth = {"client_id": "gw", "client_secret": CLIENT_SECRET}
     resp = await http.put("/api/v1/upstreams/weather/upstream-oauth", json=oauth)
     assert resp.status_code == 200, resp.text

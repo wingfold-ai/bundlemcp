@@ -1,12 +1,12 @@
 # 8. Cross-cutting Concepts
 
 ## State model
-Postgres = durable (system of record), Redis = live (sessions, limits, pub/sub). No in-memory-only state a request
-depends on; caches exist only under explicit invalidation
+Postgres = durable (system of record), Redis = live (sessions, limits, pub/sub, the live-log stream). No in-memory-only
+state a request depends on; caches exist only under explicit invalidation
 ([sessions spec](../../openspec/specs/sessions/spec.md)). Explicit degradation matrix for outages
 ([SES-14](../../openspec/specs/sessions/spec.md)). Pooled upstream sessions are a per-replica transport cache: the
-session record's binding holds what any replica needs to continue one (upstream session id, version, config
-fingerprint, identity key — never a header value), so losing a replica costs at most an upstream re-initialize
+session record's binding holds what any replica needs to continue one (upstream session id, version, config fingerprint,
+identity key — never a header value), so losing a replica costs at most an upstream re-initialize
 ([SES-5](../../openspec/specs/sessions/spec.md), [ADR-0054](../adr/0054-upstream-session-pooling.md)).
 
 ## Identity

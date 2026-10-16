@@ -27,6 +27,7 @@ from bundlemcp.api.management.controllers import (
     ConfigController,
     ConfigTransferController,
     EndpointController,
+    LiveLogController,
     MeController,
     MemberCurationController,
     ServerController,
@@ -110,6 +111,7 @@ def create_app(
         ConfigTransferController(),
         MemberCurationController(),
         AuditController(),
+        LiveLogController(),
         MeController(),
     ):
         controller.mount(app, prefix=API_PREFIX)

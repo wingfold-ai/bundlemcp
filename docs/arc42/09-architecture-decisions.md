@@ -62,6 +62,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0054](../adr/0054-upstream-session-pooling.md) | Per-replica pool of upstream sessions keyed by identity and config; bindings continued from the session record; one safe retry | accepted | Calls after the first skip initialize; member notifications reach clients between calls |
 | [0055](../adr/0055-export-and-bootstrap-share-one-document.md) | One document for bootstrap, export and import; secrets as placeholders; transactional additive import | accepted | Configuration moves between gateways; bootstrap and import share one code path |
 | [0056](../adr/0056-member-listings-cached-for-curation-only.md) | Member prompt and resource listings cached at discovery for per-bundle curation; serving stays live | accepted | Bundles curate members' prompts and resources like tools |
+| [0057](../adr/0057-live-logs-through-a-capped-valkey-stream.md) | Live log view through a capped Valkey stream fed by a second logging handler; SSE with resume | accepted | One view of every replica's events; logging never waits on it |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).
