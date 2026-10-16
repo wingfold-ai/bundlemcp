@@ -13,12 +13,14 @@ Feature slices reference these controls instead of re-deriving them.
 ## Requirements
 
 ### Requirement: SEC-1 One egress policy for gateway-initiated HTTP
-All gateway-initiated HTTP to admin-supplied URLs (server probes [UPS-2](../upstreams/spec.md), server
-inspection [UPS-11](../upstreams/spec.md), live tool calls, upstream OAuth discovery
-[UPS-25](../upstreams/spec.md)) MUST go through one egress policy layer. The policy also covers every URL a remote
-party names along the way — the authorization server a protected-resource document points at, the token endpoint its
-metadata names, a client's metadata document ([AUTH-13](../auth/spec.md)) — and the operator-configured identity
-provider ([AUTH-15](../auth/spec.md)); see [ADR-0032](../../../docs/adr/0032-egress-policy-scope.md).
+All gateway-initiated HTTP to admin-supplied URLs (server probes [UPS-2](../upstreams/spec.md),
+server inspection [UPS-11](../upstreams/spec.md), live tool calls, upstream OAuth discovery
+[UPS-25](../upstreams/spec.md), inspector ad-hoc targets [UI-8](../admin-ui/spec.md)) MUST go
+through one egress policy layer. The policy also covers every URL a remote party names along the way — the
+authorization server a protected-resource document points at, the token endpoint its metadata names, a client's
+metadata document ([AUTH-13](../auth/spec.md)) — and the operator-configured identity provider
+([AUTH-15](../auth/spec.md)); see
+[ADR-0032](../../../docs/adr/0032-egress-policy-scope.md).
 
 #### Scenario: Remote-named metadata address is refused before fetch
 - **GIVEN** an upstream whose protected-resource document names an authorization server at `http://169.254.169.254/`
@@ -33,6 +35,10 @@ provider ([AUTH-15](../auth/spec.md)); see [ADR-0032](../../../docs/adr/0032-egr
 #### Scenario: Identity provider URLs are checked
 - **WHEN** the configured OIDC issuer's discovery or JWKS URL resolves to a blocked address
 - **THEN** the gateway refuses to fetch it
+
+#### Scenario: Inspector ad-hoc target is checked
+- **WHEN** an admin points the inspector at an ad-hoc URL that resolves to `169.254.169.254`
+- **THEN** the egress policy refuses it, nothing is sent, and the inspector reports the denial
 
 ### Requirement: SEC-2 Default egress policy
 Default egress policy: **block link-local/metadata ranges** (`169.254.0.0/16`, `fe80::/10`, `fd00:ec2::254/128` —

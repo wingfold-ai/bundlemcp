@@ -33,7 +33,7 @@ test(testTitle("E2E-02"), async ({ page, steps }) => {
     ["nav-users", "user-admin@example.com", "Users"],
     ["nav-audit", "filter-apply", "Audit"],
     ["nav-logs", "logs-page", "Live logs"],
-    ["nav-inspector", "inspector-placeholder", "Inspector"],
+    ["nav-inspector", "inspector-page", "Inspector"],
     ["nav-settings", "config-row-audit_retention_days", "Settings"],
   ];
   await steps.play([

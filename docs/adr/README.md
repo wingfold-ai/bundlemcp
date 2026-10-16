@@ -74,3 +74,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0055](0055-export-and-bootstrap-share-one-document.md) | Export, import and bootstrap share one document, with secrets as placeholders | accepted |
 | [0056](0056-member-listings-cached-for-curation-only.md) | Members' prompts and resources are cached at discovery, for curation only | accepted |
 | [0057](0057-live-logs-through-a-capped-valkey-stream.md) | Live logs fan out through a capped Valkey stream | accepted |
+| [0058](0058-inspector-proxied-by-the-management-api.md) | The inspector is proxied by the management API, and reaches endpoints in-process | accepted |

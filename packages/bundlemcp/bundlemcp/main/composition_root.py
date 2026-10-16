@@ -65,6 +65,8 @@ from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.config.live_log_handler import LiveLogHandler
 from bundlemcp.infrastructure.crypto.token_cipher import token_cipher
 from bundlemcp.infrastructure.fastmcp.client_factory import default_client_factory
+from bundlemcp.infrastructure.fastmcp.fastmcp_inspector_connector import FastMcpInspectorConnector
+from bundlemcp.infrastructure.fastmcp.in_process_endpoint_clients import InProcessEndpointClients
 from bundlemcp.infrastructure.fastmcp.per_call_upstream_sessions import PerCallUpstreamSessions
 from bundlemcp.infrastructure.fastmcp.pooled_upstream_sessions import (
     PooledUpstreamSessions,
@@ -137,6 +139,7 @@ class CompositionRoot:
         # reference here saves every method from reaching through the app.
         # tracing is None unless an OpenTelemetry exporter is configured.
         self._state = app.state
+        self._app = app  # serves the inspector's requests to the gateway's own endpoints
         self._settings = settings
         self._overrides = overrides
         self._tracing = tracing
@@ -202,6 +205,9 @@ class CompositionRoot:
             ValkeyDelegatedTokenStore(redis), clock=clock, generator=generator, hasher=hasher
         )
         upstream_probe = FastMcpUpstreamProbe(client_factory)
+        credentials = UpstreamCredentialResolver(
+            upstream_tokens, settings.public_base, delegated=delegated_tokens
+        )
         diagnoser = ConnectionDiagnoser(upstream_oauth)
         # upstream-OAuth servers are probed with a connected account's token
         # one failure streak per upstream, shared by every replica
@@ -210,9 +216,7 @@ class CompositionRoot:
             units,
             upstream_probe,
             health=upstream_health,
-            credentials=UpstreamCredentialResolver(
-                upstream_tokens, settings.public_base, delegated=delegated_tokens
-            ),
+            credentials=credentials,
             diagnoser=diagnoser,
         )
 
@@ -402,6 +406,9 @@ class CompositionRoot:
             discovery=discovery,
             upstream_probe=upstream_probe,
             connection_diagnoser=diagnoser,
+            upstream_credentials=credentials,
+            inspector_connector=FastMcpInspectorConnector(client_factory),
+            endpoint_clients=InProcessEndpointClients(self._app, public_base=settings.public_base),
             delegated_tokens=delegated_tokens,
             audit=audit,
             live_log_buffer=live_log_buffer,

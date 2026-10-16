@@ -31,8 +31,8 @@ pages are the operator/integrator guides, grouped by reader task:
 - **self-hosting/** — production deployment (public URL, reverse proxy, upgrades, backups — fed by
   [deployment](../deployment/spec.md)), the full `BUNDLEMCP_*` and runtime-config reference, identity provider setup,
   the bootstrap file, day-two operations.
-- **manage/** — servers, bundles and tool curation, endpoints, API keys, users and consents, the audit log; each page
-  shows the UI path and the equivalent management-API calls.
+- **manage/** — servers, bundles and tool curation, endpoints, API keys, users and consents, the audit log, export
+  and import, the inspector; each page shows the UI path and the equivalent management-API calls.
 - **connect/** — **claude.md** (an `oauth_only`-profile endpoint + OAuth walkthrough incl. consent), **chatgpt.md** (the
   `write_as_read` profile + the re-annotation warning, [EP-12](../endpoints/spec.md)), **scripts.md** (API-key access
   for scripts/agents), **stdio-sidecar.md** (wrapping a stdio MCP server in a Streamable-HTTP sidecar with a compose
@@ -41,8 +41,9 @@ pages are the operator/integrator guides, grouped by reader task:
   for upstream servers ([protocol](../protocol/spec.md)/[management](../management/spec.md)), and the full
   HTTP surface reference.
 
-Pages document only shipped behaviour; reserved-but-unbuilt surfaces (metrics, live logs, inspector, export/import)
-are named as such in one place rather than described as if they existed.
+Pages document only shipped behaviour. A surface that is reserved but not built is named as such in one place, a "Not
+part of this release" section of `docs/self-hosting/operations.md`, rather than described as if it existed; with no
+such surface, the section is left out.
 
 #### Scenario: Docs build is a CI gate
 - **WHEN** a pull request introduces a dead link in a VitePress page
@@ -50,8 +51,8 @@ are named as such in one place rather than described as if they existed.
 
 #### Scenario: Unbuilt surfaces are named, not described
 - **WHEN** an operator reads `docs/self-hosting/operations.md`
-- **THEN** its "Not part of this release" section states that there is no Prometheus `/metrics` route, no live log
-  stream, no built-in MCP inspector and no JSON export or import
+- **THEN** it describes no page of the admin UI as a placeholder, and names a reserved-but-unbuilt surface only in its
+  "Not part of this release" section
 
 ### Requirement: DOC-3 Demo seed
 The dev compose stack MUST ship a demo bootstrap file ([management](../management/spec.md)), `deploy/seed.yaml`,

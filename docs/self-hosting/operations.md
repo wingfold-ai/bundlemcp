@@ -156,14 +156,15 @@ never obtained a token. A hosted client such as claude.ai registers from its own
 IP's budget; listing its callback in the allow-list exempts it from the per-IP limit. The variables and their defaults
 are under [Client registration](/self-hosting/configuration#client-registration).
 
+## Inspecting upstreams and endpoints
+
+The admin UI's Inspector connects to a registered upstream, an endpoint or any URL and calls its tools, through the
+management API; see [Inspector](/manage/inspector). Calls to an upstream or a URL are logged with `source=inspector`
+and audited nowhere. Calls through an endpoint are an ordinary client's: authenticated, metered and audited.
+
 ## Audit retention
 
 Audit records older than `audit_retention_days` (90 by default, `0` keeps everything) are deleted by a purge job that
 runs every 15 minutes on one replica at a time and logs `audit.purged` with the count. A change to the setting applies
 at the next run. If an application layer reconciles billing against the audit log, keep the retention longer than its
 reconciliation window; see [Audit log](/manage/audit#retention).
-
-## Not part of this release
-
-There is no built-in MCP inspector; the UI's Inspector page is a placeholder. To back up or move the configuration,
-use [Export and import](/manage/export-import).

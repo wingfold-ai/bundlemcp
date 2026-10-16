@@ -10,6 +10,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 
+from bundlemcp.api.http.client_ip import client_ip
 from bundlemcp.application.contracts.observability.metrics_exposition import MetricsExposition
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from bundlemcp.application.contracts.readiness_probe import ReadinessProbe
@@ -40,6 +41,10 @@ def get_app_settings(request: Request) -> Settings:
     return request.app.state.container.settings
 
 
+def get_client_ip(request: Request) -> str:
+    return client_ip(request, request.app.state.container.settings)
+
+
 def current_request_limit(app: FastAPI) -> int:
     """The request body limit in bytes, from the config snapshot; never does I/O.
 
@@ -56,4 +61,5 @@ UnitOfWorkProvider = Annotated[UnitOfWork, Depends(get_unit_of_work)]
 ReadinessProvider = Annotated[ReadinessProbe, Depends(get_readiness)]
 DrainProvider = Annotated[ReplicaDrain, Depends(get_drain)]
 SettingsProvider = Annotated[Settings, Depends(get_app_settings)]
+ClientIpProvider = Annotated[str, Depends(get_client_ip)]
 MetricsExpositionProvider = Annotated[MetricsExposition, Depends(get_metrics_exposition)]

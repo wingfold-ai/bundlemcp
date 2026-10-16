@@ -27,7 +27,6 @@
   the periodic tool refresh ([ADR-0038](../adr/0038-periodic-tool-refresh.md)) still catches tool changes.
 - Protocol extensions (Tasks, MCP Apps) are not proxied and not advertised (PROT-11).
 - Single scope in OAuth; audience-only binding (AUTH-10) — fine-grained scopes deferred.
-- There is no built-in inspector yet (change `add-inspector`).
 - Rate limiting ([endpoints spec](../../openspec/specs/endpoints/spec.md), [ADR-0018](../adr/0018-rate-limiting.md))
   uses a fixed-window counter — up to a 2× burst at window edges; a sliding-window log is the noted upgrade.
 - The `application/contracts/` package holds protocols for in-process objects (`StreamRegistry`, `GatewayMetrics`) as

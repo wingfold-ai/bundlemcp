@@ -12,6 +12,7 @@ from bundlemcp.api.http.providers import UnitOfWorkProvider
 from bundlemcp.application.auth.admin_session_service import AdminSessionService
 from bundlemcp.application.auth.auth_service import AuthService
 from bundlemcp.application.auth.caller_resolver import CallerResolver
+from bundlemcp.application.inspection.inspector_service import InspectorService
 from bundlemcp.application.management.api_key_service import ApiKeyService
 from bundlemcp.application.management.audit_export_service import AuditExportService
 from bundlemcp.application.management.audit_service import AuditService
@@ -84,6 +85,16 @@ def get_member_curation_service(uow: UnitOfWorkProvider) -> MemberCurationServic
 
 def get_live_log_service(request: Request) -> LiveLogService:
     return LiveLogService(request.app.state.container.live_log_buffer)
+
+
+def get_inspector_service(request: Request) -> InspectorService:
+    container = request.app.state.container
+    return InspectorService(
+        container.unit_of_work_factory,
+        container.inspector_connector,
+        container.endpoint_clients,
+        container.upstream_credentials,
+    )
 
 
 def get_endpoint_service(request: Request, uow: UnitOfWorkProvider) -> EndpointService:
@@ -167,6 +178,7 @@ MemberCurationServiceProvider = Annotated[
 
 
 LiveLogServiceProvider = Annotated[LiveLogService, Depends(get_live_log_service)]
+InspectorServiceProvider = Annotated[InspectorService, Depends(get_inspector_service)]
 EndpointServiceProvider = Annotated[EndpointService, Depends(get_endpoint_service)]
 ProfileServiceProvider = Annotated[ProfileService, Depends(get_profile_service)]
 ApiKeyServiceProvider = Annotated[ApiKeyService, Depends(get_api_key_service)]
