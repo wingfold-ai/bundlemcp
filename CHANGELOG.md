@@ -10,25 +10,29 @@ protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) say
 
 ### Added
 
-- Serve Prometheus metrics at `/metrics` on every replica, readable with a service API key or an admin session. A
-  request with no credential gets 401, an endpoint key gets 403, and `BUNDLEMCP_METRICS_ENABLED=false` removes the
-  route. ([#140](https://github.com/wingfold-ai/bundlemcp/pull/140))
-- Export tool-call counts and durations, upstream in-flight calls and failures, rate-limit rejections, metering denials,
-  auth failures and lockouts, open streams, audit queue depth, and Postgres and Valkey health. Labels are limited to
-  endpoint and server names and a few fixed values, never a caller, key or header.
+- Serve Prometheus metrics at `/metrics` from every replica, readable with a service API key or an admin session (no
+  credential gets 401, an endpoint key gets 403). Metrics cover tool calls and their duration, upstream in-flight calls
+  and failures, rate-limit rejections, metering denials, auth failures and lockouts, open streams, audit queue depth,
+  and Postgres and Valkey health. ([#140](https://github.com/wingfold-ai/bundlemcp/pull/140))
+- Add `BUNDLEMCP_METRICS_ENABLED` (default `true`); setting it to `false` removes the `/metrics` route.
   ([#140](https://github.com/wingfold-ai/bundlemcp/pull/140))
-- Count each `tools/list` that includes a server whose health is `error` in `bundlemcp_tools_list_degraded_total`, per
-  endpoint and server, and log a `tools_list.degraded` warning. The listing still shows that server's cached tools.
+- Count each `tools/list` that includes an unhealthy upstream's cached tools in `bundlemcp_tools_list_degraded_total`,
+  per endpoint and server, and log a `tools_list.degraded` warning.
   ([#140](https://github.com/wingfold-ai/bundlemcp/pull/140))
-- Raise `bundlemcp_auth_limiter_fail_open_total` and a warning when the auth-failure limiter cannot reach Valkey,
-  separately from `bundlemcp_traffic_limiter_fail_open_total` for the traffic limiter. The operations docs list every
-  metric, with a per-replica scrape config and example alerts.
+- Add `bundlemcp_auth_limiter_fail_open_total`, so a Valkey outage that stops auth-failure limiting can be alerted on
+  separately from the traffic limiter's `bundlemcp_traffic_limiter_fail_open_total`, with its own warning log.
   ([#140](https://github.com/wingfold-ai/bundlemcp/pull/140))
 
 ### Fixed
 
-- The traffic limiter and the auth-failure limiter no longer share one fail-open counter, so an alert can tell which of
-  them lost its store. ([#140](https://github.com/wingfold-ai/bundlemcp/pull/140))
+- The auth-failure limiter and the traffic rate limiter no longer raise the same fail-open counter, so a fail-open of
+  one can be told apart from the other. ([#140](https://github.com/wingfold-ai/bundlemcp/pull/140))
+
+### Security
+
+- Metric labels are limited to endpoint and server names or fixed values, so no caller identity, API key, bearer token,
+  header value, tool argument or client IP can appear in `/metrics`.
+  ([#140](https://github.com/wingfold-ai/bundlemcp/pull/140))
 
 ## [0.1.6] - 2026-10-16
 
