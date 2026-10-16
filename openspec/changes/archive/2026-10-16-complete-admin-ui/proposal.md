@@ -54,7 +54,7 @@ None.
 - **Coordination:** the per-server *probe* action of the original UI-1 is the *Refresh tools* action that already
   re-probes; [align-management-api](../archive/2026-10-15-align-management-api/proposal.md) decided against a separate
   `:probe` route (MGMT-1). The Settings page's export/import belongs to
-  [add-export-import](../add-export-import/proposal.md) (MGMT-22); the *Live logs* and *Inspector* pages to
+  [add-export-import](../2026-10-16-add-export-import/proposal.md) (MGMT-22); the *Live logs* and *Inspector* pages to
   [add-live-logs](../add-live-logs/proposal.md) and [add-inspector](../add-inspector/proposal.md).
 - **API:** a new `POST /api/v1/api-keys/{id}:activate` action (publishes an invalidation event like deactivation). This
   change adds `:activate` to the management API's action list (MGMT-1).

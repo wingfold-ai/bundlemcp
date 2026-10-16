@@ -26,6 +26,7 @@ from bundlemcp.application.schemas.bundles import (
 )
 from bundlemcp.application.schemas.common import EntityRead, Page
 from bundlemcp.application.schemas.config import ConfigEntryRead, ConfigValue
+from bundlemcp.application.schemas.config_transfer import ImportOutcome, ImportReport, ImportResult
 from bundlemcp.application.schemas.endpoints import (
     AvailableEndpointRead,
     EndpointProfileRead,
@@ -88,6 +89,9 @@ __all__ = [
     "ClientRegistrationRequest",
     "ClientRegistrationResponse",
     "ConfigEntryRead",
+    "ImportOutcome",
+    "ImportReport",
+    "ImportResult",
     "ConfigValue",
     "ConsentRead",
     "DiscoveryResult",

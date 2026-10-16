@@ -314,9 +314,9 @@ Spec: [`specs/deployment/spec.md`](specs/deployment/spec.md).
 
 Until 2026-10-13 these were 31 smaller slices with their own prefixes (`DISC`, `OAS`, `MID`, …). Those prefixes are
 retired and never reused; [`slices.json`](slices.json) maps each code published under them (`DISC-3`) to its code now
-(`UPS-19`), and the Requirements page finds a requirement by either. Export and import, the live log view and the
-inspector are not built yet: their requirements are in the open changes `add-export-import`, `add-live-logs` and
-`add-inspector`. `openspec list` shows every open change.
+(`UPS-19`), and the Requirements page finds a requirement by either. The live log view and the inspector are not built
+yet: their requirements are in the open changes `add-live-logs` and `add-inspector`. `openspec list` shows every open
+change.
 
 ## Decision log — deliberately dropped from metamcp
 
@@ -374,7 +374,7 @@ slices were consolidated; `slices.json` maps each old code to its new one.
 | `spec/33-state-propagation.md` | [`sessions`](specs/sessions/spec.md) (`SES`) |
 | `spec/40-management-api.md` | [`management`](specs/management/spec.md) (`MGMT`) |
 | `spec/41-bootstrap.md` | [`management`](specs/management/spec.md) (`MGMT`) |
-| `spec/42-export-import.md` | [`management`](specs/management/spec.md) (`MGMT`) (not built — change [`add-export-import`](changes/add-export-import/proposal.md)) |
+| `spec/42-export-import.md` | [`management`](specs/management/spec.md) (`MGMT`) |
 | `spec/50-audit-log.md` | [`operations`](specs/operations/spec.md) (`OPS`) |
 | `spec/51-observability.md` | [`operations`](specs/operations/spec.md) (`OPS`) |
 | `spec/52-live-logs.md` | [`operations`](specs/operations/spec.md) (`OPS`) (not built — change [`add-live-logs`](changes/add-live-logs/proposal.md)) |

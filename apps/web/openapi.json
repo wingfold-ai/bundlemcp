@@ -182,9 +182,30 @@
         "title": "ApiKeyRead",
         "type": "object"
       },
+      "AuditKind": {
+        "description": "What an audit record is about: a tool call through an endpoint, or a management action.",
+        "enum": [
+          "tool_call",
+          "management"
+        ],
+        "title": "AuditKind",
+        "type": "string"
+      },
       "AuditRecordRead": {
-        "description": "One recorded tool call, successful or not.",
+        "description": "One recorded tool call, successful or not, or one recorded management action.",
         "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a management record says happened, such as 'export.secrets_included'; null on a tool-call record. It never carries a value the action handled",
+            "title": "Action"
+          },
           "api_key_id": {
             "anyOf": [
               {
@@ -210,12 +231,12 @@
             "description": "How the caller authenticated: oauth, api_key or none"
           },
           "bundle_name": {
-            "description": "Bundle the endpoint exposed at the time of the call",
+            "description": "Bundle the endpoint exposed at the time of the call; empty on a management record",
             "title": "Bundle Name",
             "type": "string"
           },
           "created_at": {
-            "description": "When the call was recorded",
+            "description": "When the call or action was recorded",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
@@ -258,7 +279,7 @@
             "title": "Endpoint Id"
           },
           "endpoint_name": {
-            "description": "Endpoint name as it was at the time of the call",
+            "description": "Endpoint name as it was at the time of the call; empty on a management record",
             "title": "Endpoint Name",
             "type": "string"
           },
@@ -291,6 +312,10 @@
             ],
             "description": "The metering idempotency key the hook received for this invocation, the same on every leg; join the metering ledger on it. Null for a call denied before metering, such as an unknown tool",
             "title": "Idempotency Key"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AuditKind",
+            "description": "What the record is about: tool_call for a call through an endpoint, management for an administrative action such as a secret-bearing export"
           },
           "presented_tool_name": {
             "anyOf": [
@@ -361,6 +386,8 @@
         "required": [
           "id",
           "created_at",
+          "kind",
+          "action",
           "endpoint_id",
           "endpoint_name",
           "bundle_name",
@@ -446,6 +473,497 @@
           "bundle_overview"
         ],
         "title": "AvailableEndpointRead",
+        "type": "object"
+      },
+      "BootstrapApiKey": {
+        "additionalProperties": false,
+        "description": "An API key the document provisions, without ever holding its value.\n\nThe value comes from an environment variable the entry names, or is\ngenerated on first boot and written to a file the entry names. A key whose\nname already exists is left exactly as it is.",
+        "properties": {
+          "create_if_missing": {
+            "default": false,
+            "description": "Generate the value on first boot and write it to 'write_to' instead of reading it from a variable",
+            "title": "Create If Missing",
+            "type": "boolean"
+          },
+          "endpoints": {
+            "default": [],
+            "description": "Names of the endpoints an endpoint-kind key may call; empty means every endpoint. Each must be defined by the document or already stored",
+            "items": {
+              "type": "string"
+            },
+            "title": "Endpoints",
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ApiKeyKind",
+            "default": "endpoint",
+            "description": "'endpoint' keys call MCP endpoints; 'service' keys call the management API"
+          },
+          "name": {
+            "description": "Name of the key; it is matched to a stored key by this",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "value_from_env": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Environment variable holding the key's value, a bmcp_sk_ token supplied out of band; the document never carries a value itself",
+            "title": "Value From Env"
+          },
+          "write_to": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File a generated value is written to, created with mode 0600 and never overwritten; a file that already holds a value supplies it instead",
+            "title": "Write To"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "BootstrapApiKey",
+        "type": "object"
+      },
+      "BootstrapBundle": {
+        "additionalProperties": false,
+        "description": "A bundle in a bootstrap document, with its membership and its own prompts and\nresources; unknown keys are rejected.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free-text note about what this bundle is for",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Unique bundle name: letters, digits, underscores and hyphens",
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Name",
+            "type": "string"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Long-form description of the bundle for people browsing the catalogue: what it is for, what the tools can do, and anything a user must set up first. Plain text, paragraphs separated by blank lines. Unlike 'description' this is never sent to a model, so it can be as long as it needs to be",
+            "title": "Overview"
+          },
+          "prompts": {
+            "default": [],
+            "description": "Prompts the bundle itself serves, created or replaced by name; a prompt already stored but not listed here is kept",
+            "items": {
+              "$ref": "#/components/schemas/BundlePromptUpsert"
+            },
+            "title": "Prompts",
+            "type": "array"
+          },
+          "resources": {
+            "default": [],
+            "description": "Documents the bundle itself serves, created or replaced by name; a document already stored but not listed here is kept",
+            "items": {
+              "$ref": "#/components/schemas/BundleResourceUpsert"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "upstreams": {
+            "default": [],
+            "description": "The bundle's member upstream servers, first member first: a name means an enabled member, an object also sets its enable flag and its tools' curation. Members added elsewhere and not named here follow them",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/BootstrapMember"
+                }
+              ]
+            },
+            "title": "Upstreams",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "BootstrapBundle",
+        "type": "object"
+      },
+      "BootstrapCuration": {
+        "additionalProperties": false,
+        "description": "How a bundle presents one of a member's tools, the tool named as its upstream names it.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Whether the bundle serves the tool",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "override_annotations": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Annotations presented instead of the upstream's",
+            "title": "Override Annotations"
+          },
+          "override_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description shown instead",
+            "title": "Override Description"
+          },
+          "override_name": {
+            "anyOf": [
+              {
+                "pattern": "^[a-zA-Z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name the bundle presents instead of the prefixed one",
+            "title": "Override Name"
+          },
+          "override_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Title shown instead",
+            "title": "Override Title"
+          },
+          "tool": {
+            "description": "The tool's name as the upstream lists it",
+            "minLength": 1,
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool"
+        ],
+        "title": "BootstrapCuration",
+        "type": "object"
+      },
+      "BootstrapDocument": {
+        "additionalProperties": false,
+        "description": "A declarative snapshot applied at startup; applying it twice changes nothing.\n\nAn unknown key is an error rather than ignored, so a misspelt or outdated\nlist name fails loudly instead of quietly provisioning nothing.",
+        "properties": {
+          "api_keys": {
+            "default": [],
+            "description": "API keys to provision when no key of that name exists, each by reference to its value or generated on first boot",
+            "items": {
+              "$ref": "#/components/schemas/BootstrapApiKey"
+            },
+            "title": "Api Keys",
+            "type": "array"
+          },
+          "bundles": {
+            "default": [],
+            "description": "Bundles to create or update, with their membership",
+            "items": {
+              "$ref": "#/components/schemas/BootstrapBundle"
+            },
+            "title": "Bundles",
+            "type": "array"
+          },
+          "endpoints": {
+            "default": [],
+            "description": "Endpoints to create or update",
+            "items": {
+              "$ref": "#/components/schemas/EndpointUpsert"
+            },
+            "title": "Endpoints",
+            "type": "array"
+          },
+          "upstreams": {
+            "default": [],
+            "description": "Upstream servers to register or update, each optionally with the OAuth client the gateway presents to it",
+            "items": {
+              "$ref": "#/components/schemas/BootstrapServer"
+            },
+            "title": "Upstreams",
+            "type": "array"
+          },
+          "version": {
+            "default": 1,
+            "description": "Format version of the document. Only 1 exists; a future format bumps it so an old document is rejected with a clear error rather than misread",
+            "maximum": 1.0,
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set by an export that carries secret values, saying the document holds credentials; ignored when the document is applied",
+            "title": "Warning"
+          }
+        },
+        "title": "BootstrapDocument",
+        "type": "object"
+      },
+      "BootstrapMember": {
+        "additionalProperties": false,
+        "description": "A bundle's member, with its enable flag and the curation of its tools.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Whether the bundle serves this member",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Name of the member upstream server",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "tools": {
+            "default": [],
+            "description": "Curation of the member's tools; a tool not listed keeps what is stored, or the default when nothing is",
+            "items": {
+              "$ref": "#/components/schemas/BootstrapCuration"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "BootstrapMember",
+        "type": "object"
+      },
+      "BootstrapOAuthClient": {
+        "description": "An upstream OAuth client in a document, whose secret may be a placeholder.",
+        "properties": {
+          "authorization_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Authorization endpoint, when it cannot be discovered automatically",
+            "title": "Authorization Url"
+          },
+          "client_id": {
+            "description": "Client id registered with the upstream authorization server",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/SecretRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The client secret, or a placeholder that keeps the one the target stores; omit it for a public client",
+            "title": "Client Secret"
+          },
+          "grant_type": {
+            "$ref": "#/components/schemas/UpstreamGrant",
+            "default": "authorization_code",
+            "description": "How the gateway obtains tokens: 'authorization_code' (a person signs in through the browser) or 'client_credentials' (the gateway authenticates as this client, for a shared server that authorizes a machine; requires a client secret)"
+          },
+          "token_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Token endpoint, when it cannot be discovered automatically",
+            "title": "Token Url"
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "title": "BootstrapOAuthClient",
+        "type": "object"
+      },
+      "BootstrapServer": {
+        "description": "A server in a bootstrap document, with the upstream OAuth client the API\nsets through a separate route.\n\nA header value or the client secret may be a placeholder that keeps what the\ntarget stores; the management API itself never accepts one.",
+        "properties": {
+          "auth_mode": {
+            "$ref": "#/components/schemas/ServerAuthMode",
+            "default": "none",
+            "description": "How the gateway authenticates to this server: 'none' or 'static_headers' (which of the two is derived from whether static headers are stored), 'upstream_oauth' (the gateway holds OAuth tokens from the server's authorization server) or 'delegated_token' (each call carries a short-lived token the gateway issues for the caller, valid only at this server, which the server verifies through the gateway's introspection endpoint). Run POST /upstreams:inspect to learn which one a server needs"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free-text note about what this server provides",
+            "title": "Description"
+          },
+          "force": {
+            "default": false,
+            "description": "Confirm a rename that would otherwise be rejected, accepting that bundles and tool names derived from the old name change with it",
+            "title": "Force",
+            "type": "boolean"
+          },
+          "forward_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Client headers to pass through, mapped from incoming name to upstream name. Host, cookie, content-length, x-api-key, mcp-session-id and any sec-* or proxy-* header are refused. Forwarding 'authorization' passes the caller's gateway token through; prefer auth_mode 'delegated_token'",
+            "title": "Forward Headers",
+            "type": "object"
+          },
+          "identity_mode": {
+            "$ref": "#/components/schemas/IdentityMode",
+            "default": "shared",
+            "description": "Whether all callers share one upstream identity or each gets their own"
+          },
+          "name": {
+            "description": "Unique server name: letters, digits, underscores and hyphens, without a double underscore because that separates server from tool in presented tool names",
+            "not": {
+              "pattern": "__"
+            },
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Name",
+            "type": "string"
+          },
+          "protocol_mode": {
+            "anyOf": [
+              {
+                "pattern": "^(auto|legacy|\\d{4}-\\d{2}-\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. Omitted on create it is 'auto'; omitted on update, the stored value is kept",
+            "title": "Protocol Mode"
+          },
+          "send_identity_header": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the calling user's identity is sent to the server as X-MCP-User. Omitted on create, it is on for a server on the gateway's own network and off for any public host; omitted on update, the stored value is kept",
+            "title": "Send Identity Header"
+          },
+          "static_headers": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/SecretRef"
+                }
+              ]
+            },
+            "description": "Headers sent on every upstream request; a value may be a placeholder that keeps the stored value of that header. Empty keeps every stored header",
+            "title": "Static Headers",
+            "type": "object"
+          },
+          "transport": {
+            "anyOf": [
+              {
+                "const": "streamable-http",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Upstream transport. Only streamable-http is supported; the field exists so payloads that state it explicitly are accepted",
+            "title": "Transport"
+          },
+          "upstream_oauth": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BootstrapOAuthClient"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The pre-registered OAuth client the gateway presents to this server's authorization server. Needs token encryption keys; omit it for a server that is not behind upstream OAuth, or whose client the gateway registers itself"
+          },
+          "url": {
+            "description": "Streamable HTTP URL of the upstream MCP server",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "title": "BootstrapServer",
         "type": "object"
       },
       "BundleMemberOrder": {
@@ -1603,6 +2121,61 @@
         "title": "EndpointUpsert",
         "type": "object"
       },
+      "ExportDocument": {
+        "additionalProperties": false,
+        "description": "The document an export writes: a bootstrap document that never carries API keys.\n\nKeys are identity, not configuration, and only their hashes are stored, so\nthe list is left out of what is written rather than shown empty.",
+        "properties": {
+          "bundles": {
+            "default": [],
+            "description": "Bundles to create or update, with their membership",
+            "items": {
+              "$ref": "#/components/schemas/BootstrapBundle"
+            },
+            "title": "Bundles",
+            "type": "array"
+          },
+          "endpoints": {
+            "default": [],
+            "description": "Endpoints to create or update",
+            "items": {
+              "$ref": "#/components/schemas/EndpointUpsert"
+            },
+            "title": "Endpoints",
+            "type": "array"
+          },
+          "upstreams": {
+            "default": [],
+            "description": "Upstream servers to register or update, each optionally with the OAuth client the gateway presents to it",
+            "items": {
+              "$ref": "#/components/schemas/BootstrapServer"
+            },
+            "title": "Upstreams",
+            "type": "array"
+          },
+          "version": {
+            "default": 1,
+            "description": "Format version of the document. Only 1 exists; a future format bumps it so an old document is rejected with a clear error rather than misread",
+            "maximum": 1.0,
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set by an export that carries secret values, saying the document holds credentials; ignored when the document is applied",
+            "title": "Warning"
+          }
+        },
+        "title": "ExportDocument",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1632,6 +2205,85 @@
         ],
         "title": "IdentityMode",
         "type": "string"
+      },
+      "ImportOutcome": {
+        "description": "What importing one resource did, or would do on a dry run.",
+        "enum": [
+          "created",
+          "updated",
+          "skipped",
+          "error"
+        ],
+        "title": "ImportOutcome",
+        "type": "string"
+      },
+      "ImportReport": {
+        "description": "What an import did, resource by resource.",
+        "properties": {
+          "applied": {
+            "description": "Whether the document was written: false on a dry run, and whenever any resource errored, since a document lands entirely or not at all",
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "dry_run": {
+            "description": "Whether this was a dry run that wrote nothing by design",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "results": {
+            "description": "One result per resource of the document, in the order they were applied",
+            "items": {
+              "$ref": "#/components/schemas/ImportResult"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "dry_run",
+          "applied",
+          "results"
+        ],
+        "title": "ImportReport",
+        "type": "object"
+      },
+      "ImportResult": {
+        "description": "The outcome of importing one resource of the document.",
+        "properties": {
+          "kind": {
+            "description": "What the resource is: 'upstream', 'bundle', 'endpoint', or 'curation' for one tool's curation in a bundle",
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the resource errored or was skipped, when it was for a reason other than being unchanged",
+            "title": "Message"
+          },
+          "name": {
+            "description": "The resource's natural key; a curation is named '<bundle>/<upstream>/<tool>'",
+            "title": "Name",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ImportOutcome",
+            "description": "'created', 'updated', 'skipped' when nothing would change, or 'error'"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "outcome"
+        ],
+        "title": "ImportResult",
+        "type": "object"
       },
       "MeRead": {
         "description": "The caller's own identity: session user (admin or not) or service key.",
@@ -2266,6 +2918,23 @@
         ],
         "title": "ResourceMimeType",
         "type": "string"
+      },
+      "SecretRef": {
+        "additionalProperties": false,
+        "description": "A secret the document names instead of carrying, written ``{\"$secret\": \"<NAME>\"}``.\n\nAn export puts one where a header value or a client secret would be. On import\nit means: keep the value the target already stores under that name.",
+        "properties": {
+          "$secret": {
+            "description": "What the withheld secret is: the header name, or 'client_secret'",
+            "minLength": 1,
+            "title": "$Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "$secret"
+        ],
+        "title": "SecretRef",
+        "type": "object"
       },
       "ServerAuthMode": {
         "description": "How the gateway authenticates to an upstream server.",
@@ -3382,7 +4051,7 @@
   },
   "info": {
     "title": "bundlemcp",
-    "version": "0.1.11"
+    "version": "0.1.12"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3666,6 +4335,22 @@
           },
           {
             "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AuditKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
             "name": "endpoint_name",
             "required": false,
             "schema": {
@@ -3860,6 +4545,22 @@
                 }
               ],
               "title": "Created To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AuditKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
             }
           },
           {
@@ -4943,6 +5644,67 @@
         ]
       }
     },
+    "/api/v1/bundles/{name}:rename": {
+      "post": {
+        "operationId": "rename_bundle_api_v1_bundles__name__rename_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "new_name",
+            "required": true,
+            "schema": {
+              "title": "New Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "force",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Force",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Bundle",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
     "/api/v1/config": {
       "get": {
         "operationId": "get_config_api_v1_config_get",
@@ -5317,6 +6079,102 @@
         "summary": "Rename Endpoint",
         "tags": [
           "endpoints"
+        ]
+      }
+    },
+    "/api/v1/export": {
+      "get": {
+        "operationId": "export_config_api_v1_export_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_secrets",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Secrets",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Config",
+        "tags": [
+          "config-transfer"
+        ]
+      }
+    },
+    "/api/v1/import": {
+      "post": {
+        "operationId": "import_config_api_v1_import_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BootstrapDocument"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Config",
+        "tags": [
+          "config-transfer"
         ]
       }
     },

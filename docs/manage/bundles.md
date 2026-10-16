@@ -224,9 +224,26 @@ prompts or resources change.
 
 ## Renaming and deleting
 
-Bundle names are the natural key for bootstrap and for the API. Renaming a bundle makes external automation keyed on the
-old name treat it as a new bundle; endpoints are unaffected because they reference the bundle by id. The UI warns before
-a rename.
+Bundle names are the natural key for bootstrap, for export and import, and for the API: `PUT /api/v1/bundles/{name}`
+creates or updates the bundle of that name, so a different name in the path is a different bundle. A bundle is renamed
+only with the explicit rename action:
+
+```bash
+curl -s -X POST "$API/bundles/assistant:rename?new_name=planner&force=true" -H "$AUTH"
+```
+
+The rename changes the name in place. The bundle keeps its id, members, curation, prompts, resources and endpoints, and
+endpoint URLs do not change, because all of them refer to the bundle by id. Connected clients are told that the tool
+list changed.
+
+::: warning Automation still naming the old bundle
+A [bootstrap document](../self-hosting/bootstrap.md) or an exported document that still lists the bundle under its old
+name creates a **new, empty bundle** under that name the next time it is applied. Update those files in the same step.
+:::
+
+Because of that, a rename without `force=true` is refused with `409` stating the consequence, and nothing changes. A new
+name another bundle already holds also answers `409`, and an invalid one `422`. The bundle page has a rename card that
+shows the same warning and enables *Rename* only once the new name is valid and free and the warning is acknowledged.
 
 `DELETE /api/v1/bundles/{name}` deletes the bundle **and every endpoint that serves it**. Disable the endpoints first if
 you want a reversible step.

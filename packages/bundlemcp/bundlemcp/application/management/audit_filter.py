@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from bundlemcp.domain.audit.audit_kind import AuditKind
 from bundlemcp.domain.audit.audit_status import AuditStatus
 
 
@@ -11,6 +12,11 @@ class AuditFilter(BaseModel):
 
     created_from: datetime | None = Field(default=None, description="Earliest call time included")
     created_to: datetime | None = Field(default=None, description="Latest call time included")
+    kind: AuditKind | None = Field(
+        default=None,
+        description="Only records of this kind: tool_call for tool calls, management for "
+        "management actions",
+    )
     endpoint_name: str | None = Field(default=None, description="Only calls on this endpoint")
     bundle_name: str | None = Field(default=None, description="Only calls into this bundle")
     server_name: str | None = Field(default=None, description="Only calls routed to this server")

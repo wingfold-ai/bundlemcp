@@ -102,5 +102,7 @@ async function resetKey(key: string) {
         </tbody>
       </table>
     </div>
+
+    <ConfigTransfer />
   </div>
 </template>

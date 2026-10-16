@@ -2,6 +2,7 @@
 import type { components } from "~~/types/api";
 
 type AuditStatus = components["schemas"]["AuditStatus"];
+type AuditKind = components["schemas"]["AuditKind"];
 type AuditRecordPage = components["schemas"]["Page_AuditRecordRead_"];
 
 const api = useApi();
@@ -11,6 +12,7 @@ const filterEndpoint = ref("");
 const filterBundle = ref("");
 const filterServer = ref("");
 const filterStatus = ref<AuditStatus | "any">("any");
+const filterKind = ref<AuditKind | "all">("all");
 const filterTool = ref("");
 const filterApiKey = ref("");
 const filterUser = ref("");
@@ -22,6 +24,7 @@ type AuditQuery = {
   bundle_name?: string;
   server_name?: string;
   status?: AuditStatus;
+  kind?: AuditKind;
   tool_name?: string;
   api_key_id?: string;
   user_id?: string;
@@ -40,6 +43,7 @@ function filters(): AuditQuery {
   query.api_key_id = text(filterApiKey.value);
   query.user_id = text(filterUser.value);
   if (filterStatus.value !== "any") query.status = filterStatus.value;
+  if (filterKind.value !== "all") query.kind = filterKind.value;
   if (filterFrom.value) query.created_from = new Date(filterFrom.value).toISOString();
   if (filterTo.value) query.created_to = new Date(filterTo.value).toISOString();
   return Object.fromEntries(Object.entries(query).filter(([, value]) => value !== undefined));
@@ -128,6 +132,14 @@ function exportCsv() {
           </select>
         </div>
         <div>
+          <label class="wf-label">Kind</label>
+          <select v-model="filterKind" class="wf-input" data-testid="filter-kind">
+            <option value="all">all</option>
+            <option value="tool_call">tool_call</option>
+            <option value="management">management</option>
+          </select>
+        </div>
+        <div>
           <label class="wf-label">API key</label>
           <select v-model="filterApiKey" class="wf-input" data-testid="filter-api-key">
             <option value="">any</option>
@@ -174,7 +186,7 @@ function exportCsv() {
             <th>Endpoint</th>
             <th>Bundle</th>
             <th>Upstream</th>
-            <th>Tool (presented)</th>
+            <th>Tool (presented) / action</th>
             <th>Status</th>
             <th>Duration (ms)</th>
             <th>Reason / error</th>
@@ -186,7 +198,11 @@ function exportCsv() {
             <td class="whitespace-nowrap">{{ r.endpoint_name }}</td>
             <td class="whitespace-nowrap">{{ r.bundle_name }}</td>
             <td class="whitespace-nowrap">{{ r.server_name }}</td>
-            <td class="break-all">{{ r.presented_tool_name }}</td>
+            <td v-if="r.kind === 'management'" class="break-all" data-testid="audit-action">
+              <UBadge color="neutral" variant="outline">management</UBadge>
+              {{ r.action }}
+            </td>
+            <td v-else class="break-all">{{ r.presented_tool_name }}</td>
             <td>
               <UBadge :color="statusColor(r.status)" variant="subtle">{{ r.status }}</UBadge>
             </td>

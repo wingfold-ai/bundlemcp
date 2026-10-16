@@ -113,7 +113,13 @@ fails at startup rather than quietly leaving something out.
   it.
 - **Secrets stay out of the repo.** `static_headers` values and upstream OAuth client secrets are real credentials.
   Template them in from your secret store before the file reaches the container, or supply the whole document through
-  `BUNDLEMCP_BOOTSTRAP` from a secret.
+  `BUNDLEMCP_BOOTSTRAP` from a secret. A value may also be a placeholder, `{"$secret": "<name>"}`, which keeps what
+  the gateway already stores; on a gateway that stores nothing for it the document does not apply.
+- **Members and curation.** A bundle's `upstreams` entry is a name (an enabled member) or an object
+  `{name, enabled, tools}`, where `tools` curates the member's tools by the name the upstream gives them. A tool not
+  discovered yet is skipped; it is curated on a later start, once discovery has found it.
+- **An export is a bootstrap document.** [Export and import](/manage/export-import) writes and reads this same
+  format, so an export of a configured gateway is a starting point for a bootstrap file.
 - **Tools are discovered, without blocking startup.** Once the document has landed, every server it creates is probed
   in the background, as after creating it through the API, so a fresh gateway lists its tools without a manual
   `:refresh-tools`. On later starts a server is probed again only if the document changed how it is reached (URL,

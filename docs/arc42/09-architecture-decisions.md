@@ -60,6 +60,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0052](../adr/0052-per-replica-prometheus-metrics-with-a-closed-label-set.md) | Typed `GatewayMetrics` contract; per-replica Prometheus `/metrics` behind management auth; closed labels | accepted | Alerting on metrics instead of logs; no secret can become a label |
 | [0053](../adr/0053-audit-durability-and-the-idempotency-key-join.md) | Batched, retried audit writes; every loss logged with its idempotency key; retention purge; the key as the ledger join | accepted | Ledgers reconcile by key; the table no longer grows unbounded |
 | [0054](../adr/0054-upstream-session-pooling.md) | Per-replica pool of upstream sessions keyed by identity and config; bindings continued from the session record; one safe retry | accepted | Calls after the first skip initialize; member notifications reach clients between calls |
+| [0055](../adr/0055-export-and-bootstrap-share-one-document.md) | One document for bootstrap, export and import; secrets as placeholders; transactional additive import | accepted | Configuration moves between gateways; bootstrap and import share one code path |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).

@@ -15,7 +15,7 @@ class BootstrapDocument(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    version: int = Field(  # the export format this document follows
+    version: int = Field(
         default=1,
         ge=1,
         le=1,
@@ -35,4 +35,9 @@ class BootstrapDocument(BaseModel):
         default=[],
         description="API keys to provision when no key of that name exists, each by reference to "
         "its value or generated on first boot",
+    )
+    warning: str | None = Field(
+        default=None,
+        description="Set by an export that carries secret values, saying the document holds "
+        "credentials; ignored when the document is applied",
     )

@@ -85,10 +85,10 @@ export async function createApiKey(page: Page, name: string): Promise<string> {
 // caller). Guarded on presence so a half-completed test still cleans up.
 export async function deleteApiKey(page: Page, name: string): Promise<void> {
   await page.goto("/api-keys");
-  // Key names are not unique and the row marker is keyed by name, so a retried
-  // run leaves several rows sharing one marker. Delete them one at a time until
-  // none is left: matching a single row would fail strict mode and wedge the
-  // teardown this helper exists to guarantee.
+  // Key names are unique, but a stack that predates that may still hold several rows
+  // sharing one marker, so delete them one at a time until none is left. The table
+  // must be on the page before the rows are counted, or a leftover is missed.
+  await page.getByTestId("keys-table").waitFor();
   const rows = page.getByTestId(`key-${name}`);
   for (let remaining = await rows.count(); remaining > 0; remaining--) {
     await page.getByTestId(`delete-${name}`).first().click();

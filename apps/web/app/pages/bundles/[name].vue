@@ -19,6 +19,7 @@ const [
   { data: profiles },
   { data: allServers, error: serversError },
   { data: endpoints, error: endpointsError },
+  { data: allBundles },
 ] = await Promise.all([
   useQuery<BundleRead | null>(
     () => queryKeys.bundle(bundleName.value),
@@ -57,6 +58,8 @@ const [
   ),
   useUpstreams(),
   useEndpoints(),
+  // read for the rename card, so a taken name is seen before anything is sent
+  useBundles(),
 ]);
 
 // a missing bundle shows "not found" instead of the errors its sub-resources answer with
@@ -131,6 +134,58 @@ async function deleteBundle() {
     queryKeys.endpoints,
     queryKeys.catalogue,
   );
+}
+
+// ---- rename card ----
+const renameInput = ref("");
+// the admin's acknowledgement that automation naming the old bundle would create a new
+// one; it is what sends force
+const renameAcknowledged = ref(false);
+const renaming = computed(
+  () => renameInput.value !== "" && renameInput.value !== bundleName.value,
+);
+// the names a rename would collide with: every bundle but this one
+const otherBundleNames = computed(() =>
+  allBundles.value.map((b) => b.name).filter((n) => n !== bundleName.value),
+);
+// shown while typing, so a bad or taken name is seen before anything is sent
+const renameHint = computed(() =>
+  renaming.value ? nameProblem("bundle", renameInput.value, otherBundleNames.value) : null,
+);
+// a different new name is a different consequence, so it needs its own acknowledgement
+watch(renameInput, () => {
+  renameAcknowledged.value = false;
+});
+
+async function renameBundle() {
+  errorMsg.value = "";
+  const oldName = bundleName.value;
+  const newName = renameInput.value;
+  const problem = nameProblem("bundle", newName, otherBundleNames.value);
+  if (problem) {
+    errorMsg.value = problem;
+    return;
+  }
+  const { error } = await api.POST("/api/v1/bundles/{name}:rename", {
+    params: {
+      path: { name: oldName },
+      query: { new_name: newName, force: renameAcknowledged.value },
+    },
+  });
+  if (error) {
+    errorMsg.value = apiErrorMessage(error);
+    return;
+  }
+  renameInput.value = "";
+  // endpoints follow the bundle by id, but their pages show the bundle's name
+  await invalidate(
+    queryKeys.bundles,
+    queryKeys.bundle(oldName),
+    queryKeys.composition,
+    queryKeys.endpoints,
+    queryKeys.catalogue,
+  );
+  await navigateTo(`/bundles/${newName}`);
 }
 
 // ---- members card ----
@@ -419,6 +474,49 @@ const bundleEndpoints = computed(() =>
             >Delete bundle</UButton
           >
         </div>
+      </div>
+
+      <!-- Rename -->
+      <div class="wf-card space-y-3 max-w-xl" data-testid="bundle-rename-card">
+        <h2 class="text-sm font-semibold">Rename bundle</h2>
+        <div>
+          <label class="wf-label" for="bundle-rename-input">New name</label>
+          <input
+            id="bundle-rename-input"
+            v-model="renameInput"
+            class="wf-input"
+            placeholder="new name"
+            data-testid="bundle-rename-input"
+          />
+          <p v-if="renameHint" class="text-red-600 text-xs mt-1" data-testid="bundle-rename-hint">
+            {{ renameHint }}
+          </p>
+        </div>
+        <div v-if="renaming" class="space-y-2 text-sm" data-testid="bundle-rename-warning">
+          <p>
+            Members, curation, prompts, resources and endpoints stay with the bundle, and its
+            endpoint URLs do not change.
+          </p>
+          <p class="text-red-600">
+            A bootstrap file or an exported document that still names
+            <code>{{ bundleName }}</code> creates a new, empty bundle under that name the next
+            time it is applied. Update them to <code>{{ renameInput }}</code> as well.
+          </p>
+          <label class="flex items-center gap-2">
+            <input v-model="renameAcknowledged" type="checkbox" data-testid="bundle-rename-ack" />
+            I understand that automation naming the old bundle would create a new one
+          </label>
+        </div>
+        <UButton
+          size="sm"
+          variant="outline"
+          color="error"
+          :disabled="!renaming || Boolean(renameHint) || !renameAcknowledged"
+          data-testid="bundle-rename-submit"
+          @click="renameBundle"
+        >
+          Rename
+        </UButton>
       </div>
 
       <!-- Members -->

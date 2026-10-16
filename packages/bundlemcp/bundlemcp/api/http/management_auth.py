@@ -40,10 +40,14 @@ class ManagementAuth:
                 if request.method not in self.SAFE_METHODS:
                     self._check_origin(request, settings)
                 bind_request_fields(auth_method="admin_session", user_id=str(caller.id))
-                return Principal(kind=PrincipalKind.ADMIN, user_id=str(caller.id))
+                return self._remember(
+                    request, Principal(kind=PrincipalKind.ADMIN, user_id=str(caller.id))
+                )
             case ApiKey() if caller.is_service_key:
                 bind_request_fields(auth_method="service_key", api_key_id=str(caller.id))
-                return Principal(kind=PrincipalKind.SERVICE, api_key_id=str(caller.id))
+                return self._remember(
+                    request, Principal(kind=PrincipalKind.SERVICE, api_key_id=str(caller.id))
+                )
             case ApiKey():
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -58,6 +62,12 @@ class ManagementAuth:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="admin session or service API key required",
         )
+
+    @staticmethod
+    def _remember(request: Request, principal: Principal) -> Principal:
+        """Keep the caller on the request, for the few handlers whose rule depends on who it is."""
+        request.state.principal = principal
+        return principal
 
     @staticmethod
     def _check_origin(request: Request, settings: Settings) -> None:
@@ -86,3 +96,11 @@ def require_same_site_origin(request: Request, settings: Settings) -> None:
 
 
 ServiceAuthProvider = Annotated[Principal, Depends(ManagementAuth())]
+
+
+def current_principal(request: Request) -> Principal:
+    """The caller ManagementAuth admitted; only reachable behind a management controller."""
+    return request.state.principal
+
+
+PrincipalProvider = Annotated[Principal, Depends(current_principal)]

@@ -121,6 +121,7 @@ Upstream servers live under `/upstreams` (the short form of *upstream servers*),
 | `GET` | `/bundles/{name}` | Read. |
 | `PUT` | `/bundles/{name}` | Upsert name and description. |
 | `DELETE` | `/bundles/{name}` | Delete, together with its endpoints. |
+| `POST` | `/bundles/{name}:rename?new_name=&force=` | Rename in place, keeping id, members, curation and endpoints. Without `force=true` answers `409`: a bootstrap or exported document naming the old bundle would create a new one. A taken name also answers `409`. |
 | `GET` | `/bundles/{name}/upstreams` | Members with health, in member order. |
 | `PUT` | `/bundles/{name}/upstreams:order` | Set the member order; the list names every member once. |
 | `PUT` | `/bundles/{name}/upstreams/{server_name}` | Add or update a membership (`enabled`); a new member is appended. |
