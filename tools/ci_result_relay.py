@@ -100,6 +100,11 @@ def _check_run(gh: Gh, repo: str, source: str) -> dict | None:
     return runs[0] if runs else None
 
 
+def checks_page(repo: str, sha: str) -> str:
+    """The page listing every check of ``sha``, where its CI run shows while it is going."""
+    return f"https://github.com/{repo}/commit/{sha}/checks"
+
+
 def status_from_outcome(source: str, conclusion: str, url: str | None) -> RelayedStatus:
     state = OUTCOMES.get(conclusion, "failure")
     words = "passed" if state == "success" else f"ended with {conclusion}"
@@ -134,7 +139,7 @@ def relayed_status(
         state="pending",
         source=source,
         description=f"{words} {source[:7]}, the commit before CI's own",
-        target_url=run.get("html_url") if run else None,
+        target_url=(run or {}).get("html_url") or checks_page(repo, source),
     )
 
 

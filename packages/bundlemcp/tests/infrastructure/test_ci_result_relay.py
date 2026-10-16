@@ -126,3 +126,9 @@ def test_dep12_a_result_arriving_after_the_pending_status_replaces_it():
     status = relay.relay(gh, REPO, "r3")
     assert status is not None and status.state == "success"
     assert [post["state"] for post in gh.posted] == ["pending", "success"]
+
+
+def test_dep12_a_pending_status_links_to_the_running_ci():
+    gh = FakeGh(_history(), {})
+    relay.relay(gh, REPO, "r3")
+    assert gh.posted[0]["target_url"] == f"https://github.com/{REPO}/commit/a1/checks"
