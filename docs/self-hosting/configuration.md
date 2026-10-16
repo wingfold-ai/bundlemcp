@@ -126,6 +126,23 @@ claude.ai only.
 
 Secrets, tokens, header values and tool arguments are never written to the log at any level.
 
+### Tracing
+
+Tracing with OpenTelemetry is off by default and costs nothing while off. It needs the library's `otel` extra, which the
+published image does not include; build your own with `--build-arg LIBRARY_EXTRAS=otel`
+(`docker build -f apps/gateway/Dockerfile --build-arg LIBRARY_EXTRAS=otel .`), or install `bundlemcp[otel]`.
+
+It is switched on by the standard OpenTelemetry variables, not by a `BUNDLEMCP_` one:
+
+| Variable | Effect |
+|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Turns tracing on and sends spans there over OTLP/HTTP |
+| `OTEL_SDK_DISABLED=true` | Keeps tracing off even with an endpoint set |
+| `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_HEADERS`, … | Read by the SDK as usual |
+
+The service is named `bundlemcp-gateway`. With an endpoint set but the extra missing, the gateway starts untraced and
+logs `tracing.extra_missing` once.
+
 ## Secrets you generate
 
 Two settings are secrets you create yourself; generate each once and keep it in your platform's secret store, never in

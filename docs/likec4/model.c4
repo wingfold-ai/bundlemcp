@@ -73,6 +73,8 @@ model {
 
   prometheus = external 'Prometheus' {
     description 'Scrapes /metrics on every gateway replica with a service API key'
+  otlpCollector = external 'OTLP Collector' {
+    description 'Optional: receives traces when OTEL_EXPORTER_OTLP_ENDPOINT is set and the image has the tracing extra'
   }
 
   bundlemcp = system 'bundlemcp' {
@@ -146,6 +148,7 @@ model {
   gateway.infrastructure -> pg 'durable' 'SQLAlchemy async'
   gateway.infrastructure -> redis 'live' 'redis-py async'
   prometheus -> gateway 'scrapes /metrics' 'HTTPS, bearer service key'
+  gateway.infrastructure -> otlpCollector 'traces (optional)' 'OTLP/HTTP'
 }
 
 views {
@@ -161,7 +164,8 @@ views {
       upstreams with { title 'Upstream MCP servers' description 'Streamable HTTP, any protocol era' },
       idp with { title 'OIDC provider' description 'Keycloak or any OIDC issuer' },
       appLayer with { title 'Application layer' description 'Optional: billing, registrar' },
-      prometheus with { title 'Prometheus' description 'Scrapes metrics' }
+      prometheus with { title 'Prometheus' description 'Scrapes metrics' },
+      otlpCollector with { title 'OTLP collector' description 'Optional: traces' }
     style * {
       size xs
       textSize lg

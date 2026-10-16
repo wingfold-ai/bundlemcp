@@ -29,7 +29,8 @@ See [proposal.md](proposal.md) for the motivation. Today:
   alerts is enough.
 - Cross-replica aggregation inside the gateway (Prometheus does it).
 - OpenTelemetry metrics — tracing is OPS-12 in
-  [improve-request-observability](../improve-request-observability/proposal.md); metrics stay Prometheus-native.
+  [improve-request-observability](../archive/2026-10-16-improve-request-observability/proposal.md); metrics stay
+  Prometheus-native.
 - Per-tool or per-caller labels.
 
 ## Decisions

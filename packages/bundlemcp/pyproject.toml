@@ -1,6 +1,6 @@
 [project]
 name = "bundlemcp"
-version = "0.1.5"
+version = "0.1.6"
 description = "Self-hostable MCP bundling gateway"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -25,6 +25,16 @@ dependencies = [
     "cryptography>=44",
     "pyyaml>=6.0",
     "prometheus-client>=0.23",
+]
+
+[project.optional-dependencies]
+# OpenTelemetry tracing, loaded only when an exporter endpoint is configured
+otel = [
+    "opentelemetry-sdk>=1.45",
+    "opentelemetry-exporter-otlp-proto-http>=1.45",
+    "opentelemetry-instrumentation-fastapi>=0.66b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.66b0",
+    "opentelemetry-instrumentation-redis>=0.66b0",
 ]
 
 [build-system]

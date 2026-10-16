@@ -1,5 +1,7 @@
 """The seams a test or an embedding application may substitute at composition time."""
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -59,4 +61,9 @@ class CompositionOverrides(BaseModel):
     )
     auth_failure_limiter: AuthFailureLimiter | None = Field(
         default=None, description="Per-IP lockout after repeated authentication failures"
+    )
+    span_processor: Any = Field(
+        default=None,
+        description="Where spans go when tracing is on, instead of the OTLP exporter (a test's "
+        "in-memory exporter); None for the exporter the OTEL_* variables configure",
     )
