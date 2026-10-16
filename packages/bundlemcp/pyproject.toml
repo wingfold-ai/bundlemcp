@@ -26,6 +26,16 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.optional-dependencies]
+# OpenTelemetry tracing, loaded only when an exporter endpoint is configured
+otel = [
+    "opentelemetry-sdk>=1.45",
+    "opentelemetry-exporter-otlp-proto-http>=1.45",
+    "opentelemetry-instrumentation-fastapi>=0.66b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.66b0",
+    "opentelemetry-instrumentation-redis>=0.66b0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

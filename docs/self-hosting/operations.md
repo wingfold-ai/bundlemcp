@@ -27,6 +27,14 @@ Two log events deserve alerts:
 - **rate limiter unavailable**: Valkey could not be reached. Traffic limits fail open by default, so this is a warning,
   not an outage.
 
+### Traces
+
+With tracing configured ([Tracing](configuration.md#tracing)), each HTTP request is a span, with child spans for its
+database statements (placeholders, never values), its Valkey commands (arguments masked) and each upstream tool call
+(`mcp.upstream_call`, with `bundlemcp.endpoint`, `bundlemcp.server`, `bundlemcp.tool` and `bundlemcp.status`). The OAuth
+and login routes are not traced, because their query strings carry codes and state. No span carries a key, a header
+value or tool arguments.
+
 ## Health
 
 | Route | Use |

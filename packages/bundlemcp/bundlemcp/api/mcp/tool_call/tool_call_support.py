@@ -7,6 +7,7 @@ from bundlemcp.application.contracts.live_state.session_store import SessionStor
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
+from bundlemcp.application.contracts.observability.call_tracer import CallTracer
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
@@ -51,6 +52,7 @@ class ToolCallSupport(BaseModel):
         description="Whether any replica holds the client's stream, before a request is sent on it"
     )
     runtime_config: RuntimeConfig = Field(description="Source of the call timeouts")
+    tracer: CallTracer = Field(description="Where the span of each upstream call goes")
     upstream_health: UpstreamHealth = Field(
         description="Where a call reports whether it reached its upstream"
     )

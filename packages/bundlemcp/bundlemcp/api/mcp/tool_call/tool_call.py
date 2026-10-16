@@ -207,6 +207,20 @@ class ToolCall:
     async def execute(
         self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
     ) -> CallOutcome:
+        """Drive the upstream, inside one span naming the endpoint, server, tool and outcome."""
+        attributes = {
+            "bundlemcp.endpoint": self._ctx.view.endpoint.name,
+            "bundlemcp.server": self._tool.server.name,
+            "bundlemcp.tool": self._tool.tool.name,
+        }
+        with self._support.tracer.span("mcp.upstream_call", attributes) as span:
+            outcome = await self._execute(on_progress, on_notification)
+            span.set_attribute("bundlemcp.status", outcome.status.value)
+        return outcome
+
+    async def _execute(
+        self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
+    ) -> CallOutcome:
         """Drive the upstream once; act on what an upstream refusal says.
 
         A 401 from an upstream-OAuth server forces a token refresh and one

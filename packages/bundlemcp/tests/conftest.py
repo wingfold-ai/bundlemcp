@@ -22,12 +22,13 @@ from bundlemcp.domain.shared.secrets import (
 from bundlemcp.infrastructure.config.settings import EnvSettings
 from bundlemcp.infrastructure.postgres.engine import create_all, create_engine, session_factory
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
+from bundlemcp.infrastructure.postgres.shipped_migrations import ShippedMigrations
 from bundlemcp.main.app import create_app
 from bundlemcp.main.composition_overrides import CompositionOverrides
 from fakeredis.aioredis import FakeRedis
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 SERVICE_KEY = generate_token(API_KEY_PREFIX)
@@ -102,8 +103,21 @@ async def engine() -> AsyncIterator[AsyncEngine]:
         dbapi_conn.execute("PRAGMA foreign_keys=ON")
 
     await create_all(eng)
+    await stamp_head(eng)
     yield eng
     await eng.dispose()
+
+
+async def stamp_head(eng: AsyncEngine, revision: str | None = None) -> None:
+    """Record a migration revision, the shipped head by default: create_all builds the head's
+    schema without Alembic, and readiness checks the revision."""
+    applied = revision or ShippedMigrations.read().head
+    async with eng.begin() as conn:
+        await conn.execute(
+            text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)")
+        )
+        await conn.execute(text("DELETE FROM alembic_version"))
+        await conn.execute(text("INSERT INTO alembic_version VALUES (:v)"), {"v": applied})
 
 
 @pytest.fixture

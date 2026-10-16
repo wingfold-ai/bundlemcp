@@ -40,6 +40,7 @@ from bundlemcp.application.contracts.live_state.session_store import SessionStor
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
+from bundlemcp.application.contracts.observability.call_tracer import CallTracer
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
@@ -92,6 +93,7 @@ class McpGatewayAssembly(BaseModel):
         description="Builds an MCP client for an upstream server"
     )
     runtime_config: RuntimeConfig = Field(description="Runtime-tunable config, cached per replica")
+    tracer: CallTracer = Field(description="Where the span of each upstream tool call goes")
     upstream_health: UpstreamHealth = Field(
         description="Counts live calls that could not reach their upstream toward its health"
     )
@@ -157,6 +159,7 @@ class McpGatewayAssembly(BaseModel):
                 presence=self.presence,
                 runtime_config=self.runtime_config,
                 upstream_health=self.upstream_health,
+                tracer=self.tracer,
                 state_cipher=self.state_cipher,
             ),
             connect_prompts,

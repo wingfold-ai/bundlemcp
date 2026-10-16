@@ -80,13 +80,14 @@ not ready for any of these reasons it SHALL answer 503 with a body naming the fa
 ### Requirement: OPS-12 Optional tracing
 The gateway SHALL support OpenTelemetry tracing — request spans for HTTP, Postgres and Valkey, plus one span per
 upstream tool call — configured through the standard `OTEL_*` environment variables. Tracing MUST be off by default and
-zero-cost when off: no tracing code is loaded and no span is created. Spans MUST NOT carry secrets, header values or
-tool arguments.
+zero-cost when off: none of the gateway's tracing code, instrumentation or exporter is loaded and no span is created.
+(The MCP library depends on the OpenTelemetry API and imports it regardless; that alone records nothing.) Spans MUST
+NOT carry secrets, header values or tool arguments.
 
 #### Scenario: Off by default
 - **GIVEN** no OpenTelemetry exporter endpoint is configured
 - **WHEN** the gateway starts and serves a tool call
-- **THEN** no OpenTelemetry module is imported and no span is exported
+- **THEN** none of the gateway's tracing code, no instrumentation and no exporter is loaded, and no span is exported
 
 #### Scenario: Enabled through standard variables
 - **GIVEN** `OTEL_EXPORTER_OTLP_ENDPOINT` points at a collector and the tracing extra is installed

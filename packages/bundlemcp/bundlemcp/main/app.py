@@ -1,6 +1,7 @@
 """Gateway application factory: management API, probes; MCP endpoints mount here too."""
 
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from redis.exceptions import ConnectionError as StoreConnectionError
@@ -50,6 +51,7 @@ from bundlemcp.infrastructure.config.settings import get_settings
 from bundlemcp.infrastructure.config.structured_logging import configure_logging
 from bundlemcp.main.composition_overrides import CompositionOverrides
 from bundlemcp.main.composition_root import CompositionRoot
+from bundlemcp.main.tracing_switch import start_tracing, tracing_requested
 
 API_PREFIX = "/api/v1"
 
@@ -61,9 +63,11 @@ def create_app(
     overrides = overrides or CompositionOverrides()
     configure_logging(settings.log_level, settings.log_format)
 
+    tracing: Any = None  # set below, once the app exists and before it starts
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        async with CompositionRoot(app, settings, overrides):
+        async with CompositionRoot(app, settings, overrides, tracing):
             yield
 
     app = FastAPI(
@@ -89,6 +93,8 @@ def create_app(
     app.add_middleware(PathScopedCors, web_origins=settings.web_origins)
     # outermost of all, so every request, a refused one included, has its id and access line
     app.add_middleware(RequestContextMiddleware, settings=settings)
+    if tracing_requested():  # nothing from the OpenTelemetry SDK is loaded otherwise
+        tracing = start_tracing(app, processor=overrides.span_processor)
 
     for controller in (
         ServerController(),

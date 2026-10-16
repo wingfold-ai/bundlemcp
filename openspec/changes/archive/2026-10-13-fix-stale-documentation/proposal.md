@@ -16,7 +16,8 @@ Documentation and docstrings only — no behaviour change, so no spec delta (`sk
   re-check per hop — say so, until [harden-http-edge](../../harden-http-edge/proposal.md) closes it); the admin session
   cookie sets no `Domain` (host-only), only `Secure` follows the public URL's scheme.
 - `infrastructure/config/structured_logging.py`: docstrings say stdout; the handler writes stderr. Say stderr (the
-  stream decision itself is in [improve-request-observability](../../improve-request-observability/proposal.md)).
+  stream decision itself is in
+  [improve-request-observability](../2026-10-16-improve-request-observability/proposal.md)).
 - `infrastructure/inprocess/counters.py` and `infrastructure/postgres/audit_writer.py`: drop the claimed `/metrics`
   export ([add-prometheus-metrics](../../add-prometheus-metrics/proposal.md) builds it).
 - `api/mcp/README.md`: replace the deleted modules (`composition.py`, `streams.py`, `signals.py`, `metering.py`,

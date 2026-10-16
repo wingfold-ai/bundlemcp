@@ -83,6 +83,9 @@ services:
     restart: unless-stopped
     expose:
       - "9000"
+    # the integration suite's overhead report calls it directly, beside the gateway path
+    ports:
+      - "127.0.0.1:9100:9000"
 
   # The MCP conformance suite's server fixtures (examples/conformance-mcp),
   # only for tests/conformance/, which bundles it behind an open endpoint.

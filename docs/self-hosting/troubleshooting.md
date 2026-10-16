@@ -133,9 +133,11 @@ The error code says which rung failed: `-32602` for a missing envelope,
 
 ## `/readyz` never turns green
 
-**Cause.** Postgres or Valkey is unreachable, or a migration failed.
+**Cause.** Postgres or Valkey is unreachable, or the schema is behind the image (a migration failed or has not run
+yet). The response body names which:
 
 ```bash
+curl -s http://localhost:8000/readyz            # {"status": "not ready", "failing": [...], "checks": {...}}
 docker compose -f deploy/docker-compose.yml logs gateway | grep -i alembic
 ```
 
