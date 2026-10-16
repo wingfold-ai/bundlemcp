@@ -6,6 +6,48 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.12] - 2026-10-16
+
+### Added
+
+- Export the whole configuration with `GET /api/v1/export`: upstreams, bundles (members, enable flags, tool curation,
+  prompts, resources) and endpoints, by name. The document is also a valid bootstrap file.
+  ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+- Import a configuration document with `POST /api/v1/import`, with an optional `dry_run=true`. It applies the document
+  as upserts in one transaction and reports `created`, `updated`, `skipped` or `error` per resource. Any error rolls
+  everything back, and an import never deletes anything. ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+- Export header values and OAuth client secrets as `{"$secret": "<name>"}` placeholders. On import a placeholder keeps
+  the stored value, and a placeholder with nothing stored is an error. Bootstrap files accept placeholders and the
+  member object form (`enabled` plus per-tool curation) too. ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+- Export secret values with `include_secrets=true`. This needs an admin session, since a service key gets 403. The
+  response carries a `warning` field, and an audit record is written.
+  ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+- Rename a bundle with `POST /api/v1/bundles/{name}:rename?new_name=&force=`. The bundle keeps its members, curation,
+  prompts, resources and endpoints. Without `force=true` it answers 409, because a document still naming the old bundle
+  would create a new one. The bundle page has a rename card with that warning and an acknowledgement.
+  ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+- Add an Export and import card to Settings in the admin UI. It downloads an export, shows a dry-run report for a chosen
+  file, and writes only after you click Apply import. ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+- Record management actions in the audit log. Audit records now have a `kind` (`tool_call` or `management`) and an
+  `action`, such as `export.secrets_included`. The audit list can be filtered by kind, the audit page shows the action,
+  and the CSV export includes both columns. ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+
+### Changed
+
+- Bootstrap now applies its document through the same code as import, so the two behave identically. Existing bootstrap
+  files stay valid. ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+- Curation of a tool that has not been discovered yet is reported as `skipped` with "re-import after discovery" instead
+  of failing. Import the same document again once discovery has run.
+  ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+
+### Security
+
+- Refuse secret-bearing exports for service API keys. Only an admin session can export secret values, and each such
+  export is written to the audit log without the values. ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+- Never include users, OAuth server state, API keys, audit records or upstream tokens in an export. An import refuses a
+  document carrying `api_keys`, since keys come only from bootstrap.
+  ([#145](https://github.com/wingfold-ai/bundlemcp/pull/145))
+
 ## [0.1.11] - 2026-10-16
 
 ### Added
