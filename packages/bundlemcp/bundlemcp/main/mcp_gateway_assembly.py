@@ -220,6 +220,7 @@ class McpGatewayAssembly(BaseModel):
             unit_of_work_factory=self.unit_of_work_factory,
             authentication=EndpointAuthentication(clock=self.clock, hasher=self.secret_hasher),
             auth_failures=self.auth_failures,
+            audit=self.audit,
             public_base=self.settings.public_base,
             profiles=self.profiles,
         )

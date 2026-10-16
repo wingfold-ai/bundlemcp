@@ -1,5 +1,8 @@
 from fastapi import Request
 
+from bundlemcp.api.mcp.routing.authentication.authentication_outcome import (
+    AuthenticationOutcome,
+)
 from bundlemcp.application.auth.auth_service import AuthService
 from bundlemcp.domain.access.caller_identity import CallerIdentity
 from bundlemcp.domain.bundles.bundle_view import BundleView
@@ -13,5 +16,5 @@ class AnonymousAuthenticator:
 
     async def authenticate(
         self, request: Request, view: BundleView, auth: AuthService
-    ) -> CallerIdentity | None:
-        return CallerIdentity.anonymous()
+    ) -> AuthenticationOutcome:
+        return AuthenticationOutcome.authenticated(CallerIdentity.anonymous())

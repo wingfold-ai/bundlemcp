@@ -58,7 +58,7 @@ class McpGatewayRouter:
             return _draining()
         try:
             message = await self._admission.parse_envelope(request)
-            ctx = await self._admission.admit_caller(request, endpoint_name)
+            ctx = await self._admission.admit_caller(request, endpoint_name, message)
         except RequestRejected as rejected:
             return rejected.answer
 

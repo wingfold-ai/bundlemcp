@@ -10,6 +10,9 @@ from bundlemcp.api.mcp.routing.authentication.anonymous_authenticator import (
 from bundlemcp.api.mcp.routing.authentication.api_key_authenticator import (
     ApiKeyAuthenticator,
 )
+from bundlemcp.api.mcp.routing.authentication.authentication_outcome import (
+    AuthenticationOutcome,
+)
 from bundlemcp.api.mcp.routing.authentication.credential_authenticator import (
     CredentialAuthenticator,
 )
@@ -18,7 +21,6 @@ from bundlemcp.api.mcp.routing.authentication.oauth_bearer_authenticator import 
 )
 from bundlemcp.application.auth.auth_service import AuthService
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
-from bundlemcp.domain.access.caller_identity import CallerIdentity
 from bundlemcp.domain.bundles.bundle_view import BundleView
 from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.shared.secret_hasher import SecretHasher
@@ -55,13 +57,20 @@ class EndpointAuthentication:
 
     async def authenticate(
         self, request: Request, uow: UnitOfWork, view: BundleView
-    ) -> CallerIdentity | None:
-        """The first identity an accepted authenticator can vouch for, else None."""
+    ) -> AuthenticationOutcome:
+        """The first identity an accepted authenticator vouches for.
+
+        Failing that, the holder of a valid credential this endpoint is not
+        entitled to, if one was presented; else nobody.
+        """
         auth = AuthService(uow, clock=self._clock, hasher=self._hasher)
+        forbidden: AuthenticationOutcome | None = None
         for authenticator in self._authenticators:
             if not view.endpoint.accepts(authenticator.mode):
                 continue
-            identity = await authenticator.authenticate(request, view, auth)
-            if identity is not None:
-                return identity
-        return None
+            outcome = await authenticator.authenticate(request, view, auth)
+            if outcome.identity is not None:
+                return outcome
+            if outcome.forbidden is not None and forbidden is None:
+                forbidden = outcome
+        return forbidden or AuthenticationOutcome.nobody()
