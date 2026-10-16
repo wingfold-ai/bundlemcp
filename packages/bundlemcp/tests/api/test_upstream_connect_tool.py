@@ -5,7 +5,6 @@ connect tool, calls it for the link, connects in the browser, and from then on
 sees the server's tools instead.
 """
 
-import asyncio
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
@@ -30,9 +29,8 @@ from bundlemcp.infrastructure.postgres.rows.user_row import UserRow
 from cryptography.fernet import Fernet
 from fastmcp import Client, FastMCP
 from mcp.types import CLIENT_CAPABILITIES_META_KEY, PROTOCOL_VERSION_META_KEY
-from sqlmodel import select
 
-from tests.conftest import hermetic_settings, serving
+from tests.conftest import background_probes_done, hermetic_settings, serving
 
 KEY = Fernet.generate_key().decode()
 PUBLIC_URL = "http://gw"
@@ -196,11 +194,7 @@ async def test_connecting_discovers_tools_and_retires_the_connect_tool(engine, r
         callback = await http.get("/oauth/upstream/callback", params={"code": "c", "state": state})
         assert callback.status_code == 200, callback.text
 
-        for _ in range(50):  # discovery runs in the background after the callback
-            async with session_factory(engine)() as db:
-                if (await db.execute(select(ToolRow))).first() is not None:
-                    break
-            await asyncio.sleep(0.02)
+        await background_probes_done()  # discovery runs in the background after the callback
         assert await _tool_names(http, session) == ["seo__keyword_volume"]
     assert {"Authorization": "Bearer seo-user-token"} in factory.headers
 

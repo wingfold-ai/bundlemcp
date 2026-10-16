@@ -5,6 +5,7 @@ overrides, the ASGI client and the lifespan. A suite that needs a variation
 passes it in rather than copying the wiring.
 """
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -33,6 +34,21 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 SERVICE_KEY = generate_token(API_KEY_PREFIX)
 ENDPOINT_KEY = generate_token(API_KEY_PREFIX)
+
+
+async def background_probes_done() -> None:
+    """Wait for every discovery probe running in the background to finish.
+
+    Tests await the probe instead of polling for its result: the hermetic sqlite
+    database is one shared connection, so a read made while a probe is writing
+    sees its uncommitted rows and then ends the probe's transaction with its own.
+    """
+    probes = [
+        task
+        for task in asyncio.all_tasks()
+        if task.get_coro().__qualname__.endswith("._probe_quietly")  # type: ignore[union-attr]
+    ]
+    await asyncio.gather(*probes)
 
 
 def hermetic_settings(**extra: Any) -> Settings:

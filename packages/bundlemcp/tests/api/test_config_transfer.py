@@ -40,6 +40,7 @@ async def _configure(http, engine) -> None:
         "name": "weather",
         "url": "http://weather/mcp",
         "static_headers": {"Authorization": SECRET},
+        "listing_snapshot": "shared",
     }
     assert (await http.put("/api/v1/upstreams/weather", json=weather)).status_code == 200
     # the create's background probe shares sqlite's one connection; let it finish first
@@ -75,7 +76,8 @@ async def _configure(http, engine) -> None:
 
 
 async def test_mgmt17_export_lists_every_resource_by_name(gateway, engine):
-    """MGMT-17, UPS-16, BND-32: the document names every resource, and bootstrap accepts it."""
+    """MGMT-17, UPS-16, UPS-38, BND-32: the document names every resource with its settings, and
+    bootstrap accepts it."""
     http, _ = gateway
     await _configure(http, engine)
     resp = await http.get("/api/v1/export")
@@ -83,6 +85,7 @@ async def test_mgmt17_export_lists_every_resource_by_name(gateway, engine):
     doc = resp.json()
     assert doc["version"] == 1 and "servers" not in doc
     assert [u["name"] for u in doc["upstreams"]] == ["weather"]
+    assert doc["upstreams"][0]["listing_snapshot"] == "shared"
     (b1,) = doc["bundles"]
     assert b1["upstreams"] == [
         {

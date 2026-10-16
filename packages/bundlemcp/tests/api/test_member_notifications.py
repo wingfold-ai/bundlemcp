@@ -12,6 +12,9 @@ from typing import Any
 
 import pytest
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
+from bundlemcp.domain.servers.listing_kind import ListingKind
+from bundlemcp.domain.servers.listing_snapshot_mode import ListingSnapshotMode
+from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.shared.secrets import display_prefix, hash_token
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
@@ -19,6 +22,7 @@ from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
 from bundlemcp.infrastructure.postgres.rows.bundle_server_row import BundleServerRow
 from bundlemcp.infrastructure.postgres.rows.endpoint_row import EndpointRow
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
+from bundlemcp.infrastructure.postgres.rows.member_listing_row import MemberListingRow
 from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
 from bundlemcp.main.app import create_app
 from bundlemcp.main.composition_overrides import CompositionOverrides
@@ -31,6 +35,7 @@ from mcp.types import (
     CLIENT_INFO_META_KEY,
     PROTOCOL_VERSION_META_KEY,
 )
+from sqlmodel import select
 
 from tests.conftest import ENDPOINT_KEY, hermetic_settings
 from tests.loopback_upstream import RecordingUpstream, serving_app, serving_upstream
@@ -358,3 +363,49 @@ async def test_prot17_listen_relays_updates_of_subscribed_resources(engine, redi
     assert ack["params"]["notifications"]["resourceSubscriptions"] == [REPORT]
     assert update["params"]["uri"] == REPORT
     assert update["params"]["_meta"][SUBSCRIPTION_ID_META_KEY] == "sub-1"
+
+
+async def test_prot10_prompt_list_change_refreshes_snapshot(engine, redis, upstream):
+    """PROT-10, BND-8: a member's prompt list change re-lists it before clients are told, so the
+    next prompts/list is served the new listing without asking the member again."""
+
+    @upstream.server.prompt(name="greet")
+    def greet() -> str:
+        return "hello"
+
+    async with session_factory(engine)() as db:
+        server = (await db.execute(select(McpServerRow))).scalar_one()
+        server.listing_snapshot = ListingSnapshotMode.SHARED
+        server.capabilities = {**CAPABILITIES, "prompts": {"listChanged": True}}
+        db.add(server)
+        db.add(
+            MemberListingRow(
+                server_id=server.id,
+                kind=ListingKind.PROMPTS,
+                entries=[{"name": "greet"}],
+                listing_hash="seeded",
+                listed_at=utcnow(),
+            )
+        )
+        await db.commit()
+
+    async with _gateway(engine, redis) as http:
+        session = await _initialize(http)
+        await _say(http, session)  # some session to the member is held
+        listed = await _rpc(http, session, "prompts/list", {})
+        assert [p["name"] for p in listed["result"]["prompts"]] == ["echo__greet"]
+        assert upstream.recording.calls("prompts/list") == []
+
+        @upstream.server.prompt(name="farewell")
+        def farewell() -> str:
+            return "bye"
+
+        stream = await _get_stream(http, session)
+        await upstream.announce(types.PromptListChangedNotification())
+        await stream.wait_for("notifications/prompts/list_changed")
+        await stream.close()
+        relisted = len(upstream.recording.calls("prompts/list"))
+        listed = await _rpc(http, session, "prompts/list", {}, id_=3)
+    assert [p["name"] for p in listed["result"]["prompts"]] == ["echo__greet", "echo__farewell"]
+    assert relisted >= 1
+    assert len(upstream.recording.calls("prompts/list")) == relisted

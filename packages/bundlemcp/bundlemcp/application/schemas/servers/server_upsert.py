@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from bundlemcp.domain.servers.forward_header_rules import is_forwardable
 from bundlemcp.domain.servers.identity_mode import IdentityMode
+from bundlemcp.domain.servers.listing_snapshot_mode import ListingSnapshotMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.domain.shared.resource_names import ServerName
 
@@ -59,6 +60,17 @@ class ServerUpsert(BaseModel):
         "the handshake, for servers whose tools need server-initiated requests), or a "
         "revision date such as '2026-07-28' to pin that revision. Omitted on create it is "
         "'auto'; omitted on update, the stored value is kept",
+    )
+    listing_snapshot: ListingSnapshotMode | None = Field(
+        default=None,
+        description="How prompts/list, resources/list and resources/templates/list are answered "
+        "for this server's prompts and resources: 'auto' serves the listing stored at its last "
+        "discovery when the server marked it public, or gave no cache scope and is sent nothing "
+        "that depends on the caller (no forwarded headers, no X-MCP-User, no per-user or "
+        "delegated tokens); 'shared' serves the stored listing to every caller, for a server that "
+        "lists the same for everyone but is sent the caller's identity or marks its results "
+        "private by default; 'live' always asks the server. Omitted on create it is 'auto'; "
+        "omitted on update, the stored value is kept. Changing it does not contact the server",
     )
     transport: Literal["streamable-http"] | None = Field(
         default=None,

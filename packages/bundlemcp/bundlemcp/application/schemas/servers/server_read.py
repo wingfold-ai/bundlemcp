@@ -8,6 +8,7 @@ from bundlemcp.application.schemas.common.entity_read import EntityRead
 from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.identity_mode import IdentityMode
+from bundlemcp.domain.servers.listing_snapshot_mode import ListingSnapshotMode
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 
@@ -46,6 +47,12 @@ class ServerRead(EntityRead):
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
         "(probe server/discover, fall back to initialize), 'legacy' (always initialize), "
         "or a pinned revision date such as '2026-07-28'",
+    )
+    listing_snapshot: ListingSnapshotMode = Field(
+        description="How this server's prompt, resource and resource-template lists are "
+        "answered: 'auto' (from the listing stored at discovery when every caller may be shown "
+        "it), 'shared' (from the stored listing, for every caller) or 'live' "
+        "(always asking the server)",
     )
     protocol_version: str | None = Field(
         description="MCP revision negotiated at the last successful probe; null until the "

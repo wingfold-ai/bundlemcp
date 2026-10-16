@@ -59,7 +59,7 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0040](0040-upstream-client-identification.md) | The gateway identifies itself upstream in the MCP spec's order | accepted |
 | [0041](0041-delegated-upstream-tokens.md) | Delegated tokens replace token passthrough for identity-aware upstreams | accepted |
 | [0042](0042-http-metering-hook-and-outcome-kinds.md) | The metering hook can run out of process, and reports outcome kinds | accepted (amended by 0050) |
-| [0043](0043-contact-upstreams-only-with-a-reason.md) | The gateway contacts an upstream only when it has a reason to | accepted |
+| [0043](0043-contact-upstreams-only-with-a-reason.md) | The gateway contacts an upstream only when it has a reason to | accepted (amended by 0059) |
 | [0044](0044-bundle-owned-prompts-and-resources.md) | Bundles own prompts and resources, served by the gateway | accepted |
 | [0045](0045-upstreams-on-the-published-surface.md) | The published surface says "upstreams" | accepted |
 | [0046](0046-profiles-as-registered-presets-and-tool-pipeline-stages.md) | Profiles are registered presets; the served tool set is built by ordered stages | accepted (amended by 0050) |
@@ -72,6 +72,7 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0053](0053-audit-durability-and-the-idempotency-key-join.md) | The audit log is written durably, names every loss by idempotency key, and is purged by retention | accepted |
 | [0054](0054-upstream-session-pooling.md) | Upstream sessions are pooled per replica and continued from the session record | accepted |
 | [0055](0055-export-and-bootstrap-share-one-document.md) | Export, import and bootstrap share one document, with secrets as placeholders | accepted |
-| [0056](0056-member-listings-cached-for-curation-only.md) | Members' prompts and resources are cached at discovery, for curation only | accepted |
+| [0056](0056-member-listings-cached-for-curation-only.md) | Members' prompts and resources are cached at discovery, for curation only | accepted (amended by 0059) |
 | [0057](0057-live-logs-through-a-capped-valkey-stream.md) | Live logs fan out through a capped Valkey stream | accepted |
 | [0058](0058-inspector-proxied-by-the-management-api.md) | The inspector is proxied by the management API, and reaches endpoints in-process | accepted |
+| [0059](0059-member-lists-served-from-the-discovery-snapshot.md) | Members' prompt and resource lists are served from the discovery snapshot | accepted |

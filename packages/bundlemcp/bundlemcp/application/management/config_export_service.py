@@ -90,6 +90,7 @@ class ConfigExportService:
             identity_mode=server.identity_mode,
             send_identity_header=server.send_identity_header,
             protocol_mode=server.protocol_mode,
+            listing_snapshot=server.listing_snapshot,
             upstream_oauth=await self._client(server, include_secrets),
         )
 

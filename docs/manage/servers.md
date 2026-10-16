@@ -97,6 +97,7 @@ repeatedly `PUT`ting desired state.
 | `send_identity_header` | derived | Inject `X-MCP-User` with the caller's identity. Omitted on create: on for a host on the gateway's own network (dotless names, `.local`, `.internal`, `.svc`, private addresses), off for public hosts. Omitted on update: unchanged. |
 | `identity_mode` | `shared` | `shared` or `per_user`; only meaningful with upstream OAuth. |
 | `protocol_mode` | `auto` | `auto`, `legacy`, or a pinned revision such as `2026-07-28`. Omitted on update: unchanged. |
+| `listing_snapshot` | `auto` | `auto`, `shared` or `live`: whether prompt and resource lists are served from what discovery stored ([Prompt and resource lists](#prompt-and-resource-lists)). Omitted on update: unchanged. Changing it does not probe the server. |
 | `transport` | omitted | Accepted for compatibility; only `streamable-http` is valid. |
 | `force` | `false` | Acknowledge a rename that would otherwise be rejected. |
 
@@ -273,11 +274,13 @@ request instead.
 tools were discovered and how many changed: new, redefined, gone stale or back again. A discovery that finds exactly
 what is cached writes no tool and tells no client to re-list.
 
-When the upstream advertises prompts or resources, the same discovery also lists them and caches their names, URIs,
-titles and descriptions — never prompt messages or resource content — for per-bundle curation
-([Bundles](/manage/bundles#curating-members-prompts-and-resources)). The cache is never served: clients always get the
-member's live lists. A listing that fails leaves the cache as it was, and one longer than 500 entries is cached cut to
-500 and logged as `discovery.listing_truncated`.
+When the upstream advertises prompts or resources, the same discovery also lists its prompts, resources and resource
+templates, to the last page. Their names, URIs, titles and descriptions are cached for per-bundle curation
+([Bundles](/manage/bundles#curating-members-prompts-and-resources)). Each whole listing is also stored as the server
+listed it, which is what clients are served (see [Prompt and resource lists](#prompt-and-resource-lists)). Neither
+holds prompt messages or resource content. A listing that fails leaves both as they were. One longer than 500
+entries is cached cut to 500, is not served from storage, and is logged as `discovery.listing_truncated`. A discovery
+that finds a listing changed tells the clients of the server's bundles to list prompts or resources again.
 
 Creating a server probes it in the background. Updating one probes it only when the update changes how the upstream is
 reached — `url`, `static_headers`, `forward_headers`, `auth_mode`, `identity_mode`, `send_identity_header` or
@@ -288,6 +291,34 @@ The gateway also re-discovers every server on its own every `BUNDLEMCP_DISCOVERY
 minutes when the variable is unset, never when it is `0`. A server you registered before its upstream was reachable
 therefore gets its tools without a manual refresh, and a server whose tools change is picked up within one interval. Use
 the refresh endpoint when you do not want to wait.
+
+### Prompt and resource lists {#prompt-and-resource-lists}
+
+`prompts/list`, `resources/list` and `resources/templates/list` are answered from the listing discovery stored, without
+contacting the server, when every caller may be shown that listing. A server that scales to zero then stays asleep
+while a client connects and lists everything; only `tools/call`, `prompts/get`, `resources/read` and completions wake
+it. When the stored listing may not be shared, the server is asked live, with the caller's headers, as before.
+
+`listing_snapshot` decides when a listing may be shared:
+
+| Value | Shared when |
+|---|---|
+| `auto` (default) | The server marked the listing `cacheScope: public`; never when it marked it `private`. Without a scope (servers before revision 2026-07-28): when nothing the server is sent depends on the caller, meaning no `forward_headers`, no `send_identity_header`, and no per-user or delegated tokens. |
+| `shared` | Always. For a server that lists the same for everyone but is sent the caller's identity, or that marks every result `private` by default. |
+| `live` | Never; the server is always asked. |
+
+Two common cases need `shared`:
+
+- **Servers on the gateway's own network** get `send_identity_header` by default, so under `auto` their unscoped
+  listings are not shared.
+- **FastMCP and other MCP Python SDK servers** on revision 2026-07-28 mark every list `private` unless their author
+  sets a scope (`FastMCP(cache_ttl=..., cache_scope="public")`).
+
+A stored listing is replaced by the server's next discovery, or right away when the server sends
+`notifications/prompts/list_changed` or `notifications/resources/list_changed` on a pooled session. A server whose
+lists change without telling the gateway is served its old listing until then. After upgrading to a version with
+stored listings, existing servers are listed live until their next discovery; run `:refresh-tools` once per server, or
+wait for the periodic refresh.
 
 ### Stale tools
 

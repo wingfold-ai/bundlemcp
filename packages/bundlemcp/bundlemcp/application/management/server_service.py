@@ -63,6 +63,8 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
             server.send_identity_header = body.send_identity_header
         if body.protocol_mode is not None:
             server.protocol_mode = body.protocol_mode
+        if body.listing_snapshot is not None:
+            server.listing_snapshot = body.listing_snapshot
         if not created:
             await self._policy.ensure_identity_switch_allowed(server)
             await self._ensure_grant_allows_identity(server)

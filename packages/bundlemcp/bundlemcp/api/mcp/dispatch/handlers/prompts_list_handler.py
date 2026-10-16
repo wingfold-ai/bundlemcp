@@ -11,9 +11,9 @@ from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.domain.bundles.member_entry_ref import MemberEntryRef
 from bundlemcp.domain.bundles.presented_name import PresentedName
+from bundlemcp.domain.servers.listing_kind import ListingKind
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
-from bundlemcp.domain.servers.server_capability import ServerCapability
 
 
 class PromptsListHandler:
@@ -42,8 +42,7 @@ class PromptsListHandler:
         prompts += await self._fanout.merged(
             ctx,
             lambda client: client.list_prompts(),
-            capability=ServerCapability.PROMPTS,
-            key="name",
+            listing=ListingKind.PROMPTS,
             present=lambda server, entry: self._presented(ctx, server, entry),
         )
         return rpc_result(

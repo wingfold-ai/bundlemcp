@@ -60,6 +60,7 @@ const url = ref("");
 const description = ref("");
 const authMode = ref<"none" | "static_headers" | "upstream_oauth" | "delegated_token">("none");
 const protocolMode = ref("auto");
+const listingSnapshot = ref<"auto" | "shared" | "live">("auto");
 const identityMode = ref<"shared" | "per_user">("shared");
 const sendIdentityHeader = ref(true);
 const fwdRows = ref<{ key: string; val: string }[]>([]);
@@ -75,6 +76,7 @@ function seedServer(data: ServerRead | null) {
   identityMode.value = data.identity_mode as typeof identityMode.value;
   sendIdentityHeader.value = data.send_identity_header;
   protocolMode.value = data.protocol_mode;
+  listingSnapshot.value = data.listing_snapshot;
   fwdRows.value = Object.entries(data.forward_headers).map(([key, val]) => ({ key, val }));
   staticHeaderNames.value = data.static_header_names ?? [];
   hdrRows.value = [];
@@ -129,6 +131,7 @@ async function saveServer() {
         identity_mode: authMode.value === "upstream_oauth" ? identityMode.value : "shared",
         send_identity_header: sendIdentityHeader.value,
         protocol_mode: protocolMode.value,
+        listing_snapshot: listingSnapshot.value,
         forward_headers,
         static_headers,
       },
@@ -510,6 +513,24 @@ async function deleteServer() {
               <option value="legacy">legacy — always the initialize handshake</option>
               <option value="2026-07-28">pin 2026-07-28</option>
             </select>
+          </div>
+          <div class="mt-2">
+            <label class="wf-label" for="input-listing-snapshot">Prompt and resource lists</label>
+            <select
+              id="input-listing-snapshot"
+              v-model="listingSnapshot"
+              class="wf-input"
+              data-testid="input-listing-snapshot"
+            >
+              <option value="auto">auto — stored listing when it is the same for every caller</option>
+              <option value="shared">shared — stored listing for every caller</option>
+              <option value="live">live — always ask the server</option>
+            </select>
+            <p class="wf-help">
+              Lists served from what discovery stored leave a server that scales to zero asleep
+              when a client connects. Choose shared when the server is sent the caller's identity
+              but lists the same prompts and resources for everyone.
+            </p>
           </div>
         </details>
 
