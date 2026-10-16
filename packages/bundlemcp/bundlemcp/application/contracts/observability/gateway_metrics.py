@@ -17,6 +17,14 @@ class RateLimitScope(StrEnum):
     CLIENT = "client"
 
 
+class AuditDropReason(StrEnum):
+    """Why an audit record was never written."""
+
+    OVERFLOW = "overflow"
+    WRITE_FAILED = "write_failed"
+    SHUTDOWN = "shutdown"
+
+
 @runtime_checkable
 class GatewayMetrics(Protocol):
     """Every fact the gateway counts, one method each.
@@ -52,4 +60,8 @@ class GatewayMetrics(Protocol):
 
     def tools_list_degraded(self, *, endpoint: str, server: str) -> None:
         """A tools/list included a member upstream whose health is error."""
+        ...
+
+    def audit_dropped(self, *, reason: AuditDropReason) -> None:
+        """An audit record could not be written and is lost."""
         ...

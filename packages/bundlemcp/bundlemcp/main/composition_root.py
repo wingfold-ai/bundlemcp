@@ -199,7 +199,15 @@ class CompositionRoot:
             diagnoser=diagnoser,
         )
 
-        audit = QueuedAuditWriter(sessions)
+        # the gauges read the stream registry and the audit queue at scrape time
+        prometheus = PrometheusMetrics(
+            open_streams=lambda: len(registry.broadcast_streams()),
+            audit_queue_depth=lambda: audit.queue_depth,
+            store_health=StoreHealth(sessions, redis).check,
+        )
+        metrics = overrides.metrics or prometheus  # metric seam
+
+        audit = QueuedAuditWriter(sessions, metrics)
         await audit.start()
         self._stack.push_async_callback(audit.stop)
 
@@ -211,12 +219,6 @@ class CompositionRoot:
         self._stack.push_async_callback(signals.stop)
         session_store = ValkeySessionStore(redis)
 
-        prometheus = PrometheusMetrics(
-            open_streams=lambda: len(registry.broadcast_streams()),
-            audit_queue_depth=lambda: audit.queue_depth,
-            store_health=StoreHealth(sessions, redis).check,
-        )
-        metrics = overrides.metrics or prometheus  # metric seam
         profiles = overrides.profiles or ProfileCatalog.builtin()
         auth_failure_limiter = overrides.auth_failure_limiter or ValkeyAuthFailureLimiter(
             redis,

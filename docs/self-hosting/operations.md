@@ -60,6 +60,7 @@ scrape_configs:
 | `bundlemcp_metering_denies_total` | `endpoint` | Calls the metering hook denied |
 | `bundlemcp_tools_list_degraded_total` | `endpoint`, `server` | `tools/list` answers that listed an unhealthy member's cached tools |
 | `bundlemcp_open_streams`, `bundlemcp_audit_queue_depth` | — | Notification streams this replica holds; audit records waiting to be written |
+| `bundlemcp_audit_dropped_total` | `reason` (`overflow`, `write_failed`, `shutdown`) | Audit records never written; each is also logged with its idempotency key |
 | `bundlemcp_store_up` | `store` (`postgres`, `valkey`) | `1` when the store answered its last check, checked at most every 5 s |
 
 No label carries a caller, a key, a header value, a tool argument or a client IP. Alerts worth having:

@@ -73,6 +73,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit-records:export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Audit Records
+         * @description Every record the filters match, newest first, as CSV; the list's filters, no paging.
+         */
+        get: operations["export_audit_records_api_v1_audit_records_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bundles": {
         parameters: {
             query?: never;
@@ -2948,6 +2968,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Page_AuditRecordRead_"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_audit_records_api_v1_audit_records_export_get: {
+        parameters: {
+            query?: {
+                created_from?: string | null;
+                created_to?: string | null;
+                endpoint_name?: string | null;
+                bundle_name?: string | null;
+                server_name?: string | null;
+                tool_name?: string | null;
+                user_id?: string | null;
+                api_key_id?: string | null;
+                status?: components["schemas"]["AuditStatus"] | null;
+                idempotency_key?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
