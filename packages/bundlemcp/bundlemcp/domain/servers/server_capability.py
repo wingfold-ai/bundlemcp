@@ -11,3 +11,4 @@ class ServerCapability(StrEnum):
     PROMPTS = "prompts"
     RESOURCES = "resources"
     COMPLETIONS = "completions"
+    LOGGING = "logging"

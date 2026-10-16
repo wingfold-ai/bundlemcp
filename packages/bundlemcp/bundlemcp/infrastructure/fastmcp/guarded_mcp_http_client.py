@@ -21,6 +21,7 @@ def guarded_mcp_http_client(
     *,
     response_cap: Callable[[], int] | None = None,
     log: ResponseLog | None = None,
+    wrap: Callable[[httpx2.AsyncBaseTransport], httpx2.AsyncBaseTransport] | None = None,
 ) -> McpHttpClientFactory:
     """The MCP SDK's client factory, with every connection passing the egress policy.
 
@@ -34,7 +35,8 @@ def guarded_mcp_http_client(
     the client would then follow cross-origin redirects the SDK's own client
     does not. Each followed hop opens its connection through the same guard.
     ``trust_env`` is off so a proxy from the environment cannot route around
-    the policy.
+    the policy. ``wrap``, when given, is the outermost layer around the
+    transport.
     """
 
     def factory(
@@ -50,6 +52,8 @@ def guarded_mcp_http_client(
         )
         if response_cap is not None:
             transport = CappedResponses(transport, response_cap, log)
+        if wrap is not None:
+            transport = wrap(transport)
         return httpx2.AsyncClient(
             headers=headers,
             timeout=timeout

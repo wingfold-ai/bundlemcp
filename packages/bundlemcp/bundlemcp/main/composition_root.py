@@ -42,6 +42,10 @@ from bundlemcp.application.oauth_server import (
 from bundlemcp.application.serving.list_changed_notifier import ListChangedNotifier
 from bundlemcp.application.serving.replica_drain import ReplicaDrain
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
+from bundlemcp.application.serving.upstream_notification_router import (
+    UpstreamNotificationRouter,
+)
+from bundlemcp.application.sessions.expired_session_release import ExpiredSessionRelease
 from bundlemcp.application.sessions.session_sweeper import SessionSweeper
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.application.upstream_oauth.secret_reencryption import SecretReencryption
@@ -58,6 +62,11 @@ from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
 from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.crypto.token_cipher import token_cipher
 from bundlemcp.infrastructure.fastmcp.client_factory import default_client_factory
+from bundlemcp.infrastructure.fastmcp.per_call_upstream_sessions import PerCallUpstreamSessions
+from bundlemcp.infrastructure.fastmcp.pooled_upstream_sessions import (
+    PooledUpstreamSessions,
+    PoolLimits,
+)
 from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
 from bundlemcp.infrastructure.httpx.client_metadata_fetcher import HttpxClientMetadataFetcher
 from bundlemcp.infrastructure.httpx.upstream_oauth_provider import HttpxUpstreamProvider
@@ -83,6 +92,9 @@ from bundlemcp.infrastructure.valkey.invalidation_subscriber import Invalidation
 from bundlemcp.infrastructure.valkey.paused_invocations import ValkeyPausedInvocations
 from bundlemcp.infrastructure.valkey.rate_limiter import ValkeyRateLimiter
 from bundlemcp.infrastructure.valkey.refresh_lock import ValkeyRefreshLock
+from bundlemcp.infrastructure.valkey.resource_subscription_index import (
+    ValkeyResourceSubscriptionIndex,
+)
 from bundlemcp.infrastructure.valkey.session_store import ValkeySessionStore
 from bundlemcp.infrastructure.valkey.signal_bus import ValkeySignalBus
 from bundlemcp.infrastructure.valkey.stream_presence_store import ValkeyStreamPresence
@@ -218,6 +230,29 @@ class CompositionRoot:
         await signals.start()
         self._stack.push_async_callback(signals.stop)
         session_store = ValkeySessionStore(redis)
+        resource_subscriptions = ValkeyResourceSubscriptionIndex(redis)
+        upstream_sessions: PooledUpstreamSessions | PerCallUpstreamSessions
+        if settings.upstream_pooling_enabled:
+            upstream_sessions = PooledUpstreamSessions(
+                client_factory,
+                lambda: PoolLimits(
+                    total=runtime_config.current("upstream_sessions_max"),
+                    per_server=runtime_config.current("upstream_sessions_per_server_max"),
+                    idle_timeout=runtime_config.current("upstream_session_idle_timeout"),
+                ),
+                UpstreamNotificationRouter(
+                    units,
+                    discovery,
+                    ValkeyRefreshLock(redis),
+                    resource_subscriptions,
+                    session_store,
+                    signals,
+                ),
+            )
+            upstream_sessions.start()
+        else:
+            upstream_sessions = PerCallUpstreamSessions(client_factory)
+        self._stack.push_async_callback(upstream_sessions.close)
 
         profiles = overrides.profiles or ProfileCatalog.builtin()
         auth_failure_limiter = overrides.auth_failure_limiter or ValkeyAuthFailureLimiter(
@@ -246,7 +281,8 @@ class CompositionRoot:
             metering=metering,
             paused_invocations=paused_invocations,
             audit=audit,
-            client_factory=client_factory,
+            upstream_sessions=upstream_sessions,
+            resource_subscriptions=resource_subscriptions,
             runtime_config=runtime_config,
             upstream_health=upstream_health,
             tracer=tracer,
@@ -276,6 +312,9 @@ class CompositionRoot:
         # a gap only drops the cache: the next config read reloads it, snapshot included,
         # without a load racing the requests that are already being served
         subscriber.on_reconnect_flush(runtime_config.flush)
+        # a gap may have hidden a server change, so no pooled transport is trusted after one
+        subscriber.on_reconnect_flush(upstream_sessions.invalidate_all)
+        subscriber.on_event(self._server_change(upstream_sessions))
         subscriber.on_event(self._config_refresh(runtime_config))
         subscriber.on_event(ListChangedNotifier(registry).on_invalidation)
         await subscriber.start()
@@ -312,7 +351,13 @@ class CompositionRoot:
 
         # a session idle past session_lifetime is removed on one replica per interval
         session_sweep = SessionSweepJob(
-            SessionSweeper(session_store, runtime_config, clock), ValkeyRefreshLock(redis)
+            SessionSweeper(
+                session_store,
+                runtime_config,
+                clock,
+                ExpiredSessionRelease(units, upstream_sessions, resource_subscriptions),
+            ),
+            ValkeyRefreshLock(redis),
         )
         session_sweep.start()
         self._stack.callback(session_sweep.stop)
@@ -441,6 +486,14 @@ class CompositionRoot:
             provider.start()
             self._stack.callback(provider.stop)
         return provider
+
+    @staticmethod
+    def _server_change(upstream_sessions: PooledUpstreamSessions | PerCallUpstreamSessions):
+        async def on_event(event) -> None:
+            if event.entity_type == "server":
+                await upstream_sessions.invalidate(event.key)
+
+        return on_event
 
     @staticmethod
     def _config_refresh(runtime_config: RuntimeConfig):

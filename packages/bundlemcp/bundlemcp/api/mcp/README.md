@@ -78,7 +78,8 @@ HTTP POST /{endpoint}/mcp
         │                                      BEFORE metering, so unconnected ≠ debited
         ├─ ToolChain.admit                     MeteringStage: pre_call once per invocation;
         │                                      deny → refusal → DENIED + error
-        ├─ execute → UpstreamCall.run          per-call FastMCP client → call_tool_mcp
+        ├─ execute → UpstreamCall.run          lease from the pool (bound session) → call_tool_mcp
+        │     ├─ one retry on a fresh session after a 404 or an unsent request (SES-7)
         │     └─ reactive OAuth retry once on upstream 401 (UPS-28)
         └─ finish → ToolChain.settle           MeteringStage post_call + AuditStage → result/error
 ```
@@ -276,11 +277,16 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   IPv4-mapped addresses judged as IPv4), and dials a vetted address, so a rebinding DNS answer or a followed redirect
   cannot reach a blocked address (SEC-1/2, ADR-0048). Violations raise `EgressDenied`. `check_url_allowed` still runs
   first, for an early and clearly worded refusal.
-- **Per-call upstream connections (`infrastructure/fastmcp/client_factory.py`):** the client factory builds a fresh
-  FastMCP `Client`
-  (Streamable-HTTP only) per call, merging `{**server.static_headers, **extra_headers}` so forwarded/OAuth headers win
-  over static ones. No standing upstream connections in v1 — trivially correct identity isolation (ADR-0012), at the
-  cost of some latency.
+- **Pooled upstream sessions (`upstream/upstream_leases.py`, `infrastructure/fastmcp/pooled_upstream_sessions.py`):**
+  every request borrows an upstream session through the `UpstreamSessionPool` contract, keyed by server, config
+  fingerprint, identity key and relay handlers (`domain/sessions/upstream_session_key.py`), one request per session at
+  a time. A handshake session's own calls run on an upstream session dedicated to it, whose binding (id, version,
+  fingerprint) is recorded in the session record, so another replica continues it without `initialize` (SES-5/6).
+  Per-request credentials are injected by the `LeaseHeaders` auth flow, never fixed into the transport. Between calls a
+  session's GET stream (handshake upstreams) or standing `subscriptions/listen` (modern upstreams) feeds
+  `UpstreamNotificationRouter`: list changes re-discover behind a Valkey gate, resource updates go to the streams in
+  the subscription index, log messages to the bound session's GET stream (PROT-7/10/23, ADR-0054).
+  `BUNDLEMCP_UPSTREAM_POOLING_ENABLED=false` swaps in `PerCallUpstreamSessions`.
 - **Identity forwarding (`protocol/header_forwarding.py`, `HeaderForwarding.headers_for`):** applies the server's
   `forward_headers` client→upstream map, skipping a deny-list (`host`, `content-length`, `cookie`, `x-api-key`,
   `mcp-session-id`, any `sec-*`/`proxy-*`) — note `authorization` is *not* denied, so it can be forwarded (the seo-gsc

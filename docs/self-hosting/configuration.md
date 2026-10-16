@@ -120,6 +120,7 @@ claude.ai only.
 | Variable | Default | Meaning |
 |---|---|---|
 | `BUNDLEMCP_LEGACY_PROTOCOL_ENABLED` | `true` | Whether MCP revisions before 2026-07-28 (the `initialize` handshake and sessions) are still served. Switch off once every client speaks the stateless revisions. |
+| `BUNDLEMCP_UPSTREAM_POOLING_ENABLED` | `true` | Whether upstream MCP sessions are kept open and reused across requests. Off, every request opens and closes its own upstream connection, and nothing is heard from a member between calls (list changes, resource updates, log messages). |
 | `BUNDLEMCP_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
 | `BUNDLEMCP_LOG_FORMAT` | `json` | `json` for a log pipeline, `text` for a terminal. Applies to the web server's loggers too. |
 | `BUNDLEMCP_METRICS_ENABLED` | `true` | Serve Prometheus metrics at `/metrics`, readable with a service API key or an admin session; see [Metrics](operations.md#metrics). `false` removes the route. |
@@ -196,6 +197,9 @@ rejects `1`, an integer key rejects `"3"`, and a value outside a key's range is 
 | `refresh_token_lifetime` | `604800` | Seconds a refresh token issued by the gateway's OAuth server may be exchanged. |
 | `max_request_bytes` | `4194304` | Largest request body, in bytes, the gateway reads on `/{endpoint}/mcp` and `/api/v1` (4 MiB). A larger one is answered `413` before it is parsed, whether it declares a `Content-Length` or arrives chunked. Between 65536 and 67108864. Keep your proxy's body limit at or above it. |
 | `max_upstream_response_bytes` | `16777216` | Largest single message, in bytes, accepted from an upstream server (16 MiB). A larger tool result is abandoned and the caller gets an error instead. Between 65536 and 67108864. |
+| `upstream_sessions_max` | `256` | Upstream MCP sessions one replica holds open at once. At the cap the least recently used idle one is closed, identity-free ones first; with none idle a request gets a connection of its own. At least 1. |
+| `upstream_sessions_per_server_max` | `32` | The same cap for each upstream server. At least 1. |
+| `upstream_session_idle_timeout` | `300` | Seconds an unused pooled upstream session stays open before it is closed. At least 1. |
 
 ```bash
 curl -s -X PUT https://gw.example.com/api/v1/config/call_timeout \

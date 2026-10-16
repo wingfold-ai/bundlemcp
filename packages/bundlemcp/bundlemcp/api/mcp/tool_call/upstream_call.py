@@ -5,10 +5,10 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
-from mcp.shared.exceptions import MCPError
 from mcp.types import LOG_LEVEL_META_KEY, InputRequiredResult, InputResponses
 from pydantic import TypeAdapter
 
+from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.relay import ResumeInputs
 from bundlemcp.api.mcp.relay.client_relay import ClientRelay
 from bundlemcp.api.mcp.tool_call.call_outcome import (
@@ -17,15 +17,15 @@ from bundlemcp.api.mcp.tool_call.call_outcome import (
     CallOutcome,
 )
 from bundlemcp.api.mcp.tool_call.call_status import CallStatus
-from bundlemcp.application.contracts.live_state.session_store import SessionStore
-from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
+from bundlemcp.api.mcp.upstream.jsonrpc_code import jsonrpc_code
+from bundlemcp.api.mcp.upstream.upstream_leases import UpstreamLeases
 from bundlemcp.application.serving.call_handle import CallHandle
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
 from bundlemcp.domain.config.call_timeouts import CallTimeouts
 from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.domain.servers.upstream_reach import UpstreamReach
-from bundlemcp.domain.sessions.session_record import SessionRecord
-from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
+from bundlemcp.domain.sessions.upstream_failure import UpstreamFailure
+from bundlemcp.domain.sessions.upstream_retry_policy import UpstreamRetryPolicy
 
 log = structlog.get_logger(__name__)
 
@@ -34,6 +34,9 @@ ProgressCallback = Callable[[float, float | None, str | None], Awaitable[None]]
 WATCHDOG_INTERVAL = 0.05
 
 input_responses_adapter: TypeAdapter[InputResponses] = TypeAdapter(InputResponses)
+
+# a tool call may have side effects, so it is resent only when it cannot have run
+TOOL_CALL_RETRY = UpstreamRetryPolicy(read_only=False)
 
 
 class UpstreamCall:
@@ -44,19 +47,22 @@ class UpstreamCall:
     out regardless of progress. Each is reported as a distinct outcome. A modern
     upstream may also answer that it needs client input, which is an outcome of
     its own rather than a failure.
+
+    A handshake client's call runs on the upstream session bound to its
+    session. When that session expired upstream, or the request never left
+    the gateway, the call is sent once more on a new session, so the client
+    sees no error for an upstream that restarted.
     """
 
     def __init__(
         self,
         *,
-        client_factory: UpstreamClientFactory,
-        sessions: SessionStore,
+        leases: UpstreamLeases,
+        ctx: RequestContext,
         tool: PresentedTool,
         arguments: dict[str, Any],
-        headers: dict[str, str],
-        session: SessionRecord | None,
-        client_capabilities: dict[str, Any],
-        log_level: str | None,
+        forwarded: dict[str, str],
+        credentials: dict[str, str],
         relay: ClientRelay,
         handle: CallHandle | None,
         timeouts: CallTimeouts,
@@ -65,18 +71,15 @@ class UpstreamCall:
         resume: ResumeInputs | None,
     ) -> None:
         # handle is None when the client sent no request id, so nothing can cancel it;
-        # session is None for a modern-era client, which has none to bind to;
         # raw_input_required asks for the upstream's own input_required result instead
         # of letting the client library resolve it through the relay (
         # passthrough); resume carries a retry's answers for the upstream
-        self._client_factory = client_factory
-        self._sessions = sessions
+        self._leases = leases
+        self._ctx = ctx
         self._tool = tool
         self._arguments = arguments
-        self._headers = headers
-        self._session = session
-        self._client_capabilities = client_capabilities
-        self._log_level = log_level
+        self._forwarded = forwarded
+        self._credentials = credentials
         self._relay = relay
         self._handle = handle
         self._timeouts = timeouts
@@ -96,21 +99,36 @@ class UpstreamCall:
             await self._on_progress(progress, total, message)
 
     async def _call(self) -> Any:
-        handlers = self._relay.client_kwargs(self._client_capabilities)
-        client = self._client_factory(
-            self._tool.server, self._headers, observer=self.responses, **handlers
+        fresh = False
+        while True:
+            try:
+                return await self._attempt(fresh=fresh)
+            except Exception as exc:
+                failure = UpstreamFailure.of(self.responses, jsonrpc_code=jsonrpc_code(exc))
+                if not TOOL_CALL_RETRY.allows_retry(failure, retried=fresh):
+                    raise
+                log.info("upstream.call_retried", server=self._tool.server.name, failure=failure)
+                fresh = True
+                self.responses = ResponseLog()
+
+    async def _attempt(self, *, fresh: bool) -> Any:
+        # only capabilities the client advertised are offered upstream
+        handlers = self._relay.client_kwargs(self._ctx.client_capabilities)
+        request = self._leases.request(
+            self._ctx,
+            self._tool.server,
+            forwarded=self._forwarded,
+            credentials=self._credentials,
+            handlers=handlers,
+            bound=True,  # a handshake session's calls run on its own upstream session
+            responses=self.responses,
+            fresh=fresh,
         )
-        async with client:
-            if self._session is not None:  # binding bookkeeping, handshake sessions only
-                await self._sessions.set_binding(
-                    self._session.session_id,
-                    UpstreamBinding(
-                        server_name=self._tool.server.name,
-                        identity_key=self._session.identity.sub,
-                    ),
-                )
+        async with self._leases.lease(request, self._ctx.session) as lease:
+            client = lease.client
             # a modern upstream emits log messages only when asked per request.
-            meta = {LOG_LEVEL_META_KEY: self._log_level} if self._log_level is not None else None
+            level = self._ctx.log_level
+            meta = {LOG_LEVEL_META_KEY: level} if level is not None else None
             if not self._raw_input_required:
                 return await client.call_tool_mcp(
                     self._tool.tool.name,
@@ -201,28 +219,10 @@ class UpstreamCall:
                 error_message=message,
                 code=UPSTREAM_FAILURE,
                 failure_reach=UpstreamReach.of_failure(
-                    self.responses, jsonrpc_code=_jsonrpc_code(exc)
+                    self.responses, jsonrpc_code=jsonrpc_code(exc)
                 ),
             )
         finally:
             watchdog.cancel()
             canceller.cancel()
 
-
-def _jsonrpc_code(exc: BaseException) -> int | None:
-    """The code of the JSON-RPC error anywhere in ``exc``'s chain or groups, if there is one."""
-    pending: list[BaseException] = [exc]
-    seen: set[int] = set()
-    while pending:
-        current = pending.pop()
-        if id(current) in seen:
-            continue
-        seen.add(id(current))
-        if isinstance(current, MCPError):
-            return current.code
-        if isinstance(current, BaseExceptionGroup):
-            pending.extend(current.exceptions)
-        for linked in (current.__cause__, current.__context__):
-            if linked is not None:
-                pending.append(linked)
-    return None

@@ -19,6 +19,11 @@ class ResponseLog(BaseModel):
         description="Whether connecting, sending or reading failed below HTTP: refused or reset "
         "connection, TLS failure, a stream that dropped",
     )
+    unsent: bool = Field(
+        default=False,
+        description="Whether a request could not even be sent: the connection to the upstream "
+        "was never opened, so the upstream cannot have acted on it",
+    )
     oversized_limit: int | None = Field(
         default=None,
         description="The byte cap a single upstream message crossed, once one has; the "
@@ -30,6 +35,10 @@ class ResponseLog(BaseModel):
 
     def record_transport_failure(self) -> None:
         self.transport_failed = True
+
+    def record_unsent(self) -> None:
+        self.transport_failed = True
+        self.unsent = True
 
     def record_oversized(self, limit: int) -> None:
         self.oversized_limit = limit

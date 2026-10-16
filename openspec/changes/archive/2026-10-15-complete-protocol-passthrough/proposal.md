@@ -53,6 +53,6 @@ Four protocol-passthrough requirements hold only in part:
   suite covers; the fixture server is a compose service behind a `conformance` profile.
 - **Docs:** the protocol and troubleshooting pages that describe cancellation and subscriptions; arc42 §11 entry for
   the advertised-but-undelivered capabilities is removed.
-- **Related changes:** [add-upstream-session-pooling](../add-upstream-session-pooling/proposal.md) delivers member list
-  changes and resource updates; when it lands, the PROT-11 rule here advertises them again without another spec
-  change. No ADR: the changes follow ADR-0016 and ADR-0029.
+- **Related changes:** [add-upstream-session-pooling](../2026-10-16-add-upstream-session-pooling/proposal.md) delivers
+  member list changes and resource updates; when it lands, the PROT-11 rule here advertises them again without another
+  spec change. No ADR: the changes follow ADR-0016 and ADR-0029.

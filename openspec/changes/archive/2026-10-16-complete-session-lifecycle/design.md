@@ -49,12 +49,12 @@ lookups and a changed value applies at each session's next activity (SES-10).
 
 `touch` and `create` also `ZADD bmcp:sessions:active {last_active_epoch} {session_id}`. A `SessionSweeper` use case
 (`application/sessions/session_sweeper.py`) runs every 60 s on one replica at a time under a Valkey lease (the UPS-23
-lease pattern) and, for ids scored older than the lifetime: loads the record, releases its upstream bindings through
-the upstream-session pool contract when [add-upstream-session-pooling](../add-upstream-session-pooling/proposal.md) has
-landed, deletes record and index entry, and counts the expiry (a log line `session.expired`, or the OPS-9 metric when
-present). The record's TTL is set to the lifetime plus two sweep intervals, so the sweeper normally expires sessions
-with their bindings in hand, and the TTL removes them if no sweeper runs. Ids whose record is already gone are just
-removed from the index.
+lease pattern) and, for ids scored older than the lifetime: loads the record, releases its upstream bindings through the
+upstream-session pool contract when
+[add-upstream-session-pooling](../2026-10-16-add-upstream-session-pooling/proposal.md) has landed, deletes record and
+index entry, and counts the expiry (a log line `session.expired`, or the OPS-9 metric when present). The record's TTL is
+set to the lifetime plus two sweep intervals, so the sweeper normally expires sessions with their bindings in hand, and
+the TTL removes them if no sweeper runs. Ids whose record is already gone are just removed from the index.
 
 *Alternative:* Valkey keyspace notifications on expiry — fire-and-forget, lost while no subscriber is connected, and the
 record (with its bindings) is already gone when they arrive.

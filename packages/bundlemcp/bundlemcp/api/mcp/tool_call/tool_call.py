@@ -116,7 +116,8 @@ class ToolCall:
             audit=request_audit(ctx, message.param("name", "")).resolved(tool),
             resumed=idempotency_key is not None,
         )
-        self._headers: dict[str, str] = {}
+        self._forwarded: dict[str, str] = {}
+        self._credentials: dict[str, str] = {}
         self._timeouts: CallTimeouts | None = None
         self._handle: CallHandle | None = None
         self._events: CallEvents | None = None
@@ -154,7 +155,7 @@ class ToolCall:
         # the upstreams spec: resolve the upstream bearer BEFORE metering, so an unconnected
         # upstream is never debited.
         try:
-            self._headers = await self._resolve_headers()
+            self._forwarded, self._credentials = await self._resolve_headers()
         except UpstreamOAuthNotConfigured:
             await self._chain.settle(
                 self._call, CallSettlement.failed("upstream OAuth not configured")
@@ -187,15 +188,9 @@ class ToolCall:
             return await StreamedCallResponse(self._message.progress_token).render(self)
         return await BufferedCallResponse().render(self)
 
-    async def _resolve_headers(self) -> dict[str, str]:
-        headers = self._support.header_forwarding.headers_for(
-            self._ctx.request.headers, self._tool.server, self._ctx.identity
-        )
-        upstream = await self._support.credentials.headers_for(
-            self._tool.server, self._ctx.identity, endpoint=self._ctx.view.endpoint.name
-        )
-        headers.update(upstream)  # the upstreams spec: the upstream OAuth bearer wins
-        return headers
+    async def _resolve_headers(self) -> tuple[dict[str, str], dict[str, str]]:
+        # the upstreams spec: the upstream OAuth bearer wins over a forwarded header
+        return await self._support.leases.headers(self._ctx, self._tool.server)
 
     async def _refuse(self, refusal: CallRefusal) -> Response:
         """End the call a stage refused, in words the person behind the client can read."""
@@ -250,7 +245,7 @@ class ToolCall:
         same chain call is reused, so an internal retry does not ask the
         metering hook again.
         """
-        attempt = self._upstream_call(self._headers, on_progress, on_notification)
+        attempt = self._upstream_call(self._credentials, on_progress, on_notification)
         outcome = await attempt.run()
         if outcome.reached_upstream:
             return outcome
@@ -272,9 +267,7 @@ class ToolCall:
             return outcome.model_copy(
                 update={"error_message": self._support.credentials.connect_hint(server)}
             )
-        return await self._upstream_call(
-            {**self._headers, **refreshed}, on_progress, on_notification
-        ).run()
+        return await self._upstream_call(refreshed, on_progress, on_notification).run()
 
     async def _step_up(self, outcome: CallOutcome, scopes: list[str]) -> CallOutcome:
         """Remember the demanded scopes and tell the caller to reconnect."""
@@ -384,7 +377,7 @@ class ToolCall:
 
     def _upstream_call(
         self,
-        headers: dict[str, str],
+        credentials: dict[str, str],
         on_progress: ProgressCallback | None,
         on_notification: NotificationSink | None,
     ) -> UpstreamCall:
@@ -400,15 +393,12 @@ class ToolCall:
             channel=self._channel(),
         )
         return UpstreamCall(
-            client_factory=self._support.client_factory,
-            sessions=self._support.sessions,
+            leases=self._support.leases,
+            ctx=self._ctx,
             tool=self._tool,
             arguments=self._arguments,
-            headers=headers,
-            session=self._ctx.session,
-            # only capabilities the client advertised are offered upstream
-            client_capabilities=self._ctx.client_capabilities,
-            log_level=self._ctx.log_level,
+            forwarded=self._forwarded,
+            credentials=credentials,
             relay=relay,
             handle=self._handle,
             timeouts=self._timeouts,

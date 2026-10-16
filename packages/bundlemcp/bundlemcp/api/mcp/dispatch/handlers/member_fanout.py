@@ -1,32 +1,40 @@
 """Reaching a bundle's member servers for the read-only passthrough methods."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from typing import Any
 
 import structlog
 from fastmcp import Client
 
 from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
-from bundlemcp.api.mcp.protocol.header_forwarding import HeaderForwarding
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.relay.client_relay import ClientRelay
 from bundlemcp.api.mcp.relay.input_channel import InputChannel
+from bundlemcp.api.mcp.upstream.jsonrpc_code import jsonrpc_code
+from bundlemcp.api.mcp.upstream.upstream_leases import UpstreamLeases
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
-from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
+from bundlemcp.application.contracts.upstream.upstream_session_pool import UpstreamLease
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.domain.servers.server_capability import ServerCapability
+from bundlemcp.domain.sessions.upstream_failure import UpstreamFailure
+from bundlemcp.domain.sessions.upstream_retry_policy import UpstreamRetryPolicy
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import UpstreamOAuthNotConfigured
 
 log = structlog.get_logger(__name__)
 
 MemberCall = Callable[[Client], Awaitable[Any]]
+
+# the passthrough methods only read, so a lost connection is worth one more try
+READ_RETRY = UpstreamRetryPolicy(read_only=True)
 
 
 def dump(obj: Any) -> dict[str, Any]:
@@ -44,41 +52,47 @@ class MemberFanout:
 
     def __init__(
         self,
-        client_factory: UpstreamClientFactory,
-        credentials: UpstreamCredentialResolver,
-        header_forwarding: HeaderForwarding,
+        leases: UpstreamLeases,
         registry: StreamRegistry,
         signals: SignalBus,
         presence: StreamPresence,
         runtime_config: RuntimeConfig,
     ) -> None:
-        self._presence = presence
-        self._client_factory = client_factory
-        self._credentials = credentials
-        self._header_forwarding = header_forwarding
+        self._leases = leases
         self._registry = registry
         self._signals = signals
+        self._presence = presence
         self._runtime_config = runtime_config
 
     @property
     def credentials(self) -> UpstreamCredentialResolver:
-        return self._credentials
+        return self._leases.credentials
 
-    async def client_for(
-        self, ctx: RequestContext, server: McpServer, *, channel: InputChannel | None = None
-    ) -> Client:
-        """A client for one member, with forwarded headers and its upstream bearer attached.
+    @property
+    def leases(self) -> UpstreamLeases:
+        return self._leases
+
+    @asynccontextmanager
+    async def lease(
+        self,
+        ctx: RequestContext,
+        server: McpServer,
+        *,
+        channel: InputChannel | None = None,
+        bound: bool = False,
+        responses: ResponseLog | None = None,
+        fresh: bool = False,
+        dedicated_to: str | None = None,
+    ) -> AsyncIterator[UpstreamLease]:
+        """An upstream session for one member, with forwarded headers and its bearer attached.
 
         ``channel`` is how a modern client is asked for the input a handshake
         member requests; without one such a member sees the client as unable to
-        answer.
+        answer. ``bound`` runs the request on the upstream session dedicated to
+        a handshake client's session, for state the member keeps per session;
+        ``dedicated_to`` dedicates one to another client stream instead.
         """
-        headers = self._header_forwarding.headers_for(ctx.request.headers, server, ctx.identity)
-        headers.update(
-            await self._credentials.headers_for(
-                server, ctx.identity, endpoint=ctx.view.endpoint.name
-            )
-        )
+        forwarded, credentials = await self._leases.headers(ctx, server)
         handlers: dict[str, Any] = {}
         if ctx.era is ProtocolEra.SESSION or channel is not None:
             # a handshake client's GET stream answers an upstream's requests
@@ -95,13 +109,42 @@ class MemberFanout:
                 channel=channel,
             )
             handlers = relay.client_kwargs(ctx.client_capabilities)
-        return self._client_factory(server, headers, **handlers)
+        request = self._leases.request(
+            ctx,
+            server,
+            forwarded=forwarded,
+            credentials=credentials,
+            handlers=handlers,
+            bound=bound and ctx.session is not None,
+            responses=responses,
+            fresh=fresh,
+            dedicated_to=dedicated_to,
+        )
+        async with self._leases.lease(request, ctx.session if bound else None) as lease:
+            yield lease
 
-    async def call(self, ctx: RequestContext, server: McpServer, call: MemberCall) -> Any:
-        """Run one call against one member; connection errors propagate to the caller."""
-        client = await self.client_for(ctx, server)
-        async with client:
-            return await call(client)
+    async def call(
+        self, ctx: RequestContext, server: McpServer, call: MemberCall, *, bound: bool = False
+    ) -> Any:
+        """Run one call against one member; connection errors propagate to the caller.
+
+        A read is sent once more when its session expired or its connection was
+        lost, since reading twice changes nothing.
+        """
+        fresh = False
+        while True:
+            responses = ResponseLog()
+            try:
+                async with self.lease(
+                    ctx, server, bound=bound, responses=responses, fresh=fresh
+                ) as lease:
+                    return await call(lease.client)
+            except Exception as exc:
+                failure = UpstreamFailure.of(responses, jsonrpc_code=jsonrpc_code(exc))
+                if not READ_RETRY.allows_retry(failure, retried=fresh):
+                    raise
+                log.info("passthrough.member_retried", server=server.name, failure=failure)
+                fresh = True
 
     @staticmethod
     def members(ctx: RequestContext, capability: ServerCapability) -> list[McpServer]:

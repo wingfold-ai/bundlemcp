@@ -14,12 +14,12 @@ from typing import Any
 from fastmcp.client.elicitation import ElicitResult
 from mcp.types import CreateMessageResult, Root
 
-from bundlemcp.api.mcp.protocol.log_levels import at_least
 from bundlemcp.api.mcp.relay.input_channel import InputChannel
 from bundlemcp.api.mcp.relay.relay_rejected import RelayRejected
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
+from bundlemcp.domain.sessions.log_levels import at_least
 
 NotificationSink = Callable[[dict[str, Any]], Awaitable[None]]
 

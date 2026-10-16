@@ -4,7 +4,10 @@
 Postgres = durable (system of record), Redis = live (sessions, limits, pub/sub). No in-memory-only state a request
 depends on; caches exist only under explicit invalidation
 ([sessions spec](../../openspec/specs/sessions/spec.md)). Explicit degradation matrix for outages
-([SES-14](../../openspec/specs/sessions/spec.md)).
+([SES-14](../../openspec/specs/sessions/spec.md)). Pooled upstream sessions are a per-replica transport cache: the
+session record's binding holds what any replica needs to continue one (upstream session id, version, config
+fingerprint, identity key — never a header value), so losing a replica costs at most an upstream re-initialize
+([SES-5](../../openspec/specs/sessions/spec.md), [ADR-0054](../adr/0054-upstream-session-pooling.md)).
 
 ## Identity
 One `User` per human, provisioned from OIDC `(issuer, sub)` regardless of entry path (admin UI or connector authorize
@@ -28,7 +31,8 @@ background pass that reports when an old key may be dropped ([DEP-9](../../opens
 Structured MCP errors to clients; no silent degradation — partial `tools/list` responses increment a dedicated metric
 ([OPS-11](../../openspec/specs/operations/spec.md)); middleware never swallows errors
 ([PROT-28](../../openspec/specs/protocol/spec.md)); upstream session loss is retried once, then surfaced
-([SES-7](../../openspec/specs/sessions/spec.md)).
+([SES-7](../../openspec/specs/sessions/spec.md)) — a `tools/call` only when the upstream cannot have run it (a 404 for
+its session, or a connection that failed before sending).
 
 ## Observability
 Structured JSON logs (redacted) on standard error, each line of a request carrying its `request_id` (returned as

@@ -82,8 +82,8 @@ mounted at root in `main/app.py`. It returns the adapter's exposition text with 
 - **Audit queue depth:** a callback over the audit writer's queue size.
 - **Upstream in-flight calls:** a gauge incremented/decremented around the upstream call in the tool-call pipeline, per
   server. With per-call clients (ADR-0012) this is what "upstream connection gauge" means today; when pooling lands
-  ([add-upstream-session-pooling](../add-upstream-session-pooling/proposal.md)) the pool reports its open connections
-  into the same gauge.
+  ([add-upstream-session-pooling](../2026-10-16-add-upstream-session-pooling/proposal.md)) the pool reports its open
+  connections into the same gauge.
 - **Store health:** a gauge per store (`postgres`, `valkey`) set by running the existing `ReadinessProbe` checks
   separately at scrape time with a short timeout, cached for 5 s so frequent scrapes do not add load.
 
