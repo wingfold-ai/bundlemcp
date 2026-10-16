@@ -73,6 +73,8 @@ model {
 
   prometheus = external 'Prometheus' {
     description 'Scrapes /metrics on every gateway replica with a service API key'
+  }
+
   otlpCollector = external 'OTLP Collector' {
     description 'Optional: receives traces when OTEL_EXPORTER_OTLP_ENDPOINT is set and the image has the tracing extra'
   }
