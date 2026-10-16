@@ -6,7 +6,7 @@ import structlog
 
 from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
-from bundlemcp.application.errors import NotFoundError
+from bundlemcp.application.errors import ConflictError, NotFoundError
 from bundlemcp.application.schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyRead, Page
 from bundlemcp.domain.access.api_key import ApiKey
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
@@ -43,19 +43,39 @@ class ApiKeyService:
 
     async def create(self, body: ApiKeyCreate) -> ApiKeyCreated:
         """The key value is returned exactly once; only the hash is stored."""
-        value = API_KEY_PREFIX + self._generator.token(32)
+        if await self._keys.by_name(body.name) is not None:
+            raise ConflictError(f"an API key named {body.name!r} already exists (AUTH-23)")
+        value = self.new_value()
         key = self._keys.add(
-            ApiKey(
-                name=body.name,
-                key_hash=self._hasher.digest(value),
-                key_prefix=display_prefix(value),
-                kind=body.kind,
-                endpoint_ids=[str(e) for e in body.endpoint_ids],
-            )
+            self._key(body.name, body.kind, [str(e) for e in body.endpoint_ids], value)
         )
         await self._uow.commit()
         await self._uow.refresh(key)
         return ApiKeyCreated(**ApiKeyRead.from_entity(key).model_dump(), key=value)
+
+    def new_value(self) -> str:
+        """A fresh key value in the ``bmcp_sk_`` format."""
+        return API_KEY_PREFIX + self._generator.token(32)
+
+    def _key(self, name: str, kind: ApiKeyKind, endpoint_ids: list[str], value: str) -> ApiKey:
+        return ApiKey(
+            name=name,
+            key_hash=self._hasher.digest(value),
+            key_prefix=display_prefix(value),
+            kind=kind,
+            endpoint_ids=endpoint_ids,
+        )
+
+    async def exists(self, name: str) -> bool:
+        return await self._keys.by_name(name) is not None
+
+    def provision(self, name: str, kind: ApiKeyKind, endpoint_ids: list[str], value: str) -> None:
+        """Store a key with a value supplied from outside, in the caller's transaction.
+
+        The caller decides that no key of that name exists; the value itself is
+        hashed and never kept.
+        """
+        self._keys.add(self._key(name, kind, endpoint_ids, value))
 
     async def ensure_initial_service_key(self, value: str) -> bool:
         """Provision the operator-supplied service key unless a service key already exists.

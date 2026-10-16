@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from bundlemcp.application.bootstrap.bootstrap_api_key import BootstrapApiKey
 from bundlemcp.application.bootstrap.bootstrap_bundle import BootstrapBundle
 from bundlemcp.application.bootstrap.bootstrap_server import BootstrapServer
 from bundlemcp.application.schemas import EndpointUpsert
@@ -30,3 +31,8 @@ class BootstrapDocument(BaseModel):
         default=[], description="Bundles to create or update, with their membership"
     )
     endpoints: list[EndpointUpsert] = Field(default=[], description="Endpoints to create or update")
+    api_keys: list[BootstrapApiKey] = Field(
+        default=[],
+        description="API keys to provision when no key of that name exists, each by reference to "
+        "its value or generated on first boot",
+    )

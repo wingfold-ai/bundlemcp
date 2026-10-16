@@ -15,7 +15,8 @@ never built.
 - An entry supplies its value in one of two ways (MGMT-10): a reference to an environment variable holding the value —
   the document itself never contains a key value — or `create_if_missing`, where the gateway generates the value and
   prints it once to the startup log.
-- A key is matched by name; an existing key is never overwritten, re-scoped or re-activated by the document.
+- A key is matched by name, and names become unique (AUTH-23); an existing key is never overwritten, re-scoped or
+  re-activated by the document.
 - `BUNDLEMCP_INITIAL_SERVICE_KEY` keeps working exactly as today; ADR-0013 calls it "the MGMT-10 pattern", and it stays
   part of MGMT-10.
 
@@ -27,25 +28,23 @@ None.
 
 ### Modified Capabilities
 
+- `auth`: AUTH-23 (key names are unique; a duplicate create answers 409).
 - `management`: MGMT-8 (the document carries API keys), MGMT-10 (renamed to *API keys at bootstrap*: referenced or
   generated keys from the document, alongside the initial service key; existing keys never overwritten).
 
-## Open decision
+## Decisions
 
-- **Printing a generated key to the startup log.** The original MGMT-10 prints a `create_if_missing` key's value once to
-  the startup log, but OPS-8 and SEC-10 say a secret never appears in logs. The delta here keeps the original wording.
-  Alternatives the maintainers choose between before applying:
-  1. Build it as written, and carve a one-time exception into SEC-10 and OPS-8 (both are modified by other changes —
-     [add-prometheus-metrics](../archive/2026-10-16-add-prometheus-metrics/proposal.md) and
-     [improve-request-observability](../archive/2026-10-16-improve-request-observability/proposal.md) — so the exception
-     lands in whichever of them is applied later).
-  2. Write the generated value to an operator-named file (created `0600`, never overwritten) instead of the log.
-  3. Drop `create_if_missing` and support only environment references.
-- **Natural key.** API key names are not unique today. The delta matches entries by name and treats any existing key
-  with that name as present. Alternative: make key names unique (a migration and a 409 on the create route).
+- **A generated key goes to a file, never to the log.** A `create_if_missing` entry names the file the gateway writes
+  the generated value to, created with mode `0600` and never overwritten; when that file already holds a well-formed
+  value (the store was reset, the file kept), that value is used instead of a new one. SEC-10 and OPS-8 stay as they
+  are: no secret appears in any log line.
+- **API key names are unique.** A key is the document's entry of the same name; the create route answers 409 for a
+  name already taken (AUTH-23), and a migration renames existing duplicates before adding the unique constraint.
 
 ## Impact
 
+- **Migration:** a unique constraint on `api_keys.name`, after renaming existing duplicates
+  (`<name>-<first 8 characters of its id>`).
 - **Code:** `application/bootstrap/` (a new document entry, applied by `BootstrapRunner` after endpoints so scopes
   resolve by name, inside the document's transaction), `application/management/api_key_service.py` (create from a
   supplied value, find by name), and the settings documentation for any new variable.

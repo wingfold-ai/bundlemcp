@@ -6,6 +6,33 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.11] - 2026-10-16
+
+### Added
+
+- Provision API keys from the bootstrap document with a new `api_keys` list. Each entry names a key, its kind and, for
+  an endpoint key, its endpoints by name, and takes its value from an environment variable (`value_from_env`) or
+  generates it on first boot (`create_if_missing`). ([#144](https://github.com/wingfold-ai/bundlemcp/pull/144))
+- A generated bootstrap key is written to the file named by `write_to`, created exclusively with mode `0600` and never
+  overwritten. A file that already holds a key value is reused, and any other existing file fails the document.
+  ([#144](https://github.com/wingfold-ai/bundlemcp/pull/144))
+- A bootstrap key whose name already exists is never overwritten, re-scoped or re-activated. A scope that names an
+  unknown endpoint rolls the whole document back. ([#144](https://github.com/wingfold-ai/bundlemcp/pull/144))
+
+### Changed
+
+- API key names are now unique, and creating a key under a name that is already taken answers 409. A script that created
+  several keys under one name now gets 409 for the second. ([#144](https://github.com/wingfold-ai/bundlemcp/pull/144))
+- A database migration renames existing keys that share a name to `<name>-<first 8 characters of the id>` before it adds
+  the unique constraint. Key values and scopes are untouched. Its downgrade drops the constraint and keeps the new
+  names. ([#144](https://github.com/wingfold-ai/bundlemcp/pull/144))
+
+### Security
+
+- Bootstrap API keys never put a key value in the document or in a log line. An unset or malformed `value_from_env`
+  variable fails the document before anything is written, and the error names the variable, never the value.
+  ([#144](https://github.com/wingfold-ai/bundlemcp/pull/144))
+
 ## [0.1.10] - 2026-10-16
 
 ### Added

@@ -24,12 +24,14 @@ from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
+from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
     InMemoryUnitOfWorkFactory,
 )
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
+from bundlemcp.infrastructure.memory.sequential_secret_generator import SequentialSecretGenerator
 
 from tests.application.upstream_health_on_fakes import health_on
 
@@ -135,6 +137,8 @@ async def test_bootstrap_discovers_its_servers_after_the_commit(uow):
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     ).apply(document)
     assert discovery.probes == [("echo", 1), ("weather", 1)]
 
@@ -156,6 +160,8 @@ async def test_failed_bootstrap_probes_nothing(uow):
             connections=NoUpstreamConnections(),
             profiles=ProfileCatalog.builtin(),
             public_base="http://gw",
+            hasher=Sha256SecretHasher(),
+            generator=SequentialSecretGenerator(),
         ).apply(document)
     assert discovery.probes == []
 
@@ -224,6 +230,8 @@ async def test_reapplied_bootstrap_does_not_probe_working_servers(uow):
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     )
     await runner.apply(document)
     await _mark_reachable(uow, "echo")
@@ -247,6 +255,8 @@ async def test_bootstrap_document_lands_in_one_commit(uow):
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     ).apply(document)
     assert uow.committed == 1
     assert await uow.endpoints.by_name("ep") is not None
@@ -335,6 +345,8 @@ async def test_bnd1_bootstrap_sets_order(uow):
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     ).apply(document)
 
     members = await BundleService(uow, public_base="http://gw").list_members("demo")
