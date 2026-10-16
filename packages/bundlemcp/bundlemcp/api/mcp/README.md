@@ -174,9 +174,22 @@ Discovery is the **only writer of the `Tool` cache** in Postgres; `tools/list` r
 A session is pure data in the RESP store (`infrastructure/valkey/session_store.py`, key `bmcp:session:{id}`), so
 **no request needs the replica that created it.** The record (`SessionRecord`) holds the endpoint/bundle names,
 `auth_method`, `user_id`/`user_email`/`api_key_id`, the negotiated `protocol_version`, the client's `capabilities`, and
-per-server `bindings`. It carries a `version` field; a version mismatch on load deletes the record and forces the client
-to re-init (DEP-6). The idle TTL is a fixed 24 h; `touch` refreshes it, and pings and open GET streams count as
-activity. The runtime setting `session_lifetime` is registered but not read yet, so changing it has no effect.
+per-server `bindings`, plus `created_at` and `last_active_at`. It carries a `version` field; a version mismatch on load
+deletes the record and forces the client to re-init (DEP-6). The idle lifetime is the runtime setting
+`session_lifetime` (`SessionLifetime`, `0` = no expiry), read at each write: `create` and `touch` set the record's TTL
+to it plus two sweep intervals and index the session's last activity in `bmcp:sessions:active`; pings and open GET
+streams count as activity. `SessionSweeper` (`application/sessions/`, run by `SessionSweepJob` under a lease, one
+replica per minute) removes sessions idle past the lifetime, so the TTL is only the backstop.
+
+A notification stream also holds a presence key in Valkey (`StreamPresence`, `bmcp:holder:{stream_id}`), refreshed with
+its keep-alive. `ClientRelay` checks it before sending a handshake client a server-to-client request, and refuses at
+once when no replica holds the stream instead of waiting out the call timeout.
+
+Shutdown is `ReplicaDrain` (`application/serving/replica_drain.py`), started by the gateway entrypoint's
+`GatewayServer` on the stop signal: readiness and the router answer 503 with `Retry-After`, every held stream ends,
+and calls still running just before `BUNDLEMCP_SHUTDOWN_DRAIN_SECONDS` runs out are cancelled through their handles,
+so each answers with an error and is metered `cancelled`. A database that cannot be reached surfaces from the unit of
+work as `StoreUnavailable` and answers 503 the same way.
 
 The split that makes multi-replica work:
 
@@ -244,8 +257,8 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   (`domain/config/config_registry.py`) maps each key to its default and type (`call_timeout`,
   `reset_timeout_on_progress`, `max_total_timeout`, `session_lifetime`, `list_cache_ttl_ms`, `server_error_attempts`,
   `audit_retention_days`, token lifetimes). Unknown keys are rejected. Stored overrides live in `config_entries`;
-  `RuntimeConfig` caches the effective values per replica and `flush`es on invalidation. `session_lifetime` and
-  `audit_retention_days` are registered but nothing reads them yet.
+  `RuntimeConfig` caches the effective values per replica and `flush`es on invalidation, or reads the store on every
+  access with `BUNDLEMCP_CONFIG_CACHE_DISABLED`. `audit_retention_days` is registered but nothing reads it yet.
 - **Audit (`infrastructure/postgres/audit_writer.py`):** `QueuedAuditWriter` owns a bounded in-process queue. `record()`
   is `put_nowait` — fire-and-forget, never blocks or fails the call path; queue overflow is logged with a dropped count
   (OPS-3). A background drain

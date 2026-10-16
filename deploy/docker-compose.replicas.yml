@@ -1,0 +1,31 @@
+# Two gateway replicas behind a round-robin proxy, for the integration suite's
+# restart-under-load, rolling-update and cross-replica propagation tests:
+#
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.replicas.yml up -d --build --wait
+#
+# `gateway` stays on :8000 and `gateway-b` answers on :8002, so a test can change
+# something through one replica and look through the other; `lb` on :8100
+# alternates between them and names the replica in X-Served-By.
+services:
+  gateway-b:
+    extends:
+      file: docker-compose.yml
+      service: gateway
+    # one replica migrates at a time; the second starts on a migrated database
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports: !override
+      - "8002:8000"
+
+  lb:
+    image: caddy:2.10.2-alpine
+    depends_on:
+      gateway:
+        condition: service_healthy
+      gateway-b:
+        condition: service_healthy
+    volumes:
+      - ./Caddyfile.replicas:/etc/caddy/Caddyfile:ro
+    ports:
+      - "8100:80"

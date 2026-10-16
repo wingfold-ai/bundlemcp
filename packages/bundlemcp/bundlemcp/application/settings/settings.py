@@ -91,6 +91,20 @@ class Settings(BaseModel):
         "list, so an allow entry covering the same address wins",
     )
 
+    config_cache_disabled: bool = Field(
+        default=False,
+        description="Read runtime configuration from the database on every access instead of "
+        "caching it per replica. A debugging aid: behaviour is identical, only slower",
+    )
+    shutdown_drain_seconds: int = Field(
+        default=20,
+        ge=1,
+        le=600,
+        description="Seconds a stopping replica lets in-flight requests finish before it exits. "
+        "It reports not ready and refuses new requests at once, ends its notification streams, "
+        "and answers calls still running at the end with an error. Keep the orchestrator's stop "
+        "grace period above it",
+    )
     discovery_refresh_interval: int = Field(
         default=1800,
         ge=0,

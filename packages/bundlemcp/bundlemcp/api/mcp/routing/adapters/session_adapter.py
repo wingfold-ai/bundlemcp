@@ -19,6 +19,7 @@ from bundlemcp.api.mcp.protocol.session_header import SESSION_HEADER
 from bundlemcp.api.mcp.routing.session_stream import SessionStream
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
+from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.domain.sessions.session_record import SessionRecord
 
 
@@ -29,6 +30,7 @@ class SessionMcpAdapter:
         self,
         *,
         sessions: SessionStore,
+        runtime_config: RuntimeConfig,
         signals: SignalBus,
         dialects: DialectRegistry,
         initialize: MethodHandler[EndpointContext],
@@ -36,6 +38,7 @@ class SessionMcpAdapter:
         stream: SessionStream,
     ) -> None:
         self._sessions = sessions
+        self._runtime_config = runtime_config
         self._signals = signals
         self._dialects = dialects
         self._initialize = initialize
@@ -54,7 +57,9 @@ class SessionMcpAdapter:
             return rejected.response
 
         assert request_ctx.session is not None
-        await self._sessions.touch(request_ctx.session.session_id)
+        await self._sessions.touch(
+            request_ctx.session.session_id, await self._runtime_config.session_lifetime()
+        )
         if message.is_response:
             # client reply to server->client request
             if message.id is not None:

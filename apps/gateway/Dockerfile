@@ -11,6 +11,10 @@ COPY packages/ packages/
 RUN uv sync --frozen --no-dev --all-packages --no-editable
 
 FROM python:3.14-slim-bookworm
+# names the build; a new value makes a new image from the cached layers, which is
+# how the integration suite rolls out "a newly built image"
+ARG BUNDLEMCP_BUILD=dev
+LABEL org.opencontainers.image.revision=$BUNDLEMCP_BUILD
 WORKDIR /app
 RUN useradd --system --uid 10001 --create-home bundlemcp
 COPY --from=builder --chown=bundlemcp:bundlemcp /app/.venv /app/.venv
@@ -22,5 +26,6 @@ EXPOSE 8000
 # the readiness probe is the container's health
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=6 \
     CMD ["python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=3).status == 200 else 1)"]
-# migrations run as a dedicated step before serving
-CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && python main.py"]
+# migrations run as a dedicated step before serving; exec hands the shell's PID to the
+# gateway, so a stop signal reaches it and it drains instead of being killed
+CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && exec python main.py"]

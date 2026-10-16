@@ -31,6 +31,7 @@ from bundlemcp.application.oauth_server import (
     PendingAuthorization,
     TokenGrantFactory,
 )
+from bundlemcp.application.serving.replica_drain import ReplicaDrain
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
@@ -101,6 +102,9 @@ class AppContainer(BaseModel):
     )
     admin_sessions: AdminSessionStore = Field(description="Browser sessions for the admin UI")
     readiness: ReadinessProbe = Field(description="Checks that every store answers")
+    drain: ReplicaDrain = Field(
+        description="Whether this replica is shutting down, and what happens while it does"
+    )
     pending_authorizations: SingleUseState[PendingAuthorization] = Field(
         description="Authorization requests parked while the consent screen is shown"
     )

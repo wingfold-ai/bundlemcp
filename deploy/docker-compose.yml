@@ -208,6 +208,8 @@ services:
       context: ..
       dockerfile: apps/gateway/Dockerfile
     restart: unless-stopped
+    # above BUNDLEMCP_SHUTDOWN_DRAIN_SECONDS (20 by default), so a stop drains instead of killing
+    stop_grace_period: 30s
     # the image's own HEALTHCHECK polls /readyz; declared here too so
     # `depends_on: service_healthy` and `compose up --wait` see it
     healthcheck:

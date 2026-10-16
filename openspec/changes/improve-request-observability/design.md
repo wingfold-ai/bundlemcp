@@ -80,7 +80,7 @@ startup from the migrations package the library ships. `HealthController.readyz`
 
 - *Alternative:* a global exception handler for SQLAlchemy errors mapped to 503. Rejected for `/readyz` (it hides which
   check failed); the general Postgres-down behaviour of other routes is SES-14 in
-  [complete-session-lifecycle](../complete-session-lifecycle/proposal.md).
+  [complete-session-lifecycle](../archive/2026-10-16-complete-session-lifecycle/proposal.md).
 - The head is read from the shipped scripts, not configured, so an image cannot be told the wrong head.
 
 ### D4. Tracing as an optional extra, loaded only when configured
