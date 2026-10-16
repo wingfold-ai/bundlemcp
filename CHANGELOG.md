@@ -6,6 +6,14 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.3] - 2026-10-16
+
+### Fixed
+
+- A pull request whose description contains a CI-skip marker (`[skip ci]`, `[ci skip]`, `[no ci]`, `[skip actions]`,
+  `[actions skip]` or `skip-checks: true`) now fails its title check, so the squash merge can no longer carry the marker
+  to `main` and skip CI, the image publish and the release. ([#136](https://github.com/wingfold-ai/bundlemcp/pull/136))
+
 ## [0.1.2] - 2026-10-16
 
 ### Changed
