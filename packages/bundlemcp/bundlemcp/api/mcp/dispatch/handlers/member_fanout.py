@@ -17,10 +17,12 @@ from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
 from bundlemcp.application.contracts.upstream.upstream_session_pool import UpstreamLease
+from bundlemcp.application.serving.member_listing_reader import MemberListingReader
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
+from bundlemcp.domain.servers.listing_kind import ListingKind
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.domain.servers.server_capability import ServerCapability
@@ -44,10 +46,11 @@ def dump(obj: Any) -> dict[str, Any]:
 class MemberFanout:
     """Runs a read-only MCP call against one member or all of them.
 
-    Live and uncurated, unlike the tool surface. Only members that advertised
-    the method's capability at their last discovery are asked, so a member
-    without it is never woken. A member that is unreachable or not connected
-    is skipped with a warning, so the rest still answer.
+    Only members that advertised the method's capability at their last
+    discovery are asked, so a member without it is never woken. A list method
+    is answered from a member's stored listing when every caller may be shown
+    it, and asks the member only otherwise. A member that is unreachable or
+    not connected is skipped with a warning, so the rest still answer.
     """
 
     def __init__(
@@ -57,12 +60,14 @@ class MemberFanout:
         signals: SignalBus,
         presence: StreamPresence,
         runtime_config: RuntimeConfig,
+        listings: MemberListingReader,
     ) -> None:
         self._leases = leases
         self._registry = registry
         self._signals = signals
         self._presence = presence
         self._runtime_config = runtime_config
+        self._listings = listings
 
     @property
     def credentials(self) -> UpstreamCredentialResolver:
@@ -156,17 +161,20 @@ class MemberFanout:
         self, ctx: RequestContext, call: MemberCall, *, capability: ServerCapability
     ) -> list[tuple[McpServer, Any | None]]:
         """Every capable member's answer, with None where a member could not be asked."""
-        results: list[tuple[McpServer, Any | None]] = []
-        for server in self.members(ctx, capability):
-            try:
-                results.append((server, await self.call(ctx, server, call)))
-            except (NeedsConnect, UpstreamOAuthNotConfigured):
-                log.warning("passthrough.member_unconnected", server=server.name)
-                results.append((server, None))
-            except Exception:
-                log.warning("passthrough.member_failed", server=server.name, exc_info=True)
-                results.append((server, None))
-        return results
+        return [
+            (server, await self._ask(ctx, server, call))
+            for server in self.members(ctx, capability)
+        ]
+
+    async def _ask(self, ctx: RequestContext, server: McpServer, call: MemberCall) -> Any | None:
+        """One member's answer, or None when it could not be asked."""
+        try:
+            return await self.call(ctx, server, call)
+        except (NeedsConnect, UpstreamOAuthNotConfigured):
+            log.warning("passthrough.member_unconnected", server=server.name)
+        except Exception:
+            log.warning("passthrough.member_failed", server=server.name, exc_info=True)
+        return None
 
     async def first(
         self,
@@ -193,25 +201,32 @@ class MemberFanout:
         ctx: RequestContext,
         call: MemberCall,
         *,
-        capability: ServerCapability,
-        key: str,
+        listing: ListingKind,
         present: Callable[[McpServer, dict[str, Any]], dict[str, Any] | None] | None = None,
     ) -> list[dict[str, Any]]:
-        """Every capable member's list, concatenated and de-duplicated by ``key``.
+        """Every capable member's listing, concatenated and de-duplicated by its key.
 
-        ``present`` shapes each entry for the client, or returns None to leave it
-        out. A left-out entry still claims its key, so a later member's entry
-        under the same key does not take its place.
+        A member with a shareable stored listing is answered from it; ``call``
+        asks the others live. ``present`` shapes each entry for the client, or
+        returns None to leave it out. A left-out entry still claims its key, so
+        a later member's entry under the same key does not take its place.
         """
+        members = self.members(ctx, listing.capability)
+        stored = await self._listings.shareable(members, listing)
         items: list[dict[str, Any]] = []
         seen: set[Any] = set()
-        for server, member_items in await self.each(ctx, call, capability=capability):
-            if member_items is None:
-                continue
-            for obj in member_items:
-                entry = dump(obj)
+        for server in members:
+            if server.id in stored:
+                # copied, because presenting an entry rewrites its fields
+                entries = [dict(entry) for entry in stored[server.id]]
+            else:
+                answer = await self._ask(ctx, server, call)
+                if answer is None:
+                    continue
+                entries = [dump(obj) for obj in answer]
+            for entry in entries:
                 presented = present(server, entry) if present is not None else entry
-                identity = (presented if presented is not None else entry).get(key)
+                identity = (presented if presented is not None else entry).get(listing.key)
                 if identity in seen:
                     log.warning("passthrough.collision", key=identity, server=server.name)
                     continue

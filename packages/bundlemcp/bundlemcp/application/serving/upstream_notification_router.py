@@ -43,10 +43,11 @@ _MEMBER_LISTS: dict[str, EntityType] = {
 class UpstreamNotificationRouter:
     """Takes a member's notification to whoever it concerns, on whichever replica they are.
 
-    A tool list change re-discovers the server, whose bundle invalidation then
-    tells clients to list again; a prompt or resource list change is announced
-    to the server's bundles directly. Several replicas hear the same change
-    from their own sessions, so a short shared gate lets one of them act. A
+    A list change re-discovers the server, whose bundle invalidation then tells
+    clients to list again; a prompt or resource list change is announced even
+    when the re-discovery fails, since the clients' live answers may differ.
+    Several replicas hear the same change from their own sessions, so a short
+    shared gate lets one of them act. A
     resource update goes to every stream subscribed to that resource, and a
     log message on an upstream session dedicated to a client's session goes
     to that client, at or above the level it asked for.
@@ -77,7 +78,10 @@ class UpstreamNotificationRouter:
                 await self._discovery.discover(server.id, announce=True)
         elif method in _MEMBER_LISTS:
             if await self._claim(server, method.split("/")[1]):
-                await self._announce(server, _MEMBER_LISTS[method])
+                # re-listed first, so clients that list again are served the new listing
+                result = await self._discovery.discover(server.id, relisted=_MEMBER_LISTS[method])
+                if result.error is not None:
+                    await self._announce(server, _MEMBER_LISTS[method])
         elif method == RESOURCE_UPDATED:
             await self._resource_updated(server, notification)
         elif method == LOG_MESSAGE and bound_to is not None:

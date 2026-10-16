@@ -39,6 +39,9 @@ from bundlemcp.infrastructure.postgres.member_curation_repository import (
 from bundlemcp.infrastructure.postgres.member_entry_repository import (
     SqlAlchemyMemberEntryRepository,
 )
+from bundlemcp.infrastructure.postgres.member_listing_repository import (
+    SqlAlchemyMemberListingRepository,
+)
 from bundlemcp.infrastructure.postgres.membership_repository import (
     SqlAlchemyMembershipRepository,
 )
@@ -104,6 +107,10 @@ class SqlAlchemyUnitOfWork:
     @cached_property
     def member_entries(self) -> SqlAlchemyMemberEntryRepository:
         return SqlAlchemyMemberEntryRepository(self._session)
+
+    @cached_property
+    def member_listings(self) -> SqlAlchemyMemberListingRepository:
+        return SqlAlchemyMemberListingRepository(self._session)
 
     @cached_property
     def member_curations(self) -> SqlAlchemyMemberCurationRepository:

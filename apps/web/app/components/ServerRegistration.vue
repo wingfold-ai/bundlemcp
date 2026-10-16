@@ -42,6 +42,7 @@ const clientSecret = ref("");
 const sendIdentityHeader = ref(false);
 const identityHeaderTouched = ref(false); // an explicit choice outlives any default
 const protocolMode = ref("auto");
+const listingSnapshot = ref("auto");
 const fwdRows = ref<{ key: string; val: string }[]>([]);
 const creating = ref(false);
 // shown while typing, so a bad or taken name is seen before anything is sent
@@ -224,6 +225,7 @@ async function create() {
         forward_headers,
         send_identity_header: sendIdentityHeader.value,
         protocol_mode: protocolMode.value,
+        listing_snapshot: listingSnapshot.value as "auto" | "shared" | "live",
       },
     });
     if (error) {
@@ -564,6 +566,24 @@ watch(url, (value) => {
               <option value="legacy">legacy — always the initialize handshake</option>
               <option value="2026-07-28">pin 2026-07-28</option>
             </select>
+          </div>
+          <div>
+            <label class="wf-label" for="create-listing-snapshot">Prompt and resource lists</label>
+            <select
+              id="create-listing-snapshot"
+              v-model="listingSnapshot"
+              class="wf-input"
+              data-testid="create-listing-snapshot"
+            >
+              <option value="auto">auto — stored listing when it is the same for every caller</option>
+              <option value="shared">shared — stored listing for every caller</option>
+              <option value="live">live — always ask the server</option>
+            </select>
+            <p class="wf-help">
+              Lists served from what discovery stored leave a server that scales to zero asleep
+              when a client connects. Choose shared when the server is sent the caller's identity
+              but lists the same prompts and resources for everyone.
+            </p>
           </div>
         </div>
       </details>

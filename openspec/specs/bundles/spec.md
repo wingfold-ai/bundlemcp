@@ -120,13 +120,17 @@ stateless client's `subscriptions/listen` stream), on whichever replica holds it
 
 ### Requirement: BND-8 Prompt and resource passthrough
 Resources and prompts of member servers MUST be **passthrough**, curated only as far as
-[BND-37](../bundles/spec.md) allows (disable an entry, override its title or description); they are
-fetched **live** from members per request, and the discovery cache ([UPS-24](../upstreams/spec.md)) feeds
-curation, never what is served. Only members whose capabilities snapshot
-([UPS-22](../upstreams/spec.md)) advertises the capability a method belongs to are asked —
+[BND-37](../bundles/spec.md) allows (disable an entry, override its title or description). Only members whose
+capabilities snapshot ([UPS-22](../upstreams/spec.md)) advertises the capability a method belongs to are asked —
 `prompts` for `prompts/*`, `resources` for `resources/*`, `completions` for `completion/complete` — so a member without
 it, or one never successfully discovered, is not contacted and contributes nothing
-([ADR-0043](../../../docs/adr/0043-contact-upstreams-only-with-a-reason.md)). Routing rules:
+([ADR-0043](../../../docs/adr/0043-contact-upstreams-only-with-a-reason.md)).
+
+`prompts/list`, `resources/list` and `resources/templates/list` answer each capable member from its **listing
+snapshot** ([UPS-24](../upstreams/spec.md)) when that snapshot is shareable and complete
+([UPS-38](../upstreams/spec.md)), without contacting the member. They ask a member **live** only when it has no such
+snapshot. `prompts/get`, `resources/read`, `resources/subscribe`, `resources/unsubscribe` and `completion/complete`
+depend on their arguments and are always fetched live from the member. Routing rules:
 
 - **Prompts** carry a name, so they are **always prefixed** `<server_name>__<prompt_name>` (BND-2 scheme);
   `prompts/get` and completion prompt-refs de-prefix on the first `__` to find the owning member.
@@ -163,10 +167,21 @@ Prompts and resources authored on the bundle itself, served beside this passthro
 - **WHEN** a client calls `resources/list` and then `resources/read` for `file:///a.txt`
 - **THEN** the URI is listed once, from `zeta`, and the read is answered by `zeta`
 
-#### Scenario: Served lists stay live
-- **GIVEN** a member prompt cached by discovery that the member no longer lists
+#### Scenario: Lists are served from a shareable snapshot
+- **GIVEN** member `weather`, discovered with a shareable prompt snapshot listing `daily`, and a resource snapshot
+  listing one resource and one template
+- **WHEN** a client calls `prompts/list`, `resources/list` and `resources/templates/list`
+- **THEN** the lists show `weather__daily`, the resource and the template, and `weather` receives no request
+
+#### Scenario: A member without a shareable snapshot is listed live
+- **GIVEN** member `crm` forwards the caller's `Authorization` header and its prompt listing had no `cacheScope`
 - **WHEN** a client calls `prompts/list`
-- **THEN** the prompt is not listed, because the list comes from the member, not from the cache
+- **THEN** `crm` is asked for its prompts with the caller's header, and its answer is listed
+
+#### Scenario: Served lists stay live
+- **GIVEN** a member prompt cached for curation that the member's last discovery no longer listed
+- **WHEN** a client calls `prompts/list`
+- **THEN** the prompt is not listed, because the list is the member's last listing, not the curation cache
 
 ### Requirement: BND-9 Advertised capabilities
 The capability set the bundle advertises at `initialize` MUST be computed per
@@ -728,8 +743,10 @@ unchanged.
 Origin: metamcp carry-over (metamcp: "namespaces"). Prior art:
 `../metamcp/apps/backend/src/lib/metamcp/metamcp-proxy.ts`, `utils.ts` (sanitizeName), `tool-name-parser.ts`.
 
-BND-8/BND-9 ([ADR-0021](../../../docs/adr/0021-mcp-surface-completion.md)): prompts/resources/completions are live
-passthrough with no cache or curation tables; the fan-out lives in `api/mcp/dispatch/handlers/member_fanout.py`.
+BND-8/BND-9 ([ADR-0021](../../../docs/adr/0021-mcp-surface-completion.md)): prompts/resources/completions are
+passthrough; the fan-out lives in `api/mcp/dispatch/handlers/member_fanout.py`. Since
+[ADR-0059](../../../docs/adr/0059-member-lists-served-from-the-discovery-snapshot.md) the three list methods answer
+from the listing stored at discovery when it is shareable (UPS-38); everything else stays live.
 Capability aggregation reads the per-server `capabilities` snapshot captured at discovery
 ([upstreams](../upstreams/spec.md)). Passthrough was kept in v1 for consistency with the full-fidelity proxy
 decision ([protocol](../protocol/spec.md),

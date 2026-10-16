@@ -6,6 +6,40 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.16] - 2026-10-16
+
+### Added
+
+- Serve `prompts/list`, `resources/list` and `resources/templates/list` from the listing stored at the server's last
+  discovery, when every caller may be shown the same listing. Connecting a client no longer wakes a member that scales
+  to zero. `prompts/get`, `resources/read`, subscriptions and completions still ask the member.
+  ([#150](https://github.com/wingfold-ai/bundlemcp/pull/150))
+- Add a per-server `listing_snapshot` setting with the values `auto` (default), `shared` and `live`. It is available on
+  the upstream API, the export/import/bootstrap document, the registration form and the upstream page. Use `shared` for
+  servers on the gateway's own network or FastMCP servers, whose listings `auto` does not share. Changing the setting
+  does not probe the server. ([#150](https://github.com/wingfold-ai/bundlemcp/pull/150))
+- Discovery stores each member's prompts, resources and resource templates in full, in the member's order, together with
+  the cache scope the server sent. Bundles' clients are told to list prompts or resources again when a stored listing
+  changes. ([#150](https://github.com/wingfold-ai/bundlemcp/pull/150))
+
+### Changed
+
+- A member's `prompts/list_changed` or `resources/list_changed` notification now re-discovers the member before clients
+  are told, so a client that lists again sees the new listing.
+  ([#150](https://github.com/wingfold-ai/bundlemcp/pull/150))
+- A member that is down still contributes its last stored prompts and resources to the lists, as its tools already do.
+  ([#150](https://github.com/wingfold-ai/bundlemcp/pull/150))
+- Existing servers are listed live until their next discovery, because upgrading does not probe them. Run
+  `:refresh-tools` once per server, or wait for the periodic refresh. A member whose lists change without a
+  `list_changed` the gateway hears keeps its old listing until its next discovery; set `live` on it to restore the
+  previous behaviour. ([#150](https://github.com/wingfold-ai/bundlemcp/pull/150))
+
+### Security
+
+- A listing marked `private` by its server is never shared between callers under `auto`. An unscoped listing is shared
+  only for servers that are sent nothing depending on the caller: no forwarded headers, no identity header, and no
+  per-user or delegated token. ([#150](https://github.com/wingfold-ai/bundlemcp/pull/150))
+
 ## [0.1.15] - 2026-10-16
 
 ### Added

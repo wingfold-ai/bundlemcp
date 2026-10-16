@@ -130,9 +130,11 @@ API. Rows are flagged when overridden, when their member is disabled, and when s
 
 ## Curating members' prompts and resources
 
-A member's prompts and resources are served live from the member, prefixed like its tools (`weather__daily`) or, for
-resources, under their own URIs. Each bundle can still shape them: hide one in this bundle, or present another title
-or description. The name, URI, arguments and content always stay the member's.
+A member's prompts and resources are passed through, prefixed like its tools (`weather__daily`) or, for resources, under
+their own URIs. Their lists come from what the member's last discovery stored, when every caller may be shown it, and
+from the member otherwise ([Prompt and resource lists](./servers#prompt-and-resource-lists)); getting a prompt or
+reading a resource always asks the member. Each bundle can still shape them: hide one in this bundle, or present another
+title or description. The name, URI, arguments and content always stay the member's.
 
 The entries offered for curation are the ones discovery found: when a member advertises prompts or resources, each
 discovery also caches their names, URIs, titles and descriptions (up to 500 of each kind per upstream), never their
@@ -243,7 +245,7 @@ written to the audit log, which records tool calls.
 Membership, enable flags, overrides, prompts and resources take effect for new requests immediately, on every replica,
 without a restart. Sessions that support it receive a `notifications/tools/list_changed` so the client refreshes its
 tool list, and a `notifications/prompts/list_changed` or `notifications/resources/list_changed` when the bundle's own
-prompts or resources change.
+prompts or resources change, or a member's stored listing does.
 
 ## Renaming and deleting
 

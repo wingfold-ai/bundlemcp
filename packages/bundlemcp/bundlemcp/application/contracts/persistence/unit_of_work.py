@@ -28,6 +28,9 @@ from bundlemcp.application.contracts.persistence.member_curation_repository impo
 from bundlemcp.application.contracts.persistence.member_entry_repository import (
     MemberEntryRepository,
 )
+from bundlemcp.application.contracts.persistence.member_listing_repository import (
+    MemberListingRepository,
+)
 from bundlemcp.application.contracts.persistence.membership_repository import MembershipRepository
 from bundlemcp.application.contracts.persistence.oauth_client_repository import (
     OAuthClientRepository,
@@ -66,6 +69,8 @@ class UnitOfWork(Protocol):
     def curations(self) -> CurationRepository: ...
     @property
     def member_entries(self) -> MemberEntryRepository: ...
+    @property
+    def member_listings(self) -> MemberListingRepository: ...
     @property
     def member_curations(self) -> MemberCurationRepository: ...
     @property

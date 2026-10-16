@@ -346,12 +346,20 @@ carry the same fields.
   `forward_headers` (json, [auth](../auth/spec.md)), `auth_mode` (`none` |
   `static_headers` | `upstream_oauth` | `delegated_token`), `identity_mode`, `send_identity_header`, `capabilities`
   (json snapshot captured at discovery, [UPS-22](../upstreams/spec.md)), `protocol_mode` (`auto` | `legacy` |
-  pinned revision) and `protocol_version` ([UPS-10](../upstreams/spec.md)), `health_status` + `last_error`,
+  pinned revision) and `protocol_version` ([UPS-10](../upstreams/spec.md)), `listing_snapshot` (`auto` | `shared` |
+  `live`, [UPS-38](../upstreams/spec.md)), `health_status` + `last_error`,
   `connection_state` ([UPS-12](../upstreams/spec.md)), `last_discovered_at` (last successful discovery),
   `created_at`, `updated_at`.
 - **Tool** ([upstreams](../upstreams/spec.md)): discovered tool cache. `id`, `server_id` FK, `name`,
   `title`, `description`, `input_schema` (json), `annotations` (json), `schema_hash`, `stale_since` (set when a
   successful discovery stops listing the tool, [UPS-19](../upstreams/spec.md)). Unique `(server_id, name)`.
+- **MemberEntry / MemberListing** ([upstreams](../upstreams/spec.md)): what discovery read of a server's prompts
+  and resources ([UPS-24](../upstreams/spec.md)). `MemberEntry`: `server_id`, `kind` (`prompt` | `resource`), `key`
+  (name or URI), `name`, `title`, `description`, `entry_hash`, `stale_since`; unique `(server_id, kind, key)`; curated
+  per bundle by `MemberEntryCuration` (`bundle_id`, `entry_id`, `enabled`, `override_title`, `override_description`).
+  `MemberListing`: `server_id`, `kind` (`prompts` | `resources` | `resource_templates`), `entries` (json, as listed),
+  `cache_scope`, `complete`, `listing_hash`, `listed_at`; unique `(server_id, kind)`. All cascade with their server or
+  bundle.
 - **Bundle** ([bundles](../bundles/spec.md)): `id`, `name` (unique, slug-safe), `description` (served as MCP
   `instructions`), `overview` (catalogue text, [BND-11](../bundles/spec.md)), timestamps.
 - **BundleServer**: M:N bundle↔server. `bundle_id`, `server_id`, `enabled`, `position` (member order,

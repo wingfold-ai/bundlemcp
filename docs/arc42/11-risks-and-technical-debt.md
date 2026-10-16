@@ -16,10 +16,10 @@
 
 - No metamcp-migration importer — manual migration for the primary user
   ([roadmap](../../openspec/README.md)).
-- A member's prompts/resources are uncurated live passthrough (BND-8, [ADR-0021](../adr/0021-mcp-surface-completion.md))
-  — by design no per-bundle curation like tools have, which would need prompt/resource discovery (BND-37, optional). A
-  bundle adds context of its own instead: prompts and resources authored on the bundle and served without upstream
-  contact ([ADR-0044](../adr/0044-bundle-owned-prompts-and-resources.md)).
+- Members' prompt and resource lists are served from the listing stored at discovery when it is shareable
+  ([ADR-0059](../adr/0059-member-lists-served-from-the-discovery-snapshot.md)). A member whose lists change without a
+  `list_changed` the gateway hears is served the old listing until its next discovery, and a listing marked `private`
+  is listed live, with no per-identity cache.
 - **Between-call messages need the transport that heard them**
   ([ADR-0054](../adr/0054-upstream-session-pooling.md)): a handshake upstream session's GET stream is held only by
   the replica that initialized it, so a session continued on another replica hears list changes, log messages and

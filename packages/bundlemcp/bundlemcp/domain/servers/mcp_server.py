@@ -10,6 +10,7 @@ from bundlemcp.domain.servers.discovery_inputs import DiscoveryInputs
 from bundlemcp.domain.servers.forward_header_rules import CALLER_TOKEN_HEADER
 from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.identity_mode import IdentityMode
+from bundlemcp.domain.servers.listing_snapshot_mode import ListingSnapshotMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.domain.servers.server_capability import ServerCapability
 from bundlemcp.domain.shared.clock import utcnow
@@ -52,6 +53,12 @@ class McpServer(BaseModel):
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
         "probes server/discover and falls back to the initialize handshake, 'legacy' always "
         "uses the handshake, and a revision date pins that revision",
+    )
+    listing_snapshot: ListingSnapshotMode = Field(
+        default=ListingSnapshotMode.AUTO,
+        description="Whether prompt, resource and resource-template lists are served from the "
+        "discovery snapshot: 'auto' when the server marked them public, or gave no scope and is "
+        "sent nothing that depends on the caller; 'shared' always; 'live' never",
     )
     protocol_version: str | None = Field(
         default=None,

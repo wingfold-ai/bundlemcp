@@ -1,6 +1,7 @@
 # ADR-0056: Members' prompts and resources are cached at discovery, for curation only
 
-**Status:** accepted · **Date:** 2026-10-16 · **Amends:** [ADR-0021](0021-mcp-surface-completion.md)
+**Status:** accepted · **Date:** 2026-10-16 · **Amends:** [ADR-0021](0021-mcp-surface-completion.md) ·
+**Amended by:** [ADR-0059](0059-member-lists-served-from-the-discovery-snapshot.md)
 
 ## Context
 

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
 from bundlemcp.domain.servers.probed_entry import ProbedEntry
+from bundlemcp.domain.servers.probed_listing import ProbedListing
 from bundlemcp.domain.servers.probed_server_info import ProbedServerInfo
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 
@@ -33,6 +34,11 @@ class ProbeResult(BaseModel):
         description="The resources the server listed; None when it advertises none or the "
         "listing failed",
     )
+    listings: list[ProbedListing] = Field(
+        default_factory=list,
+        description="The prompt, resource and resource-template listings in full, one per kind "
+        "listed; a kind not advertised, or whose listing failed, is absent",
+    )
     truncated: list[MemberEntryKind] = Field(
         default_factory=list,
         description="The listings that were longer than the bound and were cut to it",
@@ -44,7 +50,8 @@ class UpstreamProbe(Protocol):
     """Opens one connection to an upstream server and reports what it offers."""
 
     async def probe(self, server: McpServer, headers: dict[str, str]) -> ProbeResult:
-        """List the server's tools and capabilities, and its prompts and resources if advertised.
+        """List the server's tools and capabilities, and its prompts, resources and resource
+        templates if advertised.
 
         ``headers`` are sent on top of the server's static headers, which is how
         a probe carries the upstream credential a server requires. Raises

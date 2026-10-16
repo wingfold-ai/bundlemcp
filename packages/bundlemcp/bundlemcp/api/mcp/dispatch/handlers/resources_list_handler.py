@@ -10,8 +10,8 @@ from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.domain.bundles.bundle_resource_uri import is_bundle_uri
 from bundlemcp.domain.bundles.member_entry_ref import MemberEntryRef
+from bundlemcp.domain.servers.listing_kind import ListingKind
 from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
-from bundlemcp.domain.servers.server_capability import ServerCapability
 
 log = structlog.get_logger(__name__)
 
@@ -30,8 +30,7 @@ class ResourcesListHandler:
         for entry in await self._fanout.merged(
             ctx,
             lambda client: client.list_resources(),
-            capability=ServerCapability.RESOURCES,
-            key="uri",
+            listing=ListingKind.RESOURCES,
             present=lambda server, entry: curated_entry(
                 ctx.view.member_curation(
                     MemberEntryRef(

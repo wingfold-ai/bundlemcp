@@ -1,6 +1,7 @@
 # ADR-0043: The gateway contacts an upstream only when it has a reason to
 
-**Status:** accepted · **Date:** 2026-10-12 · **Amends:** [ADR-0021](0021-mcp-surface-completion.md)
+**Status:** accepted · **Date:** 2026-10-12 · **Amends:** [ADR-0021](0021-mcp-surface-completion.md) ·
+**Amended by:** [ADR-0059](0059-member-lists-served-from-the-discovery-snapshot.md)
 
 ## Context
 

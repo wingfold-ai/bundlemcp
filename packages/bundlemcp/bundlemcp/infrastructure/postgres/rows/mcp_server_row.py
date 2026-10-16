@@ -9,6 +9,7 @@ from sqlmodel import Field, SQLModel
 from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.identity_mode import IdentityMode
+from bundlemcp.domain.servers.listing_snapshot_mode import ListingSnapshotMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.infrastructure.postgres.utc_datetime import timestamp_column
@@ -61,6 +62,12 @@ class McpServerRow(SQLModel, table=True):
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
         "probes server/discover and falls back to the initialize handshake, 'legacy' always "
         "uses the handshake, and a revision date pins that revision",
+    )
+    listing_snapshot: ListingSnapshotMode = Field(
+        default=ListingSnapshotMode.AUTO,
+        sa_column=Column(String, nullable=False, server_default=text("'auto'")),
+        description="Whether prompt and resource lists are served from the discovery snapshot: "
+        "'auto', 'shared' or 'live'",
     )
     protocol_version: str | None = Field(
         default=None,

@@ -1587,6 +1587,8 @@ export interface components {
              * @default shared
              */
             identity_mode?: components["schemas"]["IdentityMode"];
+            /** @description How prompts/list, resources/list and resources/templates/list are answered for this server's prompts and resources: 'auto' serves the listing stored at its last discovery when the server marked it public, or gave no cache scope and is sent nothing that depends on the caller (no forwarded headers, no X-MCP-User, no per-user or delegated tokens); 'shared' serves the stored listing to every caller, for a server that lists the same for everyone but is sent the caller's identity or marks its results private by default; 'live' always asks the server. Omitted on create it is 'auto'; omitted on update, the stored value is kept. Changing it does not contact the server */
+            listing_snapshot?: components["schemas"]["ListingSnapshotMode"] | null;
             /**
              * Name
              * @description Unique server name: letters, digits, underscores and hyphens, without a double underscore because that separates server from tool in presented tool names
@@ -2698,6 +2700,12 @@ export interface components {
             tools: components["schemas"]["InspectorTool"][];
         };
         /**
+         * ListingSnapshotMode
+         * @description Whether a server's prompt and resource listings are served from its discovery snapshot.
+         * @enum {string}
+         */
+        ListingSnapshotMode: "auto" | "shared" | "live";
+        /**
          * LiveLogEntry
          * @description One log event as the live log view shows it: the already-redacted process log line.
          */
@@ -3484,6 +3492,8 @@ export interface components {
              * @description Why the last probe failed, if it did
              */
             last_error: string | null;
+            /** @description How this server's prompt, resource and resource-template lists are answered: 'auto' (from the listing stored at discovery when every caller may be shown it), 'shared' (from the stored listing, for every caller) or 'live' (always asking the server) */
+            listing_snapshot: components["schemas"]["ListingSnapshotMode"];
             /**
              * Name
              * @description Unique server name
@@ -3555,6 +3565,8 @@ export interface components {
              * @default shared
              */
             identity_mode?: components["schemas"]["IdentityMode"];
+            /** @description How prompts/list, resources/list and resources/templates/list are answered for this server's prompts and resources: 'auto' serves the listing stored at its last discovery when the server marked it public, or gave no cache scope and is sent nothing that depends on the caller (no forwarded headers, no X-MCP-User, no per-user or delegated tokens); 'shared' serves the stored listing to every caller, for a server that lists the same for everyone but is sent the caller's identity or marks its results private by default; 'live' always asks the server. Omitted on create it is 'auto'; omitted on update, the stored value is kept. Changing it does not contact the server */
+            listing_snapshot?: components["schemas"]["ListingSnapshotMode"] | null;
             /**
              * Name
              * @description Unique server name: letters, digits, underscores and hyphens, without a double underscore because that separates server from tool in presented tool names

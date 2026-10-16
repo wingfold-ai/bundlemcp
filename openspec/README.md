@@ -186,8 +186,8 @@ OAuth.
 under one set of prefixed, collision-free tool names and routes each call back to its owner. Per bundle, an admin
 decides which tools are shown and how: enable flags, name, title, description and annotation overrides. A bundle can
 also carry prompts and resources of its own, written by an admin and served without contacting any upstream, beside the
-members' prompts and resources, which pass through live. The catalogue overview a user reads before connecting belongs
-here too.
+members' prompts and resources, which pass through, their lists served from what discovery stored when every caller may
+see it. The catalogue overview a user reads before connecting belongs here too.
 
 *Not here:* Where a bundle is reachable, by whom and with which client quirks is the endpoints slice.
 
