@@ -232,10 +232,12 @@ maintainer pushes by hand publishes the same way. Every release's notes SHALL st
 A pull request into `main` SHALL carry the release its merge makes, so the squash commit is the release commit and
 `main` gains no other commit for it.
 
-- **Labels from the title.** The pull request's title MUST be a Conventional Commit (`<type>(<scope>)!: <Subject>`).
-  CI derives a `type: <type>` label and a `semver:` label from it, and replaces both whenever the title is edited: `!`
-  is `semver: major`; otherwise `feat` is `minor`, `fix`, `perf` and `revert` are `patch`, and every other type is
-  `none`. A title that is not a Conventional Commit fails the check and gets no labels.
+- **Labels from the title.** The pull request's title MUST be a Conventional Commit (`<type>(<scope>)!: <Subject>`). CI
+  derives a `type: <type>` label and a `semver:` label from it, and replaces both whenever the title is edited: `!` is
+  `semver: major`; otherwise `feat` is `minor`, `fix`, `perf` and `revert` are `patch`, and every other type is `none`.
+  A title that is not a Conventional Commit fails the check and gets no labels. A description that contains a CI-skip
+  marker (`[skip ci]` and its variants) fails the check too, because the squash merge takes its message from the
+  description and the marker would skip CI and the release on `main`.
 - **Next version.** The pull request's version is the version on `main` raised by its `semver:` label. While the major
   version is `0`, a major bump raises the minor and a minor or patch bump raises the patch (`0.1.0` → `0.2.0` and
   `0.1.1`); from `1.0.0` the bumps are literal.
@@ -317,6 +319,10 @@ A pull request into `main` SHALL carry the release its merge makes, so the squas
 - **GIVEN** a pull request whose head is CI's entry commit, and CI still running on the author's commit before it
 - **WHEN** someone tries to merge it
 - **THEN** the merge is refused while the head's `ci-passed` is pending, and allowed once that run succeeds
+
+#### Scenario: Description with a CI-skip marker fails
+- **WHEN** a pull request's description quotes a commit subject ending in `[skip ci]`
+- **THEN** its check fails asking to reword the description, before the merge could carry the marker to `main`
 
 #### Scenario: The entry commit does not rerun CI
 - **WHEN** CI commits the entry and the bump to a pull request's branch
