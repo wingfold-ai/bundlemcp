@@ -246,16 +246,51 @@ jobs:
 
   ci-passed:
     # The one check the branch ruleset requires; renaming a job above does not
-    # silently drop it from the requirement.
+    # silently drop it from the requirement. CI's own commits on a branch say
+    # [skip ci] and run nothing, so this job also sets its result on them when
+    # one is the branch head.
     name: ci-passed
     if: always()
     needs: [backend, frontend, docs, diagrams, image, integration, conformance-revisions, conformance]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+      statuses: write
+    env:
+      SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
-      - name: Fail unless every required job succeeded
+      - name: Collect the jobs' results
+        id: result
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          for result in $RESULTS; do
-            if [ "$result" != "success" ]; then echo "A required job ended with: $result"; exit 1; fi
+          result=success
+          for each in $RESULTS; do
+            if [ "$each" != "success" ]; then echo "A required job ended with: $each"; result=failure; fi
           done
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.SAME_REPO == 'true'
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        if: env.SAME_REPO == 'true'
+      - name: Set the result on CI's own commits at the branch head
+        if: env.SAME_REPO == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          SOURCE: ${{ github.event.pull_request.head.sha }}
+          RESULT: ${{ steps.result.outputs.result }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          head=$(gh api "repos/$GH_REPO/branches/$BRANCH" --jq .commit.sha)
+          uv run --no-project --with pydantic==2.13.5 python tools/ci_result_relay.py "$head" \
+            --source "$SOURCE" --result "$RESULT" --url "$URL"
+      - name: Fail unless every required job succeeded
+        env:
+          RESULT: ${{ steps.result.outputs.result }}
+        run: test "$RESULT" = success

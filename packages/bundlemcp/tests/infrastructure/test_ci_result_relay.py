@@ -32,7 +32,10 @@ class FakeGh:
             return "{}"
         if "/check-runs" in path:
             sha = path.split("/commits/")[1].split("/")[0]
-            return json.dumps({"check_runs": self.runs.get(sha, [])})
+            runs = self.runs.get(sha, [])
+            if callable(runs):
+                runs = runs()
+            return json.dumps({"check_runs": runs})
         sha = path.rsplit("/", 1)[1]
         email, subject, parent = self.commits[sha]
         return json.dumps(
@@ -82,3 +85,44 @@ def test_dep12_a_bot_commit_without_skip_ci_is_not_relayed():
     commits = {**_history(), "b4": (relay.BOT_EMAIL, "chore(repo): Something", "r3")}
     gh = FakeGh(commits, {})
     assert relay.relay(gh, REPO, "b4") is None
+
+
+def test_dep12_the_ci_passed_job_sets_its_own_result_on_ci_s_commit():
+    gh = FakeGh(_history(), {})
+    outcome = relay.status_from_outcome("a1", "success", "https://run")
+    status = relay.relay(gh, REPO, "r3", outcome=outcome)
+    assert status is not None and status.state == "success"
+    assert gh.posted[0]["target_url"] == "https://run"
+
+
+def test_dep12_a_result_for_another_commit_is_not_set():
+    gh = FakeGh(_history(), {})
+    outcome = relay.status_from_outcome("older", "failure", None)
+    assert relay.relay(gh, REPO, "r3", outcome=outcome) is None
+    assert gh.posted == []
+
+
+def test_dep12_a_running_ci_passed_job_is_waited_for():
+    states = iter(["in_progress", "in_progress", "completed"])
+
+    def runs():
+        state = next(states)
+        return [{"status": state, "conclusion": "success" if state == "completed" else None}]
+
+    gh = FakeGh(_history(), {"a1": runs})
+    status = relay.relay(gh, REPO, "r3", wait=60, sleep=lambda seconds: None)
+    assert status is not None and status.state == "success"
+    assert [post["state"] for post in gh.posted] == ["success"]
+
+
+def test_dep12_a_result_arriving_after_the_pending_status_replaces_it():
+    states = iter(["queued", "completed"])
+
+    def runs():
+        state = next(states)
+        return [{"status": state, "conclusion": "success" if state == "completed" else None}]
+
+    gh = FakeGh(_history(), {"a1": runs})
+    status = relay.relay(gh, REPO, "r3")
+    assert status is not None and status.state == "success"
+    assert [post["state"] for post in gh.posted] == ["pending", "success"]
