@@ -1,7 +1,11 @@
 """Applying a bootstrap document through the services the API uses."""
 
+import os
+from collections.abc import Mapping
+
 import structlog
 
+from bundlemcp.application.bootstrap.api_key_value import api_key_value
 from bundlemcp.application.bootstrap.bootstrap_document import BootstrapDocument
 from bundlemcp.application.bootstrap.document_loader import load_document, parse_document
 from bundlemcp.application.bootstrap.probes_after_commit import ProbesAfterCommit
@@ -11,6 +15,7 @@ from bundlemcp.application.contracts.upstream.tool_discovery import ToolDiscover
 from bundlemcp.application.contracts.upstream.upstream_connection_registry import (
     UpstreamConnectionRegistry,
 )
+from bundlemcp.application.management.api_key_service import ApiKeyService
 from bundlemcp.application.management.bundle_prompt_service import BundlePromptService
 from bundlemcp.application.management.bundle_resource_service import BundleResourceService
 from bundlemcp.application.management.bundle_service import BundleService
@@ -22,6 +27,8 @@ from bundlemcp.application.management.upstream_oauth_config_service import (
 from bundlemcp.application.schemas import BundleServerUpdate
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
+from bundlemcp.domain.shared.secret_generator import SecretGenerator
+from bundlemcp.domain.shared.secret_hasher import SecretHasher
 
 log = structlog.get_logger(__name__)
 
@@ -38,7 +45,8 @@ class BootstrapRunner:
     fails the bootstrap. A server entry may also name the upstream OAuth client
     the gateway presents to it, stored as the API's client route stores it;
     that needs token encryption keys, so a document naming one without them
-    does not apply.
+    does not apply. API keys come last, so their scopes can name the
+    document's endpoints; a key whose name exists is never touched.
     """
 
     def __init__(
@@ -50,6 +58,9 @@ class BootstrapRunner:
         connections: UpstreamConnectionRegistry,
         profiles: ProfileCatalog,
         public_base: str,
+        hasher: SecretHasher,
+        generator: SecretGenerator,
+        environ: Mapping[str, str] = os.environ,
     ) -> None:
         # cipher is None exactly when no token encryption keys are configured
         self._units = units
@@ -58,8 +69,16 @@ class BootstrapRunner:
         self._connections = connections
         self._profiles = profiles
         self._public_base = public_base
+        self._hasher = hasher
+        self._generator = generator
+        self._environ = environ
 
     async def apply(self, doc: BootstrapDocument) -> None:
+        # a referenced key value is checked before anything is written, so a missing
+        # variable fails the document without touching the store
+        for entry in doc.api_keys:
+            if entry.value_from_env is not None:
+                api_key_value(entry, environ=self._environ, generate=lambda: "")
         probes = ProbesAfterCommit(self._discovery)
         async with self._units.open() as uow, uow.atomic():
             servers = ServerService(uow, discovery=probes, public_base=self._public_base)
@@ -86,6 +105,27 @@ class BootstrapRunner:
                     await bundle_prompts.upsert(bundle.name, prompt)
             for endpoint in doc.endpoints:
                 await endpoints.upsert(endpoint)
+            keys = ApiKeyService(uow, hasher=self._hasher, generator=self._generator)
+            for entry in doc.api_keys:
+                if await keys.exists(entry.name):
+                    continue  # never overwritten, re-scoped or re-activated
+                scope: list[str] = []
+                for endpoint_name in entry.endpoints:
+                    endpoint = await uow.endpoints.by_name(endpoint_name)
+                    if endpoint is None:
+                        raise ValueError(
+                            f"api key {entry.name!r} is scoped to unknown endpoint "
+                            f"{endpoint_name!r} (MGMT-10)"
+                        )
+                    scope.append(str(endpoint.id))
+                value = api_key_value(entry, environ=self._environ, generate=keys.new_value)
+                keys.provision(entry.name, entry.kind, scope, value)
+                log.info(
+                    "bootstrap.api_key_provisioned",
+                    name=entry.name,
+                    kind=entry.kind.value,
+                    source="environment" if entry.value_from_env else "file",
+                )
         # a probe opens its own unit of work, so it must not
         # start before the document's transaction has committed the servers.
         await probes.release()
@@ -110,6 +150,7 @@ class BootstrapRunner:
                     upstreams=len(doc.upstreams),
                     bundles=len(doc.bundles),
                     endpoints=len(doc.endpoints),
+                    api_keys=len(doc.api_keys),
                 )
         except Exception:
             log.error("bootstrap.failed", strict=settings.bootstrap_strict, exc_info=True)

@@ -84,8 +84,9 @@ async def test_prot3_modern_cancel_from_the_same_caller_ends_the_call(engine, re
         async with AsyncClient(
             base_url=base_url, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}, timeout=10
         ) as http:
-            call = asyncio.create_task(_modern_hang(http, 9))
-            await asyncio.sleep(0.5)
+            started = asyncio.Event()
+            call = asyncio.create_task(_modern_hang(http, 9, started=started))
+            await asyncio.wait_for(started.wait(), timeout=10)  # registered before the cancel
             assert await _modern_cancel(base_url, ENDPOINT_KEY, 9) == 202
             final = await asyncio.wait_for(call, timeout=5)
     assert final["error"]["message"] == "cancelled"
@@ -101,8 +102,9 @@ async def test_prot3_modern_cancel_reaches_the_call_on_another_replica(engine, r
             async with AsyncClient(
                 base_url=base_a, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}, timeout=10
             ) as http_a:
-                call = asyncio.create_task(_modern_hang(http_a, 11))
-                await asyncio.sleep(0.5)
+                started = asyncio.Event()
+                call = asyncio.create_task(_modern_hang(http_a, 11, started=started))
+                await asyncio.wait_for(started.wait(), timeout=10)  # registered before the cancel
                 assert await _modern_cancel(base_b, ENDPOINT_KEY, 11) == 202
                 final = await asyncio.wait_for(call, timeout=5)
     assert final["error"]["message"] == "cancelled"
@@ -117,8 +119,9 @@ async def test_prot3_another_caller_cannot_cancel(engine, redis):
         async with AsyncClient(
             base_url=base_url, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}, timeout=10
         ) as http:
-            call = asyncio.create_task(_modern_hang(http, 13, seconds=1.0))
-            await asyncio.sleep(0.3)
+            started = asyncio.Event()
+            call = asyncio.create_task(_modern_hang(http, 13, seconds=1.0, started=started))
+            await asyncio.wait_for(started.wait(), timeout=10)  # registered before the cancel
             assert await _modern_cancel(base_url, SERVICE_KEY, 13) == 202
             final = await asyncio.wait_for(call, timeout=5)
     assert final["result"]["content"][0]["text"] == "finished"
