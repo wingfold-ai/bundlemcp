@@ -20,7 +20,7 @@ from bundlemcp.domain.shared.secrets import (
     generate_token,
     hash_token,
 )
-from bundlemcp.infrastructure.inprocess.counters import InProcessCounters
+from bundlemcp.infrastructure.memory.recording_metrics import RecordingMetrics
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
 from bundlemcp.infrastructure.postgres.rows.audit_record_row import AuditRecordRow
@@ -702,7 +702,10 @@ async def test_endpoint_limit_trips_with_retry_after(gateway):
     assert int(third.headers["Retry-After"]) > 0
     # a rejection is a metric, not an upstream call
     assert len(hook.pre_calls) == 2
-    assert app.state.container.counters.get("rate_limit_rejections") == 1
+    rejected = app.state.container.metrics.registry.get_sample_value(
+        "bundlemcp_rate_limit_rejections_total", {"endpoint": "main", "limit": "endpoint"}
+    )
+    assert rejected == 1
 
 
 async def test_per_client_limit_isolates_callers(gateway):
@@ -780,24 +783,22 @@ class BoomRedis:
 
 async def test_rate_limit_fails_open_on_redis_error(engine, redis):
     """EP-21: a Redis outage never blocks a call (default fail-open)."""
-    counters = InProcessCounters()
-    async with _running(
-        engine, redis, counters=counters, rate_limiter=ValkeyRateLimiter(BoomRedis(), counters)
-    ) as (http, app):
+    metrics = RecordingMetrics()
+    limiter = ValkeyRateLimiter(BoomRedis(), on_fail_open=metrics.traffic_limiter_failed_open)
+    async with _running(engine, redis, metrics=metrics, rate_limiter=limiter) as (http, app):
         await _set_rate_limit(app, {"endpoint": {"limit": 1, "window_seconds": 100}})
         session = await _initialize(http)
         call = {"name": "echo__say", "arguments": {"text": "x"}}
         for _ in range(3):
             assert (await _rpc(http, "main", session, "tools/call", call)).status_code == 200
-    assert counters.get("rate_limit_fail_open") >= 1
+    assert metrics.count("traffic_limiter_failed_open") >= 1
 
 
 async def test_rate_limit_fail_closed_blocks_on_redis_error(engine, redis):
     """EP-21: an endpoint may opt into fail-closed — deny on Redis outage."""
-    counters = InProcessCounters()
-    async with _running(
-        engine, redis, counters=counters, rate_limiter=ValkeyRateLimiter(BoomRedis(), counters)
-    ) as (http, app):
+    metrics = RecordingMetrics()
+    limiter = ValkeyRateLimiter(BoomRedis(), on_fail_open=metrics.traffic_limiter_failed_open)
+    async with _running(engine, redis, metrics=metrics, rate_limiter=limiter) as (http, app):
         await _set_rate_limit(
             app, {"endpoint": {"limit": 1, "window_seconds": 100}, "fail_closed": True}
         )
@@ -808,9 +809,9 @@ async def test_rate_limit_fail_closed_blocks_on_redis_error(engine, redis):
 
 async def test_auth_failure_lockout_by_ip(engine, redis):
     """EP-20: repeated bad credentials from one IP get 429 after the threshold."""
-    counters = InProcessCounters()
-    limiter = ValkeyAuthFailureLimiter(redis, limit=2, window=100, counters=counters)
-    async with _running(engine, redis, counters=counters, auth_failure_limiter=limiter) as (
+    metrics = RecordingMetrics()
+    limiter = ValkeyAuthFailureLimiter(redis, limit=2, window=100, metrics=metrics)
+    async with _running(engine, redis, metrics=metrics, auth_failure_limiter=limiter) as (
         http,
         _app,
     ):
@@ -821,21 +822,21 @@ async def test_auth_failure_lockout_by_ip(engine, redis):
         locked = await http.post("/main/mcp", headers=bad, json=body)
     assert locked.status_code == 429
     assert int(locked.headers["Retry-After"]) > 0
-    assert counters.get("auth_failure_lockouts") >= 1
-    assert counters.get("auth_failures") >= 3
+    assert metrics.count("auth_locked_out") >= 1
+    assert metrics.count("auth_failed") >= 3
 
 
 async def test_token_endpoint_auth_failure_counted(engine, redis):
     """EP-20: a bad OAuth client at the token endpoint is counted and locked out."""
-    counters = InProcessCounters()
-    limiter = ValkeyAuthFailureLimiter(redis, limit=1, window=100, counters=counters)
+    metrics = RecordingMetrics()
+    limiter = ValkeyAuthFailureLimiter(redis, limit=1, window=100, metrics=metrics)
     form = {
         "grant_type": "authorization_code",
         "code": "x",
         "code_verifier": "y",
         "client_id": "does-not-exist",
     }
-    async with _running(engine, redis, counters=counters, auth_failure_limiter=limiter) as (
+    async with _running(engine, redis, metrics=metrics, auth_failure_limiter=limiter) as (
         http,
         _app,
     ):

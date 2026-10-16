@@ -122,6 +122,7 @@ claude.ai only.
 | `BUNDLEMCP_LEGACY_PROTOCOL_ENABLED` | `true` | Whether MCP revisions before 2026-07-28 (the `initialize` handshake and sessions) are still served. Switch off once every client speaks the stateless revisions. |
 | `BUNDLEMCP_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
 | `BUNDLEMCP_LOG_FORMAT` | `json` | `json` for a log pipeline, `text` for a terminal. Applies to the web server's loggers too. |
+| `BUNDLEMCP_METRICS_ENABLED` | `true` | Serve Prometheus metrics at `/metrics`, readable with a service API key or an admin session; see [Metrics](operations.md#metrics). `false` removes the route. |
 
 Secrets, tokens, header values and tool arguments are never written to the log at any level.
 

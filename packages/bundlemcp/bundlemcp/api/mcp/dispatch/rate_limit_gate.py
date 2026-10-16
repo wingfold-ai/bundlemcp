@@ -8,8 +8,11 @@ from bundlemcp.api.http.client_ip import client_ip
 from bundlemcp.api.mcp.protocol.endpoint_context import EndpointContext
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
-from bundlemcp.application.contracts.live_state.counters import RATE_LIMIT_REJECTIONS, Counters
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
+from bundlemcp.application.contracts.observability.gateway_metrics import (
+    GatewayMetrics,
+    RateLimitScope,
+)
 from bundlemcp.application.schemas import RateLimitConfig, RateRule
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.access.caller_identity import CallerIdentity
@@ -24,9 +27,9 @@ class RateLimitGate:
     rejection is a metric, never an audit record.
     """
 
-    def __init__(self, limiter: RateLimiter, counters: Counters, settings: Settings) -> None:
+    def __init__(self, limiter: RateLimiter, metrics: GatewayMetrics, settings: Settings) -> None:
         self._limiter = limiter
-        self._counters = counters
+        self._metrics = metrics
         self._settings = settings
 
     @staticmethod
@@ -55,21 +58,20 @@ class RateLimitGate:
         if not tool_call and not config.include_initialize_list:
             return None
 
-        checks: list[tuple[str, RateRule]] = []
+        checks: list[tuple[RateLimitScope, str, RateRule]] = []
         if config.endpoint is not None:
-            checks.append((f"ep:{endpoint.name}:all", config.endpoint))
+            checks.append((RateLimitScope.ENDPOINT, f"ep:{endpoint.name}:all", config.endpoint))
         if config.per_client is not None:
             ip = client_ip(ctx.request, self._settings)
-            checks.append(
-                (f"ep:{endpoint.name}:{self._bucket(ctx.identity, ip)}", config.per_client)
-            )
+            bucket = f"ep:{endpoint.name}:{self._bucket(ctx.identity, ip)}"
+            checks.append((RateLimitScope.CLIENT, bucket, config.per_client))
 
-        for scope, rule in checks:
+        for limit, scope, rule in checks:
             result = await self._limiter.check(
                 scope, rule.limit, rule.window_seconds, fail_closed=config.fail_closed
             )
             if not result.allowed:
-                self._counters.inc(RATE_LIMIT_REJECTIONS)
+                self._metrics.rate_limit_rejected(endpoint=endpoint.name, limit=limit)
                 response = rpc_error(message.id, -32000, "rate limit exceeded", status=429)
                 response.headers["Retry-After"] = str(result.retry_after)
                 return response

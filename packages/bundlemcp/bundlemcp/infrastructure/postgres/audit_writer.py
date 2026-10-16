@@ -18,7 +18,7 @@ class QueuedAuditWriter:
         self._sessions = session_factory
         self._queue: asyncio.Queue[AuditRecord] = asyncio.Queue(maxsize=QUEUE_MAX)
         self._task: asyncio.Task | None = None
-        self.dropped = 0  # logged on overflow; not exported as a metric yet
+        self.dropped = 0  # records lost to a full queue since start, logged on overflow
 
     async def start(self) -> None:
         self._task = asyncio.create_task(self._drain())
@@ -32,6 +32,11 @@ class QueuedAuditWriter:
             except asyncio.CancelledError:
                 pass
             self._task = None
+
+    @property
+    def queue_depth(self) -> int:
+        """Records waiting to be written, for the metrics' audit-queue gauge."""
+        return self._queue.qsize()
 
     async def drain(self) -> None:
         """Wait until every queued record has been written."""

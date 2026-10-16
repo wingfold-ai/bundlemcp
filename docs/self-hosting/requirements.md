@@ -49,8 +49,6 @@ Keycloak in the compose file is for development and ships with
 ### What you own that the gateway does not do
 
 - **TLS.** Terminate it at your proxy.
-- **Metrics.** There is no Prometheus `/metrics` route. Alert on the structured
-  logs instead — [Operations](/self-hosting/operations) names the events.
 - **Backups.** Postgres only; Valkey is deliberately disposable.
 
 ## Not multi-tenant

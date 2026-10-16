@@ -91,6 +91,11 @@ class Settings(BaseModel):
         "list, so an allow entry covering the same address wins",
     )
 
+    metrics_enabled: bool = Field(
+        default=True,
+        description="Serve Prometheus metrics at /metrics, readable with a service API key or an "
+        "admin session. Each replica serves its own; scrape every replica. False removes the route",
+    )
     config_cache_disabled: bool = Field(
         default=False,
         description="Read runtime configuration from the database on every access instead of "

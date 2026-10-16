@@ -34,9 +34,10 @@ Structured MCP errors to clients; no silent degradation — partial `tools/list`
 Structured JSON logs (redacted) on standard error, each line of a request carrying its `request_id` (returned as
 `X-Request-Id`), the derived client IP, endpoint, session and caller; `/healthz` and a `/readyz` that reports each check
 (Postgres, Valkey, schema at the shipped head); optional OpenTelemetry tracing, loaded only when an exporter is
-configured ([ADR-0051](../adr/0051-request-context-readiness-report-and-optional-tracing.md)); in-process counters
-(Prometheus `/metrics` is reserved but not built — §11); per-call audit records in Postgres as the billing
-reconciliation source ([OPS-7](../../openspec/specs/operations/spec.md)).
+configured ([ADR-0051](../adr/0051-request-context-readiness-report-and-optional-tracing.md)); Prometheus metrics on
+`/metrics`, per replica, behind the management credentials, with a closed label set
+([ADR-0052](../adr/0052-per-replica-prometheus-metrics-with-a-closed-label-set.md)); per-call audit records in Postgres
+as the billing reconciliation source ([OPS-7](../../openspec/specs/operations/spec.md)).
 
 ## Configuration
 Deploy-time: `BUNDLEMCP_*` env via pydantic-settings. Runtime-tunable: the `config_entries` table, its legal keys

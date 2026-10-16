@@ -61,7 +61,6 @@ from bundlemcp.infrastructure.fastmcp.client_factory import default_client_facto
 from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
 from bundlemcp.infrastructure.httpx.client_metadata_fetcher import HttpxClientMetadataFetcher
 from bundlemcp.infrastructure.httpx.upstream_oauth_provider import HttpxUpstreamProvider
-from bundlemcp.infrastructure.inprocess.counters import InProcessCounters
 from bundlemcp.infrastructure.inprocess.stream_registry import InProcessStreamRegistry
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.memory.noop_call_tracer import NoopCallTracer
@@ -72,6 +71,8 @@ from bundlemcp.infrastructure.postgres.audit_writer import QueuedAuditWriter
 from bundlemcp.infrastructure.postgres.engine import create_engine, session_factory
 from bundlemcp.infrastructure.postgres.shipped_migrations import ShippedMigrations
 from bundlemcp.infrastructure.postgres.sqlalchemy_unit_of_work import SqlAlchemyUnitOfWorkFactory
+from bundlemcp.infrastructure.prometheus.prometheus_metrics import PrometheusMetrics
+from bundlemcp.infrastructure.readiness.store_health import StoreHealth
 from bundlemcp.infrastructure.readiness.store_readiness_probe import StoreReadinessProbe
 from bundlemcp.infrastructure.valkey.admin_session_store import AdminSessionStore
 from bundlemcp.infrastructure.valkey.auth_failure_limiter import ValkeyAuthFailureLimiter
@@ -210,16 +211,23 @@ class CompositionRoot:
         self._stack.push_async_callback(signals.stop)
         session_store = ValkeySessionStore(redis)
 
-        counters = overrides.counters or InProcessCounters()  # metric seam
+        prometheus = PrometheusMetrics(
+            open_streams=lambda: len(registry.broadcast_streams()),
+            audit_queue_depth=lambda: audit.queue_depth,
+            store_health=StoreHealth(sessions, redis).check,
+        )
+        metrics = overrides.metrics or prometheus  # metric seam
         profiles = overrides.profiles or ProfileCatalog.builtin()
         auth_failure_limiter = overrides.auth_failure_limiter or ValkeyAuthFailureLimiter(
             redis,
             limit=settings.auth_failure_limit,
             window=settings.auth_failure_window,
-            counters=counters,
+            metrics=metrics,
         )
         auth_failure_guard = AuthFailureGuard(auth_failure_limiter, settings)
-        rate_limiter = overrides.rate_limiter or ValkeyRateLimiter(redis, counters)
+        rate_limiter = overrides.rate_limiter or ValkeyRateLimiter(
+            redis, on_fail_open=metrics.traffic_limiter_failed_open
+        )
         metering = overrides.metering_hook or load_metering_hook(settings)
         if isinstance(metering, HttpMeteringHook):
             self._stack.push_async_callback(metering.aclose)
@@ -245,7 +253,7 @@ class CompositionRoot:
             state_cipher=cipher,
             rate_limiter=rate_limiter,
             auth_failures=auth_failure_guard,
-            counters=counters,
+            metrics=metrics,
             profiles=profiles,
             clock=clock,
             secret_hasher=hasher,
@@ -334,7 +342,8 @@ class CompositionRoot:
             delegated_tokens=delegated_tokens,
             audit=audit,
             runtime_config=runtime_config,
-            counters=counters,
+            metrics=metrics,
+            metrics_exposition=prometheus,
             profiles=profiles,
             rate_limiter=rate_limiter,
             auth_failure_limiter=auth_failure_limiter,
