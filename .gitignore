@@ -27,3 +27,4 @@ deploy/docker-compose.override.yml
 
 # the MCP conformance suite writes its results here
 /results/
+overhead-report.json

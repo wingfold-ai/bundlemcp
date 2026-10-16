@@ -9,6 +9,7 @@ from typing import Any
 import structlog
 from fastapi import Response
 
+from bundlemcp.api.http.log_context import bind_request_fields
 from bundlemcp.api.mcp.protocol.dialect import ProtocolEra
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error, rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
@@ -86,6 +87,7 @@ class ToolCall:
         self._ctx = ctx
         self._message = message
         self._tool = tool
+        bind_request_fields(server=tool.server.name, tool=tool.tool.name)
         self._resume = resume
         self._preanswered = preanswered
         self._correlation_id = uuid.uuid4().hex
@@ -203,6 +205,20 @@ class ToolCall:
         return rpc_error(self.rpc_id, UPSTREAM_FAILURE, refusal.reason)
 
     async def execute(
+        self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
+    ) -> CallOutcome:
+        """Drive the upstream, inside one span naming the endpoint, server, tool and outcome."""
+        attributes = {
+            "bundlemcp.endpoint": self._ctx.view.endpoint.name,
+            "bundlemcp.server": self._tool.server.name,
+            "bundlemcp.tool": self._tool.tool.name,
+        }
+        with self._support.tracer.span("mcp.upstream_call", attributes) as span:
+            outcome = await self._execute(on_progress, on_notification)
+            span.set_attribute("bundlemcp.status", outcome.status.value)
+        return outcome
+
+    async def _execute(
         self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
     ) -> CallOutcome:
         """Drive the upstream once; act on what an upstream refusal says.

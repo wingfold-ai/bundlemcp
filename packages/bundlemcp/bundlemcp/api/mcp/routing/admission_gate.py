@@ -8,6 +8,7 @@ from mcp.types import INVALID_REQUEST, PARSE_ERROR
 from pydantic import ValidationError
 
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
+from bundlemcp.api.http.log_context import bind_caller, bind_request_fields
 from bundlemcp.api.mcp.protocol.cors_grant import CorsGrant
 from bundlemcp.api.mcp.protocol.endpoint_context import EndpointContext
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
@@ -83,6 +84,7 @@ class AdmissionGate:
             view = await load_bundle_view(uow, endpoint_name, self._profiles)
             if view is None:
                 raise RequestRejected(JSONResponse({"error": "not found"}, status_code=404))
+            bind_request_fields(endpoint=view.endpoint.name)
             # a browser origin the endpoint refuses is answered before any credential is read
             cors = self._cors_for(request, view.endpoint)
             if _carries_credential(request):
@@ -98,4 +100,5 @@ class AdmissionGate:
                 invalid_token=presents_bearer(request.headers.get("authorization")),
             )
             raise RequestRejected(locked or challenge, cors)
+        bind_caller(identity)
         return EndpointContext(request=request, view=view, identity=identity, cors=cors)

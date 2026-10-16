@@ -1,6 +1,6 @@
 [project]
 name = "bundlemcp-workspace"
-version = "0.1.5"
+version = "0.1.6"
 description = "bundlemcp workspace root (see packages/ and apps/)"
 requires-python = ">=3.13"
 license = "Apache-2.0"
@@ -19,6 +19,8 @@ dev-dependencies = [
     "httpx>=0.28",
     "import-linter>=2.14",
     "rumdl>=0.2.78",
+    # the tests exercise tracing with an in-memory exporter
+    "bundlemcp[otel]",
 ]
 
 [tool.uv.sources]
@@ -62,6 +64,7 @@ testpaths = ["packages/bundlemcp/tests"]
 markers = [
     "fleet: integration test requiring the private GHCR fleet images (skipped in CI)",
     "replicas: integration test requiring deploy/docker-compose.replicas.yml (two gateways)",
+    "benchmark: integration test that reports a measurement instead of asserting it",
 ]
 
 # Import-graph contracts. Run with `uv run lint-imports`.

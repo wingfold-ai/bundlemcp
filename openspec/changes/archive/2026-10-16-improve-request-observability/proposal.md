@@ -21,14 +21,11 @@ adds to a `tools/call`.
 - The integration suite measures the gateway's added latency on `tools/call` and reports it against a 50 ms p95 budget
   — a report, not a gate (OPS-13).
 
-## Open decision
+## Decision: logs stay on standard error
 
-**Log stream: stdout or stderr?** The original OPS-8 said "JSON to stdout"; the code writes to **stderr**
-(`logging.StreamHandler()` default) and its docstrings say stdout. Container runtimes collect both, so the choice is
-about convention and about tooling that reads only one stream. The delta below keeps **stderr** (what ships today, no
-behaviour change); if the maintainers choose stdout, OPS-8's delta changes one word and task 1.1 switches the handler.
-Decide before applying. Either way the docstrings are corrected (in
-[fix-stale-documentation](../archive/2026-10-13-fix-stale-documentation/proposal.md) until this lands).
+The original OPS-8 said "JSON to stdout"; the code writes to standard error. Container runtimes collect both, so the
+choice is convention and whatever tooling reads only one stream. The maintainers chose to keep standard error, what
+ships today, so nothing changes for anyone already collecting logs; OPS-8 states it.
 
 ## Capabilities
 

@@ -56,6 +56,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0048](../adr/0048-egress-policy-enforced-at-connect-time.md) | A guarded network backend dials the address the policy judged, for both HTTP stacks and every redirect hop | accepted | Closes DNS rebinding; relies on a private pool attribute, guarded by tests |
 | [0049](../adr/0049-browser-origins-are-an-endpoint-setting.md) | Each endpoint lists the browser origins that may use it; checked before authentication | accepted | Open endpoints refuse cross-site browsers by default; pre-lookup errors carry no CORS |
 | [0050](../adr/0050-one-stage-chain-and-once-per-invocation-metering.md) | One stage chain presents tools and admits and settles calls; a paused invocation is a Valkey record, metered once | accepted | Hook decides once per invocation; abandoned invocations get `no_result` from a sweeper |
+| [0051](../adr/0051-request-context-readiness-report-and-optional-tracing.md) | One log context per request bound where facts resolve; `/readyz` reports each check incl. schema; OpenTelemetry an optional extra | accepted | Every line of a request is findable by `X-Request-Id`; tracing loads nothing until configured |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).

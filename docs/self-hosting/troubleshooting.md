@@ -133,9 +133,11 @@ The error code says which rung failed: `-32602` for a missing envelope,
 
 ## `/readyz` never turns green
 
-**Cause.** Postgres or Valkey is unreachable, or a migration failed.
+**Cause.** Postgres or Valkey is unreachable, or the schema is behind the image (a migration failed or has not run
+yet). The response body names which:
 
 ```bash
+curl -s http://localhost:8000/readyz            # {"status": "not ready", "failing": [...], "checks": {...}}
 docker compose -f deploy/docker-compose.yml logs gateway | grep -i alembic
 ```
 
@@ -192,9 +194,20 @@ re-applied at every startup.
 **Fix.** Either edit the document rather than the UI, or remove that resource
 from the document. See [Bootstrap file](/self-hosting/bootstrap).
 
+## Finding the log lines of one request
+
+Every response carries an `X-Request-Id` header. Every gateway log line written while serving that request carries the
+same value as `request_id`, so one filter finds them all:
+
+```bash
+docker compose -f deploy/docker-compose.yml logs gateway | grep '"request_id": "<the id>"'
+```
+
+A client that only kept the time of a failure can be found by its `client_ip` and the `endpoint` instead.
+
 ## Still stuck
 
-Collect the gateway logs for the failing request (they carry a request id, the
-endpoint and the caller, and never secrets), the output of
+Collect the gateway logs for the failing request (find them by its `X-Request-Id`; they carry the endpoint and the
+caller, and never secrets), the output of
 `GET /api/v1/upstreams/{name}` for an upstream problem, and
 [open an issue](https://github.com/wingfold-ai/bundlemcp/issues).

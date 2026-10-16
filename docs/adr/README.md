@@ -67,3 +67,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0048](0048-egress-policy-enforced-at-connect-time.md) | The egress policy is enforced at connect time | accepted |
 | [0049](0049-browser-origins-are-an-endpoint-setting.md) | Browser origins are an endpoint setting, not an auth mode | accepted |
 | [0050](0050-one-stage-chain-and-once-per-invocation-metering.md) | Tools pass one stage chain, and an invocation is metered once | accepted |
+| [0051](0051-request-context-readiness-report-and-optional-tracing.md) | Requests carry one log context, readiness reports each check, and tracing is optional | accepted |

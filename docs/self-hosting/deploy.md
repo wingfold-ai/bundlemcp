@@ -211,16 +211,22 @@ rotating them is in [Rotating credentials](/self-hosting/operations#rotating-cre
 | Route | Meaning |
 |---|---|
 | `GET /healthz` | The process is alive. |
-| `GET /readyz` | Postgres answers a trivial query and Valkey answers a ping. |
+| `GET /readyz` | Postgres answers, Valkey answers, the database schema is at or past the migration head this image ships, and the replica is not shutting down. |
 
 Both are unauthenticated. Wire `/readyz` into your orchestrator's readiness probe and the proxy's upstream health check;
 the gateway image's own `HEALTHCHECK` already polls it.
 
-`/readyz` does **not** check the schema version. It does not need to for a
-single container — the image runs `alembic upgrade head` before the server
-binds, so a replica that is still migrating is not accepting connections at
-all. It does mean you cannot use `/readyz` to detect a replica running against
-a schema it does not expect.
+Not ready is always `503`, never `500`, with a body naming the checks that failed:
+
+```json
+{"status": "not ready", "failing": ["migrations"],
+ "checks": {"postgres": {"ok": true}, "valkey": {"ok": true},
+            "migrations": {"ok": false, "reason": "schema at 0010_..., this release needs 0011_..."}}}
+```
+
+A schema written by a *newer* release counts as current, because migrations are backward-compatible one release back:
+an older replica keeps serving during a rolling update. A schema *behind* the image is not ready, which is what a
+one-shot migration job relies on: replicas started before the job finishes stay out of rotation until it has.
 
 ## Migrations and upgrades
 
