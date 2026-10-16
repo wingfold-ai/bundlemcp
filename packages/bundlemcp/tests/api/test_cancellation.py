@@ -45,12 +45,20 @@ def _app(engine, redis, hook: OutcomeHook):
     )
 
 
-async def _modern_hang(http: AsyncClient, id_: int, seconds: float = 30) -> dict:
-    """A modern tools/call of the hanging tool; returns its final JSON-RPC message."""
+async def _modern_hang(
+    http: AsyncClient, id_: int, seconds: float = 30, started: asyncio.Event | None = None
+) -> dict:
+    """A modern tools/call of the hanging tool; returns its final JSON-RPC message.
+
+    ``started`` is set once the call's event stream has opened, which happens only after
+    the call was admitted and registered.
+    """
     body, headers = _modern(
         "tools/call", {"name": "relay__hang", "arguments": {"seconds": seconds}}, id_=id_
     )
     async with http.stream("POST", "/main/mcp", headers=headers, json=body) as resp:
+        if started is not None:
+            started.set()
         async for line in resp.aiter_lines():
             if line.startswith("data: "):
                 message = json.loads(line[6:])
