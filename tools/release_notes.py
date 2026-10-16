@@ -2,13 +2,13 @@
 """Release notes from CHANGELOG.md, stating the metering-hook protocol version.
 
     python3 tools/release_notes.py v1.2.0      # the notes for that tag, on stdout
-    python3 tools/release_notes.py --check     # every entry names a protocol version,
-                                               # and the newest names the current one
+    python3 tools/release_notes.py --check     # every entry heading is well-formed
 
-Fails (exit 1) when the changelog has no entry for the version, when an entry
-does not name the metering-hook protocol version, or when the entry for the
-version names another one than the source does. The notes end with that
-version and whether it changed since the previous release tag.
+Fails (exit 1) when the changelog has no entry for the version, or when the
+metering-hook protocol changed since the previous release tag and the entry
+does not say so. An entry names the protocol only in a release that changes
+it; the notes always end with the version the source ships and whether it
+changed since the previous release tag.
 """
 
 import argparse
@@ -22,8 +22,9 @@ CHANGELOG = ROOT / "CHANGELOG.md"
 HOOK_SOURCE = "packages/bundlemcp/bundlemcp/application/metering/metering_hook.py"
 TAG = re.compile(r"^v(\d+\.\d+\.\d+)$")
 HEADING = re.compile(r"^## \[([^\]]+)\][^\n]*$", re.MULTILINE)
+DATED_HEADING = re.compile(r"^## \[(\d+)\.(\d+)\.(\d+)\] - \d{4}-\d{2}-\d{2}$")
 SECTION = re.compile(r"^## ", re.MULTILINE)
-PROTOCOL_LINE = re.compile(r"^Metering-hook protocol: (\d+)\s*$", re.MULTILINE)
+NAMES_PROTOCOL = re.compile(r"metering-hook protocol", re.IGNORECASE)
 SOURCE_VERSION = re.compile(r"^METERING_PROTOCOL_VERSION = (\d+)", re.MULTILINE)
 VERSIONING = "https://bundlemcp.com/integrate/metering-hook#versioning"
 
@@ -49,13 +50,6 @@ def entries(changelog: str) -> dict[str, str]:
     return found
 
 
-def protocol_of(entry: str, name: str) -> int:
-    match = PROTOCOL_LINE.search(entry)
-    if match is None:
-        raise ReleaseError(f"changelog entry {name} does not say 'Metering-hook protocol: <n>'")
-    return int(match.group(1))
-
-
 def source_protocol(source: str) -> int:
     match = SOURCE_VERSION.search(source)
     if match is None:
@@ -77,36 +71,36 @@ def notes(
         raise ReleaseError(
             f"CHANGELOG.md has no entry for {version}; add '## [{version}] - <date>'"
         )
-    stated = protocol_of(entry, version)
-    if stated != current:
+    changed = previous_tag is not None and previous is not None and previous != current
+    if changed and NAMES_PROTOCOL.search(entry) is None:
         raise ReleaseError(
-            f"changelog entry {version} names metering-hook protocol {stated}, the source {current}"
+            f"the metering-hook protocol changed from {previous} in {previous_tag} to {current}, "
+            f"and the changelog entry {version} does not say so"
         )
-    body = PROTOCOL_LINE.sub("", entry).strip()
     if previous_tag is None or previous is None:
         protocol = f"Metering-hook protocol version: **{current}**."
-    elif previous == current:
+    elif not changed:
         protocol = f"Metering-hook protocol version: **{current}**, unchanged since {previous_tag}."
     else:
         protocol = (
             f"Metering-hook protocol version: **{current}**, **changed** from {previous} in "
             f"{previous_tag}. Hooks must be updated; see {VERSIONING}."
         )
-    return f"{body}\n\n---\n\n{protocol}\n"
+    return f"{entry}\n\n---\n\n{protocol}\n"
 
 
-def check(changelog: str, current: int) -> None:
-    """Every entry names a protocol version, and the newest names the current one."""
-    found = entries(changelog)
-    if not found:
+def check(changelog: str) -> None:
+    """Every entry is headed ``## [x.y.z] - YYYY-MM-DD``, each version once, newest first."""
+    versions: list[tuple[int, int, int]] = []
+    for heading in HEADING.finditer(changelog):
+        match = DATED_HEADING.match(heading.group(0))
+        if match is None:
+            raise ReleaseError(f"'{heading.group(0)}' is not '## [x.y.z] - YYYY-MM-DD'")
+        versions.append((int(match.group(1)), int(match.group(2)), int(match.group(3))))
+    if not versions:
         raise ReleaseError("CHANGELOG.md has no entries")
-    for name, entry in found.items():
-        protocol_of(entry, name)
-    newest = next(iter(found))
-    if protocol_of(found[newest], newest) != current:
-        raise ReleaseError(
-            f"the newest changelog entry ({newest}) must name metering-hook protocol {current}"
-        )
+    if versions != sorted(set(versions), reverse=True):
+        raise ReleaseError("CHANGELOG.md lists a version twice or out of order; newest first")
 
 
 def _git(*args: str) -> str | None:
@@ -132,8 +126,8 @@ def main() -> int:
     try:
         current = source_protocol((ROOT / HOOK_SOURCE).read_text())
         if args.check:
-            check(changelog, current)
-            sys.stderr.write(f"CHANGELOG.md names metering-hook protocol {current}.\n")
+            check(changelog)
+            sys.stderr.write("CHANGELOG.md entries are well-formed.\n")
             return 0
         match = TAG.match(args.tag or "")
         if match is None:

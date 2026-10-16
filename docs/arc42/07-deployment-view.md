@@ -23,5 +23,5 @@ Operator's reverse proxy (TLS, `X-Forwarded-*`) → N stateless **gateway** repl
 | Probes | `/healthz` (live), `/readyz` (PG+Redis+schema current) | [OPS-10](../../openspec/specs/operations/spec.md) |
 | Backups | Postgres dump = full durable state; Redis deliberately unbacked; restore rehearsed for every release (`deploy/rehearse_restore.py`) | DEP-8 |
 | CI gates | One `ci-passed` check over ruff, rumdl, import contracts, pytest, OpenAPI drift, frontend typecheck and build, docs, LikeC4, OpenSpec, images, integration | DEP-10 |
-| Releases | `v<semver>` tag → restore rehearsal → images `:<version>` → GitHub release from `CHANGELOG.md`, naming the metering-hook protocol version; `main` publishes `:latest` and `:<sha>` | DEP-11 |
+| Releases | each pull request carries its version (from its title) and `CHANGELOG.md` entry; its merge tags `v<semver>` → restore rehearsal → images `:<version>` → GitHub release from the entry, naming the metering-hook protocol version; `main` publishes `:latest` and `:<sha>` | DEP-11, DEP-12 |
 | Dev stack | `deploy/docker-compose.yml`: gateway, web, PG, Valkey, dev OIDC IdP, demo seed | ARC-13, [MGMT-13](../../openspec/specs/management/spec.md) |

@@ -1,0 +1,272 @@
+# Every pull request carries the release its merge makes. On a pull request:
+# label it from its title, then commit the changelog entry and the version bump
+# to its branch. On main: renumber the entries of the open pull requests, and
+# tag and release a merge that raised the version.
+#
+# Commits pushed to a branch here say [skip ci], so GitHub creates no run for
+# them; the squash merge takes its message from the pull request body, so the
+# marker never reaches main. A tag pushed with the workflow token starts no
+# workflow, so the release is called directly instead of through its tag
+# trigger.
+name: Release entry
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  PYDANTIC: pydantic==2.13.5
+  RUMDL: rumdl@0.2.78
+  BOT_NAME: github-actions[bot]
+  BOT_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+
+jobs:
+  labels:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    outputs:
+      semver: ${{ steps.derive.outputs.semver }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: The title is a Conventional Commit
+        id: derive
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          labels=$(uv run --no-project --with "$PYDANTIC" python tools/pull_request_release.py labels "$TITLE")
+          echo "$labels"
+          echo "labels=$(echo "$labels" | paste -sd, -)" >> "$GITHUB_OUTPUT"
+          echo "semver=$(echo "$labels" | sed -n 's/^semver: //p')" >> "$GITHUB_OUTPUT"
+      - name: Replace the type and semver labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          WANTED: ${{ steps.derive.outputs.labels }}
+        run: |
+          current=$(gh api "repos/$GH_REPO/issues/$NUMBER/labels" --jq '.[].name')
+          while IFS= read -r label; do
+            case "$label" in
+              "type: "*|"semver: "*)
+                if ! printf '%s\n' "$WANTED" | tr , '\n' | grep -qxF "$label"; then
+                  gh api -X DELETE "repos/$GH_REPO/issues/$NUMBER/labels/$(jq -rn --arg l "$label" '$l|@uri')"
+                fi ;;
+            esac
+          done <<< "$current"
+          args=()
+          IFS=, read -ra wanted <<< "$WANTED"
+          for label in "${wanted[@]}"; do args+=(-f "labels[]=$label"); done
+          gh api -X POST "repos/$GH_REPO/issues/$NUMBER/labels" "${args[@]}" > /dev/null
+
+  entry:
+    needs: labels
+    # A description edit alone changes neither the version nor the text.
+    if: github.event.action != 'edited' || github.event.changes.title != null
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+      checks: read
+      statuses: write
+    concurrency:
+      group: release-entry-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: The branch is in this repository
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::CI cannot write the changelog entry to a fork's branch; a maintainer moves the branch into the repository before merging."
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Decide whether the text is written
+        id: text
+        env:
+          ACTION: ${{ github.event.action }}
+          SEMVER: ${{ needs.labels.outputs.semver }}
+        run: |
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
+          bot=$(git log origin/main..HEAD --fixed-strings --author="$BOT_EMAIL" -1 --format=%H)
+          status=$(uv run --no-project --with "$PYDANTIC" python tools/pull_request_release.py \
+            text-status ${bot:+--bot-ref "$bot"})
+          echo "Entry text: $status"
+          write=false
+          if [ "$SEMVER" != none ]; then
+            if [ "$status" = missing ] || { [ "$status" = generated ] && [ "$ACTION" != edited ]; }; then
+              write=true
+            fi
+          fi
+          echo "write=$write" >> "$GITHUB_OUTPUT"
+      - name: Write the text with Claude
+        id: writer
+        if: steps.text.outputs.write == 'true'
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          printf '%s' "$BODY" > "$RUNNER_TEMP/body.md"
+          gh pr diff "$NUMBER" > "$RUNNER_TEMP/pr.diff"
+          uv run --no-project --with "$PYDANTIC" python tools/changelog_writer.py --title "$TITLE" \
+            --number "$NUMBER" --url "$URL" --body-file "$RUNNER_TEMP/body.md" \
+            --diff-file "$RUNNER_TEMP/pr.diff" > "$RUNNER_TEMP/text.md"
+      - name: Note a missing text
+        if: steps.writer.outcome == 'failure'
+        run: echo "::warning::Claude wrote no entry text; the entry keeps its text or falls back to the title."
+      - name: Write the entry and the bump
+        id: apply
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          URL: ${{ github.event.pull_request.html_url }}
+          WRITTEN: ${{ steps.writer.outcome == 'success' }}
+        run: |
+          args=()
+          if [ "$WRITTEN" = true ]; then args+=(--text "$RUNNER_TEMP/text.md"); fi
+          version=$(uv run --no-project --with "$PYDANTIC" python tools/pull_request_release.py apply \
+            --title "$TITLE" --number "$NUMBER" --url "$URL" "${args[@]}")
+          uvx "$RUMDL" fmt CHANGELOG.md
+          uvx "$RUMDL" check CHANGELOG.md
+          python3 tools/release_notes.py --check
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Commit and push
+        env:
+          VERSION: ${{ steps.apply.outputs.version }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git add CHANGELOG.md pyproject.toml packages/bundlemcp/pyproject.toml uv.lock apps/web/openapi.json
+          if ! git diff --cached --quiet; then
+            if [ -n "$VERSION" ]; then
+              git commit -m "chore(repo): Release $VERSION [skip ci]"
+            else
+              git commit -m "chore(repo): Remove the release entry [skip ci]"
+            fi
+          fi
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$HEAD_REF")" ]; then
+            git push origin "HEAD:$HEAD_REF"
+          fi
+      - name: Carry CI's result onto CI's commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: uv run --no-project --with "$PYDANTIC" python tools/ci_result_relay.py "$(git rev-parse HEAD)"
+
+  refresh:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      statuses: write
+    concurrency:
+      group: release-entry-refresh
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Renumber the open pull requests' entries
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
+          marker="<!-- release-entry: conflict -->"
+          gh pr list --base main --state open --limit 100 \
+            --json number,title,url,headRefName,isCrossRepository,labels \
+            --jq '.[] | select(.isCrossRepository | not)
+                  | select([.labels[].name] | index("semver: none") | not)
+                  | select([.labels[].name] | any(startswith("semver: ")))
+                  | [.number, .headRefName, .url, .title] | @tsv' |
+          while IFS=$'\t' read -r number branch url title; do
+            echo "::group::#$number $branch"
+            git checkout -q -B "$branch" "origin/$branch"
+            if version=$(uv run --no-project --with "$PYDANTIC" python tools/pull_request_release.py \
+                apply --title "$title" --number "$number" --url "$url"); then
+              uvx "$RUMDL" fmt CHANGELOG.md
+              git add CHANGELOG.md pyproject.toml packages/bundlemcp/pyproject.toml uv.lock \
+                apps/web/openapi.json
+              git diff --cached --quiet || git commit -qm "chore(repo): Release $version [skip ci]"
+              git push -q origin "HEAD:$branch"
+              uv run --no-project --with "$PYDANTIC" python tools/ci_result_relay.py "$(git rev-parse HEAD)"
+            elif ! gh api "repos/$GH_REPO/issues/$number/comments" --jq '.[].body' | grep -qF "$marker"; then
+              gh pr comment "$number" --body "$marker
+          Merging main into this branch conflicts outside the changelog and the version files, so CI cannot renumber its release entry. Merge or rebase onto main; the next push renumbers it."
+            fi
+            git checkout -q --detach origin/main
+            echo "::endgroup::"
+          done
+
+  tag:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Tag a merge that raised the version
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' packages/bundlemcp/pyproject.toml | head -1)
+          previous=$(git tag --list 'v*.*.*' --sort=-v:refname | head -1)
+          semver=$(gh api "repos/$GH_REPO/commits/$GITHUB_SHA/pulls" \
+            --jq '[(.[0].labels // [])[].name | select(startswith("semver: "))][0] // "semver: none"')
+          if [ "v$version" = "$previous" ]; then
+            if [ "$semver" != "semver: none" ]; then
+              echo "::error::This merge is labelled '$semver' but did not raise the version from $previous; nothing is released."
+              exit 1
+            fi
+            echo "No version change; nothing to release."
+            exit 0
+          fi
+          highest=$(printf '%s\n%s\n' "$previous" "v$version" | sort -V | tail -1)
+          if [ "$highest" != "v$version" ]; then
+            echo "::error::The version $version is lower than the last release $previous."
+            exit 1
+          fi
+          git tag "v$version" "$GITHUB_SHA"
+          git push origin "v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: tag
+    if: needs.tag.outputs.version != ''
+    permissions:
+      contents: write
+      packages: write
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.tag.outputs.version }}

@@ -2,18 +2,28 @@
 # changelog has an entry for it, rehearse the restore, publish both images as
 # :<version>, then create the GitHub release from the changelog entry. Each
 # step needs the one before, so a missing entry or a failed rehearsal publishes
-# nothing.
+# nothing. A tag pushed by hand starts it; a merge that raises the version calls
+# it, because a tag pushed with the workflow token starts no workflow.
 name: Release
 
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_call:
+    inputs:
+      version:
+        description: The version to release, e.g. 1.2.0; its tag must exist
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+env:
+  TAG: ${{ inputs.version && format('v{0}', inputs.version) || github.ref_name }}
+
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.version || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -25,11 +35,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ env.TAG }}
           fetch-depth: 0 # the previous release tag decides "changed since"
       - name: The changelog has an entry for this tag
-        run: python3 tools/release_notes.py "$GITHUB_REF_NAME"
+        run: python3 tools/release_notes.py "$TAG"
       - id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
   rehearse:
     needs: notes
@@ -53,12 +64,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ env.TAG }}
           fetch-depth: 0
       - name: Create the GitHub release from the changelog entry
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          python3 tools/release_notes.py "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
-          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" \
+          python3 tools/release_notes.py "$TAG" > "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" --verify-tag --title "$TAG" \
             --notes-file "$RUNNER_TEMP/notes.md"
