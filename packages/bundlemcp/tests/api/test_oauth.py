@@ -1253,13 +1253,11 @@ async def test_ep3a_no_credentials_keeps_the_plain_challenge(oauth_env):
 
 async def test_ep3a_a_refused_bearer_still_counts_toward_the_lockout(oauth_env):
     """EP-3a/EP-20: the invalid_token answer is still an authentication failure."""
-    from bundlemcp.application.contracts.live_state.counters import AUTH_FAILURES
-
     http, app, user = oauth_env
-    counters = app.state.container.counters
-    before = counters.get(AUTH_FAILURES)
+    registry = app.state.container.metrics.registry
+    before = registry.get_sample_value("bundlemcp_auth_failures_total") or 0
     await http.post("/ep1/mcp", headers={"Authorization": "Bearer bmcp_at_x"}, json=INITIALIZE)
-    assert counters.get(AUTH_FAILURES) == before + 1
+    assert registry.get_sample_value("bundlemcp_auth_failures_total") == before + 1
 
 
 def test_ep3a_only_a_bearer_with_a_value_counts_as_presented():

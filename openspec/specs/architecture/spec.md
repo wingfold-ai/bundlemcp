@@ -139,13 +139,18 @@ A gateway restart MUST NOT invalidate client sessions that are otherwise still w
 - **THEN** the client's next request with the same session id succeeds without re-initializing
 
 ### Requirement: ARC-11 One gateway container, its routes
-One gateway container SHALL serve: `/{endpoint}/mcp` (public MCP, [endpoints](../endpoints/spec.md)), `/oauth/*` +
-`/.well-known/*` ([auth](../auth/spec.md)), `/api/v1/*` (management,
-[management](../management/spec.md)), `/healthz` and `/readyz` ([operations](../operations/spec.md)).
+One gateway container SHALL serve: `/{endpoint}/mcp` (public MCP, [endpoints](../endpoints/spec.md)),
+`/oauth/*` + `/.well-known/*` ([auth](../auth/spec.md)), `/api/v1/*` (management,
+[management](../management/spec.md)), `/healthz`, `/readyz` and `/metrics`
+([operations](../operations/spec.md)).
 
 #### Scenario: Health probes are served by the gateway
 - **WHEN** `GET /healthz` and `GET /readyz` are requested from the gateway
 - **THEN** both answer from the same container that serves `/{endpoint}/mcp` and `/api/v1/*`
+
+#### Scenario: Metrics are served by the gateway
+- **WHEN** `GET /metrics` is requested from the gateway with a service API key
+- **THEN** the same container that serves `/{endpoint}/mcp` answers with Prometheus text-format metrics
 
 ### Requirement: ARC-12 Web app is a separate container
 The web app is a separate container; it SHALL talk to the gateway only through the management API and the admin

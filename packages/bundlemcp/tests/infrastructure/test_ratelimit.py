@@ -2,19 +2,18 @@
 
 import pytest
 from bundlemcp.api.http.client_ip import client_ip
-from bundlemcp.application.contracts.live_state.counters import (
-    AUTH_FAILURE_LOCKOUTS,
-    AUTH_FAILURES,
-    RATE_LIMIT_FAIL_OPEN,
-)
 from bundlemcp.infrastructure.config.settings import EnvSettings
-from bundlemcp.infrastructure.inprocess.counters import InProcessCounters
+from bundlemcp.infrastructure.memory.recording_metrics import RecordingMetrics
 from bundlemcp.infrastructure.valkey.auth_failure_limiter import ValkeyAuthFailureLimiter
 from bundlemcp.infrastructure.valkey.rate_limiter import ValkeyRateLimiter
 
 
+def _ignored() -> None:
+    return None
+
+
 async def test_under_limit_allows_then_denies(redis):
-    rl = ValkeyRateLimiter(redis)
+    rl = ValkeyRateLimiter(redis, on_fail_open=_ignored)
     # limit 3 per 100s window
     results = [await rl.check("s", 3, 100) for _ in range(4)]
     assert [r.allowed for r in results] == [True, True, True, False]
@@ -23,7 +22,7 @@ async def test_under_limit_allows_then_denies(redis):
 
 
 async def test_scopes_are_independent(redis):
-    rl = ValkeyRateLimiter(redis)
+    rl = ValkeyRateLimiter(redis, on_fail_open=_ignored)
     assert (await rl.check("a", 1, 100)).allowed is True
     assert (await rl.check("a", 1, 100)).allowed is False
     assert (await rl.check("b", 1, 100)).allowed is True  # different scope unaffected
@@ -31,7 +30,7 @@ async def test_scopes_are_independent(redis):
 
 async def test_window_rollover_resets(redis):
     """Crossing into the next fixed window restores the budget."""
-    rl = ValkeyRateLimiter(redis)
+    rl = ValkeyRateLimiter(redis, on_fail_open=_ignored)
     assert (await rl.check("w", 1, 100)).allowed is True
     assert (await rl.check("w", 1, 100)).allowed is False  # spent for this window
     redis.advance(100)  # over the bucket edge
@@ -45,11 +44,11 @@ async def test_fail_open_on_redis_error():
         async def time(self):
             raise ConnectionError("down")
 
-    counters = InProcessCounters()
-    rl = ValkeyRateLimiter(BoomRedis(), counters)
+    metrics = RecordingMetrics()
+    rl = ValkeyRateLimiter(BoomRedis(), on_fail_open=metrics.traffic_limiter_failed_open)
     res = await rl.check("s", 1, 100)
     assert res.allowed is True  # fail-open
-    assert counters.get(RATE_LIMIT_FAIL_OPEN) == 1
+    assert metrics.count("traffic_limiter_failed_open") == 1
 
 
 async def test_fail_closed_option():
@@ -57,23 +56,23 @@ async def test_fail_closed_option():
         async def time(self):
             raise ConnectionError("down")
 
-    rl = ValkeyRateLimiter(BoomRedis())
+    rl = ValkeyRateLimiter(BoomRedis(), on_fail_open=_ignored)
     res = await rl.check("s", 1, 100, fail_closed=True)
     assert res.allowed is False
 
 
 async def test_auth_failure_limiter_locks_out_by_ip(redis):
     """EP-20: threshold reached → lockout; a different IP keeps its own budget."""
-    counters = InProcessCounters()
-    lim = ValkeyAuthFailureLimiter(redis, limit=2, window=100, counters=counters)
+    metrics = RecordingMetrics()
+    lim = ValkeyAuthFailureLimiter(redis, limit=2, window=100, metrics=metrics)
     assert (await lim.record_failure("1.2.3.4")).allowed is True
     assert (await lim.record_failure("1.2.3.4")).allowed is True
     third = await lim.record_failure("1.2.3.4")
     assert third.allowed is False  # locked out
     assert third.retry_after > 0
     assert (await lim.record_failure("5.6.7.8")).allowed is True  # separate IP unaffected
-    assert counters.get(AUTH_FAILURES) == 4
-    assert counters.get(AUTH_FAILURE_LOCKOUTS) == 1
+    assert metrics.count("auth_failed") == 4
+    assert metrics.count("auth_locked_out") == 1
 
 
 async def test_auth_failure_limiter_fails_open():
@@ -83,7 +82,7 @@ async def test_auth_failure_limiter_fails_open():
         async def time(self):
             raise ConnectionError("down")
 
-    lim = ValkeyAuthFailureLimiter(BoomRedis(), limit=1, window=100)
+    lim = ValkeyAuthFailureLimiter(BoomRedis(), limit=1, window=100, metrics=RecordingMetrics())
     assert (await lim.record_failure("1.2.3.4")).allowed is True
     assert (await lim.record_failure("1.2.3.4")).allowed is True
 

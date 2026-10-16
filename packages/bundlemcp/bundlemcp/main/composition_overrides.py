@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.live_state.auth_failure_limiter import AuthFailureLimiter
-from bundlemcp.application.contracts.live_state.counters import Counters
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
+from bundlemcp.application.contracts.observability.gateway_metrics import GatewayMetrics
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.contracts.upstream.upstream_oauth_provider import UpstreamOAuthProvider
 from bundlemcp.application.metering.metering_hook import MeteringHook
@@ -50,7 +50,9 @@ class CompositionOverrides(BaseModel):
     metering_hook: MeteringHook | None = Field(
         default=None, description="Billing hook consulted around every tool call"
     )
-    counters: Counters | None = Field(default=None, description="Metric sink to record into")
+    metrics: GatewayMetrics | None = Field(
+        default=None, description="Where the gateway's metrics are recorded, instead of Prometheus"
+    )
     profiles: ProfileCatalog | None = Field(
         default=None, description="Endpoint profiles to register instead of the built-in ones"
     )

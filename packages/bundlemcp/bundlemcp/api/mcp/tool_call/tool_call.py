@@ -39,6 +39,7 @@ from bundlemcp.api.mcp.tool_call.request_audit import request_audit
 from bundlemcp.api.mcp.tool_call.tool_call_support import ToolCallSupport
 from bundlemcp.api.mcp.tool_call.upstream_call import ProgressCallback, UpstreamCall
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
+from bundlemcp.application.contracts.observability.gateway_metrics import ToolCallStatus
 from bundlemcp.application.metering.idempotency_key import new_idempotency_key
 from bundlemcp.application.metering.meter_context import MeterContext
 from bundlemcp.application.serving.call_handle import CallHandle
@@ -149,6 +150,7 @@ class ToolCall:
         return task
 
     async def run(self) -> Response:
+        self._admitted_at = time.monotonic()
         # the upstreams spec: resolve the upstream bearer BEFORE metering, so an unconnected
         # upstream is never debited.
         try:
@@ -198,6 +200,15 @@ class ToolCall:
     async def _refuse(self, refusal: CallRefusal) -> Response:
         """End the call a stage refused, in words the person behind the client can read."""
         await self._chain.settle(self._call, CallSettlement.refused(refusal.reason))
+        endpoint = self._ctx.view.endpoint.name
+        # metering is the one call stage that refuses
+        self._support.metrics.metering_denied(endpoint=endpoint)
+        self._support.metrics.tool_call_finished(
+            endpoint=endpoint,
+            server=self._tool.server.name,
+            status=ToolCallStatus.DENIED,
+            seconds=time.monotonic() - self._admitted_at,
+        )
         if refusal.user_message:
             # a tool error result, so the model relays the text verbatim
             content = [{"type": "text", "text": refusal.user_message}]
@@ -207,15 +218,25 @@ class ToolCall:
     async def execute(
         self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
     ) -> CallOutcome:
-        """Drive the upstream, inside one span naming the endpoint, server, tool and outcome."""
+        """Drive the upstream inside one span, counted as in flight on its server until it ends.
+
+        The span names the endpoint, server, tool and outcome.
+        """
+        metrics = self._support.metrics
         attributes = {
             "bundlemcp.endpoint": self._ctx.view.endpoint.name,
             "bundlemcp.server": self._tool.server.name,
             "bundlemcp.tool": self._tool.tool.name,
         }
-        with self._support.tracer.span("mcp.upstream_call", attributes) as span:
-            outcome = await self._execute(on_progress, on_notification)
-            span.set_attribute("bundlemcp.status", outcome.status.value)
+        metrics.upstream_call_started(server=self._tool.server.name)
+        reached = False
+        try:
+            with self._support.tracer.span("mcp.upstream_call", attributes) as span:
+                outcome = await self._execute(on_progress, on_notification)
+                span.set_attribute("bundlemcp.status", outcome.status.value)
+            reached = outcome.reached_upstream
+        finally:
+            metrics.upstream_call_finished(server=self._tool.server.name, ok=reached)
         return outcome
 
     async def _execute(
@@ -417,6 +438,14 @@ class ToolCall:
     async def finish(self, outcome: CallOutcome, started: float) -> None:
         """Account for the call: release the handle and tell every stage how it ended."""
         self._release()
+        self._support.metrics.tool_call_finished(
+            endpoint=self._ctx.view.endpoint.name,
+            server=self._tool.server.name,
+            status=ToolCallStatus.SUCCESS
+            if outcome.status is CallStatus.SUCCESS
+            else ToolCallStatus.ERROR,
+            seconds=time.monotonic() - started,
+        )
         await self._report_health(outcome)
         status = AuditStatus.SUCCESS if outcome.status is CallStatus.SUCCESS else AuditStatus.ERROR
         await self._chain.settle(

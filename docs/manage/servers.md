@@ -282,13 +282,14 @@ bundle, and the result reports how many in `pruned`. A failed probe deletes noth
 as **Refresh & prune** once the server has stale tools, and asks for confirmation with the list of tools it will
 delete.
 
-`health_status` is `ok`, `error` or `unknown`. It turns `error` after `server_error_attempts` (default 3) consecutive
-connection failures, with the last one's message in `last_error`, and returns to `ok` on the next answer from the
-upstream. Discovery probes, the periodic refresh and live `tools/call` requests all count: a call counts as a failure
-when the upstream could not be reached or answered with something that is not MCP, and as a success when it got any
-MCP answer, a tool error included. A refused credential, a timeout and a cancelled call count as neither. The count is
-shared by every gateway replica, so failures seen on different replicas add up, and a change to
-`server_error_attempts` applies from the next failure without a restart.
+`health_status` is `ok`, `error` or `unknown`. While a member is `error`, every `tools/list` on its bundles still lists
+its cached tools, and counts as degraded in `bundlemcp_tools_list_degraded_total` with a `tools_list.degraded` warning.
+It turns `error` after `server_error_attempts` (default 3) consecutive connection failures, with the last one's message
+in `last_error`, and returns to `ok` on the next answer from the upstream. Discovery probes, the periodic refresh and
+live `tools/call` requests all count: a call counts as a failure when the upstream could not be reached or answered with
+something that is not MCP, and as a success when it got any MCP answer, a tool error included. A refused credential, a
+timeout and a cancelled call count as neither. The count is shared by every gateway replica, so failures seen on
+different replicas add up, and a change to `server_error_attempts` applies from the next failure without a restart.
 
 `connection_state` says *why*, and is updated on every probe: the states of
 [inspection](#inspecting-a-server-before-registering-it), plus `account_required` (upstream OAuth is set up but nobody
