@@ -22,6 +22,7 @@ from bundlemcp.application.management.config_export_service import ConfigExportS
 from bundlemcp.application.management.config_import_service import ConfigImportService
 from bundlemcp.application.management.config_service import ConfigService
 from bundlemcp.application.management.endpoint_service import EndpointService
+from bundlemcp.application.management.member_curation_service import MemberCurationService
 from bundlemcp.application.management.profile_service import ProfileService
 from bundlemcp.application.management.server_inspection_service import ServerInspectionService
 from bundlemcp.application.management.server_json_importer import ServerJsonImporter
@@ -74,6 +75,10 @@ def get_bundle_prompt_service(uow: UnitOfWorkProvider) -> BundlePromptService:
 
 def get_bundle_resource_service(uow: UnitOfWorkProvider) -> BundleResourceService:
     return BundleResourceService(uow)
+
+
+def get_member_curation_service(uow: UnitOfWorkProvider) -> MemberCurationService:
+    return MemberCurationService(uow)
 
 
 def get_endpoint_service(request: Request, uow: UnitOfWorkProvider) -> EndpointService:
@@ -150,6 +155,9 @@ BundleServiceProvider = Annotated[BundleService, Depends(get_bundle_service)]
 BundlePromptServiceProvider = Annotated[BundlePromptService, Depends(get_bundle_prompt_service)]
 BundleResourceServiceProvider = Annotated[
     BundleResourceService, Depends(get_bundle_resource_service)
+]
+MemberCurationServiceProvider = Annotated[
+    MemberCurationService, Depends(get_member_curation_service)
 ]
 EndpointServiceProvider = Annotated[EndpointService, Depends(get_endpoint_service)]
 ProfileServiceProvider = Annotated[ProfileService, Depends(get_profile_service)]

@@ -14,6 +14,8 @@ from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
 )
 from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
+from bundlemcp.domain.servers.member_entry_sync import sync_member_entries
 from bundlemcp.domain.servers.probe_failure import ProbeFailure
 from bundlemcp.domain.servers.tool_sync import sync_tools
 from bundlemcp.domain.shared.clock import utcnow
@@ -150,6 +152,15 @@ class DiscoveryService:
             sync = sync_tools(server.id, existing, seen.tools, now)
             for row in sync.staged:
                 uow.tools.add(row)
+            for kind, entries in (
+                (MemberEntryKind.PROMPT, seen.prompts),
+                (MemberEntryKind.RESOURCE, seen.resources),
+            ):
+                if entries is None:
+                    continue  # not advertised, or the listing failed: the cache stays as it is
+                cached = {e.key: e for e in await uow.member_entries.for_server(server.id, kind)}
+                for row in sync_member_entries(server.id, kind, cached, entries, now):
+                    uow.member_entries.add(row)
             pruned = await self._prune(uow, server) if prune else 0
             await self._record_success(uow, server)
             if sync.changed or pruned or announce:

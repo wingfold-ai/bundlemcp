@@ -169,10 +169,18 @@ class MemberFanout:
         return results
 
     async def first(
-        self, ctx: RequestContext, call: MemberCall, *, capability: ServerCapability
+        self,
+        ctx: RequestContext,
+        call: MemberCall,
+        *,
+        capability: ServerCapability,
+        among: list[McpServer] | None = None,
     ) -> Any | None:
-        """The first capable member that answers, or None when none does."""
-        for server in self.members(ctx, capability):
+        """The first capable member that answers, or None when none does.
+
+        ``among`` narrows the members asked, in member order.
+        """
+        for server in among if among is not None else self.members(ctx, capability):
             try:
                 return await self.call(ctx, server, call)
             except Exception:
@@ -187,9 +195,14 @@ class MemberFanout:
         *,
         capability: ServerCapability,
         key: str,
-        present: Callable[[McpServer, dict[str, Any]], dict[str, Any]] | None = None,
+        present: Callable[[McpServer, dict[str, Any]], dict[str, Any] | None] | None = None,
     ) -> list[dict[str, Any]]:
-        """Every capable member's list, concatenated and de-duplicated by ``key``."""
+        """Every capable member's list, concatenated and de-duplicated by ``key``.
+
+        ``present`` shapes each entry for the client, or returns None to leave it
+        out. A left-out entry still claims its key, so a later member's entry
+        under the same key does not take its place.
+        """
         items: list[dict[str, Any]] = []
         seen: set[Any] = set()
         for server, member_items in await self.each(ctx, call, capability=capability):
@@ -197,12 +210,12 @@ class MemberFanout:
                 continue
             for obj in member_items:
                 entry = dump(obj)
-                if present is not None:
-                    entry = present(server, entry)
-                identity = entry.get(key)
+                presented = present(server, entry) if present is not None else entry
+                identity = (presented if presented is not None else entry).get(key)
                 if identity in seen:
                     log.warning("passthrough.collision", key=identity, server=server.name)
                     continue
                 seen.add(identity)
-                items.append(entry)
+                if presented is not None:
+                    items.append(presented)
         return items

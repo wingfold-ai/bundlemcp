@@ -2,7 +2,7 @@
 
 **Status:** accepted · **Date:** 2026-07-05 · **Amended by:** [ADR-0029](0029-dialects-and-dual-era-edge.md),
 [ADR-0043](0043-contact-upstreams-only-with-a-reason.md), [ADR-0044](0044-bundle-owned-prompts-and-resources.md),
-[ADR-0054](0054-upstream-session-pooling.md)
+[ADR-0054](0054-upstream-session-pooling.md), [ADR-0056](0056-member-listings-cached-for-curation-only.md)
 
 ## Context
 

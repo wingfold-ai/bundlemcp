@@ -737,6 +737,10 @@ const bundleEndpoints = computed(() =>
       <BundlePrompts :bundle-name="bundleName" />
       <BundleResources :bundle-name="bundleName" />
 
+      <!-- What the member upstreams list, curated for this bundle -->
+      <MemberEntryCuration :bundle-name="bundleName" kind="prompt" />
+      <MemberEntryCuration :bundle-name="bundleName" kind="resource" />
+
       <!-- Endpoints -->
       <div class="wf-card space-y-4">
         <div>

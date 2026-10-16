@@ -37,7 +37,7 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0018](0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted |
 | [0019](0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020, 0026) |
 | [0020](0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted (amended by 0023, 0025, 0033) |
-| [0021](0021-mcp-surface-completion.md) | Complete the MCP surface: prompts/resources/completions passthrough, capability aggregation, version negotiation, roots/logging relay | accepted (amended by 0029, 0043, 0044, 0054) |
+| [0021](0021-mcp-surface-completion.md) | Complete the MCP surface: prompts/resources/completions passthrough, capability aggregation, version negotiation, roots/logging relay | accepted (amended by 0029, 0043, 0044, 0054, 0056) |
 | [0022](0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | accepted |
 | [0023](0023-import-contracts-and-shared-providers.md) | Import contracts enforce layer direction; shared providers at library level | accepted (amended by 0025, 0033) |
 | [0024](0024-value-objects-and-rich-entities.md) | Value objects for what crosses the edge; behavior on the entities that own it | accepted |
@@ -72,3 +72,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0053](0053-audit-durability-and-the-idempotency-key-join.md) | The audit log is written durably, names every loss by idempotency key, and is purged by retention | accepted |
 | [0054](0054-upstream-session-pooling.md) | Upstream sessions are pooled per replica and continued from the session record | accepted |
 | [0055](0055-export-and-bootstrap-share-one-document.md) | Export, import and bootstrap share one document, with secrets as placeholders | accepted |
+| [0056](0056-member-listings-cached-for-curation-only.md) | Members' prompts and resources are cached at discovery, for curation only | accepted |

@@ -14,6 +14,9 @@ from bundlemcp.api.management.controllers.config_transfer_controller import (
 from bundlemcp.api.management.controllers.endpoint_controller import EndpointController
 from bundlemcp.api.management.controllers.management_controller import ManagementController
 from bundlemcp.api.management.controllers.me_controller import MeController
+from bundlemcp.api.management.controllers.member_curation_controller import (
+    MemberCurationController,
+)
 from bundlemcp.api.management.controllers.server_controller import ServerController
 from bundlemcp.api.management.controllers.user_controller import UserController
 
@@ -28,6 +31,7 @@ __all__ = [
     "EndpointController",
     "ManagementController",
     "MeController",
+    "MemberCurationController",
     "ServerController",
     "UserController",
 ]

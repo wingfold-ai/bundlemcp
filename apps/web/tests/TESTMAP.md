@@ -40,6 +40,7 @@ Playwright test title, the recording filename, and this table.
 | E2E-32 | An upstream's detail page is titled Upstream server and its errors say upstream **(new)** | `tests/server-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-7 | `E2E-32__admin-ui__upstream-detail-title.webm` |
 | E2E-33 | A bundle is renamed only after its warning is acknowledged, and keeps its endpoint **(new)** | `tests/bundle-flow.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-10 | `E2E-33__bundles__bundle-rename-acknowledged.webm` |
 | E2E-34 | The configuration exports as a file, and an import is previewed before anything is written **(new)** | `tests/keys-settings.spec.ts` | [`management`](../../../openspec/specs/management/spec.md) | MGMT-22, MGMT-19 | `E2E-34__management__config-export-and-previewed-import.webm` |
+| E2E-35 | A bundle over upstreams that list no prompts or resources shows both member curation cards empty **(new)** | `tests/bundle-flow.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-37 | `E2E-35__bundles__member-entry-curation-cards.webm` |
 
 ## Requirements referenced
 
@@ -91,3 +92,4 @@ Playwright test title, the recording filename, and this table.
 | BND-10 | `bundles` | Bundle name MUST be the natural key for bootstrap upserts (MGMT-9) and for export and import (MGMT-17, MGMT-19): a bundle is created or updated by its name, … |
 | MGMT-22 | `management` | The admin UI SHALL offer an export button that downloads the document, and an import that first shows the dry-run report and applies the document only after … |
 | MGMT-19 | `management` | POST /api/v1/import SHALL apply a document transactionally as upserts by natural key, through the same operations the management API uses, and report a resul… |
+| BND-37 | `bundles` | Member prompts and resources SHALL be curatable per bundle like tools (bundles): an admin can disable a member's prompt or resource in one bundle, or overrid… |

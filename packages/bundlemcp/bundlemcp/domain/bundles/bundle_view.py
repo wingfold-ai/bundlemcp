@@ -1,6 +1,8 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from bundlemcp.domain.bundles.bundle import Bundle
+from bundlemcp.domain.bundles.member_entry_curation import MemberEntryCuration
+from bundlemcp.domain.bundles.member_entry_ref import MemberEntryRef
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
 from bundlemcp.domain.bundles.prompt_listing import PromptListing
 from bundlemcp.domain.bundles.resource_listing import ResourceListing
@@ -29,6 +31,11 @@ class BundleView(BaseModel):
         default_factory=list,
         description="The bundle's own resources in name order, without their content",
     )
+    member_curations: dict[MemberEntryRef, MemberEntryCuration] = Field(
+        default_factory=dict,
+        description="How the bundle curates its members' prompts and resources; an entry not "
+        "here is served unchanged",
+    )
 
     def resolve(self, presented_name: str) -> PresentedTool | None:
         """Match override names first, then fall back to first-`__` prefix parsing."""
@@ -44,3 +51,12 @@ class BundleView(BaseModel):
     def resource(self, name: str) -> ResourceListing | None:
         """The bundle's own resource with this name, or None."""
         return next((resource for resource in self.resources if resource.name == name), None)
+
+    def member_curation(self, ref: MemberEntryRef) -> MemberEntryCuration | None:
+        """How the bundle presents one member prompt or resource; None to serve it unchanged."""
+        return self.member_curations.get(ref)
+
+    def serves_member_entry(self, ref: MemberEntryRef) -> bool:
+        """Whether the bundle lists and fetches this member prompt or resource at all."""
+        curation = self.member_curations.get(ref)
+        return curation is None or curation.enabled
