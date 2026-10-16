@@ -305,6 +305,8 @@ class CompositionRoot:
             connections=upstream_tokens or NoUpstreamConnections(),
             profiles=profiles,
             public_base=settings.public_base,
+            hasher=hasher,
+            generator=generator,
         ).run(settings)
 
         subscriber = InvalidationSubscriber(redis)  # one subscriber per replica

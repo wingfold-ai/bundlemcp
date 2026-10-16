@@ -453,8 +453,9 @@ Keys SHALL have the format `bmcp_sk_<random≥32 bytes urlsafe>`. A key is shown
 - **AND** later reads of the key return only its display prefix, and the store holds only the hash
 
 ### Requirement: AUTH-23 Name, scope and kind
-Keys SHALL carry a `name`, an optional **endpoint scope** (list of endpoint ids; empty = all endpoints), and a
-**kind**: `endpoint` (can call scoped endpoints) or `service` (can also call the management API).
+Keys SHALL carry a `name`, unique among all keys, an optional **endpoint scope** (list of endpoint ids; empty = all
+endpoints), and a **kind**: `endpoint` (can call scoped endpoints) or `service` (can also call the management API).
+Creating a key under a name another key already has SHALL be refused with 409.
 
 #### Scenario: Scoped key outside its scope
 - **WHEN** a key scoped to endpoint `a` is presented at endpoint `b`
@@ -463,6 +464,11 @@ Keys SHALL carry a `name`, an optional **endpoint scope** (list of endpoint ids;
 #### Scenario: Endpoint key at the management API
 - **WHEN** an `endpoint`-kind key calls the management API
 - **THEN** the gateway answers 403, while a `service`-kind key is accepted
+
+#### Scenario: Duplicate key name
+- **GIVEN** a key named `ci` exists
+- **WHEN** an admin creates another key named `ci`
+- **THEN** the gateway answers 409 and no key is created
 
 ### Requirement: AUTH-24 Accepted headers
 Keys SHALL be accepted via `Authorization: Bearer bmcp_sk_…` or the `X-API-Key` header on endpoints with `api_key` in

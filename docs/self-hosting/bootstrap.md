@@ -27,7 +27,7 @@ which is what you want in production and CI. The default `false` logs the failur
 ## Format
 
 YAML or JSON; JSON is valid YAML so one parser serves both. The document has a `version` (currently always `1`) and
-three lists.
+four lists: `upstreams`, `bundles`, `endpoints` and `api_keys` ([API keys](#api-keys)).
 
 ```yaml
 version: 1
@@ -124,9 +124,36 @@ fails at startup rather than quietly leaving something out.
 
 ## API keys
 
-The document does not carry API keys. For a headless first boot, set `BUNDLEMCP_INITIAL_SERVICE_KEY` to a value you
-generated; the gateway stores its hash the first time it starts with no service key present, and ignores the variable
-from then on. Create further keys through the API with that key, then retire it.
+The document can provision API keys, without ever holding a key value. Each entry under `api_keys` names a key, its
+kind and, for an `endpoint` key, the endpoints it may call by name (none means every endpoint). Its value comes from
+one of two places:
+
+```yaml
+api_keys:
+  - name: registrar
+    kind: service
+    value_from_env: REGISTRAR_KEY      # a bmcp_sk_… value you generated and supply out of band
+  - name: ci
+    kind: endpoint
+    endpoints: [demo]
+    create_if_missing: true
+    write_to: /run/bundlemcp/ci.key    # the gateway generates the value and writes it here
+```
+
+- **`value_from_env`** names an environment variable holding a `bmcp_sk_…` value. An unset variable, or one holding
+  anything else, fails the document; the error names the variable, never its value.
+- **`create_if_missing`** generates the value on the first boot that finds no key of that name, and writes it to
+  `write_to`, created with mode `0600`. The value appears in no log line. The file is never overwritten: when it
+  already holds a `bmcp_sk_…` value — the database was reset, the file kept — that value is used, and any other
+  existing file fails the document. Mount the directory from somewhere only the operator reads.
+
+A key is matched by its name, and key names are unique. A key whose name already exists is never overwritten,
+re-scoped or re-activated by the document: deactivate or delete it through the API, and the document leaves that
+alone. Keys are applied after endpoints, so a scope may name an endpoint the same document defines; an endpoint
+neither the document nor the store defines fails the document.
+
+`BUNDLEMCP_INITIAL_SERVICE_KEY` still works beside the document: the gateway stores its hash the first time it
+starts with no service key present, and ignores the variable from then on.
 
 ## The demo seed
 

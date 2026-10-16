@@ -29,7 +29,9 @@ applied first, then the inline document. The document SHALL be a Pydantic-valida
 ### Requirement: MGMT-10 API keys at bootstrap
 Each `api_keys` entry SHALL name a key, its kind and, for an endpoint-kind key, its endpoints by name, and take its
 value from a named environment variable — the document never holds a key value — or as `create_if_missing`, generated
-and printed once to the startup log. A key whose name already exists is never overwritten. When
+and written to the file the entry names, created with mode `0600`; the value never appears in a log line. A file that
+already exists is never overwritten: when it holds a well-formed `bmcp_sk_…` value that value is used, otherwise the
+document does not land. A key whose name already exists is never overwritten. When
 `BUNDLEMCP_INITIAL_SERVICE_KEY` is set and no service key exists, the gateway SHALL also provision a service key with
 that value.
 
@@ -58,11 +60,18 @@ that value.
 - **WHEN** an `api_keys` entry carries a key value inline instead of a variable reference or `create_if_missing`
 - **THEN** the document fails validation
 
-#### Scenario: Generated key is announced once
-- **GIVEN** an `api_keys` entry `ci` of kind `endpoint` with `create_if_missing`, scoped to endpoint `demo`
+#### Scenario: Generated key is written to its file
+- **GIVEN** an `api_keys` entry `ci` of kind `endpoint` with `create_if_missing` writing to `/secrets/ci.key`, scoped
+  to endpoint `demo`
 - **WHEN** the gateway starts for the first time
-- **THEN** a key `ci` scoped to `demo` is created and its value appears once in the startup log
-- **AND** on the next start no key is created and no value is printed
+- **THEN** a key `ci` scoped to `demo` is created, `/secrets/ci.key` holds its value with mode `0600`, and no log line
+  carries the value
+- **AND** on the next start no key is created and the file is unchanged
+
+#### Scenario: An existing file is reused, not overwritten
+- **GIVEN** `/secrets/ci.key` holds a well-formed key value and no key named `ci` exists
+- **WHEN** the document is applied
+- **THEN** key `ci` is created with the value from the file, and the file is unchanged
 
 #### Scenario: Existing key is never overwritten
 - **GIVEN** a key named `registrar` already exists, possibly deactivated or with another scope

@@ -11,12 +11,14 @@ from bundlemcp.application.schemas import BundlePromptUpsert, BundleResourceUpse
 from bundlemcp.application.serving.bundle_content_reader import BundleContentReader
 from bundlemcp.domain.bundles.bundle_content_limits import BundleContentLimits
 from bundlemcp.domain.endpoints.profiles import ProfileCatalog
+from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
     InMemoryUnitOfWorkFactory,
 )
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
+from bundlemcp.infrastructure.memory.sequential_secret_generator import SequentialSecretGenerator
 
 
 @pytest.fixture
@@ -200,6 +202,8 @@ async def test_bootstrap_applies_resources_before_the_prompts_that_embed_them(uo
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     )
     await runner.apply(document)
     await runner.apply(document)  # applying twice changes nothing

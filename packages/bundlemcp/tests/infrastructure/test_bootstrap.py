@@ -7,9 +7,11 @@ from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.errors import PreconditionError
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.domain.endpoints.profiles import ProfileCatalog
+from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
 from bundlemcp.infrastructure.crypto.token_cipher import TokenCipher
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
+from bundlemcp.infrastructure.memory.sequential_secret_generator import SequentialSecretGenerator
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
 from bundlemcp.infrastructure.postgres.rows.bundle_server_row import BundleServerRow
@@ -65,6 +67,8 @@ async def test_upstream_oauth_client_is_applied_with_the_server(engine, redis):
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     )
 
     await runner.apply(BootstrapDocument(**OAUTH_DOC))
@@ -88,6 +92,8 @@ async def test_upstream_oauth_client_needs_encryption_keys(engine, redis):
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     )
     with pytest.raises(PreconditionError):
         await runner.apply(BootstrapDocument(**OAUTH_DOC))
@@ -105,6 +111,8 @@ async def test_apply_is_idempotent(engine, redis):
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     )
 
     await runner.apply(doc)
@@ -165,6 +173,8 @@ async def test_inline_json_document_is_applied_after_the_file(engine, redis, tmp
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     ).run(settings)
 
     async with factory() as db:
@@ -201,6 +211,8 @@ async def test_fresh_bootstrap_serves_discovered_tools(engine, redis):
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     ).apply(BootstrapDocument(**DOC))
 
     async with factory() as db:
@@ -230,6 +242,8 @@ async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis)
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     ).run(settings)
 
     async with factory() as db:
@@ -291,8 +305,36 @@ async def test_bnd5_a_bootstrap_document_cannot_make_the_gateway_a_member(engine
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
         public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
     )
     with pytest.raises(ConflictError, match="BND-5"):
         await runner.apply(document)
     async with session_factory(engine)() as db:
         assert (await db.execute(select(BundleServerRow))).first() is None
+
+
+async def test_mgmt10_an_unknown_scope_lands_nothing_of_the_document(engine, redis):
+    """MGMT-10: a key scoped to an undefined endpoint rolls the whole document back."""
+    doc = BootstrapDocument.model_validate(
+        {
+            **DOC,
+            "api_keys": [{"name": "ci", "endpoints": ["nowhere"], "value_from_env": "CI_KEY"}],
+        }
+    )
+    runner = BootstrapRunner(
+        SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis),
+        NoopToolDiscovery(),
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
+        environ={"CI_KEY": "bmcp_sk_" + "c" * 43},
+    )
+    with pytest.raises(ValueError, match="nowhere"):
+        await runner.apply(doc)
+    async with session_factory(engine)() as db:
+        assert (await db.execute(select(EndpointRow))).scalars().all() == []
+        assert (await db.execute(select(McpServerRow))).scalars().all() == []

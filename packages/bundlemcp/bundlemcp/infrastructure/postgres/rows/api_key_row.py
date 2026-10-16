@@ -17,7 +17,7 @@ class ApiKeyRow(SQLModel, table=True):
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4, primary_key=True, description="Identifier of the key"
     )
-    name: str = Field(description="Human-readable label, shown in listings")
+    name: str = Field(unique=True, description="Human-readable label, unique among keys")
     key_hash: str = Field(
         unique=True,
         index=True,
