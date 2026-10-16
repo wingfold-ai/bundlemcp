@@ -247,6 +247,25 @@ Details for the server side are in
 
 The negotiated revision is stored as `protocol_version` so you can see which servers still speak the handshake era.
 
+## Connections and sessions
+
+The gateway keeps upstream MCP sessions open and reuses them, so most calls skip the upstream's `initialize`. A
+session is reused only for a request that would have opened the same one: the same server configuration and, unless
+the server is identity-free, the same caller with the same forwarded headers. A server is identity-free when it
+forwards no headers, is not sent the identity header, and uses neither per-user OAuth nor delegated tokens; turning
+off `send_identity_header` lets callers share its sessions.
+
+A client that holds a session (the `initialize` handshake) gets an upstream session of its own on each server, which
+any replica continues. When the server forgets it — after a restart, say — the gateway opens a new one and retries the
+call once, without charging it twice. A tool call is retried only when the server cannot have run it. Changing a
+server's URL, headers or authentication closes its sessions on every replica.
+
+While a session is open the gateway also hears what the server says between calls: tool, prompt and resource list
+changes, resource updates and log messages reach the clients that asked for them. The caps and idle timeout are
+`upstream_sessions_max`, `upstream_sessions_per_server_max` and `upstream_session_idle_timeout`
+([Configuration](/self-hosting/configuration)); `BUNDLEMCP_UPSTREAM_POOLING_ENABLED=false` opens a connection per
+request instead.
+
 ## Tools and health
 
 `GET /api/v1/upstreams/{name}/tools` lists the cached tools with their input schema, annotations, `stale` flag and

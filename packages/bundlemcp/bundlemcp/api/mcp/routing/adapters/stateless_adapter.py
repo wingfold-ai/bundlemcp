@@ -17,9 +17,9 @@ from bundlemcp.api.mcp.protocol.dialect import DialectRegistry
 from bundlemcp.api.mcp.protocol.endpoint_context import EndpointContext
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
-from bundlemcp.api.mcp.protocol.log_levels import LOG_LEVELS
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.protocol.request_rejected import RequestRejected
+from bundlemcp.domain.sessions.log_levels import LOG_LEVELS
 
 
 def _lowercase(headers: Mapping[str, str]) -> dict[str, str]:

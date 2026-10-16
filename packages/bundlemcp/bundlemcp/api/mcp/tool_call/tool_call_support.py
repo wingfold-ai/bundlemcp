@@ -2,8 +2,7 @@ import asyncio
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from bundlemcp.api.mcp.protocol.header_forwarding import HeaderForwarding
-from bundlemcp.application.contracts.live_state.session_store import SessionStore
+from bundlemcp.api.mcp.upstream.upstream_leases import UpstreamLeases
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
@@ -11,7 +10,6 @@ from bundlemcp.application.contracts.observability.call_tracer import CallTracer
 from bundlemcp.application.contracts.observability.gateway_metrics import GatewayMetrics
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
-from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.serving.chain_stage import ChainStage
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
@@ -38,13 +36,9 @@ class ToolCallSupport(BaseModel):
     credentials: UpstreamCredentialResolver = Field(
         description="Resolves the upstream Authorization header for the caller"
     )
-    client_factory: UpstreamClientFactory = Field(
-        description="Builds the MCP client for the upstream"
+    leases: UpstreamLeases = Field(
+        description="Lends each call an upstream session and records the binding it makes"
     )
-    header_forwarding: HeaderForwarding = Field(
-        description="Client headers passed through and the identity header the gateway adds"
-    )
-    sessions: SessionStore = Field(description="Records the upstream binding on the session")
     registry: StreamRegistry = Field(
         description="In-flight calls and reply futures on this replica"
     )

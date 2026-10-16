@@ -17,7 +17,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0009](../adr/0009-endpoint-bound-tokens-consent.md) | Consent + endpoint-bound tokens | accepted | Token confined to one endpoint; extra consent step |
 | [0010](../adr/0010-single-workspace.md) | Single workspace | accepted | Simple model; no intra-instance tenanting |
 | [0011](../adr/0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge (spike outcome) | accepted (amended by 0027, 0029, 0035) | Redis-backed sessions work; we own server-side protocol compliance |
-| [0012](../adr/0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | accepted (amended by 0030) | Trivially correct identity isolation; pooling awaits OPS-13 data |
+| [0012](../adr/0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | superseded by 0054 (amended by 0030) | Trivially correct identity isolation; pooling awaits OPS-13 data |
 | [0013](../adr/0013-service-key-auth-first.md) | Service-key auth first | accepted (OIDC sessions have since shipped) | Headless management from day one; OIDC sessions now also shipped |
 | [0014](../adr/0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB tokens | accepted (amended by 0028, 0031, 0036) | claude.ai connectable without the UI; no introspect self-call |
 | [0015](../adr/0015-keycloak-dev-idp.md) | Keycloak as the dev IdP | accepted | Integration tests prove real federation; heavier compose |
@@ -26,7 +26,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0018](../adr/0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted | Cross-replica abuse protection; per-IP credential-scan throttling |
 | [0019](../adr/0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020, 0026) | Business logic in framework-free services; one DTO class per module |
 | [0020](../adr/0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted (amended by 0023, 0025, 0033) | Services/DTOs are library peers any subsystem consumes; framework-free AuthService |
-| [0021](../adr/0021-mcp-surface-completion.md) | Complete the MCP surface (prompts/resources/completions, capabilities, version, roots/logging) | accepted (amended by 0029, 0043, 0044) | Full-fidelity MCP request/response plane; live passthrough; push-between-calls pooling-dependent |
+| [0021](../adr/0021-mcp-surface-completion.md) | Complete the MCP surface (prompts/resources/completions, capabilities, version, roots/logging) | accepted (amended by 0029, 0043, 0044, 0054) | Full-fidelity MCP request/response plane; live passthrough; push-between-calls pooling-dependent |
 | [0022](../adr/0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | accepted | Permissively-licensed store; redis-py client unchanged; RESP-generic |
 | [0023](../adr/0023-import-contracts-and-shared-providers.md) | Import contracts enforce layer direction | accepted (amended by 0025, 0033) | Layering is checked in CI, not by review |
 | [0024](../adr/0024-value-objects-and-rich-entities.md) | Value objects at the edge; behavior on entities | accepted | No tuples or dicts cross layers; rules live once; typed columns |
@@ -59,6 +59,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0051](../adr/0051-request-context-readiness-report-and-optional-tracing.md) | One log context per request bound where facts resolve; `/readyz` reports each check incl. schema; OpenTelemetry an optional extra | accepted | Every line of a request is findable by `X-Request-Id`; tracing loads nothing until configured |
 | [0052](../adr/0052-per-replica-prometheus-metrics-with-a-closed-label-set.md) | Typed `GatewayMetrics` contract; per-replica Prometheus `/metrics` behind management auth; closed labels | accepted | Alerting on metrics instead of logs; no secret can become a label |
 | [0053](../adr/0053-audit-durability-and-the-idempotency-key-join.md) | Batched, retried audit writes; every loss logged with its idempotency key; retention purge; the key as the ledger join | accepted | Ledgers reconcile by key; the table no longer grows unbounded |
+| [0054](../adr/0054-upstream-session-pooling.md) | Per-replica pool of upstream sessions keyed by identity and config; bindings continued from the session record; one safe retry | accepted | Calls after the first skip initialize; member notifications reach clients between calls |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).

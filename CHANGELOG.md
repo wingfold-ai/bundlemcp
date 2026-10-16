@@ -6,6 +6,46 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.9] - 2026-10-16
+
+### Added
+
+- Keep upstream MCP sessions open and reuse them across requests, so most calls skip the upstream's `initialize`.
+  Sessions are shared between callers only for identity-free servers; otherwise each caller and set of forwarded headers
+  gets its own. ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- Deliver what a member server says between calls: tool, prompt and resource list changes, resource updates and log
+  messages now reach clients on their GET stream or `subscriptions/listen` stream. A list change announced to several
+  replicas triggers one re-discovery. ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- Relay `logging/setLevel` to the members that advertise logging, and relay `resources/subscribe` and the new
+  `resources/unsubscribe` to the owning member. `subscriptions/listen` now honours `resourceSubscriptions`.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- Advertise member list changes and `resources.subscribe` in a bundle's capabilities.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- Add the `upstream_sessions_max`, `upstream_sessions_per_server_max` and `upstream_session_idle_timeout` runtime
+  settings to cap and expire pooled upstream sessions, and `BUNDLEMCP_UPSTREAM_POOLING_ENABLED` to switch pooling off.
+  With it set to `false`, every request opens its own upstream connection again.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+
+### Changed
+
+- A handshake session's first call to a member opens an upstream session dedicated to it, and any replica continues that
+  session without a new `initialize`. The upstream session ends when the client sends `DELETE` on the endpoint or the
+  session expires. ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- Changing a server's URL, headers or authentication closes its pooled upstream sessions on every replica, and a replica
+  that missed an event closes them all. The next call uses the new configuration.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- At a session cap, the least recently used idle session is closed, identity-free ones first. When none can be closed,
+  the request gets a connection of its own. ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+
+### Fixed
+
+- An upstream restart no longer shows up as a client error: the call is retried once on a new upstream session under the
+  same idempotency key, so metering sees one `pre_call` and one `post_call`. A `tools/call` is retried only when the
+  upstream cannot have run it; reads are also retried after any connection loss.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- Resource subscriptions now deliver updates, and they are re-subscribed when a session is rebound to a new upstream
+  session. ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+
 ## [0.1.8] - 2026-10-16
 
 ### Added

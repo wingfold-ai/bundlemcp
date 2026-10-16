@@ -68,8 +68,9 @@ async def test_ses11_a_call_still_running_at_the_drain_deadline_is_cancelled(eng
         async with AsyncClient(
             base_url=base_url, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}, timeout=10
         ) as http:
-            call = asyncio.create_task(_modern_hang(http, 8, seconds=30))
-            await asyncio.sleep(0.4)
+            started = asyncio.Event()
+            call = asyncio.create_task(_modern_hang(http, 8, seconds=30, started=started))
+            await asyncio.wait_for(started.wait(), timeout=10)  # admitted before the drain
             app.state.container.drain.begin()
             message = await asyncio.wait_for(call, timeout=5)
     assert "error" in message

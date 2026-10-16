@@ -1,3 +1,5 @@
+import hashlib
+import json
 import uuid
 from datetime import datetime
 
@@ -101,6 +103,11 @@ class McpServer(BaseModel):
         return capability.value in self.capabilities
 
     @property
+    def accepts_resource_subscriptions(self) -> bool:
+        """The upstream said at its last probe that it sends updates of subscribed resources."""
+        return bool((self.capabilities.get("resources") or {}).get("subscribe"))
+
+    @property
     def uses_upstream_oauth(self) -> bool:
         return self.auth_mode == ServerAuthMode.UPSTREAM_OAUTH
 
@@ -136,6 +143,40 @@ class McpServer(BaseModel):
         ):
             return "the server refuses requests without a credential; add one as a header"
         return None
+
+    @property
+    def is_identity_free(self) -> bool:
+        """Nothing the server is sent depends on who the caller is.
+
+        It forwards no client headers, is not sent the caller's identity, and
+        authenticates neither per user nor with a token delegated per caller,
+        so one upstream session may serve any caller.
+        """
+        return (
+            not self.forward_headers
+            and not self.send_identity_header
+            and not self.requires_per_user_token
+            and not self.uses_delegated_token
+        )
+
+    @property
+    def config_fingerprint(self) -> str:
+        """A digest of everything that shapes a connection to the server.
+
+        Two connections opened under the same fingerprint are interchangeable;
+        a change to the URL, a header or the way the server authenticates or
+        negotiates yields a different one. Header values enter only the digest.
+        """
+        material = {
+            "url": self.url,
+            "static_headers": sorted(self.static_headers.items()),
+            "forward_headers": sorted(self.forward_headers.items()),
+            "send_identity_header": self.send_identity_header,
+            "auth_mode": self.auth_mode.value,
+            "identity_mode": self.identity_mode.value,
+            "protocol_mode": self.protocol_mode,
+        }
+        return hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()
 
     @property
     def requires_per_user_token(self) -> bool:

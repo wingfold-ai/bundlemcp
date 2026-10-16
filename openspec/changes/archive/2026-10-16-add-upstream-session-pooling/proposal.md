@@ -50,15 +50,14 @@ AUTH-31 were written for a pooled model that was deferred. This change builds it
 - `upstreams`: MODIFIED UPS-6 (config changes invalidate pooled connections).
 - `auth`: MODIFIED AUTH-31 (binding key hashes the forwarded header values).
 
-## Open decision
+## Decisions
 
-- **Retry scope on transport loss (SES-7).** The original SES-7 retries the in-flight request once on "transport loss".
-  For `tools/call` a connection lost *after* the request was sent may already have run the tool, so a blind retry can
-  repeat side effects. The delta retries a `tools/call` only when the upstream provably did not run it (404 for the
-  session, or the connection failed before the request was sent) and retries read-only methods on any transport loss.
-  Maintainers confirm this narrowing, or keep the original wording and accept duplicate side effects.
-- **Where the caps apply (SES-8).** The delta applies the global and per-server caps **per replica** (transports are
-  per replica). A cluster-wide cap would need a shared counter in Valkey on every checkout. Confirm per-replica.
+- **Retry scope on transport loss (SES-7): narrowed.** A `tools/call` is retried only when the upstream provably did
+  not run it (a 404 for the session, or a connection that failed before the request was sent); read-only methods are
+  retried on any transport loss. A connection lost after a call was sent surfaces as an error rather than risking a
+  second run of the tool.
+- **Connection caps (SES-8): per replica.** Transports are per replica, so each replica caps its own; a cluster total
+  would cost a Valkey round-trip on every checkout.
 
 ## Impact
 

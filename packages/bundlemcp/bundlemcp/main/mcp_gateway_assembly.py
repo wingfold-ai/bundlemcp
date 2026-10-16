@@ -15,6 +15,7 @@ from bundlemcp.api.mcp.dispatch.handlers import (
     ResourcesListHandler,
     ResourcesReadHandler,
     ResourcesSubscribeHandler,
+    ResourcesUnsubscribeHandler,
     ResourceTemplatesListHandler,
     ServerDiscoverHandler,
     SubscriptionsListenHandler,
@@ -33,8 +34,12 @@ from bundlemcp.api.mcp.routing.authentication import EndpointAuthentication
 from bundlemcp.api.mcp.routing.gateway_router import McpGatewayRouter
 from bundlemcp.api.mcp.routing.session_stream import SessionStream
 from bundlemcp.api.mcp.tool_call import ToolCallSupport, ToolsCallHandler
+from bundlemcp.api.mcp.upstream.upstream_leases import UpstreamLeases
 from bundlemcp.application.contracts.live_state.paused_invocations import PausedInvocations
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
+from bundlemcp.application.contracts.live_state.resource_subscriptions import (
+    ResourceSubscriptions,
+)
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
@@ -44,7 +49,7 @@ from bundlemcp.application.contracts.observability.gateway_metrics import Gatewa
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
-from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
+from bundlemcp.application.contracts.upstream.upstream_session_pool import UpstreamSessionPool
 from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
 from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.metering.metering_hook import MeteringHook
@@ -89,8 +94,11 @@ class McpGatewayAssembly(BaseModel):
         description="Metered invocations waiting for client input, shared by every replica"
     )
     audit: AuditSink = Field(description="Queued writer for audit records")
-    client_factory: UpstreamClientFactory = Field(
-        description="Builds an MCP client for an upstream server"
+    upstream_sessions: UpstreamSessionPool = Field(
+        description="The upstream sessions this replica holds, lent to each request"
+    )
+    resource_subscriptions: ResourceSubscriptions = Field(
+        description="Which client streams want updates of which member resources"
     )
     runtime_config: RuntimeConfig = Field(description="Runtime-tunable config, cached per replica")
     tracer: CallTracer = Field(description="Where the span of each upstream tool call goes")
@@ -125,10 +133,15 @@ class McpGatewayAssembly(BaseModel):
         )
         connect_prompts = AccountConnectPrompts(credentials)
         header_forwarding = HeaderForwarding(self.settings.identity_subject)
-        fanout = MemberFanout(
-            self.client_factory,
-            credentials,
+        leases = UpstreamLeases(
+            self.upstream_sessions,
+            self.sessions,
             header_forwarding,
+            credentials,
+            self.resource_subscriptions,
+        )
+        fanout = MemberFanout(
+            leases,
             self.registry,
             self.signals,
             self.presence,
@@ -151,9 +164,7 @@ class McpGatewayAssembly(BaseModel):
                 profiles=self.profiles,
                 audit=self.audit,
                 credentials=credentials,
-                header_forwarding=header_forwarding,
-                client_factory=self.client_factory,
-                sessions=self.sessions,
+                leases=leases,
                 registry=self.registry,
                 signals=self.signals,
                 presence=self.presence,
@@ -165,9 +176,9 @@ class McpGatewayAssembly(BaseModel):
             ),
             connect_prompts,
         )
-        # each member is reached per request, so nothing listens for a member's
-        # list changes or resource updates; they are not advertised either
-        member_notifications = False
+        # a member's list changes and resource updates are heard only on sessions
+        # held between requests, so without pooling they are not advertised
+        member_notifications = self.settings.upstream_pooling_enabled
         methods = MethodRegistry(
             {
                 "ping": PingHandler(),
@@ -190,10 +201,12 @@ class McpGatewayAssembly(BaseModel):
                 "resources/list": ResourcesListHandler(fanout, cache_hints),
                 "resources/templates/list": ResourceTemplatesListHandler(fanout, cache_hints),
                 "resources/read": ResourcesReadHandler(fanout, content, cache_hints, bridge),
-                "resources/subscribe": ResourcesSubscribeHandler(),
-                "resources/unsubscribe": ResourcesSubscribeHandler(),
-                "logging/setLevel": LoggingSetLevelHandler(self.sessions),
-                "subscriptions/listen": SubscriptionsListenHandler(self.registry, self.presence),
+                "resources/subscribe": ResourcesSubscribeHandler(fanout),
+                "resources/unsubscribe": ResourcesUnsubscribeHandler(fanout),
+                "logging/setLevel": LoggingSetLevelHandler(self.sessions, fanout),
+                "subscriptions/listen": SubscriptionsListenHandler(
+                    self.registry, self.presence, fanout
+                ),
                 "notifications/cancelled": CancelledNotificationHandler(self.signals),
             }
         )
@@ -215,6 +228,7 @@ class McpGatewayAssembly(BaseModel):
             ),
             methods=methods,
             stream=stream,
+            leases=leases,
         )
         stateless_adapter = StatelessMcpAdapter(dialects=dialects, methods=methods)
         admission = AdmissionGate(
