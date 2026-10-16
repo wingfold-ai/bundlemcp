@@ -4,10 +4,13 @@ from fastapi import Response
 from bundlemcp.api.mcp.dispatch.handlers.member_fanout import MemberFanout
 from bundlemcp.api.mcp.protocol.bundle_content_wire import resource_entry
 from bundlemcp.api.mcp.protocol.cache_hints import CacheHints
+from bundlemcp.api.mcp.protocol.curated_entry import curated_entry
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.domain.bundles.bundle_resource_uri import is_bundle_uri
+from bundlemcp.domain.bundles.member_entry_ref import MemberEntryRef
+from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
 from bundlemcp.domain.servers.server_capability import ServerCapability
 
 log = structlog.get_logger(__name__)
@@ -29,6 +32,14 @@ class ResourcesListHandler:
             lambda client: client.list_resources(),
             capability=ServerCapability.RESOURCES,
             key="uri",
+            present=lambda server, entry: curated_entry(
+                ctx.view.member_curation(
+                    MemberEntryRef(
+                        kind=MemberEntryKind.RESOURCE, server_name=server.name, key=entry["uri"]
+                    )
+                ),
+                entry,
+            ),
         ):
             if is_bundle_uri(entry.get("uri", "")):
                 # the bundle answers its own scheme, so a member's is unreachable

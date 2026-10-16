@@ -15,6 +15,8 @@ from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.application.serving.bundle_content_reader import BundleContentReader
 from bundlemcp.domain.bundles.bundle_resource_uri import bundle_resource_name, is_bundle_uri
+from bundlemcp.domain.bundles.member_entry_ref import MemberEntryRef
+from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
 from bundlemcp.domain.servers.server_capability import ServerCapability
 
 
@@ -43,6 +45,14 @@ class ResourcesReadHandler:
         if is_bundle_uri(uri):
             # the bundle's own scheme never falls through to a member
             return await self._bundle_resource(ctx, message, uri)
+        # a member that disabled this resource in the bundle is never asked for it
+        members = [
+            server
+            for server in self._fanout.members(ctx, ServerCapability.RESOURCES)
+            if ctx.view.serves_member_entry(
+                MemberEntryRef(kind=MemberEntryKind.RESOURCE, server_name=server.name, key=uri)
+            )
+        ]
         if ctx.era is ProtocolEra.STATELESS:
             return await self._bridge.serve(
                 BridgedRead(
@@ -50,7 +60,7 @@ class ResourcesReadHandler:
                     message,
                     target=uri,
                     arguments={},
-                    members=self._fanout.members(ctx, ServerCapability.RESOURCES),
+                    members=members,
                     read=lambda client, answers, upstream_state: client.session.read_resource(
                         uri,
                         input_responses=answers,
@@ -65,6 +75,7 @@ class ResourcesReadHandler:
             ctx,
             lambda client: client.read_resource_mcp(uri),
             capability=ServerCapability.RESOURCES,
+            among=members,
         )
         if result is None:
             return self._not_found(ctx, message, uri)

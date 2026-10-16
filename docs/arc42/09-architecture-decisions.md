@@ -26,7 +26,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0018](../adr/0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted | Cross-replica abuse protection; per-IP credential-scan throttling |
 | [0019](../adr/0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020, 0026) | Business logic in framework-free services; one DTO class per module |
 | [0020](../adr/0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted (amended by 0023, 0025, 0033) | Services/DTOs are library peers any subsystem consumes; framework-free AuthService |
-| [0021](../adr/0021-mcp-surface-completion.md) | Complete the MCP surface (prompts/resources/completions, capabilities, version, roots/logging) | accepted (amended by 0029, 0043, 0044, 0054) | Full-fidelity MCP request/response plane; live passthrough; push-between-calls pooling-dependent |
+| [0021](../adr/0021-mcp-surface-completion.md) | Complete the MCP surface (prompts/resources/completions, capabilities, version, roots/logging) | accepted (amended by 0029, 0043, 0044, 0054, 0056) | Full-fidelity MCP request/response plane; live passthrough; push-between-calls pooling-dependent |
 | [0022](../adr/0022-valkey-store.md) | Valkey (BSD-3) as the bundled RESP store, not Redis | accepted | Permissively-licensed store; redis-py client unchanged; RESP-generic |
 | [0023](../adr/0023-import-contracts-and-shared-providers.md) | Import contracts enforce layer direction | accepted (amended by 0025, 0033) | Layering is checked in CI, not by review |
 | [0024](../adr/0024-value-objects-and-rich-entities.md) | Value objects at the edge; behavior on entities | accepted | No tuples or dicts cross layers; rules live once; typed columns |
@@ -61,6 +61,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0053](../adr/0053-audit-durability-and-the-idempotency-key-join.md) | Batched, retried audit writes; every loss logged with its idempotency key; retention purge; the key as the ledger join | accepted | Ledgers reconcile by key; the table no longer grows unbounded |
 | [0054](../adr/0054-upstream-session-pooling.md) | Per-replica pool of upstream sessions keyed by identity and config; bindings continued from the session record; one safe retry | accepted | Calls after the first skip initialize; member notifications reach clients between calls |
 | [0055](../adr/0055-export-and-bootstrap-share-one-document.md) | One document for bootstrap, export and import; secrets as placeholders; transactional additive import | accepted | Configuration moves between gateways; bootstrap and import share one code path |
+| [0056](../adr/0056-member-listings-cached-for-curation-only.md) | Member prompt and resource listings cached at discovery for per-bundle curation; serving stays live | accepted | Bundles curate members' prompts and resources like tools |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).

@@ -33,6 +33,12 @@ from bundlemcp.infrastructure.postgres.config_entry_repository import (
 from bundlemcp.infrastructure.postgres.consent_repository import SqlAlchemyConsentRepository
 from bundlemcp.infrastructure.postgres.curation_repository import SqlAlchemyCurationRepository
 from bundlemcp.infrastructure.postgres.endpoint_repository import SqlAlchemyEndpointRepository
+from bundlemcp.infrastructure.postgres.member_curation_repository import (
+    SqlAlchemyMemberCurationRepository,
+)
+from bundlemcp.infrastructure.postgres.member_entry_repository import (
+    SqlAlchemyMemberEntryRepository,
+)
 from bundlemcp.infrastructure.postgres.membership_repository import (
     SqlAlchemyMembershipRepository,
 )
@@ -94,6 +100,14 @@ class SqlAlchemyUnitOfWork:
     @cached_property
     def curations(self) -> SqlAlchemyCurationRepository:
         return SqlAlchemyCurationRepository(self._session)
+
+    @cached_property
+    def member_entries(self) -> SqlAlchemyMemberEntryRepository:
+        return SqlAlchemyMemberEntryRepository(self._session)
+
+    @cached_property
+    def member_curations(self) -> SqlAlchemyMemberCurationRepository:
+        return SqlAlchemyMemberCurationRepository(self._session)
 
     @cached_property
     def bundle_prompts(self) -> SqlAlchemyBundlePromptRepository:

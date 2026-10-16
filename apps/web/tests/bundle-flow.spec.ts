@@ -275,3 +275,42 @@ test(testTitle("E2E-33"), async ({ page, steps }) => {
     await api.dispose();
   }
 });
+
+// The seeded echo upstream lists tools only, so its member prompt and resource cards
+// stay empty and say when entries would appear.
+test(testTitle("E2E-35"), async ({ page, steps }) => {
+  const bundle = "e2e-member-entries";
+  const api = await adminApi();
+  try {
+    await api.put(`bundles/${bundle}`, { data: { name: bundle, description: "e2e" } });
+    await api.put(`bundles/${bundle}/upstreams/echo`, { data: { enabled: true } });
+
+    await steps.play([
+      given(`bundle "${bundle}" over the echo upstream`, { req: "BND-37" }, async () => {
+        await page.goto(`/bundles/${bundle}`);
+        await expect(page.getByTestId("member-echo")).toBeVisible();
+      }),
+      then("the member prompts card is shown with its empty state", { req: "BND-37" }, async () => {
+        const card = page.getByTestId("member-prompts");
+        await expect(card).toBeVisible();
+        await expect(card.getByTestId("member-prompts-empty")).toContainText(
+          "appear after the member upstreams' next discovery",
+        );
+      }),
+      then("the member resources card is shown with its empty state", { req: "BND-37" }, async () => {
+        const card = page.getByTestId("member-resources");
+        await expect(card).toBeVisible();
+        await expect(card.getByTestId("member-resources-empty")).toContainText(
+          "appear after the member upstreams' next discovery",
+        );
+      }),
+      then("the gateway agrees there is nothing to curate", { req: "BND-37" }, async () => {
+        expect(await (await api.get(`bundles/${bundle}/member-prompts`)).json()).toEqual([]);
+        expect(await (await api.get(`bundles/${bundle}/member-resources`)).json()).toEqual([]);
+      }),
+    ]);
+  } finally {
+    await api.delete(`bundles/${bundle}`);
+    await api.dispose();
+  }
+});

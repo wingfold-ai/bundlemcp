@@ -15,8 +15,10 @@ from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error, rpc_result
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.application.serving.bundle_content_reader import BundleContentReader
+from bundlemcp.domain.bundles.member_entry_ref import MemberEntryRef
 from bundlemcp.domain.bundles.presented_name import PresentedName
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
 from bundlemcp.domain.servers.server_capability import ServerCapability
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 
@@ -47,6 +49,9 @@ class PromptsGetHandler:
         server = ctx.view.servers.get(parsed.server)
         # a member that never advertised prompts is not asked (ADR-0043)
         if server is None or not server.advertises(ServerCapability.PROMPTS):
+            return rpc_error(message.id, INVALID_PARAMS, f"unknown prompt: {presented}")
+        ref = MemberEntryRef(kind=MemberEntryKind.PROMPT, server_name=server.name, key=parsed.name)
+        if not ctx.view.serves_member_entry(ref):  # disabled in this bundle: never asked
             return rpc_error(message.id, INVALID_PARAMS, f"unknown prompt: {presented}")
         arguments = message.param("arguments")
         if ctx.era is ProtocolEra.STATELESS:

@@ -128,6 +128,29 @@ The bundle page in the UI shows the same table with enable toggles and inline ed
 description and annotations (as JSON). Saving a row sends all of them, so it never clears an override set through the
 API. Rows are flagged when overridden, when their member is disabled, and when stale.
 
+## Curating members' prompts and resources
+
+A member's prompts and resources are served live from the member, prefixed like its tools (`weather__daily`) or, for
+resources, under their own URIs. Each bundle can still shape them: hide one in this bundle, or present another title
+or description. The name, URI, arguments and content always stay the member's.
+
+The entries offered for curation are the ones discovery found: when a member advertises prompts or resources, each
+discovery also caches their names, URIs, titles and descriptions (up to 500 of each kind per upstream), never their
+messages or content. An entry the member stops listing is marked *stale* and keeps its curation.
+
+```bash
+curl -s https://gw.example.com/api/v1/bundles/assistant/member-prompts -H "Authorization: Bearer $SERVICE_KEY"
+curl -s -X PUT https://gw.example.com/api/v1/bundles/assistant/member-prompts/<entry id> \
+  -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+```
+
+A disabled entry is left out of `prompts/list` or `resources/list` for this bundle, and getting or reading it answers
+not-found without contacting the member. Each change tells the bundle's connected clients that the list changed. The
+same entries can be curated on the bundle page's **Member prompts** and **Member resources** cards. For an upstream
+with per-user accounts, discovery lists what the account it uses sees, so an entry only some users see may be
+missing here.
+
 ## The bundle's own prompts and documents {#bundle-prompts-and-documents}
 
 Tools come from the members, but the context that tells a model how to use them for this bundle's purpose — worked

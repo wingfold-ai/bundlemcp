@@ -12,6 +12,10 @@ from bundlemcp.infrastructure.postgres.rows.bundle_tool_row import BundleToolRow
 from bundlemcp.infrastructure.postgres.rows.config_entry_row import ConfigEntryRow
 from bundlemcp.infrastructure.postgres.rows.endpoint_row import EndpointRow
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
+from bundlemcp.infrastructure.postgres.rows.member_entry_curation_row import (
+    MemberEntryCurationRow,
+)
+from bundlemcp.infrastructure.postgres.rows.member_entry_row import MemberEntryRow
 from bundlemcp.infrastructure.postgres.rows.oauth_access_token_row import OAuthAccessTokenRow
 from bundlemcp.infrastructure.postgres.rows.oauth_authorization_code_row import (
     OAuthAuthorizationCodeRow,
@@ -34,6 +38,8 @@ __all__ = [
     "ConfigEntryRow",
     "EndpointRow",
     "McpServerRow",
+    "MemberEntryCurationRow",
+    "MemberEntryRow",
     "OAuthAccessTokenRow",
     "OAuthAuthorizationCodeRow",
     "OAuthClientRow",

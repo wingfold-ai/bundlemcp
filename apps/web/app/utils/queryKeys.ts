@@ -15,6 +15,8 @@ export const queryKeys = {
   bundleTools: (name: string) => `bundles:${name}:tools`,
   bundlePrompts: (name: string) => `bundles:${name}:prompts`,
   bundleResources: (name: string) => `bundles:${name}:resources`,
+  bundleMemberPrompts: (name: string) => `bundles:${name}:member-prompts`,
+  bundleMemberResources: (name: string) => `bundles:${name}:member-resources`,
   composition: "composition",
   endpoints: "endpoints",
   endpoint: (name: string) => `endpoints:${name}`,

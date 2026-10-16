@@ -12,6 +12,12 @@ from bundlemcp.application.schemas.bundles.bundle_upsert import BundleUpsert
 from bundlemcp.application.schemas.bundles.catalogue_prompt_read import CataloguePromptRead
 from bundlemcp.application.schemas.bundles.catalogue_resource_read import CatalogueResourceRead
 from bundlemcp.application.schemas.bundles.catalogue_tool_read import CatalogueToolRead
+from bundlemcp.application.schemas.bundles.member_entry_curation_read import (
+    MemberEntryCurationRead,
+)
+from bundlemcp.application.schemas.bundles.member_entry_curation_update import (
+    MemberEntryCurationUpdate,
+)
 from bundlemcp.application.schemas.bundles.tool_curation_read import ToolCurationRead
 
 __all__ = [
@@ -29,5 +35,7 @@ __all__ = [
     "CataloguePromptRead",
     "CatalogueResourceRead",
     "CatalogueToolRead",
+    "MemberEntryCurationRead",
+    "MemberEntryCurationUpdate",
     "ToolCurationRead",
 ]

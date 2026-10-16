@@ -359,6 +359,16 @@
         "MGMT-19"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-35",
+      "testFile": "bundle-flow.spec.ts",
+      "slug": "member-entry-curation-cards",
+      "title": "A bundle over upstreams that list no prompts or resources shows both member curation cards empty",
+      "requirements": [
+        "BND-37"
+      ],
+      "new": true
     }
   ]
 }
