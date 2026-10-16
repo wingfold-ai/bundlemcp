@@ -15,17 +15,37 @@ FOREIGN_LOGGERS = ("uvicorn", "uvicorn.access", "uvicorn.error")
 SILENCED_LOGGERS = ("uvicorn.access",)
 
 
-def configure_logging(level: str, log_format: str = "json") -> None:
-    """Send every log record to standard error in the chosen format, at the given minimum level.
-
-    Safe to call more than once; each call replaces the previous handler.
-    """
-    shared_processors: list[structlog.typing.Processor] = [
+def _shared_processors() -> list[structlog.typing.Processor]:
+    """What every log line carries, whichever handler renders it."""
+    return [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
     ]
+
+
+def json_event_formatter() -> logging.Formatter:
+    """A formatter rendering any record, structlog's or the standard library's, as the JSON line.
+
+    A second handler with this formatter sees exactly the fields the process log
+    writes, so it can never carry anything the process log may not.
+    """
+    return structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=_shared_processors(),
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            structlog.processors.JSONRenderer(),
+        ],
+    )
+
+
+def configure_logging(level: str, log_format: str = "json") -> None:
+    """Send every log record to standard error in the chosen format, at the given minimum level.
+
+    Safe to call more than once; each call replaces the previous handler.
+    """
+    shared_processors = _shared_processors()
     renderer: structlog.typing.Processor = (
         structlog.processors.JSONRenderer()
         if log_format == "json"

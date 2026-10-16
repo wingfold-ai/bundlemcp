@@ -6,6 +6,8 @@ out. It is the one module allowed to name concrete implementations; everything
 downstream receives what it needs rather than reaching for it.
 """
 
+import logging
+import socket
 from contextlib import AsyncExitStack
 from typing import Any
 
@@ -60,6 +62,7 @@ from bundlemcp.domain.shared.os_secret_generator import OsSecretGenerator
 from bundlemcp.domain.shared.secret_generator import SecretGenerator
 from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
 from bundlemcp.domain.shared.system_clock import SystemClock
+from bundlemcp.infrastructure.config.live_log_handler import LiveLogHandler
 from bundlemcp.infrastructure.crypto.token_cipher import token_cipher
 from bundlemcp.infrastructure.fastmcp.client_factory import default_client_factory
 from bundlemcp.infrastructure.fastmcp.per_call_upstream_sessions import PerCallUpstreamSessions
@@ -89,6 +92,8 @@ from bundlemcp.infrastructure.valkey.client import create_redis
 from bundlemcp.infrastructure.valkey.delegated_token_store import ValkeyDelegatedTokenStore
 from bundlemcp.infrastructure.valkey.failure_streak_store import ValkeyFailureStreak
 from bundlemcp.infrastructure.valkey.invalidation_subscriber import InvalidationSubscriber
+from bundlemcp.infrastructure.valkey.live_log_buffer import ValkeyLiveLogBuffer
+from bundlemcp.infrastructure.valkey.live_log_publisher import LiveLogPublisher
 from bundlemcp.infrastructure.valkey.paused_invocations import ValkeyPausedInvocations
 from bundlemcp.infrastructure.valkey.rate_limiter import ValkeyRateLimiter
 from bundlemcp.infrastructure.valkey.refresh_lock import ValkeyRefreshLock
@@ -222,6 +227,15 @@ class CompositionRoot:
         audit = QueuedAuditWriter(sessions, metrics)
         await audit.start()
         self._stack.push_async_callback(audit.stop)
+
+        # every replica's events reach the live log view through one capped stream
+        live_log_buffer = overrides.live_log_buffer or ValkeyLiveLogBuffer(redis)
+        live_log_handler = LiveLogHandler(settings.live_log_level, replica=socket.gethostname())
+        logging.getLogger().addHandler(live_log_handler)
+        self._stack.callback(logging.getLogger().removeHandler, live_log_handler)
+        live_log_publisher = LiveLogPublisher(live_log_handler, live_log_buffer)
+        live_log_publisher.start()
+        self._stack.push_async_callback(live_log_publisher.stop)
 
         registry = InProcessStreamRegistry()
         drain = ReplicaDrain(registry, settings.shutdown_drain_seconds)
@@ -390,6 +404,7 @@ class CompositionRoot:
             connection_diagnoser=diagnoser,
             delegated_tokens=delegated_tokens,
             audit=audit,
+            live_log_buffer=live_log_buffer,
             runtime_config=runtime_config,
             metrics=metrics,
             metrics_exposition=prometheus,

@@ -2285,6 +2285,87 @@
         "title": "ImportResult",
         "type": "object"
       },
+      "LiveLogEntry": {
+        "description": "One log event as the live log view shows it: the already-redacted process log line.",
+        "properties": {
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Endpoint the event concerns, if any",
+            "title": "Endpoint"
+          },
+          "event": {
+            "description": "The event's name or message",
+            "title": "Event",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": true,
+            "description": "Every other key and value the event carried",
+            "title": "Fields",
+            "type": "object"
+          },
+          "id": {
+            "default": "",
+            "description": "Position in the buffer, assigned when stored; resume after it",
+            "title": "Id",
+            "type": "string"
+          },
+          "level": {
+            "description": "Severity: debug, info, warning, error or critical",
+            "title": "Level",
+            "type": "string"
+          },
+          "logger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Logger that wrote the event",
+            "title": "Logger"
+          },
+          "replica": {
+            "description": "The gateway replica that logged it",
+            "title": "Replica",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "When the event was logged, ISO 8601",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "upstream": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Upstream server the event concerns, if any",
+            "title": "Upstream"
+          }
+        },
+        "required": [
+          "timestamp",
+          "level",
+          "event",
+          "replica"
+        ],
+        "title": "LiveLogEntry",
+        "type": "object"
+      },
       "MeRead": {
         "description": "The caller's own identity: session user (admin or not) or service key.",
         "properties": {
@@ -6540,6 +6621,265 @@
         "summary": "Import Config",
         "tags": [
           "config-transfer"
+        ]
+      }
+    },
+    "/api/v1/logs": {
+      "get": {
+        "operationId": "recent_logs_api_v1_logs_get",
+        "parameters": [
+          {
+            "description": "Most entries returned",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "description": "Most entries returned",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Lowest severity",
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(debug|info|warning|error|critical)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Lowest severity",
+              "title": "Level"
+            }
+          },
+          {
+            "description": "Text the event or a field contains",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text the event or a field contains",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Only events about this upstream",
+            "in": "query",
+            "name": "upstream",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only events about this upstream",
+              "title": "Upstream"
+            }
+          },
+          {
+            "description": "Only events about this endpoint",
+            "in": "query",
+            "name": "endpoint",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only events about this endpoint",
+              "title": "Endpoint"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LiveLogEntry"
+                  },
+                  "title": "Response Recent Logs Api V1 Logs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recent Logs",
+        "tags": [
+          "logs"
+        ]
+      }
+    },
+    "/api/v1/logs/stream": {
+      "get": {
+        "operationId": "stream_logs_api_v1_logs_stream_get",
+        "parameters": [
+          {
+            "description": "Id of the last entry seen; omitted, only new entries are sent",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of the last entry seen; omitted, only new entries are sent",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Lowest severity",
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(debug|info|warning|error|critical)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Lowest severity",
+              "title": "Level"
+            }
+          },
+          {
+            "description": "Text the event or a field contains",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text the event or a field contains",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Only events about this upstream",
+            "in": "query",
+            "name": "upstream",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only events about this upstream",
+              "title": "Upstream"
+            }
+          },
+          {
+            "description": "Only events about this endpoint",
+            "in": "query",
+            "name": "endpoint",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only events about this endpoint",
+              "title": "Endpoint"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Logs",
+        "tags": [
+          "logs"
         ]
       }
     },

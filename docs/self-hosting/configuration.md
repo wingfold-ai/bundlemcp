@@ -122,6 +122,7 @@ claude.ai only.
 | `BUNDLEMCP_LEGACY_PROTOCOL_ENABLED` | `true` | Whether MCP revisions before 2026-07-28 (the `initialize` handshake and sessions) are still served. Switch off once every client speaks the stateless revisions. |
 | `BUNDLEMCP_UPSTREAM_POOLING_ENABLED` | `true` | Whether upstream MCP sessions are kept open and reused across requests. Off, every request opens and closes its own upstream connection, and nothing is heard from a member between calls (list changes, resource updates, log messages). |
 | `BUNDLEMCP_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
+| `BUNDLEMCP_LIVE_LOG_LEVEL` | `INFO` | Minimum severity copied to the admin UI's live log view (`DEBUG` … `CRITICAL`). An event must also pass `BUNDLEMCP_LOG_LEVEL`. |
 | `BUNDLEMCP_LOG_FORMAT` | `json` | `json` for a log pipeline, `text` for a terminal. Applies to the web server's loggers too. |
 | `BUNDLEMCP_METRICS_ENABLED` | `true` | Serve Prometheus metrics at `/metrics`, readable with a service API key or an admin session; see [Metrics](operations.md#metrics). `false` removes the route. |
 

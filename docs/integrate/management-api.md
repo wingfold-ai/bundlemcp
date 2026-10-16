@@ -171,6 +171,8 @@ Upstream servers live under `/upstreams` (the short form of *upstream servers*),
 | Method | Path | |
 |---|---|---|
 | `GET` | `/audit-records` | Filterable, paginated audit log. |
+| `GET` | `/logs` | Recent live log entries of every replica, filtered by `level`, `q`, `upstream`, `endpoint`. |
+| `GET` | `/logs/stream` | The same as Server-Sent Events; resumes from `Last-Event-ID` or `since`. `429` when the replica holds too many streams. |
 | `GET` | `/config` | Runtime settings in effect. |
 | `PUT` | `/config/{key}` | Set one (`{"value": …}`), type-checked. |
 | `DELETE` | `/config/{key}` | Reset one to its default. |

@@ -263,6 +263,12 @@ class Settings(BaseModel):
         pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
         description="Minimum severity written to the structured log",
     )
+    live_log_level: str = Field(
+        default="INFO",
+        pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
+        description="Minimum severity copied to the admin UI's live log view. An event must also "
+        "pass BUNDLEMCP_LOG_LEVEL, so a threshold below it has no effect",
+    )
     log_format: str = Field(
         default="json",
         pattern=r"^(json|text)$",

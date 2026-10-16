@@ -30,7 +30,7 @@ None.
 ### Modified Capabilities
 
 - `operations`: adds OPS-14..OPS-17 — the cross-replica buffer, the streaming API and UI page, ephemerality, and
-  redaction. On archive, extend the slice's Purpose to mention the live log view.
+  redaction.
 - `architecture`: ARC-8 — the RESP store also holds the live-log ring buffer.
 
 ## Impact

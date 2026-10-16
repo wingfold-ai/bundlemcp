@@ -88,7 +88,7 @@
       "group": "Operations and UI",
       "title": "Operations",
       "summary": "What operators see while the gateway runs.",
-      "description": "The append-only audit log: one record per tool call (who, what, where, how long, how it ended), denied calls included, never arguments or results, written asynchronously without slowing calls, queryable through the API and UI, and the reconciliation source for an application layer's billing. Structured logs and the health and readiness probes for orchestrators. Metrics, tracing and the live log view will live here once built.",
+      "description": "The append-only audit log: one record per tool call (who, what, where, how long, how it ended), denied calls included, never arguments or results, written asynchronously without slowing calls, queryable through the API and UI, and the reconciliation source for an application layer's billing. Structured logs and the health and readiness probes for orchestrators. Prometheus metrics, optional tracing, and the live log view of every replica's recent events.",
       "boundary": "Rate-limit and lockout counters are specified with their limiters in the endpoints slice."
     },
     {
