@@ -3,7 +3,9 @@
 import pytest
 from bundlemcp.application.bootstrap import BootstrapDocument, BootstrapRunner
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
+from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.errors import PreconditionError
+from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.domain.endpoints.profiles import ProfileCatalog
 from bundlemcp.infrastructure.crypto.token_cipher import TokenCipher
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
@@ -15,8 +17,13 @@ from bundlemcp.infrastructure.postgres.rows.endpoint_row import EndpointRow
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from bundlemcp.infrastructure.postgres.rows.upstream_oauth_client_row import UpstreamOAuthClientRow
 from bundlemcp.infrastructure.postgres.sqlalchemy_unit_of_work import SqlAlchemyUnitOfWorkFactory
+from bundlemcp.infrastructure.valkey.failure_streak_store import ValkeyFailureStreak
 from cryptography.fernet import Fernet
 from sqlmodel import select
+
+
+def _health(units, redis) -> UpstreamHealth:
+    return UpstreamHealth(units, ValkeyFailureStreak(redis), RuntimeConfig(units))
 
 
 class InlineDiscovery(DiscoveryService):
@@ -189,7 +196,7 @@ async def test_fresh_bootstrap_serves_discovered_tools(engine, redis):
     probe = FastMcpUpstreamProbe(factory_for(make_upstream(["ping"])))
     await BootstrapRunner(
         units,
-        InlineDiscovery(units, probe),
+        InlineDiscovery(units, probe, health=_health(units, redis)),
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
@@ -212,7 +219,9 @@ async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis)
 
     factory = session_factory(engine)
     units = SqlAlchemyUnitOfWorkFactory(factory, redis)
-    discovery = InlineDiscovery(units, FastMcpUpstreamProbe(failing_factory))
+    discovery = InlineDiscovery(
+        units, FastMcpUpstreamProbe(failing_factory), health=_health(units, redis)
+    )
     settings = EnvSettings(_env_file=None, bootstrap=json.dumps(DOC), bootstrap_strict=True)
     await BootstrapRunner(
         units,

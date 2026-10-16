@@ -36,6 +36,8 @@ from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
 from cryptography.fernet import Fernet
 from structlog.testing import capture_logs
 
+from tests.application.upstream_health_on_fakes import health_on
+
 PUBLIC_BASE = "https://gw.example"
 CALLBACK = f"{PUBLIC_BASE}/oauth/upstream/callback"
 
@@ -127,6 +129,7 @@ def discovery(uow, tokens, probe) -> DiscoveryService:
     return DiscoveryService(
         InMemoryUnitOfWorkFactory(uow),
         probe,
+        health=health_on(uow),
         credentials=UpstreamCredentialResolver(tokens, PUBLIC_BASE),
     )
 

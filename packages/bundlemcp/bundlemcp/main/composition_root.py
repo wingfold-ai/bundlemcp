@@ -23,6 +23,7 @@ from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
 from bundlemcp.application.discovery.connection_diagnoser import ConnectionDiagnoser
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
+from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.management.api_key_service import ApiKeyService
 from bundlemcp.application.metering.invocation_sweeper import InvocationSweeper
 from bundlemcp.application.oauth_server import (
@@ -66,6 +67,7 @@ from bundlemcp.infrastructure.valkey.admin_session_store import AdminSessionStor
 from bundlemcp.infrastructure.valkey.auth_failure_limiter import ValkeyAuthFailureLimiter
 from bundlemcp.infrastructure.valkey.client import create_redis
 from bundlemcp.infrastructure.valkey.delegated_token_store import ValkeyDelegatedTokenStore
+from bundlemcp.infrastructure.valkey.failure_streak_store import ValkeyFailureStreak
 from bundlemcp.infrastructure.valkey.invalidation_subscriber import InvalidationSubscriber
 from bundlemcp.infrastructure.valkey.paused_invocations import ValkeyPausedInvocations
 from bundlemcp.infrastructure.valkey.rate_limiter import ValkeyRateLimiter
@@ -160,9 +162,12 @@ class CompositionRoot:
         upstream_probe = FastMcpUpstreamProbe(client_factory)
         diagnoser = ConnectionDiagnoser(upstream_oauth)
         # upstream-OAuth servers are probed with a connected account's token
+        # one failure streak per upstream, shared by every replica
+        upstream_health = UpstreamHealth(units, ValkeyFailureStreak(redis), runtime_config)
         discovery = DiscoveryService(
             units,
             upstream_probe,
+            health=upstream_health,
             credentials=UpstreamCredentialResolver(
                 upstream_tokens, settings.public_base, delegated=delegated_tokens
             ),
@@ -204,6 +209,7 @@ class CompositionRoot:
             audit=audit,
             client_factory=client_factory,
             runtime_config=runtime_config,
+            upstream_health=upstream_health,
             upstream_tokens=upstream_tokens,
             delegated_tokens=delegated_tokens,
             state_cipher=cipher,

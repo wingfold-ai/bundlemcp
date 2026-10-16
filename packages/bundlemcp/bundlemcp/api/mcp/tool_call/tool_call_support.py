@@ -9,6 +9,7 @@ from bundlemcp.application.contracts.live_state.stream_registry import StreamReg
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
+from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.serving.chain_stage import ChainStage
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
@@ -46,6 +47,9 @@ class ToolCallSupport(BaseModel):
     )
     signals: SignalBus = Field(description="Reaches the replica holding the client's stream")
     runtime_config: RuntimeConfig = Field(description="Source of the call timeouts")
+    upstream_health: UpstreamHealth = Field(
+        description="Where a call reports whether it reached its upstream"
+    )
     state_cipher: SecretCipher | None = Field(
         description="Seals the requestState a modern client echoes on a retry; None when no "
         "token encryption keys are configured, which makes input_required unavailable"

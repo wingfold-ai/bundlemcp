@@ -81,4 +81,5 @@ AUTH-31 were written for a pooled model that was deferred. This change builds it
   [complete-protocol-passthrough](../archive/2026-10-15-complete-protocol-passthrough/proposal.md) gates
   `resources.subscribe` and member `listChanged` on delivery (PROT-11): `member_notifications` in
   `main/mcp_gateway_assembly.py` turns true once this change delivers them, and those flags are advertised again.
-  [complete-upstream-health](../complete-upstream-health/proposal.md) provides the shared failure counter SES-7 feeds.
+  [complete-upstream-health](../archive/2026-10-16-complete-upstream-health/proposal.md) provides the shared failure
+  counter SES-7 feeds.

@@ -17,8 +17,7 @@ runtime config key `server_error_attempts` exists, and failed live calls do not 
   including a tool error — as a success that heals the server (UPS-4).
 - UPS-23 sweeps on different replicas therefore add up, and an upstream that stays down is marked `error` after
   `server_error_attempts` sweeps (UPS-23).
-- Optional background health polling (UPS-9), off by default, behind two new runtime config keys. See the open
-  decision.
+- Background health polling (UPS-9) is retired, not built; see the decision below.
 
 ## Capabilities
 
@@ -28,31 +27,23 @@ None.
 
 ### Modified Capabilities
 
-- `upstreams`: UPS-4 (configurable threshold, shared count, live calls count) and UPS-9 (added: optional
-  background health polling).
+- `upstreams`: UPS-4 (configurable threshold, shared count, live calls count).
 - `upstreams`: UPS-23 (an upstream that stays unreachable is marked `error` after that many refreshes).
 
-## Open decision
+## Decision: UPS-9 is retired
 
-**UPS-9 — build or retire.** The original spec asked for optional background health polling so health stays fresh for
-servers without traffic. Since then UPS-23's periodic refresh re-probes every server every 30 minutes by default, and
-with the shared count of this change it also drives `health_status`. The maintainers choose:
-
-1. **Build** (the ADDED requirement as written): a cheaper, more frequent connect-only check, for operators who want
-   health fresher than the tool refresh interval without re-listing tools. It contradicts the spirit of ADR-0043
-   ("contact upstreams only with a reason") unless the operator's opt-in counts as the reason.
-2. **Retire** as superseded by UPS-23: drop the UPS-9 delta and the polling tasks (group 4); nothing is REMOVED,
-   because UPS-9 is not in the main spec. The proposal then records here that UPS-9 is retired and why, and the ID
-   stays unused.
+The original spec asked for optional background health polling so health stays fresh for servers without traffic.
+UPS-23's periodic refresh already re-probes every server (every 30 minutes by default), and with the shared count of
+this change it also drives `health_status`, so polling would only make health fresher at the cost of upstream traffic
+that ADR-0043 ("contact upstreams only with a reason") argues against. The maintainers chose to retire it: no delta is
+written, nothing is REMOVED because UPS-9 was never in the main spec, and the ID stays unused.
 
 ## Impact
 
 - **Code:** a new live-state contract for the failure streak (`application/contracts/live_state/`) with a Valkey
   adapter and an in-memory fake; `DiscoveryService` reads the threshold from `RuntimeConfig`; a health reporter in
-  `application/discovery/` used by discovery and by the tool-call settlement in `api/mcp/tool_call/`; on "build", a
-  `HealthPoller` job in `api/jobs/` beside `ToolRefresher`, and two keys in `domain/config/config_registry.py`.
-- **Config:** `server_error_attempts` starts to take effect; on "build", `health_poll_enabled` and
-  `health_poll_interval` are added (documented with the other runtime keys).
+  `application/discovery/` used by discovery and by the tool-call settlement in `api/mcp/tool_call/`.
+- **Config:** `server_error_attempts` starts to take effect.
 - **Data:** no Postgres migration. New Valkey keys, self-expiring.
 - **Docs:** `docs/manage/servers.md` (health), `docs/self-hosting/configuration.md`, and
   `docs/self-hosting/operations.md`.
