@@ -10,6 +10,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 
+from bundlemcp.application.contracts.observability.metrics_exposition import MetricsExposition
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from bundlemcp.application.contracts.readiness_probe import ReadinessProbe
 from bundlemcp.application.serving.replica_drain import ReplicaDrain
@@ -29,6 +30,10 @@ def get_readiness(request: Request) -> ReadinessProbe:
 
 def get_drain(request: Request) -> ReplicaDrain:
     return request.app.state.container.drain
+
+
+def get_metrics_exposition(request: Request) -> MetricsExposition:
+    return request.app.state.container.metrics_exposition
 
 
 def get_app_settings(request: Request) -> Settings:
@@ -51,3 +56,4 @@ UnitOfWorkProvider = Annotated[UnitOfWork, Depends(get_unit_of_work)]
 ReadinessProvider = Annotated[ReadinessProbe, Depends(get_readiness)]
 DrainProvider = Annotated[ReplicaDrain, Depends(get_drain)]
 SettingsProvider = Annotated[Settings, Depends(get_app_settings)]
+MetricsExpositionProvider = Annotated[MetricsExposition, Depends(get_metrics_exposition)]

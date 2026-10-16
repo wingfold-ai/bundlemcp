@@ -15,6 +15,45 @@ Two log events deserve alerts:
 - **rate limiter unavailable**: Valkey could not be reached. Traffic limits fail open by default, so this is a warning,
   not an outage.
 
+## Metrics
+
+Each replica serves Prometheus metrics at `/metrics`, readable with a service API key or an admin session (an endpoint
+key gets `403`). Scrape every replica: each exports only what it served, so sums across replicas count every call once.
+`BUNDLEMCP_METRICS_ENABLED=false` removes the route.
+
+```yaml
+scrape_configs:
+  - job_name: bundlemcp
+    authorization:
+      credentials_file: /etc/prometheus/bundlemcp-service-key
+    static_configs:
+      - targets: ["gateway-1:8000", "gateway-2:8000"]
+```
+
+| Metric | Labels | What it counts |
+|---|---|---|
+| `bundlemcp_tool_calls_total`, `bundlemcp_tool_call_duration_seconds` | `endpoint`, `server`, `status` (`success`, `error`, `denied`) | Tool calls and their duration |
+| `bundlemcp_upstream_in_flight_calls`, `bundlemcp_upstream_call_failures_total` | `server` | Upstream calls running now; those that got no answer |
+| `bundlemcp_rate_limit_rejections_total` | `endpoint`, `limit` (`endpoint`, `client`) | Requests refused with `429` |
+| `bundlemcp_traffic_limiter_fail_open_total` | — | Requests let through because the rate limiter could not reach Valkey |
+| `bundlemcp_auth_limiter_fail_open_total` | — | Auth-failure checks skipped because Valkey was unreachable |
+| `bundlemcp_auth_failures_total`, `bundlemcp_auth_lockouts_total` | — | Refused credentials; clients locked out |
+| `bundlemcp_metering_denies_total` | `endpoint` | Calls the metering hook denied |
+| `bundlemcp_tools_list_degraded_total` | `endpoint`, `server` | `tools/list` answers that listed an unhealthy member's cached tools |
+| `bundlemcp_open_streams`, `bundlemcp_audit_queue_depth` | — | Notification streams this replica holds; audit records waiting to be written |
+| `bundlemcp_store_up` | `store` (`postgres`, `valkey`) | `1` when the store answered its last check, checked at most every 5 s |
+
+No label carries a caller, a key, a header value, a tool argument or a client IP. Alerts worth having:
+
+```yaml
+- alert: BundlemcpLimiterFailingOpen
+  expr: increase(bundlemcp_traffic_limiter_fail_open_total[5m]) > 0 or increase(bundlemcp_auth_limiter_fail_open_total[5m]) > 0
+- alert: BundlemcpDegradedListings
+  expr: increase(bundlemcp_tools_list_degraded_total[15m]) > 0
+- alert: BundlemcpStoreDown
+  expr: min by (store) (bundlemcp_store_up) == 0
+```
+
 ## Health
 
 | Route | Use |
@@ -96,7 +135,7 @@ implement longer than its reconciliation window.
 
 ## Not part of this release
 
-There is no Prometheus `/metrics` route, no live log stream in the UI, no
+There is no live log stream in the UI, no
 built-in MCP inspector, no audit purge job, and no JSON export or import of the
 configuration; the UI's Live logs and Inspector pages are placeholders. Use the container
 logs, the audit API, and a bootstrap file instead.

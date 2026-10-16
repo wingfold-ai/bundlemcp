@@ -67,3 +67,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0048](0048-egress-policy-enforced-at-connect-time.md) | The egress policy is enforced at connect time | accepted |
 | [0049](0049-browser-origins-are-an-endpoint-setting.md) | Browser origins are an endpoint setting, not an auth mode | accepted |
 | [0050](0050-one-stage-chain-and-once-per-invocation-metering.md) | Tools pass one stage chain, and an invocation is metered once | accepted |
+| [0052](0052-per-replica-prometheus-metrics-with-a-closed-label-set.md) | Each replica exports Prometheus metrics, behind management credentials, with a closed label set | accepted |

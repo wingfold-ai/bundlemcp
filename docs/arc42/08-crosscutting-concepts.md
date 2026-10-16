@@ -31,9 +31,9 @@ Structured MCP errors to clients; no silent degradation — partial `tools/list`
 ([SES-7](../../openspec/specs/sessions/spec.md)).
 
 ## Observability
-Structured JSON logs (redacted), `/healthz`+`/readyz`, in-process counters (Prometheus `/metrics` is reserved but not
-built — §11), optional OTel; live-log ring in Redis for the UI; per-call audit records in Postgres as the billing
-reconciliation source ([OPS-7](../../openspec/specs/operations/spec.md)).
+Structured JSON logs (redacted), `/healthz`+`/readyz`, Prometheus metrics on `/metrics`, per replica, behind the
+management credentials, with a closed label set, optional OTel; live-log ring in Redis for the UI; per-call audit
+records in Postgres as the billing reconciliation source ([OPS-7](../../openspec/specs/operations/spec.md)).
 
 ## Configuration
 Deploy-time: `BUNDLEMCP_*` env via pydantic-settings. Runtime-tunable: the `config_entries` table, its legal keys

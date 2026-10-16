@@ -33,13 +33,13 @@ from bundlemcp.api.mcp.routing.authentication import EndpointAuthentication
 from bundlemcp.api.mcp.routing.gateway_router import McpGatewayRouter
 from bundlemcp.api.mcp.routing.session_stream import SessionStream
 from bundlemcp.api.mcp.tool_call import ToolCallSupport, ToolsCallHandler
-from bundlemcp.application.contracts.live_state.counters import Counters
 from bundlemcp.application.contracts.live_state.paused_invocations import PausedInvocations
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
+from bundlemcp.application.contracts.observability.gateway_metrics import GatewayMetrics
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
@@ -107,7 +107,7 @@ class McpGatewayAssembly(BaseModel):
     )
     rate_limiter: RateLimiter = Field(description="Fixed-window limits per endpoint and client")
     auth_failures: AuthFailureGuard = Field(description="Per-IP lockout on bad credentials")
-    counters: Counters = Field(description="In-process metric sink")
+    metrics: GatewayMetrics = Field(description="Where calls, limits and listings are counted")
     profiles: ProfileCatalog = Field(
         description="The registered endpoint profiles a served tool list is shaped by"
     )
@@ -117,7 +117,7 @@ class McpGatewayAssembly(BaseModel):
     def build(self) -> McpGatewayRouter:
         dialects = DialectRegistry.default(legacy_enabled=self.settings.legacy_protocol_enabled)
         cache_hints = CacheHints(self.runtime_config)
-        gate = RateLimitGate(self.rate_limiter, self.counters, self.settings)
+        gate = RateLimitGate(self.rate_limiter, self.metrics, self.settings)
         credentials = UpstreamCredentialResolver(
             self.upstream_tokens, self.settings.public_base, delegated=self.delegated_tokens
         )
@@ -156,6 +156,7 @@ class McpGatewayAssembly(BaseModel):
                 signals=self.signals,
                 presence=self.presence,
                 runtime_config=self.runtime_config,
+                metrics=self.metrics,
                 upstream_health=self.upstream_health,
                 state_cipher=self.state_cipher,
             ),
@@ -175,7 +176,9 @@ class McpGatewayAssembly(BaseModel):
                     tool_call=False,
                 ),
                 "tools/list": RateLimited(
-                    ToolsListHandler(cache_hints, connect_prompts), gate, tool_call=False
+                    ToolsListHandler(cache_hints, connect_prompts, self.metrics),
+                    gate,
+                    tool_call=False,
                 ),
                 "tools/call": RateLimited(tool_calls, gate, tool_call=True),
                 "prompts/list": PromptsListHandler(fanout, cache_hints),
@@ -187,9 +190,7 @@ class McpGatewayAssembly(BaseModel):
                 "resources/subscribe": ResourcesSubscribeHandler(),
                 "resources/unsubscribe": ResourcesSubscribeHandler(),
                 "logging/setLevel": LoggingSetLevelHandler(self.sessions),
-                "subscriptions/listen": SubscriptionsListenHandler(
-                    self.registry, self.presence
-                ),
+                "subscriptions/listen": SubscriptionsListenHandler(self.registry, self.presence),
                 "notifications/cancelled": CancelledNotificationHandler(self.signals),
             }
         )

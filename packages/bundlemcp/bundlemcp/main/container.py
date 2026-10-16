@@ -11,9 +11,10 @@ from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamCon
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.live_state.admin_session_store import AdminSessionStore
 from bundlemcp.application.contracts.live_state.auth_failure_limiter import AuthFailureLimiter
-from bundlemcp.application.contracts.live_state.counters import Counters
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
 from bundlemcp.application.contracts.live_state.single_use_state import SingleUseState
+from bundlemcp.application.contracts.observability.gateway_metrics import GatewayMetrics
+from bundlemcp.application.contracts.observability.metrics_exposition import MetricsExposition
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.contracts.readiness_probe import ReadinessProbe
@@ -79,7 +80,10 @@ class AppContainer(BaseModel):
     )
     audit: AuditSink = Field(description="Queued writer for audit records")
     runtime_config: RuntimeConfig = Field(description="Runtime-tunable config, cached per replica")
-    counters: Counters = Field(description="In-process metric sink")
+    metrics: GatewayMetrics = Field(description="Where every counted fact is recorded")
+    metrics_exposition: MetricsExposition = Field(
+        description="What a scrape of /metrics returns from this replica"
+    )
     profiles: ProfileCatalog = Field(
         description="The registered endpoint profiles every profile decision is taken from"
     )

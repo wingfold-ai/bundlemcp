@@ -1,9 +1,9 @@
+from collections.abc import Callable
+
 import structlog
 from redis.asyncio import Redis
 
-from bundlemcp.application.contracts.live_state.counters import RATE_LIMIT_FAIL_OPEN, Counters
 from bundlemcp.application.contracts.live_state.rate_result import RateResult
-from bundlemcp.infrastructure.inprocess.counters import InProcessCounters
 
 log = structlog.get_logger("bundlemcp.infrastructure.valkey.rate_limiter")
 
@@ -11,9 +11,11 @@ RATE_KEY = "bmcp:rate:{scope}:{bucket}"
 
 
 class ValkeyRateLimiter:
-    def __init__(self, redis: Redis, counters: Counters | None = None) -> None:
+    """Fixed windows counted in Valkey; ``on_fail_open`` raises the alarm when it cannot count."""
+
+    def __init__(self, redis: Redis, *, on_fail_open: Callable[[], None]) -> None:
         self._redis = redis
-        self._counters = counters or InProcessCounters()
+        self._on_fail_open = on_fail_open
 
     async def _now(self) -> int:
         """Redis server time in whole seconds — the clock shared by all replicas."""
@@ -53,7 +55,7 @@ class ValkeyRateLimiter:
 
     def _fail(self, scope: str, window: int, fail_closed: bool) -> RateResult:
         # availability over throttling — fail open (or closed on request), loudly.
-        self._counters.inc(RATE_LIMIT_FAIL_OPEN)
+        self._on_fail_open()
         log.warning("ratelimit.redis_unavailable", scope=scope, fail_closed=fail_closed)
         if fail_closed:
             return RateResult(allowed=False, retry_after=window)

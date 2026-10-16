@@ -33,8 +33,7 @@
 - Single scope in OAuth; audience-only binding (AUTH-10) — fine-grained scopes deferred.
 - There is no built-in inspector yet (change `add-inspector`).
 - Rate limiting ([endpoints spec](../../openspec/specs/endpoints/spec.md), [ADR-0018](../adr/0018-rate-limiting.md))
-  uses a fixed-window counter — up to a 2× burst at window edges; a sliding-window log is the noted upgrade. Its
-  rejection/lockout counters are in-process; the Prometheus `/metrics` export is still pending (the operations spec).
-- The `application/contracts/` package holds protocols for in-process objects (`StreamRegistry`, `Counters`) as well as
-  for stores; they exist so the MCP edge names no adapter and can be faked, not because a second implementation is
-  planned ([ADR-0033](../adr/0033-clean-architecture-layers.md)).
+  uses a fixed-window counter — up to a 2× burst at window edges; a sliding-window log is the noted upgrade.
+- The `application/contracts/` package holds protocols for in-process objects (`StreamRegistry`, `GatewayMetrics`) as
+  well as for stores; they exist so the MCP edge names no adapter and can be faked, not because a second implementation
+  is planned ([ADR-0033](../adr/0033-clean-architecture-layers.md)).

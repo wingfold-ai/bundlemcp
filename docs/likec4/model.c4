@@ -71,6 +71,10 @@ model {
     description 'Optional consumer: billing via the metering hook, registrar via the management API'
   }
 
+  prometheus = external 'Prometheus' {
+    description 'Scrapes /metrics on every gateway replica with a service API key'
+  }
+
   bundlemcp = system 'bundlemcp' {
     description 'Self-hostable MCP bundling gateway'
 
@@ -141,6 +145,7 @@ model {
   web -> gateway 'management API' 'HTTPS /api/v1'
   gateway.infrastructure -> pg 'durable' 'SQLAlchemy async'
   gateway.infrastructure -> redis 'live' 'redis-py async'
+  prometheus -> gateway 'scrapes /metrics' 'HTTPS, bearer service key'
 }
 
 views {
@@ -155,7 +160,8 @@ views {
       mcpClient with { title 'MCP clients' description 'claude.ai, ChatGPT, scripts, agents' },
       upstreams with { title 'Upstream MCP servers' description 'Streamable HTTP, any protocol era' },
       idp with { title 'OIDC provider' description 'Keycloak or any OIDC issuer' },
-      appLayer with { title 'Application layer' description 'Optional: billing, registrar' }
+      appLayer with { title 'Application layer' description 'Optional: billing, registrar' },
+      prometheus with { title 'Prometheus' description 'Scrapes metrics' }
     style * {
       size xs
       textSize lg
