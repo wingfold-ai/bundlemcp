@@ -150,6 +150,7 @@ Upstream servers live under `/upstreams` (the short form of *upstream servers*),
 | `GET` | `/api-keys` | List (prefixes only). |
 | `POST` | `/api-keys` | Create; the value is in this response only. |
 | `POST` | `/api-keys/{id}:deactivate` | Stop accepting a key. |
+| `POST` | `/api-keys/{id}:activate` | Accept a deactivated key again. |
 | `DELETE` | `/api-keys/{id}` | Delete. |
 | `GET` | `/users` | List provisioned users. |
 | `POST` | `/users/{id}:deactivate` | Revoke everything the user holds. |

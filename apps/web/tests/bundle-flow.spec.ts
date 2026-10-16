@@ -1,5 +1,5 @@
 import { test, expect, given, when, then } from "./gherkin";
-import { withUpstream, STORAGE } from "./flows";
+import { adminApi, withUpstream, STORAGE } from "./flows";
 import { testTitle } from "./spec-map";
 
 test.use({ storageState: STORAGE });
@@ -195,4 +195,31 @@ test(testTitle("E2E-18"), async ({ page, steps }) => {
   // cleanup: the bundle takes its prompts and resources with it
   await page.getByTestId("delete-bundle").click();
   await page.waitForURL(/\/bundles$/);
+});
+
+// The query layer: a bundle created on one page reaches another page that was
+// already visited, without anyone reloading it.
+test(testTitle("E2E-30"), async ({ page, steps }) => {
+  const bundle = "e2e-cached";
+  page.on("dialog", (d) => d.accept());
+
+  await steps.play([
+    given("the admin has visited the composition grid", { req: "UI-3" }, async () => {
+      await page.goto("/bundles/matrix");
+      await expect(page.getByTestId("matrix-table")).toBeVisible();
+    }),
+    when(`creating bundle "${bundle}" on the Bundles page`, { req: "UI-3" }, async () => {
+      await page.getByTestId("nav-bundles").click();
+      await page.getByTestId("create-name").fill(bundle);
+      await page.getByTestId("create-submit").click();
+      await expect(page.getByTestId(`open-${bundle}`)).toBeVisible();
+    }),
+    then("the composition grid shows it on returning, with no reload", { req: "UI-3" }, async () => {
+      await page.getByTestId("nav-matrix").click();
+      await expect(page.getByTestId(`matrix-row-${bundle}`)).toBeVisible();
+    }),
+  ]);
+  const api = await adminApi();
+  await api.delete(`bundles/${bundle}`);
+  await api.dispose();
 });

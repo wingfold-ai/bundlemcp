@@ -1,6 +1,9 @@
 """Management API tests (MGMT-2/4/5/6; EP-3/EP-8; the auth spec)."""
 
+import uuid
+
 import pytest
+from bundlemcp.domain.shared.resource_names import RESERVED_ENDPOINT_NAMES
 from httpx import AsyncClient
 
 
@@ -273,3 +276,35 @@ async def test_auth26_a_deactivated_key_is_refused_on_the_next_request(client: A
     assert (await client.get("/api/v1/upstreams", headers=as_key)).status_code == 200
     await client.post(f"/api/v1/api-keys/{key_id}:deactivate")
     assert (await client.get("/api/v1/upstreams", headers=as_key)).status_code == 401
+
+
+async def test_ui1_a_reactivated_key_authenticates_again(client: AsyncClient):
+    """UI-1, AUTH-25: :activate undoes a deactivation, effective on the next request."""
+    created = await client.post("/api/v1/api-keys", json={"name": "back", "kind": "service"})
+    key, key_id = created.json()["key"], created.json()["id"]
+    as_key = {"Authorization": f"Bearer {key}"}
+    await client.post(f"/api/v1/api-keys/{key_id}:deactivate")
+    assert (await client.get("/api/v1/upstreams", headers=as_key)).status_code == 401
+    activated = await client.post(f"/api/v1/api-keys/{key_id}:activate")
+    assert activated.status_code == 200 and activated.json()["is_active"] is True
+    assert (await client.get("/api/v1/upstreams", headers=as_key)).status_code == 200
+
+
+async def test_ui1_activating_an_unknown_key_is_404(client: AsyncClient):
+    """UI-1: there is nothing to re-activate under an id no key has."""
+    resp = await client.post(f"/api/v1/api-keys/{uuid.uuid4()}:activate")
+    assert resp.status_code == 404
+
+
+async def test_ui4_the_schema_publishes_every_naming_rule(client: AsyncClient):
+    """UI-4: reserved endpoint names and the '__' rule reach the OpenAPI document."""
+    schemas = (await client.get("/api/v1/openapi.json")).json()["components"]["schemas"]
+    endpoint_name = schemas["EndpointUpsert"]["properties"]["name"]
+    assert sorted(endpoint_name["x-reserved-names"]) == sorted(RESERVED_ENDPOINT_NAMES)
+    assert schemas["ServerUpsert"]["properties"]["name"]["not"] == {"pattern": "__"}
+    for reserved in endpoint_name["x-reserved-names"]:
+        resp = await client.put(
+            f"/api/v1/endpoints/{reserved}",
+            json={"name": reserved, "bundle_name": "b", "auth_modes": ["api_key"]},
+        )
+        assert resp.status_code in (404, 422), reserved

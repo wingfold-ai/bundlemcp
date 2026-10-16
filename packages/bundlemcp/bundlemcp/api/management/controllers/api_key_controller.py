@@ -29,6 +29,10 @@ class ApiKeyController(ManagementController):
     async def deactivate_key(self, key_id: uuid.UUID, service: ApiKeyServiceProvider) -> ApiKeyRead:
         return await service.deactivate(key_id)
 
+    @route.post("/{key_id}:activate")
+    async def activate_key(self, key_id: uuid.UUID, service: ApiKeyServiceProvider) -> ApiKeyRead:
+        return await service.activate(key_id)
+
     @route.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_key(self, key_id: uuid.UUID, service: ApiKeyServiceProvider) -> None:
         await service.delete(key_id)

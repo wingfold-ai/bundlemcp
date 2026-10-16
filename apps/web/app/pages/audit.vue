@@ -2,15 +2,10 @@
 import type { components } from "~~/types/api";
 
 type AuditStatus = components["schemas"]["AuditStatus"];
-type AuditRecordRead = components["schemas"]["AuditRecordRead"];
-type ApiKeyRead = components["schemas"]["ApiKeyRead"];
+type AuditRecordPage = components["schemas"]["Page_AuditRecordRead_"];
 
 const api = useApi();
 
-const records = ref<AuditRecordRead[]>([]);
-const total = ref(0);
-const apiKeys = ref<ApiKeyRead[]>([]);
-const errorMsg = ref("");
 
 const filterEndpoint = ref("");
 const filterBundle = ref("");
@@ -50,25 +45,37 @@ function filters(): AuditQuery {
   return Object.fromEntries(Object.entries(query).filter(([, value]) => value !== undefined));
 }
 
-async function load() {
-  errorMsg.value = "";
-  const { data, error } = await api.GET("/api/v1/audit-records", {
-    params: { query: { offset: 0, limit: 100, ...filters() } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  records.value = data?.items ?? [];
-  total.value = data?.total ?? 0;
-}
+// the filters of the last Apply; the list shows what they match, not the fields being edited
+const applied = ref<AuditQuery>(filters());
 
-async function loadKeys() {
-  const { data } = await api.GET("/api/v1/api-keys", { params: { query: { limit: 500 } } });
-  apiKeys.value = data?.items ?? [];
-}
+const {
+  data: page,
+  error: loadError,
+  refresh,
+} = await useQuery<AuditRecordPage>(
+  () => queryKeys.audit(applied.value as Record<string, string>),
+  async () =>
+    unwrap(
+      await api.GET("/api/v1/audit-records", {
+        params: { query: { offset: 0, limit: 100, ...applied.value } },
+      }),
+    ),
+  { default: () => ({ items: [], total: 0, offset: 0, limit: 100 }) },
+);
+const records = computed(() => page.value.items);
+const total = computed(() => page.value.total);
 
-await Promise.all([load(), loadKeys()]);
+const { data: apiKeys } = await useApiKeys();
+
+/** Show what the current filters match; the same filters again fetch fresh records. */
+async function applyFilters() {
+  const next = filters();
+  const unchanged =
+    queryKeys.audit(next as Record<string, string>) ===
+    queryKeys.audit(applied.value as Record<string, string>);
+  applied.value = next;
+  if (unchanged) await refresh();
+}
 
 function statusColor(status: string): "success" | "error" | "warning" | "neutral" {
   if (status === "success") return "success";
@@ -88,7 +95,9 @@ function exportCsv() {
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">Audit</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ loadError.message }}
+    </p>
 
     <div class="wf-card">
       <div class="grid grid-cols-3 gap-3">
@@ -145,7 +154,7 @@ function exportCsv() {
           <input v-model="filterTo" type="datetime-local" class="wf-input" data-testid="filter-to" />
         </div>
         <div class="flex items-end gap-2">
-          <UButton data-testid="filter-apply" @click="load">Apply</UButton>
+          <UButton data-testid="filter-apply" @click="applyFilters">Apply</UButton>
           <UButton variant="outline" data-testid="export-csv" @click="exportCsv">
             Export CSV
           </UButton>

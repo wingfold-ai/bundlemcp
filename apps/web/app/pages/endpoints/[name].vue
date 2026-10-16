@@ -2,7 +2,6 @@
 import type { components } from "~~/types/api";
 
 type EndpointRead = components["schemas"]["EndpointRead"];
-type BundleRead = components["schemas"]["BundleRead"];
 type EndpointProfile = components["schemas"]["EndpointProfile"];
 type EndpointAuthMode = components["schemas"]["EndpointAuthMode"];
 type RateLimitConfig = components["schemas"]["RateLimitConfig"];
@@ -18,11 +17,21 @@ definePageMeta({ key: (route) => route.fullPath });
 
 const api = useApi();
 const route = useRoute();
-const name = route.params.name as string;
+const name = computed(() => route.params.name as string);
 
-const endpoint = ref<EndpointRead | null>(null);
-const bundles = ref<BundleRead[]>([]);
-const profiles = ref<ProfileInfo[]>([]);
+const { data: endpoint, error: loadError } = await useQuery<EndpointRead | null>(
+  () => queryKeys.endpoint(name.value),
+  async () =>
+    unwrap(await api.GET("/api/v1/endpoints/{name}", { params: { path: { name: name.value } } })),
+  { default: () => null },
+);
+const { data: bundles } = await useBundles();
+const { data: endpoints } = await useEndpoints();
+const { data: profiles } = await useQuery<ProfileInfo[]>(
+  queryKeys.profiles,
+  async () => unwrap(await api.GET("/api/v1/endpoints/profiles")) as ProfileInfo[],
+  { default: () => [] },
+);
 const errorMsg = ref("");
 
 // --- config form state ---
@@ -38,39 +47,37 @@ const rlEndpointWindow = ref<string | number>("");
 const rlClientLimit = ref<string | number>("");
 const rlClientWindow = ref<string | number>("");
 
-async function load() {
-  const [ep, bds, profs] = await Promise.all([
-    api.GET("/api/v1/endpoints/{name}", { params: { path: { name } } }),
-    api.GET("/api/v1/bundles", { params: { query: { offset: 0, limit: 100 } } }),
-    api.GET("/api/v1/endpoints/profiles"),
-  ]);
-  if (ep.error) {
-    errorMsg.value = apiErrorMessage(ep.error);
-    return;
-  }
-  endpoint.value = ep.data ?? null;
-  bundles.value = bds.data?.items ?? [];
-  profiles.value = (profs.data ?? []) as ProfileInfo[];
-  if (endpoint.value) {
-    profile.value = endpoint.value.profile as EndpointProfile;
-    authModes.value = endpoint.value.auth_modes as EndpointAuthMode[];
-    enabled.value = endpoint.value.enabled;
-    allowedOrigins.value = endpoint.value.allowed_origins.join("\n");
-    const rl = endpoint.value.rate_limit as {
-      endpoint?: { limit?: number; window_seconds?: number } | null;
-      per_client?: { limit?: number; window_seconds?: number } | null;
-    } | null;
-    rlEndpointLimit.value = rl?.endpoint?.limit != null ? String(rl.endpoint.limit) : "";
-    rlEndpointWindow.value =
-      rl?.endpoint?.window_seconds != null ? String(rl.endpoint.window_seconds) : "";
-    rlClientLimit.value = rl?.per_client?.limit != null ? String(rl.per_client.limit) : "";
-    rlClientWindow.value =
-      rl?.per_client?.window_seconds != null ? String(rl.per_client.window_seconds) : "";
-  }
+function seed(ep: EndpointRead | null) {
+  if (!ep) return;
+  profile.value = ep.profile as EndpointProfile;
+  authModes.value = ep.auth_modes as EndpointAuthMode[];
+  enabled.value = ep.enabled;
+  allowedOrigins.value = ep.allowed_origins.join("\n");
+  const rl = ep.rate_limit as {
+    endpoint?: { limit?: number; window_seconds?: number } | null;
+    per_client?: { limit?: number; window_seconds?: number } | null;
+  } | null;
+  rlEndpointLimit.value = rl?.endpoint?.limit != null ? String(rl.endpoint.limit) : "";
+  rlEndpointWindow.value =
+    rl?.endpoint?.window_seconds != null ? String(rl.endpoint.window_seconds) : "";
+  rlClientLimit.value = rl?.per_client?.limit != null ? String(rl.per_client.limit) : "";
+  rlClientWindow.value =
+    rl?.per_client?.window_seconds != null ? String(rl.per_client.window_seconds) : "";
 }
-await load();
+watch(endpoint, seed, { immediate: true });
 
-const connectionUrl = computed(() => `${apiBase()}/${name}/mcp`);
+/** Every resource whose cached reads show this endpoint. */
+function invalidateEndpoint(...extra: string[]) {
+  return invalidate(
+    queryKeys.endpoint(name.value),
+    queryKeys.endpoints,
+    queryKeys.bundles,
+    queryKeys.catalogue,
+    ...extra,
+  );
+}
+
+const connectionUrl = computed(() => `${apiBase()}/${name.value}/mcp`);
 
 const bundleName = computed(
   () => bundles.value.find((b) => b.id === endpoint.value?.bundle_id)?.name ?? "",
@@ -131,9 +138,9 @@ async function saveEndpoint() {
   }
   const rateLimit = buildRateLimit();
   const { error } = await api.PUT("/api/v1/endpoints/{name}", {
-    params: { path: { name } },
+    params: { path: { name: name.value } },
     body: {
-      name,
+      name: name.value,
       bundle_name: bundleName.value,
       profile: profile.value,
       auth_modes: authModes.value,
@@ -150,15 +157,23 @@ async function saveEndpoint() {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
+  await invalidateEndpoint();
 }
 
 // --- danger zone ---
 const renameInput = ref("");
 // the admin's acknowledgement that connected clients break; it is what sends force
 const renameAcknowledged = ref(false);
-const renaming = computed(() => renameInput.value !== "" && renameInput.value !== name);
+const renaming = computed(() => renameInput.value !== "" && renameInput.value !== name.value);
 const renamedUrl = computed(() => `${apiBase()}/${renameInput.value}/mcp`);
+// the names a rename would collide with: every endpoint but this one
+const otherEndpointNames = computed(() =>
+  endpoints.value.map((e) => e.name).filter((n) => n !== name.value),
+);
+// shown while typing, so a bad or taken name is seen before anything is sent
+const renameHint = computed(() =>
+  renaming.value ? nameProblem("endpoint", renameInput.value, otherEndpointNames.value) : null,
+);
 // a different new name is a different consequence, so it needs its own acknowledgement
 watch(renameInput, () => {
   renameAcknowledged.value = false;
@@ -166,36 +181,37 @@ watch(renameInput, () => {
 
 async function renameEndpoint() {
   errorMsg.value = "";
-  if (!NAME_RE.test(renameInput.value)) {
-    errorMsg.value = "New name must match ^[a-zA-Z0-9_-]+$";
-    return;
-  }
-  if (RESERVED_ENDPOINT_NAMES.includes(renameInput.value)) {
-    errorMsg.value = `Name "${renameInput.value}" is reserved`;
+  const newName = renameInput.value;
+  const problem = nameProblem("endpoint", newName, otherEndpointNames.value);
+  if (problem) {
+    errorMsg.value = problem;
     return;
   }
   const { error } = await api.POST("/api/v1/endpoints/{name}:rename", {
     params: {
-      path: { name },
-      query: { new_name: renameInput.value, force: renameAcknowledged.value },
+      path: { name: name.value },
+      query: { new_name: newName, force: renameAcknowledged.value },
     },
   });
   if (error) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await navigateTo(`/endpoints/${renameInput.value}`);
+  await invalidateEndpoint(queryKeys.endpoint(newName));
+  await navigateTo(`/endpoints/${newName}`);
 }
 
 async function deleteEndpoint() {
-  if (!confirm(`Delete endpoint "${name}"?`)) return;
+  if (!confirm(`Delete endpoint "${name.value}"?`)) return;
   const { error } = await api.DELETE("/api/v1/endpoints/{name}", {
-    params: { path: { name } },
+    params: { path: { name: name.value } },
   });
   if (error) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
+  // an API key scoped to this endpoint loses it from its scope
+  await invalidateEndpoint(queryKeys.apiKeys);
   await navigateTo("/endpoints");
 }
 </script>
@@ -204,7 +220,9 @@ async function deleteEndpoint() {
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">Endpoint: {{ name }}</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="errorMsg || loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ errorMsg || loadError?.message }}
+    </p>
 
     <!-- connection instructions -->
     <div class="wf-card space-y-3">
@@ -365,6 +383,9 @@ async function deleteEndpoint() {
       <div>
         <label class="wf-label">Rename endpoint</label>
         <input v-model="renameInput" class="wf-input" placeholder="new name" data-testid="rename-input" />
+        <p v-if="renameHint" class="text-red-600 text-xs mt-1" data-testid="rename-hint">
+          {{ renameHint }}
+        </p>
         <div v-if="renaming" class="mt-2 space-y-2 text-sm" data-testid="rename-consequence">
           <p>
             The endpoint moves from

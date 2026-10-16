@@ -6,43 +6,40 @@ type ConsentRead = components["schemas"]["ConsentRead"];
 
 const api = useApi();
 
-const users = ref<UserRead[]>([]);
+const { data: users, error: loadError } = await useQuery<UserRead[]>(
+  queryKeys.users,
+  async () =>
+    unwrap(await api.GET("/api/v1/users", { params: { query: { offset: 0, limit: 100 } } }))
+      .items,
+  { default: () => [] },
+);
 const errorMsg = ref("");
 const expanded = ref<Set<string>>(new Set());
-const consentsByUser = ref<Record<string, ConsentRead[]>>({});
+// the consents of every expanded row, read together under one key
+const expandedIds = computed(() => [...expanded.value]);
+const { data: consentsByUser, error: consentsError } = await useQuery<Record<string, ConsentRead[]>>(
+  () => queryKeys.expandedConsents(expandedIds.value),
+  async () => {
+    const entries = await Promise.all(
+      expandedIds.value.map(async (userId) => {
+        const consents = unwrap(
+          await api.GET("/api/v1/users/{user_id}/consents", {
+            params: { path: { user_id: userId } },
+          }),
+        );
+        return [userId, consents] as const;
+      }),
+    );
+    return Object.fromEntries(entries);
+  },
+  { default: () => ({}) },
+);
 
-async function load() {
-  const { data, error } = await api.GET("/api/v1/users", {
-    params: { query: { offset: 0, limit: 100 } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  users.value = data?.items ?? [];
-}
-await load();
-
-async function loadConsents(userId: string) {
-  const { data, error } = await api.GET("/api/v1/users/{user_id}/consents", {
-    params: { path: { user_id: userId } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  consentsByUser.value = { ...consentsByUser.value, [userId]: data ?? [] };
-}
-
-async function toggleConsents(userId: string) {
+function toggleConsents(userId: string) {
   errorMsg.value = "";
   const next = new Set(expanded.value);
-  if (next.has(userId)) {
-    next.delete(userId);
-  } else {
-    next.add(userId);
-    await loadConsents(userId);
-  }
+  if (next.has(userId)) next.delete(userId);
+  else next.add(userId);
   expanded.value = next;
 }
 
@@ -55,7 +52,8 @@ async function deactivateUser(userId: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
+  // deactivation also revokes the user's consents
+  await invalidate(queryKeys.users);
 }
 
 // Signing in again does not reactivate a user; this does. Nothing revoked at
@@ -69,7 +67,7 @@ async function reactivateUser(userId: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
+  await invalidate(queryKeys.users);
 }
 
 async function revokeConsent(userId: string, consentId: string) {
@@ -81,7 +79,7 @@ async function revokeConsent(userId: string, consentId: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await loadConsents(userId);
+  await invalidate(queryKeys.users);
 }
 </script>
 
@@ -89,7 +87,13 @@ async function revokeConsent(userId: string, consentId: string) {
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">Users</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p
+      v-if="errorMsg || loadError || consentsError"
+      class="text-red-600 text-sm"
+      data-testid="error"
+    >
+      {{ errorMsg || loadError?.message || consentsError?.message }}
+    </p>
 
     <div class="overflow-x-auto">
       <table class="wf-table" data-testid="users-table">

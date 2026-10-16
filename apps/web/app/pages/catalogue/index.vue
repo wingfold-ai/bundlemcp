@@ -13,24 +13,20 @@ const api = useApi();
 const { me } = useMe();
 const layout = computed(() => (me.value?.is_admin ? "default" : "user"));
 
-const endpoints = ref<AvailableEndpointRead[]>([]);
+const { data: endpoints, error: loadError } = await useQuery<AvailableEndpointRead[]>(
+  queryKeys.catalogue,
+  async () => unwrap(await api.GET("/api/v1/me/endpoints")),
+  { default: () => [] },
+);
 const errorMsg = ref("");
 
 // the clients this person has authorised; each can be withdrawn here
-const consents = ref<ConsentRead[]>([]);
-
-async function load() {
-  const { data, error } = await api.GET("/api/v1/me/endpoints");
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  endpoints.value = data ?? [];
+const { data: consents } = await useQuery<ConsentRead[]>(
+  queryKeys.myConsents,
   // a service key has no consents of its own and is answered 401, which shows as none
-  const mine = await api.GET("/api/v1/me/consents");
-  consents.value = mine.data ?? [];
-}
-await load();
+  async () => (await api.GET("/api/v1/me/consents")).data ?? [],
+  { default: () => [] },
+);
 
 async function revokeConsent(consentId: string) {
   errorMsg.value = "";
@@ -41,7 +37,7 @@ async function revokeConsent(consentId: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
+  await invalidate(queryKeys.users, queryKeys.catalogue);
 }
 
 interface CatalogueBundle {
@@ -76,7 +72,9 @@ const bundles = computed<CatalogueBundle[]>(() => {
         </p>
       </div>
 
-      <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+      <p v-if="errorMsg || loadError" class="text-red-600 text-sm" data-testid="error">
+        {{ errorMsg || loadError?.message }}
+      </p>
 
       <div v-if="bundles.length === 0" class="wf-card text-sm text-muted" data-testid="catalogue-empty">
         No bundles are available yet. Ask an administrator to expose one with OAuth.

@@ -55,3 +55,46 @@ test(testTitle("E2E-04"), async ({ page, steps }) => {
     }),
   ]);
 });
+
+test(testTitle("E2E-31"), async ({ page, steps }) => {
+  const writes: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "PUT") writes.push(r.url());
+  });
+
+  await steps.play([
+    given("the admin on the Bundles page, where bundle demo exists", () => page.goto("/bundles")),
+    when("typing demo as the name of a new bundle and submitting", { req: "UI-4" }, async () => {
+      await page.getByTestId("create-name").fill("demo");
+      await expect(page.getByTestId("create-name-hint")).toContainText("taken");
+      await page.getByTestId("create-submit").click();
+    }),
+    then("no create request was sent", { req: "UI-4" }, async () => {
+      expect(writes.filter((u) => u.includes("/api/v1/bundles/"))).toEqual([]);
+    }),
+    when("creating an endpoint named api from the demo bundle", { req: "UI-4" }, async () => {
+      await page.goto("/bundles/demo");
+      await page.getByTestId("create-endpoint-name").fill("api");
+      await expect(page.getByTestId("create-endpoint-name-hint")).toContainText("reserved");
+      await page.getByTestId("create-endpoint-submit").click();
+    }),
+    then("the reserved name is refused before anything is sent", { req: "UI-4" }, async () => {
+      expect(writes.filter((u) => u.includes("/api/v1/endpoints/"))).toEqual([]);
+    }),
+  ]);
+});
+
+test(testTitle("E2E-32"), async ({ page, steps }) => {
+  await steps.play([
+    given("the admin opens the echo upstream", () => page.goto("/upstreams/echo")),
+    then("the page is titled Upstream server: echo", { req: "UI-7" }, async () => {
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Upstream server: echo");
+    }),
+    when("renaming it to a name with a double underscore", { req: "UI-7" }, async () => {
+      await page.getByTestId("rename-input").fill("bad__name");
+    }),
+    then("the message names an upstream, not a server", { req: "UI-7" }, async () => {
+      await expect(page.getByTestId("rename-hint")).toHaveText('Upstream name must not contain "__"');
+    }),
+  ]);
+});

@@ -8,7 +8,7 @@ stay validation-free because SQLModel skips validators for table=True classes.
 
 from typing import Annotated
 
-from pydantic import AfterValidator, StringConstraints, TypeAdapter
+from pydantic import AfterValidator, Field, StringConstraints, TypeAdapter
 
 NAME_PATTERN = r"^[a-zA-Z0-9_-]+$"
 # Server names additionally must not contain "__", and neither may
@@ -31,6 +31,12 @@ RESERVED_ENDPOINT_NAMES = {
 # The pattern is a constraint, so it reaches the JSON Schema and the generated
 # client; the rules a pattern cannot express stay in validators.
 _pattern = StringConstraints(pattern=NAME_PATTERN)
+# The rules a pattern cannot express are published beside it, so a client can apply
+# them before submitting: a double underscore is excluded as a pattern the name must
+# not match, and the reserved endpoint names, compared case-insensitively, as a list.
+_no_double_underscore = Field(json_schema_extra={"not": {"pattern": "__"}})
+RESERVED_NAMES_KEY = "x-reserved-names"
+_not_reserved = Field(json_schema_extra={RESERVED_NAMES_KEY: sorted(RESERVED_ENDPOINT_NAMES)})
 
 
 def _server_name(value: str) -> str:
@@ -52,9 +58,9 @@ def _endpoint_name(value: str) -> str:
 
 
 ResourceName = Annotated[str, _pattern]
-ServerName = Annotated[str, _pattern, AfterValidator(_server_name)]
-EndpointName = Annotated[str, _pattern, AfterValidator(_endpoint_name)]
-PromptName = Annotated[str, _pattern, AfterValidator(_prompt_name)]
+ServerName = Annotated[str, _pattern, AfterValidator(_server_name), _no_double_underscore]
+EndpointName = Annotated[str, _pattern, AfterValidator(_endpoint_name), _not_reserved]
+PromptName = Annotated[str, _pattern, AfterValidator(_prompt_name), _no_double_underscore]
 BundleResourceName = Annotated[str, StringConstraints(pattern=BUNDLE_RESOURCE_NAME_PATTERN)]
 
 server_name = TypeAdapter(ServerName)

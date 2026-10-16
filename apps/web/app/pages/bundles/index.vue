@@ -1,36 +1,26 @@
 <script setup lang="ts">
-import type { components } from "~~/types/api";
-
-type BundleRead = components["schemas"]["BundleRead"];
-
 const api = useApi();
 const errorMsg = ref("");
 
-const { data: bundles, refresh } = await useAsyncData<BundleRead[]>(
-  "bundles-list",
-  async () => {
-    const { data, error } = await api.GET("/api/v1/bundles", {
-      params: { query: { offset: 0, limit: 100 } },
-    });
-    if (error) {
-      errorMsg.value = apiErrorMessage(error);
-      return [];
-    }
-    return data.items;
-  },
-  { default: () => [] },
-);
+const { data: bundles, error: loadError } = await useBundles();
 
 const createName = ref("");
 const createDescription = ref("");
 const creating = ref(false);
+// shown while typing, so a bad or taken name is seen before anything is sent
+const nameHint = computed(() =>
+  createName.value.trim()
+    ? nameProblem("bundle", createName.value.trim(), bundles.value.map((b) => b.name))
+    : null,
+);
 
 async function createBundle() {
   errorMsg.value = "";
   const name = createName.value.trim();
-  // client-side validation before submit
-  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
-    errorMsg.value = "Name must match ^[a-zA-Z0-9_-]+$";
+  // client-side validation before submit, against the published rules and the known names
+  const problem = nameProblem("bundle", name, bundles.value.map((b) => b.name));
+  if (problem) {
+    errorMsg.value = problem;
     return;
   }
   creating.value = true;
@@ -45,7 +35,7 @@ async function createBundle() {
     }
     createName.value = "";
     createDescription.value = "";
-    await refresh();
+    await invalidate(queryKeys.bundles, queryKeys.composition, queryKeys.catalogue);
   } finally {
     creating.value = false;
   }
@@ -56,7 +46,9 @@ async function createBundle() {
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">Bundles</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="errorMsg || loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ errorMsg || loadError?.message }}
+    </p>
 
     <div class="overflow-x-auto">
       <table class="wf-table" data-testid="bundles-table">
@@ -97,6 +89,9 @@ async function createBundle() {
           class="wf-input"
           data-testid="create-name"
         />
+        <p v-if="nameHint" class="text-red-600 text-xs mt-1" data-testid="create-name-hint">
+          {{ nameHint }}
+        </p>
       </div>
       <div>
         <label class="wf-label" for="create-description">Description</label>

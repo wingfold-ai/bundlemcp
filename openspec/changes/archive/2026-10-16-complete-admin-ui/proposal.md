@@ -19,8 +19,6 @@ page's title. The main spec was narrowed to what exists; this change restores th
 - **Audit page:** filters for bundle, upstream and caller as well as endpoint, status, tool and time range, and a CSV
   export of the whole filtered result (OPS-6, from
   [harden-audit-log](../archive/2026-10-16-harden-audit-log/proposal.md)).
-- **Non-admin access (UI-2):** a signed-in non-admin who opens a management page sees a *no access* page that links to
-  the catalogue, instead of a silent redirect — see the open decision.
 - **Data layer (UI-3):** query results are cached by key and a mutation invalidates every cached query it affects, so
   all views of the changed data refresh without per-page `load()` calls.
 - **Validation (UI-4):** client-side rules are generated from the constraints published in the OpenAPI document
@@ -37,17 +35,14 @@ None.
 
 ### Modified Capabilities
 
-- `admin-ui`: UI-1 (API-key scope and re-activation, refresh & prune, stale badges, richer audit page), UI-2 (no-access
-  page for non-admins), UI-3 (caching and invalidation layer), UI-4 (validation generated from the OpenAPI constraints,
-  uniqueness checked before submit), UI-7 (no bare *server* in any copy).
+- `admin-ui`: UI-1 (API-key scope and re-activation, refresh & prune, stale badges, richer audit page), UI-3 (caching
+  and invalidation layer), UI-4 (validation generated from the OpenAPI constraints, uniqueness checked before submit),
+  UI-7 (no bare *server* in any copy).
 
-## Open decision
+## Decisions
 
-- **UI-2 — no-access page or redirect.** Today a non-admin is redirected to `/catalogue` from any management page, and
-  the Playwright suite (`apps/web/tests/catalogue.spec.ts`) asserts that redirect. The original spec asked for a "no
-  access" page; the delta here specifies one that links to the catalogue. Alternative: **amend** — drop the UI-2 delta
-  from this change and keep the redirect the main spec already describes. Maintainers decide before applying; the
-  recommendation of the gap report was to amend.
+- **UI-2 — keep the redirect.** A signed-in non-admin who opens a management page is still redirected to
+  `/catalogue`, as the main spec describes; this change does not modify UI-2.
 
 ## Impact
 

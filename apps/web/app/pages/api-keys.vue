@@ -6,25 +6,26 @@ type ApiKeyCreated = components["schemas"]["ApiKeyCreated"];
 
 const api = useApi();
 
-const keys = ref<ApiKeyRead[]>([]);
+const { data: keys, error: loadError } = await useApiKeys();
+const { data: endpoints } = await useEndpoints();
 const errorMsg = ref("");
 const createdKey = ref<ApiKeyCreated | null>(null);
 
-async function load() {
-  const { data, error } = await api.GET("/api/v1/api-keys", {
-    params: { query: { offset: 0, limit: 100 } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  keys.value = data?.items ?? [];
+const endpointNameById = computed(() => new Map(endpoints.value.map((e) => [e.id, e.name])));
+
+/** What a key may call: its endpoints by name, every endpoint, or nothing to scope. */
+function scopeText(key: ApiKeyRead): string {
+  if (key.kind === "service") return "—";
+  if (key.endpoint_ids.length === 0) return "every endpoint";
+  // a scoped endpoint deleted since keeps its id, the only name it still has
+  return key.endpoint_ids.map((id) => endpointNameById.value.get(id) ?? id).join(", ");
 }
-await load();
 
 // --- create form ---
 const keyName = ref("");
 const keyKind = ref<"endpoint" | "service">("endpoint");
+// the endpoints an endpoint key is limited to; none chosen means every endpoint
+const keyEndpointIds = ref<string[]>([]);
 
 async function createKey() {
   errorMsg.value = "";
@@ -33,7 +34,11 @@ async function createKey() {
     return;
   }
   const { data, error } = await api.POST("/api/v1/api-keys", {
-    body: { name: keyName.value, kind: keyKind.value },
+    body: {
+      name: keyName.value,
+      kind: keyKind.value,
+      endpoint_ids: keyKind.value === "endpoint" ? keyEndpointIds.value : [],
+    },
   });
   if (error) {
     errorMsg.value = apiErrorMessage(error);
@@ -41,7 +46,8 @@ async function createKey() {
   }
   createdKey.value = data ?? null;
   keyName.value = "";
-  await load();
+  keyEndpointIds.value = [];
+  await invalidate(queryKeys.apiKeys);
 }
 
 async function copyCreatedKey() {
@@ -57,7 +63,20 @@ async function deactivateKey(keyId: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
+  await invalidate(queryKeys.apiKeys);
+}
+
+// a deactivated key works again under its old secret; nothing about it is reissued
+async function activateKey(keyId: string) {
+  errorMsg.value = "";
+  const { error } = await api.POST("/api/v1/api-keys/{key_id}:activate", {
+    params: { path: { key_id: keyId } },
+  });
+  if (error) {
+    errorMsg.value = apiErrorMessage(error);
+    return;
+  }
+  await invalidate(queryKeys.apiKeys);
 }
 
 async function deleteKey(row: ApiKeyRead) {
@@ -70,7 +89,7 @@ async function deleteKey(row: ApiKeyRead) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
+  await invalidate(queryKeys.apiKeys);
 }
 </script>
 
@@ -78,7 +97,9 @@ async function deleteKey(row: ApiKeyRead) {
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">API keys</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="errorMsg || loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ errorMsg || loadError?.message }}
+    </p>
 
     <div
       v-if="createdKey"
@@ -105,6 +126,7 @@ async function deleteKey(row: ApiKeyRead) {
             <th>Name</th>
             <th>Prefix</th>
             <th>Kind</th>
+            <th>Scope</th>
             <th>Active</th>
             <th>Last used</th>
             <th>Actions</th>
@@ -115,6 +137,7 @@ async function deleteKey(row: ApiKeyRead) {
             <td>{{ k.name }}</td>
             <td><code>{{ k.key_prefix }}</code></td>
             <td>{{ k.kind }}</td>
+            <td :data-testid="`scope-cell-${k.name}`">{{ scopeText(k) }}</td>
             <td>
               <UBadge :color="k.is_active ? 'success' : 'neutral'" variant="subtle">
                 {{ k.is_active ? "active" : "inactive" }}
@@ -123,13 +146,22 @@ async function deleteKey(row: ApiKeyRead) {
             <td><TimestampText :value="k.last_used_at" empty="never" /></td>
             <td class="space-x-2">
               <UButton
+                v-if="k.is_active"
                 size="xs"
                 variant="outline"
                 :data-testid="`deactivate-${k.name}`"
-                :disabled="!k.is_active"
                 @click="deactivateKey(k.id)"
               >
                 Deactivate
+              </UButton>
+              <UButton
+                v-else
+                size="xs"
+                variant="outline"
+                :data-testid="`activate-${k.name}`"
+                @click="activateKey(k.id)"
+              >
+                Re-activate
               </UButton>
               <UButton
                 size="xs"
@@ -164,6 +196,24 @@ async function deleteKey(row: ApiKeyRead) {
           <strong>service</strong> keys can do that too, and additionally call the management API
           (everything this UI does) and the token introspection route, so they are for automation,
           CI, and upstream servers that verify forwarded bearers.
+        </p>
+      </div>
+      <div v-if="keyKind === 'endpoint'" data-testid="key-scope">
+        <label class="wf-label">Endpoints</label>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <label v-for="ep in endpoints" :key="ep.id" class="flex items-center gap-1">
+            <input
+              v-model="keyEndpointIds"
+              type="checkbox"
+              :value="ep.id"
+              :data-testid="`scope-${ep.name}`"
+            />
+            {{ ep.name }}
+          </label>
+        </div>
+        <p class="wf-help">
+          The endpoints this key is accepted on. Leave every box clear to allow every endpoint,
+          including ones created later.
         </p>
       </div>
       <UButton data-testid="key-create" @click="createKey">Create</UButton>
