@@ -19,6 +19,7 @@ from bundlemcp.api.mcp.protocol.sse import (
     SSE_KEEPALIVE,
     sse_data,
 )
+from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import (
     STREAM_CLOSING,
     StreamRegistry,
@@ -38,8 +39,9 @@ from bundlemcp.application.serving.stream_key import StreamKey
 
 
 class SubscriptionsListenHandler:
-    def __init__(self, registry: StreamRegistry) -> None:
+    def __init__(self, registry: StreamRegistry, presence: StreamPresence) -> None:
         self._registry = registry
+        self._presence = presence
 
     async def handle(self, ctx: RequestContext, message: JsonRpcMessage) -> Response:
         if message.id is None:
@@ -84,6 +86,7 @@ class SubscriptionsListenHandler:
             if wanted
         }
         try:
+            await self._presence.hold(key.stream_id)
             # The acknowledgement is always first and names only what will follow.
             yield sse_data(
                 {
@@ -100,6 +103,7 @@ class SubscriptionsListenHandler:
                     payload = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_SECONDS)
                 except TimeoutError:
                     yield SSE_KEEPALIVE
+                    await self._presence.hold(key.stream_id)
                     continue
                 if payload is STREAM_CLOSING:
                     # Graceful closure: the response to the listen request itself.
@@ -118,3 +122,4 @@ class SubscriptionsListenHandler:
                 yield sse_data({**payload, "params": params})
         finally:
             self._registry.unregister_stream(key, queue)
+            await self._presence.release(key.stream_id)

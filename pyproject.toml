@@ -61,6 +61,7 @@ asyncio_mode = "auto"
 testpaths = ["packages/bundlemcp/tests"]
 markers = [
     "fleet: integration test requiring the private GHCR fleet images (skipped in CI)",
+    "replicas: integration test requiring deploy/docker-compose.replicas.yml (two gateways)",
 ]
 
 # Import-graph contracts. Run with `uv run lint-imports`.

@@ -1,28 +1,43 @@
 from collections.abc import Callable
+from datetime import datetime
 
 import structlog
 from pydantic import ValidationError
 from redis.asyncio import Redis
 from redis.asyncio.client import Pipeline
 
+from bundlemcp.domain.sessions.session_lifetime import SessionLifetime
 from bundlemcp.domain.sessions.session_record import SESSION_RECORD_VERSION, SessionRecord
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
+from bundlemcp.domain.shared.clock import utcnow
 
 log = structlog.get_logger(__name__)
 
 SESSION_KEY = "bmcp:session:{session_id}"  # session record (JSON)
+# session ids scored by their last activity (epoch seconds), for the sweeper
+ACTIVITY_INDEX = "bmcp:sessions:active"
 
 
 class ValkeySessionStore:
-    def __init__(self, redis: Redis, *, lifetime_seconds: int | None = 24 * 3600) -> None:
+    """Session records as JSON, with an activity index of the ones that can expire.
+
+    The record's TTL is the idle lifetime plus the sweeper's margin, set again
+    at every activity; a lifetime of 0 stores it without one, and leaves it
+    out of the index. Updates that are not activity keep the TTL they find.
+    """
+
+    def __init__(self, redis: Redis) -> None:
         self._redis = redis
-        self._lifetime = lifetime_seconds  # None = no idle expiry
 
     def _key(self, session_id: str) -> str:
         return SESSION_KEY.format(session_id=session_id)
 
-    async def create(self, record: SessionRecord) -> None:
-        await self._write(record)
+    async def create(self, record: SessionRecord, lifetime: SessionLifetime) -> None:
+        key = self._key(record.session_id)
+        async with self._redis.pipeline(transaction=True) as pipe:
+            pipe.multi()
+            self._set_live(pipe, key, record, lifetime)
+            await pipe.execute()
 
     async def load(self, session_id: str) -> SessionRecord | None:
         raw = await self._redis.get(self._key(session_id))
@@ -35,13 +50,33 @@ class ValkeySessionStore:
             await self._redis.delete(self._key(session_id))
         return record
 
-    async def touch(self, session_id: str) -> None:
-        """Refresh idle TTL on activity (pings count as activity too)."""
-        if self._lifetime is not None:
-            await self._redis.expire(self._key(session_id), self._lifetime)
+    async def touch(self, session_id: str, lifetime: SessionLifetime) -> None:
+        """Record the activity and restart the lifetime (pings count as activity too)."""
+        key = self._key(session_id)
+
+        async def read_touch_write(pipe: Pipeline) -> None:
+            raw = await pipe.get(key)
+            record = self._parse(raw) if raw is not None else None
+            if record is None:
+                return
+            record.last_active_at = utcnow()
+            pipe.multi()
+            self._set_live(pipe, key, record, lifetime)
+
+        await self._redis.transaction(read_touch_write, key)
 
     async def delete(self, session_id: str) -> None:
-        await self._redis.delete(self._key(session_id))
+        async with self._redis.pipeline(transaction=True) as pipe:
+            pipe.delete(self._key(session_id))
+            pipe.zrem(ACTIVITY_INDEX, session_id)
+            await pipe.execute()
+
+    async def idle_since(self, cutoff: datetime, *, limit: int) -> list[str]:
+        return list(
+            await self._redis.zrangebyscore(
+                ACTIVITY_INDEX, "-inf", cutoff.timestamp(), start=0, num=limit
+            )
+        )
 
     async def set_binding(self, session_id: str, binding: UpstreamBinding) -> SessionRecord | None:
         """Atomically add/replace one binding."""
@@ -83,18 +118,22 @@ class ValkeySessionStore:
 
         return await self._redis.transaction(read_mutate_write, key, value_from_callable=True)
 
-    async def _write(self, record: SessionRecord) -> None:
-        key = self._key(record.session_id)
-        async with self._redis.pipeline(transaction=True) as pipe:
-            pipe.multi()
-            self._set(pipe, key, record)
-            await pipe.execute()
+    @staticmethod
+    def _set(pipe: Pipeline, key: str, record: SessionRecord) -> None:
+        """Write a change that is not activity: the record keeps the TTL it had."""
+        pipe.set(key, record.model_dump_json(), keepttl=True)
 
-    def _set(self, pipe: Pipeline, key: str, record: SessionRecord) -> None:
-        if self._lifetime is None:
-            pipe.set(key, record.model_dump_json())
-        else:
-            pipe.set(key, record.model_dump_json(), ex=self._lifetime)
+    @staticmethod
+    def _set_live(
+        pipe: Pipeline, key: str, record: SessionRecord, lifetime: SessionLifetime
+    ) -> None:
+        """Write the record as active now, with the lifetime's TTL and index entry."""
+        if not lifetime.expires:
+            pipe.set(key, record.model_dump_json())  # no TTL: lives until deleted
+            pipe.zrem(ACTIVITY_INDEX, record.session_id)
+            return
+        pipe.set(key, record.model_dump_json(), ex=lifetime.store_ttl)
+        pipe.zadd(ACTIVITY_INDEX, {record.session_id: record.last_active_at.timestamp()})
 
     @staticmethod
     def _parse(raw: str) -> SessionRecord | None:

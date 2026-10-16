@@ -1,7 +1,9 @@
 """Liveness and readiness probes."""
 
+from fastapi.responses import JSONResponse
+
 from bundlemcp.api.http.controller import Controller
-from bundlemcp.api.http.providers import ReadinessProvider
+from bundlemcp.api.http.providers import DrainProvider, ReadinessProvider
 from bundlemcp.api.http.route import route
 
 
@@ -13,7 +15,9 @@ class HealthController(Controller):
         return {"status": "ok"}
 
     @route.get("/readyz")
-    async def readyz(self, readiness: ReadinessProvider) -> dict[str, str]:
-        """Ready means both Postgres and the live store are reachable."""
+    async def readyz(self, readiness: ReadinessProvider, drain: DrainProvider) -> JSONResponse:
+        """Ready means both stores are reachable and the replica is not shutting down."""
+        if drain.draining:
+            return JSONResponse(status_code=503, content={"status": "draining"})
         await readiness.check()
-        return {"status": "ready"}
+        return JSONResponse(content={"status": "ready"})

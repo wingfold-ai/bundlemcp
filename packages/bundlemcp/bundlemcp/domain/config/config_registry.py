@@ -49,7 +49,7 @@ DEFAULTS: dict[str, ConfigSetting] = {
     "reset_timeout_on_progress": ConfigSetting(default=True, value_type=bool),
     "max_total_timeout": ConfigSetting(default=1800.0, value_type=float),
     # idle session expiry (seconds; 0 = no idle expiry)
-    "session_lifetime": ConfigSetting(default=86400, value_type=int),
+    "session_lifetime": ConfigSetting(default=86400, value_type=int, minimum=0),
     # milliseconds a client may keep a tools/prompts/resources list
     "list_cache_ttl_ms": ConfigSetting(default=300000, value_type=int),
     "server_error_attempts": ConfigSetting(default=3, value_type=int),

@@ -10,6 +10,7 @@ from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
 from bundlemcp.api.mcp.protocol.server_info import server_info
 from bundlemcp.api.mcp.protocol.session_header import SESSION_HEADER
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
+from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.domain.bundles.bundle_capabilities import aggregate_capabilities
 from bundlemcp.domain.sessions.session_id import new_session_id
 from bundlemcp.domain.sessions.session_record import SessionRecord
@@ -17,12 +18,18 @@ from bundlemcp.domain.sessions.session_record import SessionRecord
 
 class InitializeHandler:
     def __init__(
-        self, sessions: SessionStore, dialects: DialectRegistry, *, member_notifications: bool
+        self,
+        sessions: SessionStore,
+        dialects: DialectRegistry,
+        runtime_config: RuntimeConfig,
+        *,
+        member_notifications: bool,
     ) -> None:
         # member_notifications: whether members' list changes and resource
         # updates reach clients, which decides whether they are advertised
         self._sessions = sessions
         self._dialects = dialects
+        self._runtime_config = runtime_config
         self._member_notifications = member_notifications
 
     async def handle(self, ctx: EndpointContext, message: JsonRpcMessage) -> Response:
@@ -38,7 +45,7 @@ class InitializeHandler:
             protocol_version=dialect.version,
             client_capabilities=message.param("capabilities", {}),
         )
-        await self._sessions.create(record)
+        await self._sessions.create(record, await self._runtime_config.session_lifetime())
         result = {
             "protocolVersion": dialect.version,
             "capabilities": aggregate_capabilities(

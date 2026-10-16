@@ -354,6 +354,7 @@ class ToolCall:
         relay = ClientRelay(
             self._support.registry,
             self._support.signals,
+            self._support.presence,
             self._ctx.routing_key,
             self._timeouts.max_total,
             log_level=self._ctx.log_level,

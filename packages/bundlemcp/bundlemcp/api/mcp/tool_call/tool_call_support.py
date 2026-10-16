@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from bundlemcp.api.mcp.protocol.header_forwarding import HeaderForwarding
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
 from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
+from bundlemcp.application.contracts.live_state.stream_presence import StreamPresence
 from bundlemcp.application.contracts.live_state.stream_registry import StreamRegistry
 from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
@@ -45,6 +46,9 @@ class ToolCallSupport(BaseModel):
         description="In-flight calls and reply futures on this replica"
     )
     signals: SignalBus = Field(description="Reaches the replica holding the client's stream")
+    presence: StreamPresence = Field(
+        description="Whether any replica holds the client's stream, before a request is sent on it"
+    )
     runtime_config: RuntimeConfig = Field(description="Source of the call timeouts")
     state_cipher: SecretCipher | None = Field(
         description="Seals the requestState a modern client echoes on a retry; None when no "

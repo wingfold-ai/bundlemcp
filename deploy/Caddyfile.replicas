@@ -1,0 +1,21 @@
+# Round-robin over the two gateway replicas of docker-compose.replicas.yml.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	reverse_proxy gateway:8000 gateway-b:8000 {
+		lb_policy round_robin
+		# a dial to a replica that is stopping is retried on the other; the
+		# request never reached it, so retrying is safe
+		lb_try_duration 10s
+		lb_try_interval 250ms
+		health_uri /readyz
+		health_interval 1s
+		health_timeout 2s
+		# streamed MCP responses go out as they are written
+		flush_interval -1
+		header_down X-Served-By {http.reverse_proxy.upstream.hostport}
+	}
+}
