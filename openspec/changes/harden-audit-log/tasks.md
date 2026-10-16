@@ -2,13 +2,13 @@
 
 ## 1. Idempotency key on the record (OPS-7)
 
-- [ ] 1.1 Add `idempotency_key` to `AuditRecord`, the row class and an expand-only Alembic migration with an index;
+- [x] 1.1 Add `idempotency_key` to `AuditRecord`, the row class and an expand-only Alembic migration with an index;
   verify `alembic upgrade head` and `downgrade -1` succeed against the compose Postgres
-- [ ] 1.2 Stamp the key from `ToolCall` through `AuditContext` on every record it writes (terminal, `input_required`,
+- [x] 1.2 Stamp the key from `ToolCall` through `AuditContext` on every record it writes (terminal, `input_required`,
   resumed); verify `test_aud7_record_carries_idempotency_key` and `test_aud7_resumed_call_keeps_key`
-- [ ] 1.3 Add the field to `AuditRecordRead` and `AuditFilter`; verify `test_aud7_list_filters_by_idempotency_key` and
+- [x] 1.3 Add the field to `AuditRecordRead` and `AuditFilter`; verify `test_aud7_list_filters_by_idempotency_key` and
   regenerate with `cd apps/web && npm run openapi`
-- [ ] 1.4 Rewrite "Crash reconciliation" in `docs/integrate/metering-hook.md` to join on `idempotency_key` and add the
+- [x] 1.4 Rewrite "Crash reconciliation" in `docs/integrate/metering-hook.md` to join on `idempotency_key` and add the
   field to `docs/manage/audit.md`; verify `python3 tools/check_docs_links.py`
 
 ## 2. Durable writing (OPS-3)
@@ -36,12 +36,12 @@
 
 ## 4. Retention purge (OPS-5)
 
-- [ ] 4.1 Add `AuditRetentionService.purge_older_than` and the repository delete (chunked) with its memory fake; verify
+- [x] 4.1 Add `AuditRetentionService.purge_older_than` and the repository delete (chunked) with its memory fake; verify
   `test_aud5_old_records_purged` and `test_aud5_zero_keeps_everything`
-- [ ] 4.2 Add `AuditPurger` with a Valkey lease, reading `audit_retention_days` each run, and start/stop it in the
+- [x] 4.2 Add `AuditPurger` with a Valkey lease, reading `audit_retention_days` each run, and start/stop it in the
   composition root; verify `test_aud5_retention_change_applies_without_restart` and
   `test_aud5_one_replica_purges_per_interval`
-- [ ] 4.3 Replace the "nothing purges" warnings in `docs/manage/audit.md`, `docs/self-hosting/operations.md`,
+- [x] 4.3 Replace the "nothing purges" warnings in `docs/manage/audit.md`, `docs/self-hosting/operations.md`,
   `requirements.md`, `configuration.md` and `deploy.md`'s checklist; verify `python3 tools/check_docs_settings.py`
 
 ## 5. Querying and export (OPS-6)

@@ -571,3 +571,22 @@ def test_prot18_a_state_sealed_before_reads_were_bridged_still_unseals():
         sub="api_key:1",
     )
     assert state.idempotency_key == "k" and state.method == "tools/call"
+
+
+async def test_ops7_resumed_call_keeps_key(env):
+    """OPS-7: both legs of a paused invocation are audited with the key the hook received."""
+    http, app, hook, _subs, _base_url = env
+    _status, first = await _call(http, "modernup__ask_name")
+    await _call(
+        http,
+        "modernup__ask_name",
+        id_=2,
+        inputResponses={"name": _accept("Ada")},
+        requestState=first["result"]["requestState"],
+    )
+    await app.state.container.audit.drain()
+    async with app.state.container.session_factory() as db:
+        records = (await db.execute(select(AuditRecordRow))).scalars().all()
+    [key] = hook.pre
+    assert sorted(record.status for record in records) == ["input_required", "success"]
+    assert {record.idempotency_key for record in records} == {key}

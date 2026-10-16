@@ -106,17 +106,14 @@ are under [Client registration](/self-hosting/configuration#client-registration)
 
 ## Audit retention
 
-Audit records are **not** purged. `audit_retention_days` (90 by default)
-records the intent and nothing reads it yet, so the `audit_records` table grows
-for the life of the deployment. Until a purge job ships, retention is yours:
-schedule a `DELETE FROM audit_records WHERE created_at < now() - interval '90 days'`,
-and monitor the table's size along with the rest of the database. If an
-application layer reconciles billing against the audit log, keep whatever you
-implement longer than its reconciliation window.
+Audit records older than `audit_retention_days` (90 by default, `0` keeps everything) are deleted by a purge job that
+runs every 15 minutes on one replica at a time and logs `audit.purged` with the count. A change to the setting applies
+at the next run. If an application layer reconciles billing against the audit log, keep the retention longer than its
+reconciliation window; see [Audit log](/manage/audit#retention).
 
 ## Not part of this release
 
 There is no Prometheus `/metrics` route, no live log stream in the UI, no
-built-in MCP inspector, no audit purge job, and no JSON export or import of the
+built-in MCP inspector, and no JSON export or import of the
 configuration; the UI's Live logs and Inspector pages are placeholders. Use the container
 logs, the audit API, and a bootstrap file instead.

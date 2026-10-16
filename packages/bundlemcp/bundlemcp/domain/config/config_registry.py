@@ -55,7 +55,7 @@ DEFAULTS: dict[str, ConfigSetting] = {
     # consecutive connection failures before an upstream is marked error
     "server_error_attempts": ConfigSetting(default=3, value_type=int, minimum=1),
     # audit retention (days)
-    "audit_retention_days": ConfigSetting(default=90, value_type=int),
+    "audit_retention_days": ConfigSetting(default=90, value_type=int, minimum=0),
     # lifetimes (seconds) of what the gateway's own OAuth server issues
     "authorization_code_lifetime": ConfigSetting(default=600, value_type=int),
     "access_token_lifetime": ConfigSetting(default=3600, value_type=int),

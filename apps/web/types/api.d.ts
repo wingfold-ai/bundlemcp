@@ -967,6 +967,11 @@ export interface components {
              */
             id: string;
             /**
+             * Idempotency Key
+             * @description The metering idempotency key the hook received for this invocation, the same on every leg; join the metering ledger on it. Null for a call denied before metering, such as an unknown tool
+             */
+            idempotency_key: string | null;
+            /**
              * Presented Tool Name
              * @description Tool name as the client used it, including any override
              */
@@ -2927,6 +2932,7 @@ export interface operations {
                 user_id?: string | null;
                 api_key_id?: string | null;
                 status?: components["schemas"]["AuditStatus"] | null;
+                idempotency_key?: string | null;
             };
             header?: never;
             path?: never;

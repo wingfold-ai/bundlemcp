@@ -48,6 +48,11 @@ class AuditRecord(BaseModel):
         description="How the caller authenticated: oauth, api_key or none",
     )
     session_id: str | None = Field(default=None, description="MCP session the call belonged to")
+    idempotency_key: str | None = Field(
+        default=None,
+        description="Metering idempotency key of the invocation this leg belongs to, the same "
+        "on all its legs; null for a call denied before metering, such as an unknown tool",
+    )
     status: AuditStatus = Field(description="Outcome of the call: success, error or denied")
     denied_reason: str | None = Field(
         default=None,

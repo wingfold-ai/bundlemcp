@@ -280,6 +280,18 @@
             "title": "Id",
             "type": "string"
           },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The metering idempotency key the hook received for this invocation, the same on every leg; join the metering ledger on it. Null for a call denied before metering, such as an unknown tool",
+            "title": "Idempotency Key"
+          },
           "presented_tool_name": {
             "anyOf": [
               {
@@ -359,6 +371,7 @@
           "api_key_id",
           "auth_method",
           "session_id",
+          "idempotency_key",
           "status",
           "denied_reason",
           "duration_ms",
@@ -3702,6 +3715,22 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "idempotency_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency Key"
             }
           }
         ],

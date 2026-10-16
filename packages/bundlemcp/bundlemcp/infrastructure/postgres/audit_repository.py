@@ -1,6 +1,9 @@
-from sqlalchemy import ColumnElement
+from datetime import datetime
+
+from sqlalchemy import ColumnElement, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bundlemcp.application.management.audit_cursor import AuditCursor
 from bundlemcp.application.management.audit_filter import AuditFilter
 from bundlemcp.domain.audit.audit_record import AuditRecord
 from bundlemcp.infrastructure.postgres.rows.audit_record_row import AuditRecordRow
@@ -20,6 +23,38 @@ class SqlAlchemyAuditRepository(SqlAlchemyRepository[AuditRecord, AuditRecordRow
             limit=limit,
             order_by=(AuditRecordRow.created_at.desc(), AuditRecordRow.id),  # type: ignore[attr-defined]
         )
+
+    async def page_after(
+        self, filter_: AuditFilter, *, cursor: AuditCursor | None, limit: int
+    ) -> list[AuditRecord]:
+        criteria = self._criteria(filter_)
+        if cursor is not None:
+            criteria.append(
+                (AuditRecordRow.created_at < cursor.created_at)
+                | (
+                    (AuditRecordRow.created_at == cursor.created_at)
+                    & (AuditRecordRow.id < cursor.id)  # type: ignore[operator]
+                )
+            )
+        statement = (
+            select(AuditRecordRow)
+            .where(*criteria)
+            .order_by(AuditRecordRow.created_at.desc(), AuditRecordRow.id.desc())  # type: ignore[attr-defined]
+            .limit(limit)
+        )
+        return [self._to_entity(row) for row in (await self._session.execute(statement)).scalars()]
+
+    async def delete_older_than(self, cutoff: datetime, *, limit: int) -> int:
+        oldest = (
+            select(AuditRecordRow.id)
+            .where(AuditRecordRow.created_at < cutoff)
+            .limit(limit)
+            .scalar_subquery()
+        )
+        result = await self._session.execute(
+            delete(AuditRecordRow).where(AuditRecordRow.id.in_(oldest))  # type: ignore[attr-defined]
+        )
+        return int(result.rowcount or 0)
 
     @staticmethod
     def _criteria(filter_: AuditFilter) -> list[ColumnElement[bool]]:
@@ -45,4 +80,6 @@ class SqlAlchemyAuditRepository(SqlAlchemyRepository[AuditRecord, AuditRecordRow
             clauses.append(AuditRecordRow.api_key_id == filter_.api_key_id)
         if filter_.status is not None:
             clauses.append(AuditRecordRow.status == filter_.status)
+        if filter_.idempotency_key is not None:
+            clauses.append(AuditRecordRow.idempotency_key == filter_.idempotency_key)
         return clauses

@@ -17,6 +17,7 @@ class AuditRecordRow(SQLModel, table=True):
     __table_args__ = (
         Index("ix_audit_created_endpoint", "created_at", "endpoint_name"),
         Index("ix_audit_status", "status"),
+        Index("ix_audit_idempotency_key", "idempotency_key"),
     )
 
     id: uuid.UUID = Field(
@@ -63,6 +64,11 @@ class AuditRecordRow(SQLModel, table=True):
         description="How the caller authenticated: oauth, api_key or none",
     )
     session_id: str | None = Field(default=None, description="MCP session the call belonged to")
+    idempotency_key: str | None = Field(
+        default=None,
+        description="Metering idempotency key of the invocation this leg belongs to, the same "
+        "on all its legs; null for a call denied before metering, such as an unknown tool",
+    )
     status: AuditStatus = Field(
         sa_type=String, description="Outcome of the call: success, error or denied"
     )

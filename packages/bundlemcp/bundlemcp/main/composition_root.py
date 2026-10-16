@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
+from bundlemcp.api.jobs.audit_purger import AuditPurger
 from bundlemcp.api.jobs.invocation_sweep_job import InvocationSweepJob
 from bundlemcp.api.jobs.secret_reencryption_job import SecretReencryptionJob
 from bundlemcp.api.jobs.session_sweep_job import SessionSweepJob
@@ -29,6 +30,7 @@ from bundlemcp.application.discovery.connection_diagnoser import ConnectionDiagn
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.management.api_key_service import ApiKeyService
+from bundlemcp.application.management.audit_retention_service import AuditRetentionService
 from bundlemcp.application.metering.invocation_sweeper import InvocationSweeper
 from bundlemcp.application.oauth_server import (
     AuthorizationCodeGrant,
@@ -304,6 +306,13 @@ class CompositionRoot:
         )
         session_sweep.start()
         self._stack.callback(session_sweep.stop)
+
+        # audit records past audit_retention_days are deleted on one replica per interval
+        audit_purger = AuditPurger(
+            AuditRetentionService(units, clock), runtime_config, ValkeyRefreshLock(redis)
+        )
+        audit_purger.start()
+        self._stack.callback(audit_purger.stop)
 
         client_metadata = overrides.client_metadata_fetcher or HttpxClientMetadataFetcher(
             settings, redis

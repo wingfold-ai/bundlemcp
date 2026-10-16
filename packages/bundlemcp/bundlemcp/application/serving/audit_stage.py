@@ -31,5 +31,6 @@ class AuditStage(BaseModel):
                 denied_reason=settlement.denied_reason,
                 error_message=settlement.error_message,
                 duration_ms=settlement.duration_ms,
+                idempotency_key=call.context.idempotency_key,
             )
         )
