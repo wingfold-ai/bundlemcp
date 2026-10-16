@@ -10,10 +10,52 @@ const route = useRoute();
 const serverName = computed(() => String(route.params.name));
 
 const errorMsg = ref("");
-const notFound = ref(false);
+
+const [
+  { data: server, error: serverError },
+  { data: tools, error: toolsError },
+  { data: upstreamStatus },
+] = await Promise.all([
+  useQuery<ServerRead | null>(
+    () => queryKeys.upstream(serverName.value),
+    async () =>
+      unwrap(
+        await api.GET("/api/v1/upstreams/{name}", {
+          params: { path: { name: serverName.value } },
+        }),
+      ),
+    { default: () => null },
+  ),
+  useQuery<ToolRead[]>(
+    () => queryKeys.upstreamTools(serverName.value),
+    async () =>
+      unwrap(
+        await api.GET("/api/v1/upstreams/{name}/tools", {
+          params: { path: { name: serverName.value }, query: { offset: 0, limit: 200 } },
+        }),
+      ).items,
+    { default: () => [] },
+  ),
+  useQuery<UpstreamOAuthStatusRead | null>(
+    () => queryKeys.upstreamOAuth(serverName.value),
+    async () => {
+      const { data, error } = await api.GET("/api/v1/upstreams/{name}/upstream-oauth", {
+        params: { path: { name: serverName.value } },
+      });
+      // status is optional; missing config is not a page error
+      return error ? null : data;
+    },
+    { default: () => null },
+  ),
+]);
+
+const notFound = computed(() => serverError.value?.status === 404);
+/** A failed read, unless the upstream is missing altogether, which the page says itself. */
+const loadErrorMsg = computed(() =>
+  notFound.value ? "" : (serverError.value?.message ?? toolsError.value?.message ?? ""),
+);
 
 // ---- config card state ----
-const server = ref<ServerRead | null>(null);
 const url = ref("");
 const description = ref("");
 const authMode = ref<"none" | "static_headers" | "upstream_oauth" | "delegated_token">("none");
@@ -25,19 +67,8 @@ const staticHeaderNames = ref<string[]>([]);
 const hdrRows = ref<{ key: string; val: string }[]>([]);
 const saving = ref(false);
 
-async function loadServer() {
-  const { data, error, response } = await api.GET("/api/v1/upstreams/{name}", {
-    params: { path: { name: serverName.value } },
-  });
-  if (error) {
-    if (response?.status === 404) {
-      notFound.value = true;
-    } else {
-      errorMsg.value = apiErrorMessage(error);
-    }
-    return;
-  }
-  server.value = data;
+function seedServer(data: ServerRead | null) {
+  if (!data) return;
   url.value = data.url;
   description.value = data.description ?? "";
   authMode.value = data.auth_mode as typeof authMode.value;
@@ -48,6 +79,7 @@ async function loadServer() {
   staticHeaderNames.value = data.static_header_names ?? [];
   hdrRows.value = [];
 }
+watch(server, seedServer, { immediate: true });
 
 function addFwdRow() {
   fwdRows.value.push({ key: "", val: "" });
@@ -67,7 +99,6 @@ async function fixMismatch() {
     authMode.value = "upstream_oauth";
     identityMode.value = "per_user";
     await saveServer();
-    await loadUpstreamStatus();
   } else {
     addHdrRow();
     document.getElementById("static-headers")?.scrollIntoView({ behavior: "smooth" });
@@ -106,27 +137,20 @@ async function saveServer() {
       errorMsg.value = apiErrorMessage(error);
       return;
     }
-    await loadServer();
+    // the auth and identity mode also change what the OAuth status reports
+    await invalidate(
+      queryKeys.upstream(serverName.value),
+      queryKeys.upstreamOAuth(serverName.value),
+      queryKeys.upstreams,
+    );
   } finally {
     saving.value = false;
   }
 }
 
 // ---- tools card state ----
-const tools = ref<ToolRead[]>([]);
 const refreshResult = ref("");
 const refreshing = ref(false);
-
-async function loadTools() {
-  const { data, error } = await api.GET("/api/v1/upstreams/{name}/tools", {
-    params: { path: { name: serverName.value }, query: { offset: 0, limit: 200 } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  tools.value = data.items;
-}
 
 const staleTools = computed(() => tools.value.filter((t) => t.stale));
 
@@ -155,14 +179,20 @@ async function refreshTools(prune = false) {
       ? `${CONNECTION_STATE_LABEL[data.connection_state ?? "error"]}: ${data.error}`
       : `${data.discovered} tools, ${data.changed} changed` +
         (prune ? `, ${data.pruned} pruned` : "");
-    await Promise.all([loadTools(), loadServer()]);
+    // the probe updates the connection state; bundles and the catalogue show the tools
+    await invalidate(
+      queryKeys.upstreamTools(serverName.value),
+      queryKeys.upstream(serverName.value),
+      queryKeys.upstreams,
+      queryKeys.bundles,
+      queryKeys.catalogue,
+    );
   } finally {
     refreshing.value = false;
   }
 }
 
 // ---- upstream oauth card state ----
-const upstreamStatus = ref<UpstreamOAuthStatusRead | null>(null);
 const upClientId = ref("");
 const upClientSecret = ref("");
 const upAuthUrl = ref("");
@@ -171,17 +201,14 @@ const upGrant = ref<"authorization_code" | "client_credentials">("authorization_
 const upSaving = ref(false);
 const upConnecting = ref(false);
 
-async function loadUpstreamStatus() {
-  const { data, error } = await api.GET("/api/v1/upstreams/{name}/upstream-oauth", {
-    params: { path: { name: serverName.value } },
-  });
-  if (error) return; // status is optional; missing config is not a page error
-  upstreamStatus.value = data;
+function seedUpstreamStatus(data: UpstreamOAuthStatusRead | null) {
+  if (!data) return;
   upClientId.value = data.client_id ?? "";
   upAuthUrl.value = data.authorization_url ?? "";
   upTokenUrl.value = data.token_url ?? "";
   upGrant.value = data.grant_type ?? "authorization_code";
 }
+watch(upstreamStatus, seedUpstreamStatus, { immediate: true });
 
 async function saveUpstream() {
   errorMsg.value = "";
@@ -202,7 +229,7 @@ async function saveUpstream() {
       return;
     }
     upClientSecret.value = "";
-    await loadUpstreamStatus();
+    await invalidate(queryKeys.upstreamOAuth(serverName.value));
   } finally {
     upSaving.value = false;
   }
@@ -220,7 +247,8 @@ async function connectAsClient() {
       errorMsg.value = apiErrorMessage(error);
       return;
     }
-    await Promise.all([loadUpstreamStatus(), refreshTools()]);
+    // refreshing the tools invalidates the upstream, its tools and what shows them
+    await Promise.all([invalidate(queryKeys.upstreamOAuth(serverName.value)), refreshTools()]);
   } finally {
     upConnecting.value = false;
   }
@@ -235,7 +263,12 @@ async function disconnectUpstream() {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await loadUpstreamStatus();
+  // without the token the next probe reports a different connection state
+  await invalidate(
+    queryKeys.upstreamOAuth(serverName.value),
+    queryKeys.upstream(serverName.value),
+    queryKeys.upstreams,
+  );
 }
 
 const connectUrl = computed(
@@ -246,17 +279,26 @@ const callbackUrl = computed(() => `${apiBase()}/oauth/upstream/callback`);
 // ---- danger card state ----
 const renameName = ref("");
 const renameForce = ref(false);
+// shown while typing, so a bad name is seen before anything is sent
+const renameHint = computed(() =>
+  renameName.value.trim() ? nameProblem("upstream", renameName.value.trim()) : null,
+);
+
+/** What renaming or deleting an upstream changes: every list and bundle that names it. */
+const UPSTREAM_DEPENDENTS = [
+  queryKeys.upstreams,
+  queryKeys.bundles,
+  queryKeys.composition,
+  queryKeys.catalogue,
+];
 
 async function renameServer() {
   errorMsg.value = "";
   const newName = renameName.value.trim();
-  // client-side validation before submit
-  if (!/^[a-zA-Z0-9_-]+$/.test(newName)) {
-    errorMsg.value = "Name must match ^[a-zA-Z0-9_-]+$";
-    return;
-  }
-  if (newName.includes("__")) {
-    errorMsg.value = 'Server name must not contain "__"';
+  // client-side validation before submit, against the published rules
+  const problem = nameProblem("upstream", newName);
+  if (problem) {
+    errorMsg.value = problem;
     return;
   }
   const { error } = await api.POST("/api/v1/upstreams/{name}:rename", {
@@ -269,11 +311,13 @@ async function renameServer() {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
+  await invalidate(...UPSTREAM_DEPENDENTS);
+  renameName.value = "";
   await navigateTo(`/upstreams/${newName}`);
 }
 
 async function deleteServer() {
-  if (!window.confirm(`Delete server "${serverName.value}"?`)) return;
+  if (!window.confirm(`Delete upstream "${serverName.value}"?`)) return;
   errorMsg.value = "";
   const { error } = await api.DELETE("/api/v1/upstreams/{name}", {
     params: { path: { name: serverName.value } },
@@ -282,22 +326,18 @@ async function deleteServer() {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
+  await invalidate(...UPSTREAM_DEPENDENTS);
   await navigateTo("/upstreams");
 }
-
-onMounted(async () => {
-  await loadServer();
-  if (!notFound.value) {
-    await Promise.all([loadTools(), loadUpstreamStatus()]);
-  }
-});
 </script>
 
 <template>
   <div class="space-y-6">
-    <h1 class="text-lg font-semibold">Server: {{ serverName }}</h1>
+    <h1 class="text-lg font-semibold">Upstream server: {{ serverName }}</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="errorMsg || loadErrorMsg" class="text-red-600 text-sm" data-testid="error">
+      {{ errorMsg || loadErrorMsg }}
+    </p>
 
     <p v-if="notFound" class="text-muted" data-testid="not-found">not found</p>
 
@@ -387,8 +427,8 @@ onMounted(async () => {
             Send the caller's identity as <code>X-MCP-User</code>
           </label>
           <p class="wf-help">
-            Useful for your own servers on the gateway's network; leave it off for third-party
-            servers.
+            Useful for your own upstreams on the gateway's network; leave it off for third-party
+            upstreams.
           </p>
         </div>
 
@@ -417,15 +457,15 @@ onMounted(async () => {
           >
           <p v-if="forwardsCallerToken" class="wf-help text-warning" data-testid="passthrough-warning">
             Forwarding <code>authorization</code> passes the caller's own gateway token to the
-            server (token passthrough, which the MCP spec forbids). Prefer the
-            <em>delegated token</em> auth mode, which gives the server a token bound to it.
+            upstream (token passthrough, which the MCP spec forbids). Prefer the
+            <em>delegated token</em> auth mode, which gives the upstream a token bound to it.
           </p>
         </div>
 
         <div id="static-headers">
           <span class="wf-label">Static headers (API keys, tokens)</span>
           <p class="text-xs text-muted mb-1">
-            Sent on every request to this server. Values are write-only and never displayed
+            Sent on every request to this upstream. Values are write-only and never displayed
             again. Leaving this empty keeps the existing secrets; add a pair with an existing
             name to replace its value.
           </p>
@@ -544,7 +584,7 @@ onMounted(async () => {
       <div v-if="server.auth_mode === 'upstream_oauth'" class="wf-card space-y-3 max-w-2xl">
         <h2 class="text-sm font-semibold">Upstream OAuth</h2>
         <p class="wf-help">
-          The gateway identifies itself to the server's authorization server automatically when
+          The gateway identifies itself to the upstream's authorization server automatically when
           it can (client metadata document, else dynamic registration), so <em>Connect</em>
           usually works with the fields below left empty. Enter a client only when the provider
           requires one you registered, with the redirect URI <code>{{ callbackUrl }}</code>, or
@@ -579,7 +619,7 @@ onMounted(async () => {
             <UBadge color="neutral" variant="subtle">not connected</UBadge>
             <span class="text-muted">
               {{ upstreamStatus.identity_mode === "per_user"
-                ? "per-user server: each user connects from the link in their first tool call"
+                ? "per-user upstream: each user connects from the link in their first tool call"
                 : "click Connect to sign in with the shared account" }}
             </span>
           </template>
@@ -684,6 +724,9 @@ onMounted(async () => {
               class="wf-input"
               data-testid="rename-input"
             />
+            <p v-if="renameHint" class="text-red-600 text-xs mt-1" data-testid="rename-hint">
+              {{ renameHint }}
+            </p>
           </div>
           <label class="text-sm pb-1">
             <input v-model="renameForce" type="checkbox" data-testid="rename-force" />

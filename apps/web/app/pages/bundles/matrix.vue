@@ -1,64 +1,22 @@
 <script setup lang="ts">
 import type { components } from "~~/types/api";
 
-type BundleRead = components["schemas"]["BundleRead"];
-type ServerRead = components["schemas"]["ServerRead"];
 type BundleMemberRead = components["schemas"]["BundleMemberRead"];
 
 // The composition overview: which bundle contains which server, as one
 // grid. The per-bundle membership pages answer "what is in this bundle"; this
 // answers the questions that span bundles — what a server is used by, and what
 // is registered but in no bundle at all.
-const api = useApi();
-const errorMsg = ref("");
+const { data: bundleList, error: bundlesError } = await useBundles();
+const { data: serverList, error: serversError } = await useUpstreams();
+const { data: members, error: membersError } = await useComposition();
+const loadError = computed(() => bundlesError.value ?? serversError.value ?? membersError.value);
 
-interface Matrix {
-  bundles: BundleRead[];
-  servers: ServerRead[];
-  /** bundle name -> server name -> the membership row, when the server is a member. */
-  members: Record<string, Record<string, BundleMemberRead>>;
-}
-
-const { data: matrix } = await useAsyncData<Matrix>(
-  "bundle-server-matrix",
-  async () => {
-    const empty: Matrix = { bundles: [], servers: [], members: {} };
-    const [bundleResult, serverResult] = await Promise.all([
-      api.GET("/api/v1/bundles", { params: { query: { offset: 0, limit: 100 } } }),
-      api.GET("/api/v1/upstreams", { params: { query: { offset: 0, limit: 100 } } }),
-    ]);
-    if (bundleResult.error || serverResult.error) {
-      errorMsg.value = apiErrorMessage(bundleResult.error ?? serverResult.error);
-      return empty;
-    }
-    const bundles = bundleResult.data.items;
-    // Membership is per bundle; the grid needs every row, so fetch them together
-    // rather than one after another.
-    const memberships = await Promise.all(
-      bundles.map((b) =>
-        api.GET("/api/v1/bundles/{name}/upstreams", { params: { path: { name: b.name } } }),
-      ),
-    );
-    const members: Record<string, Record<string, BundleMemberRead>> = {};
-    for (const [i, result] of memberships.entries()) {
-      const bundle = bundles[i]!;
-      members[bundle.name] = {};
-      if (result.error) {
-        errorMsg.value = apiErrorMessage(result.error);
-        continue;
-      }
-      for (const member of result.data) members[bundle.name]![member.server_name] = member;
-    }
-    return { bundles, servers: serverResult.data.items, members };
-  },
-  { default: () => ({ bundles: [], servers: [], members: {} }) },
-);
-
-const bundles = computed(() => matrix.value.bundles);
-const servers = computed(() => matrix.value.servers);
+const bundles = computed(() => bundleList.value);
+const servers = computed(() => serverList.value);
 
 function membership(bundleName: string, serverName: string): BundleMemberRead | undefined {
-  return matrix.value.members[bundleName]?.[serverName];
+  return members.value[bundleName]?.[serverName];
 }
 
 /** How many bundles a server belongs to; zero means it is registered but unused. */
@@ -67,7 +25,7 @@ function bundleCount(serverName: string): number {
 }
 
 function serverCount(bundleName: string): number {
-  return Object.keys(matrix.value.members[bundleName] ?? {}).length;
+  return Object.keys(members.value[bundleName] ?? {}).length;
 }
 
 const orphans = computed(() => servers.value.filter((s) => bundleCount(s.name) === 0));
@@ -86,11 +44,13 @@ const orphans = computed(() => servers.value.filter((s) => bundleCount(s.name) =
       <h1 class="text-lg font-semibold">Composition</h1>
     </div>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ loadError.message }}
+    </p>
 
     <div v-if="bundles.length === 0 || servers.length === 0" class="wf-card text-sm text-muted"
       data-testid="matrix-empty">
-      Nothing to compose yet: register a server and create a bundle first.
+      Nothing to compose yet: register an upstream and create a bundle first.
     </div>
 
     <div v-else class="overflow-x-auto">
@@ -138,9 +98,9 @@ const orphans = computed(() => servers.value.filter((s) => bundleCount(s.name) =
     </div>
 
     <p class="wf-help">
-      A check means the server is a member of that bundle and its tools are served. A pause icon
+      A check means the upstream is a member of that bundle and its tools are served. A pause icon
       means it is a member but disabled, so the bundle keeps the membership without serving its
-      tools. The last row counts the bundles each server appears in.
+      tools. The last row counts the bundles each upstream appears in.
       <template v-if="orphans.length">
         <strong>{{ orphans.map((s) => s.name).join(", ") }}</strong>
         {{ orphans.length === 1 ? "is" : "are" }} registered but in no bundle, so

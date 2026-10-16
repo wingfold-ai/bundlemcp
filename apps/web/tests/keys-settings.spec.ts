@@ -47,3 +47,32 @@ test(testTitle("E2E-11"), async ({ page, steps }) => {
     }),
   ]);
 });
+
+test(testTitle("E2E-29"), async ({ page, steps }) => {
+  const name = "e2e-scoped-key";
+  page.on("dialog", (d) => d.accept());
+
+  await steps.play([
+    given("the admin on the API keys page", () => page.goto("/api-keys")),
+    when(`creating endpoint key "${name}" scoped to the claude endpoint`, { req: "UI-1" }, async () => {
+      await page.getByTestId("key-name").fill(name);
+      await page.getByTestId("key-kind").selectOption("endpoint");
+      await page.getByTestId("scope-claude").check();
+      await page.getByTestId("key-create").click();
+    }),
+    then("the list shows the key's scope", { req: "UI-1" }, async () => {
+      await expect(page.getByTestId(`scope-cell-${name}`)).toHaveText("claude");
+    }),
+    when("deactivating it, then re-activating it", { req: "AUTH-25" }, async () => {
+      await page.getByTestId(`deactivate-${name}`).click();
+      await expect(page.getByTestId(`key-${name}`)).toContainText(/inactive/i);
+      await page.getByTestId(`activate-${name}`).click();
+    }),
+    then("the key is active again", { req: "UI-1" }, async () => {
+      await expect(page.getByTestId(`key-${name}`)).not.toContainText(/inactive/i);
+      await expect(page.getByTestId(`deactivate-${name}`)).toBeVisible();
+      await page.getByTestId(`delete-${name}`).click();
+      await expect(page.getByTestId(`key-${name}`)).toHaveCount(0);
+    }),
+  ]);
+});

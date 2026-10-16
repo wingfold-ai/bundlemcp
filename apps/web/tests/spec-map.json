@@ -297,6 +297,47 @@
         "OPS-6"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-29",
+      "testFile": "keys-settings.spec.ts",
+      "slug": "api-key-scope-and-reactivate",
+      "title": "An endpoint key is scoped to one endpoint from the UI, then deactivated and re-activated",
+      "requirements": [
+        "UI-1",
+        "AUTH-25"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-30",
+      "testFile": "bundle-flow.spec.ts",
+      "slug": "query-cache-mutation-refreshes-grid",
+      "title": "A bundle created on the Bundles page appears on the composition grid without a reload",
+      "requirements": [
+        "UI-3"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-31",
+      "testFile": "server-flow.spec.ts",
+      "slug": "names-checked-before-submit",
+      "title": "A taken bundle name and a reserved endpoint name are refused before anything is sent",
+      "requirements": [
+        "UI-4"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-32",
+      "testFile": "server-flow.spec.ts",
+      "slug": "upstream-detail-title",
+      "title": "An upstream's detail page is titled Upstream server and its errors say upstream",
+      "requirements": [
+        "UI-7"
+      ],
+      "new": true
     }
   ]
 }

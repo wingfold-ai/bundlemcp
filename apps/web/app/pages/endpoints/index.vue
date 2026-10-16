@@ -1,28 +1,7 @@
 <script setup lang="ts">
-import type { components } from "~~/types/api";
-
-type EndpointRead = components["schemas"]["EndpointRead"];
-type BundleRead = components["schemas"]["BundleRead"];
-
-const api = useApi();
-
-const endpoints = ref<EndpointRead[]>([]);
-const bundles = ref<BundleRead[]>([]);
-const errorMsg = ref("");
-
-async function load() {
-  const [eps, bds] = await Promise.all([
-    api.GET("/api/v1/endpoints", { params: { query: { offset: 0, limit: 100 } } }),
-    api.GET("/api/v1/bundles", { params: { query: { offset: 0, limit: 100 } } }),
-  ]);
-  if (eps.error) {
-    errorMsg.value = apiErrorMessage(eps.error);
-    return;
-  }
-  endpoints.value = eps.data?.items ?? [];
-  bundles.value = bds.data?.items ?? [];
-}
-await load();
+const { data: endpoints, error: endpointsError } = await useEndpoints();
+const { data: bundles } = await useBundles();
+const loadError = endpointsError;
 
 const bundleNameById = computed(() => new Map(bundles.value.map((b) => [b.id, b.name])));
 
@@ -32,7 +11,9 @@ const bundleNameById = computed(() => new Map(bundles.value.map((b) => [b.id, b.
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">All endpoints</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ loadError.message }}
+    </p>
 
     <div class="overflow-x-auto">
       <table class="wf-table" data-testid="endpoints-table">

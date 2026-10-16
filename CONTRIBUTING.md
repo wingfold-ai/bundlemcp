@@ -213,6 +213,16 @@ hand-written, and CI fails on a stale copy of either. `npm run typecheck` passes
 `npm run openapi` after touching anything in `application/schemas/` or a route signature, and commit both generated
 files.
 
+**Pages read through the query layer.** A page reads management data with `useQuery` (`app/composables/useQuery.ts`),
+under a key from `app/utils/queryKeys.ts` — `resource` or `resource:parameter…`; the shared lists have their own
+composables in `app/composables/useManagementQueries.ts`. A revisited page renders its cached result at once and
+refetches it in the background. A mutation never reloads its page by hand: it calls `invalidate(...)` with every
+resource it changes, and every view of that data refreshes, on screen now or when next shown.
+
+**Naming rules come from the schema.** Form validation calls `nameProblem` (`app/utils/resourceNames.ts`), which reads
+the patterns, the `__` rule and the reserved endpoint names from `openapi.json`. A rule changed in
+`domain/shared/resource_names.py` reaches the forms with the next `npm run openapi`; never copy one into the frontend.
+
 ## Debugging
 
 - **Logs** are structured JSON carrying a request id, the endpoint and the caller, and never secrets. Pipe them through

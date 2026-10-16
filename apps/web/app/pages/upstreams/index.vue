@@ -1,30 +1,9 @@
 <script setup lang="ts">
-import type { components } from "~~/types/api";
+const { data: servers, error: loadError } = await useUpstreams();
 
-type ServerRead = components["schemas"]["ServerRead"];
-
-const api = useApi();
-const errorMsg = ref("");
-
-
-const { data: servers, refresh } = await useAsyncData<ServerRead[]>(
-  "servers-list",
-  async () => {
-    const { data, error } = await api.GET("/api/v1/upstreams", {
-      params: { query: { offset: 0, limit: 100 } },
-    });
-    if (error) {
-      errorMsg.value = apiErrorMessage(error);
-      return [];
-    }
-    return data.items;
-  },
-  { default: () => [] },
-);
-
-/** A new server opens on its own page, where OAuth connect and tools live. */
+/** A new upstream opens on its own page, where OAuth connect and tools live. */
 async function onCreated(name: string) {
-  await refresh();
+  await invalidate(queryKeys.upstreams, queryKeys.composition);
   await navigateTo(`/upstreams/${name}`);
 }
 </script>
@@ -33,7 +12,9 @@ async function onCreated(name: string) {
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">Upstream servers</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ loadError.message }}
+    </p>
 
     <div class="overflow-x-auto">
       <table class="wf-table" data-testid="servers-table">
@@ -95,7 +76,7 @@ async function onCreated(name: string) {
                   v-if="protocolLabel(s.protocol_version, s.protocol_mode).mode"
                   color="neutral"
                   variant="outline"
-                  title="The negotiation rule configured for this server, rather than the default probe-then-handshake"
+                  title="The negotiation rule configured for this upstream, rather than the default probe-then-handshake"
                 >
                   {{ protocolLabel(s.protocol_version, s.protocol_mode).mode }}
                 </UBadge>
@@ -149,8 +130,8 @@ async function onCreated(name: string) {
       </table>
     </div>
     <p class="wf-help">
-      <strong>Protocol</strong> is the MCP revision the gateway negotiated with the server at its
-      last successful probe; a dash means it has not been reached yet. Every server is reached over
+      <strong>Protocol</strong> is the MCP revision the gateway negotiated with the upstream at its
+      last successful probe; a dash means it has not been reached yet. Every upstream is reached over
       Streamable HTTP. <strong>local</strong> means a host on the
       gateway's own network, such as a compose service name; <strong>external</strong> means a
       public host. A stdio-only MCP server runs behind a small HTTP sidecar on the local network

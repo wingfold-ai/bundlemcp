@@ -34,6 +34,10 @@ Playwright test title, the recording filename, and this table.
 | E2E-26 | Renaming an endpoint states the URL change and the broken clients before it is allowed **(new)** | `tests/endpoint-config.spec.ts` | [`endpoints`](../../../openspec/specs/endpoints/spec.md) | EP-8 | `E2E-26__endpoints__endpoint-rename-consequence-first.webm` |
 | E2E-27 | The audit page filters by bundle, upstream and the calling API key **(new)** | `tests/audit.spec.ts` | [`operations`](../../../openspec/specs/operations/spec.md) | OPS-6 | `E2E-27__operations__audit-filters-bundle-server-caller.webm` |
 | E2E-28 | Export CSV downloads every record the filters match, not only the rows shown **(new)** | `tests/audit.spec.ts` | [`operations`](../../../openspec/specs/operations/spec.md) | OPS-6 | `E2E-28__operations__audit-csv-export-whole-result.webm` |
+| E2E-29 | An endpoint key is scoped to one endpoint from the UI, then deactivated and re-activated **(new)** | `tests/keys-settings.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-1, AUTH-25 | `E2E-29__admin-ui__api-key-scope-and-reactivate.webm` |
+| E2E-30 | A bundle created on the Bundles page appears on the composition grid without a reload **(new)** | `tests/bundle-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-3 | `E2E-30__admin-ui__query-cache-mutation-refreshes-grid.webm` |
+| E2E-31 | A taken bundle name and a reserved endpoint name are refused before anything is sent **(new)** | `tests/server-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-4 | `E2E-31__admin-ui__names-checked-before-submit.webm` |
+| E2E-32 | An upstream's detail page is titled Upstream server and its errors say upstream **(new)** | `tests/server-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-7 | `E2E-32__admin-ui__upstream-detail-title.webm` |
 
 ## Requirements referenced
 
@@ -46,7 +50,7 @@ Playwright test title, the recording filename, and this table.
 | UI-6 | `admin-ui` | Registering a server SHALL start from its URL (or a pasted registry server.json, UPS-15): the UI runs inspection (UPS-11), shows what was detected, and asks … |
 | UPS-2 | `upstreams` | Create/update/delete/list/get MUST be available in the management API (management) and the UI. Create and update MUST validate the config by connecting to th… |
 | UPS-17 | `upstreams` | Discovery MUST run on server create and on an update that needs it (UPS-2), including a bootstrap upsert once its document has committed (MGMT-14), on explic… |
-| UI-4 | `admin-ui` | Forms SHALL check the backend's naming rules before submitting, so users see the error without a round trip: names must match ^[a-zA-Z0-9_-]+$, server names … |
+| UI-4 | `admin-ui` | Forms SHALL check the backend's naming rules before submitting, so users see the error without a round trip. The rules SHALL be generated from the constraint… |
 | BND-6 | `bundles` | Bundle CRUD + membership management MUST be available in the management API and UI; members are addressed as /bundles/{name}/upstreams/{upstream_name} (UPS-16). |
 | BND-4 | `bundles` | BundleServer.enabled=false MUST remove all of a server's tools from the bundle's tools/list and block calls to them, without deleting the membership or its B… |
 | BND-12 | `bundles` | Each (bundle, tool) pair SHALL have enabled (default true) and optional overrides for name, title, description, annotations (domain model, BundleTool). A too… |
@@ -80,3 +84,5 @@ Playwright test title, the recording filename, and this table.
 | EP-24 | `endpoints` | Each endpoint SHALL carry allowed_origins, the browser origins that may use /{endpoint}/mcp from another site. An entry is an http or https origin (scheme, h… |
 | EP-8 | `endpoints` | Renaming an endpoint changes its public URL and breaks every connected client. Renames MUST be rejected unless the request carries an explicit force flag (mi… |
 | OPS-6 | `operations` | GET /api/v1/audit-records (MGMT-5) SHALL list records newest first, paginated, with filters for time range, endpoint, bundle, server, tool, caller (user_id, … |
+| UI-3 | `admin-ui` | The UI MUST call the management API only through a client typed from the generated /api/v1/openapi.json (apps/web/openapi.json → apps/web/types/api.d.ts, via… |
+| UI-7 | `admin-ui` | Navigation, the list page's title and the detail page's title SHALL say Upstream servers / Upstream server (UPS-16); buttons, empty states, tooltips and erro… |

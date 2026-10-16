@@ -640,6 +640,9 @@
           },
           "name": {
             "description": "Prompt name, unique in the bundle: letters, digits, underscores and hyphens, never '__'. Clients see it unprefixed, unlike a member server's prompts",
+            "not": {
+              "pattern": "__"
+            },
             "pattern": "^[a-zA-Z0-9_-]+$",
             "title": "Name",
             "type": "string"
@@ -1562,7 +1565,19 @@
             "description": "Unique endpoint name; it becomes the URL path segment clients call",
             "pattern": "^[a-zA-Z0-9_-]+$",
             "title": "Name",
-            "type": "string"
+            "type": "string",
+            "x-reserved-names": [
+              ".well-known",
+              "api",
+              "consent",
+              "docs",
+              "healthz",
+              "login",
+              "metrics",
+              "oauth",
+              "readyz",
+              "static"
+            ]
           },
           "profile": {
             "$ref": "#/components/schemas/EndpointProfile",
@@ -2792,6 +2807,9 @@
           },
           "name": {
             "description": "Unique server name: letters, digits, underscores and hyphens, without a double underscore because that separates server from tool in presented tool names",
+            "not": {
+              "pattern": "__"
+            },
             "pattern": "^[a-zA-Z0-9_-]+$",
             "title": "Name",
             "type": "string"
@@ -3364,7 +3382,7 @@
   },
   "info": {
     "title": "bundlemcp",
-    "version": "0.1.9"
+    "version": "0.1.10"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3494,6 +3512,49 @@
           }
         },
         "summary": "Delete Key",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/api-keys/{key_id}:activate": {
+      "post": {
+        "operationId": "activate_key_api_v1_api_keys__key_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate Key",
         "tags": [
           "api-keys"
         ]

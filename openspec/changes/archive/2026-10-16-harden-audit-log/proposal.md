@@ -44,7 +44,7 @@ not entitled to is answered at admission and leaves no audit trace at all.
 - **Metering contract:** no change to `METERING_PROTOCOL_VERSION` — the key the hook already receives is now also on the
   audit record. `docs/integrate/metering-hook.md` "Crash reconciliation" is rewritten to reconcile by key.
 - **UI:** `apps/web/app/pages/audit.vue` (filters, export). The admin-ui UI-1 wording for the audit page is owned by
-  [complete-admin-ui](../complete-admin-ui/proposal.md), which depends on this change.
+  [complete-admin-ui](../2026-10-16-complete-admin-ui/proposal.md), which depends on this change.
 - **Code:** `infrastructure/postgres/audit_writer.py`, the MCP admission path, a new purge job beside `api/jobs/`
   `token_purger.py`, `application/management/audit_service.py`.
 - **Interaction:** [align-metering-contract](../archive/2026-10-15-align-metering-contract/proposal.md) made

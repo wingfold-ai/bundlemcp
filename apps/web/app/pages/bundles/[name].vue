@@ -4,40 +4,91 @@ import type { components } from "~~/types/api";
 type BundleRead = components["schemas"]["BundleRead"];
 type BundleMemberRead = components["schemas"]["BundleMemberRead"];
 type BundleToolRead = components["schemas"]["BundleToolRead"];
-type ServerRead = components["schemas"]["ServerRead"];
-type EndpointRead = components["schemas"]["EndpointRead"];
 
 const api = useApi();
 const route = useRoute();
 const bundleName = computed(() => String(route.params.name));
 
 const errorMsg = ref("");
-const notFound = ref(false);
-// a resource change refreshes the embed choices the prompts card offers
-const promptsCard = ref<{ load: () => Promise<void> } | null>(null);
+
+// ---- reads ----
+const [
+  { data: bundle, error: bundleError },
+  { data: members, error: membersError },
+  { data: tools, error: toolsError },
+  { data: profiles },
+  { data: allServers, error: serversError },
+  { data: endpoints, error: endpointsError },
+] = await Promise.all([
+  useQuery<BundleRead | null>(
+    () => queryKeys.bundle(bundleName.value),
+    async () =>
+      unwrap(
+        await api.GET("/api/v1/bundles/{name}", {
+          params: { path: { name: bundleName.value } },
+        }),
+      ),
+    { default: () => null },
+  ),
+  useQuery<BundleMemberRead[]>(
+    () => queryKeys.bundleMembers(bundleName.value),
+    async () =>
+      unwrap(
+        await api.GET("/api/v1/bundles/{name}/upstreams", {
+          params: { path: { name: bundleName.value } },
+        }),
+      ),
+    { default: () => [] },
+  ),
+  useQuery<BundleToolRead[]>(
+    () => queryKeys.bundleTools(bundleName.value),
+    async () =>
+      unwrap(
+        await api.GET("/api/v1/bundles/{name}/tools", {
+          params: { path: { name: bundleName.value } },
+        }),
+      ),
+    { default: () => [] },
+  ),
+  useQuery<ProfileInfo[]>(
+    queryKeys.profiles,
+    async () => unwrap(await api.GET("/api/v1/endpoints/profiles")) as ProfileInfo[],
+    { default: () => [] },
+  ),
+  useUpstreams(),
+  useEndpoints(),
+]);
+
+// a missing bundle shows "not found" instead of the errors its sub-resources answer with
+const notFound = computed(() => bundleError.value?.status === 404);
+const loadError = computed(() =>
+  notFound.value
+    ? ""
+    : (bundleError.value ??
+        membersError.value ??
+        toolsError.value ??
+        serversError.value ??
+        endpointsError.value)?.message ?? "",
+);
+
+// every change to the bundle's members reaches its tools, the grid and the catalogue
+async function invalidateMembership() {
+  await invalidate(queryKeys.bundle(bundleName.value), queryKeys.composition, queryKeys.catalogue);
+}
 
 // ---- meta card ----
-const bundle = ref<BundleRead | null>(null);
 const description = ref("");
 const overview = ref("");
 const saving = ref(false);
 
-async function loadBundle() {
-  const { data, error, response } = await api.GET("/api/v1/bundles/{name}", {
-    params: { path: { name: bundleName.value } },
-  });
-  if (error) {
-    if (response?.status === 404) {
-      notFound.value = true;
-    } else {
-      errorMsg.value = apiErrorMessage(error);
-    }
-    return;
-  }
-  bundle.value = data;
-  description.value = data.description ?? "";
-  overview.value = data.overview ?? "";
-}
+watch(
+  bundle,
+  (b) => {
+    description.value = b?.description ?? "";
+    overview.value = b?.overview ?? "";
+  },
+  { immediate: true },
+);
 
 async function saveBundle() {
   errorMsg.value = "";
@@ -55,7 +106,7 @@ async function saveBundle() {
       errorMsg.value = apiErrorMessage(error);
       return;
     }
-    await loadBundle();
+    await invalidate(queryKeys.bundle(bundleName.value), queryKeys.bundles, queryKeys.catalogue);
   } finally {
     saving.value = false;
   }
@@ -71,35 +122,19 @@ async function deleteBundle() {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
+  // the bundle's endpoints go with it
   await navigateTo("/bundles");
+  await invalidate(
+    queryKeys.bundle(bundleName.value),
+    queryKeys.bundles,
+    queryKeys.composition,
+    queryKeys.endpoints,
+    queryKeys.catalogue,
+  );
 }
 
 // ---- members card ----
-const members = ref<BundleMemberRead[]>([]);
-const allServers = ref<ServerRead[]>([]);
 const selectedServer = ref("");
-
-async function loadMembers() {
-  const { data, error } = await api.GET("/api/v1/bundles/{name}/upstreams", {
-    params: { path: { name: bundleName.value } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  members.value = data;
-}
-
-async function loadAllServers() {
-  const { data, error } = await api.GET("/api/v1/upstreams", {
-    params: { query: { offset: 0, limit: 100 } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  allServers.value = data.items;
-}
 
 const addableServers = computed(() => {
   const memberNames = new Set(members.value.map((m) => m.server_name));
@@ -116,7 +151,7 @@ async function toggleMember(member: BundleMemberRead, event: Event) {
   if (error) {
     errorMsg.value = apiErrorMessage(error);
   }
-  await Promise.all([loadMembers(), loadTools()]);
+  await invalidateMembership();
 }
 
 async function removeMember(serverName: string) {
@@ -128,7 +163,7 @@ async function removeMember(serverName: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await Promise.all([loadMembers(), loadTools()]);
+  await invalidateMembership();
 }
 
 async function addMember() {
@@ -143,7 +178,7 @@ async function addMember() {
     return;
   }
   selectedServer.value = "";
-  await Promise.all([loadMembers(), loadTools()]);
+  await invalidateMembership();
 }
 
 // the first member answers first wherever more than one could, such as a resource URI
@@ -153,7 +188,7 @@ async function moveMember(index: number, step: -1 | 1) {
   const target = index + step;
   if (target < 0 || target >= order.length) return;
   [order[index], order[target]] = [order[target]!, order[index]!];
-  const { data, error } = await api.PUT("/api/v1/bundles/{name}/upstreams:order", {
+  const { error } = await api.PUT("/api/v1/bundles/{name}/upstreams:order", {
     params: { path: { name: bundleName.value } },
     body: { upstreams: order },
   });
@@ -161,12 +196,10 @@ async function moveMember(index: number, step: -1 | 1) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  members.value = data;
-  await loadTools();
+  await invalidateMembership();
 }
 
 // ---- tool curation card ----
-const tools = ref<BundleToolRead[]>([]);
 interface CurationRow {
   enabled: boolean;
   override_name: string;
@@ -176,35 +209,47 @@ interface CurationRow {
   override_annotations: string;
 }
 const curation = ref<Record<string, CurationRow>>({});
+// what each row was last filled with from the gateway, to tell an edit in progress apart
+let seeded: Record<string, CurationRow> = {};
+
+function rowOf(t: BundleToolRead): CurationRow {
+  return {
+    enabled: t.enabled,
+    override_name: t.override_name ?? "",
+    override_title: t.override_title ?? "",
+    override_description: t.override_description ?? "",
+    override_annotations: t.override_annotations ? JSON.stringify(t.override_annotations) : "",
+  };
+}
+
+const sameRow = (a: CurationRow | undefined, b: CurationRow | undefined) =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+// A refetch lands while the admin may be editing another row — after saving one row,
+// say — so a row they changed keeps their edit; the rest take the gateway's values.
+watch(
+  tools,
+  (list) => {
+    const next: typeof curation.value = {};
+    const nextSeeded: typeof seeded = {};
+    for (const t of list) {
+      const fresh = rowOf(t);
+      const current = curation.value[t.tool_id];
+      const edited = current !== undefined && !sameRow(current, seeded[t.tool_id]);
+      next[t.tool_id] = edited && !sameRow(current, fresh) ? current : fresh;
+      // a copy: the form edits its row in place, and the snapshot must not move with it
+      nextSeeded[t.tool_id] = { ...fresh };
+    }
+    curation.value = next;
+    seeded = nextSeeded;
+  },
+  { immediate: true },
+);
 
 function isOverridden(t: BundleToolRead): boolean {
   return Boolean(
     t.override_name || t.override_title || t.override_description || t.override_annotations,
   );
-}
-
-async function loadTools() {
-  const { data, error } = await api.GET("/api/v1/bundles/{name}/tools", {
-    params: { path: { name: bundleName.value } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  tools.value = data;
-  const next: typeof curation.value = {};
-  for (const t of data) {
-    next[t.tool_id] = {
-      enabled: t.enabled,
-      override_name: t.override_name ?? "",
-      override_title: t.override_title ?? "",
-      override_description: t.override_description ?? "",
-      override_annotations: t.override_annotations
-        ? JSON.stringify(t.override_annotations)
-        : "",
-    };
-  }
-  curation.value = next;
 }
 
 async function saveCuration(toolId: string) {
@@ -240,7 +285,7 @@ async function saveCuration(toolId: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await loadTools();
+  await invalidate(queryKeys.bundle(bundleName.value), queryKeys.catalogue);
 }
 
 // ---- endpoints card ----
@@ -253,20 +298,19 @@ interface ProfileInfo {
   [key: string]: unknown;
 }
 
-const endpoints = ref<EndpointRead[]>([]);
-const profiles = ref<ProfileInfo[]>([]);
 const createName = ref("");
 const createProfile = ref<EndpointProfile>("default");
 const createAuthModes = ref<EndpointAuthMode[]>(["oauth"]);
 const allowUnauthenticated = ref(false);
 
-async function loadProfiles() {
-  const { data } = await api.GET("/api/v1/endpoints/profiles");
-  profiles.value = (data ?? []) as ProfileInfo[];
-}
-
 const profileWarning = computed(
   () => profiles.value.find((p) => p.name === createProfile.value)?.warning ?? "",
+);
+
+const endpointNames = computed(() => endpoints.value.map((e) => e.name));
+// shown while typing, so a bad, reserved or taken name is seen before anything is sent
+const createNameHint = computed(() =>
+  createName.value ? nameProblem("endpoint", createName.value, endpointNames.value) : null,
 );
 
 function toggleAuthMode(mode: EndpointAuthMode, checked: boolean) {
@@ -286,10 +330,8 @@ function toggleAuthMode(mode: EndpointAuthMode, checked: boolean) {
 }
 
 function validateCreate(): string {
-  if (!NAME_RE.test(createName.value)) return "Name must match ^[a-zA-Z0-9_-]+$";
-  if (RESERVED_ENDPOINT_NAMES.includes(createName.value)) {
-    return `Name "${createName.value}" is reserved`;
-  }
+  const problem = nameProblem("endpoint", createName.value, endpointNames.value);
+  if (problem) return problem;
   if (createAuthModes.value.length === 0) return "Select at least one auth mode";
   if (createAuthModes.value.includes("none") && createAuthModes.value.length > 1) {
     return 'Auth mode "none" cannot be combined with other modes';
@@ -319,37 +361,21 @@ async function createEndpoint() {
     return;
   }
   createName.value = "";
-  await loadEndpoints();
-}
-
-async function loadEndpoints() {
-  const { data, error } = await api.GET("/api/v1/endpoints", {
-    params: { query: { offset: 0, limit: 200 } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  endpoints.value = data.items;
+  await invalidate(queryKeys.endpoints, queryKeys.bundle(bundleName.value), queryKeys.catalogue);
 }
 
 const bundleEndpoints = computed(() =>
   bundle.value ? endpoints.value.filter((e) => e.bundle_id === bundle.value!.id) : [],
 );
-
-onMounted(async () => {
-  await loadBundle();
-  if (!notFound.value) {
-    await Promise.all([loadMembers(), loadAllServers(), loadTools(), loadEndpoints(), loadProfiles()]);
-  }
-});
 </script>
 
 <template>
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">Bundle: {{ bundleName }}</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="errorMsg || loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ errorMsg || loadError }}
+    </p>
 
     <p v-if="notFound" class="text-muted" data-testid="not-found">not found</p>
 
@@ -366,7 +392,7 @@ onMounted(async () => {
             data-testid="input-description"
           />
           <p class="wf-help">
-            One line, sent to the model as the virtual server's MCP instructions — keep it short
+            One line, sent to the model as this bundle's MCP instructions — keep it short
             (BND-1).
           </p>
         </div>
@@ -610,8 +636,8 @@ onMounted(async () => {
       </div>
 
       <!-- The bundle's own context -->
-      <BundlePrompts ref="promptsCard" :bundle-name="bundleName" />
-      <BundleResources :bundle-name="bundleName" @changed="promptsCard?.load()" />
+      <BundlePrompts :bundle-name="bundleName" />
+      <BundleResources :bundle-name="bundleName" />
 
       <!-- Endpoints -->
       <div class="wf-card space-y-4">
@@ -689,6 +715,13 @@ onMounted(async () => {
               class="wf-input"
               data-testid="create-endpoint-name"
             />
+            <p
+              v-if="createNameHint"
+              class="text-red-600 text-xs mt-1"
+              data-testid="create-endpoint-name-hint"
+            >
+              {{ createNameHint }}
+            </p>
           </div>
           <div>
             <label class="wf-label" for="create-endpoint-profile">Profile</label>

@@ -16,37 +16,46 @@ const { me } = useMe();
 const layout = computed(() => (me.value?.is_admin ? "default" : "user"));
 const bundleName = computed(() => String(route.params.bundle));
 
-const endpoints = ref<AvailableEndpointRead[]>([]);
-const tools = ref<CatalogueToolRead[]>([]);
-const prompts = ref<CataloguePromptRead[]>([]);
-const resources = ref<CatalogueResourceRead[]>([]);
-const errorMsg = ref("");
 const copied = ref("");
 
-async function load() {
-  // Both requests are started before either is awaited, so they overlap.
-  const endpointRequest = api.GET("/api/v1/me/endpoints");
-  const bundlePath = { params: { path: { bundle_name: bundleName.value } } };
-  const toolRequest = api.GET("/api/v1/me/bundles/{bundle_name}/tools", bundlePath);
-  // the context the bundle itself offers
-  const promptRequest = api.GET("/api/v1/me/bundles/{bundle_name}/prompts", bundlePath);
-  const resourceRequest = api.GET("/api/v1/me/bundles/{bundle_name}/resources", bundlePath);
-  const { data: endpointData, error: endpointError } = await endpointRequest;
-  // A bundle with no endpoint this person can use answers 404 here; the empty
-  // endpoint list already says so, so the tool list simply stays empty.
-  const { data: toolData } = await toolRequest;
-  const { data: promptData } = await promptRequest;
-  const { data: resourceData } = await resourceRequest;
-  if (endpointError) {
-    errorMsg.value = apiErrorMessage(endpointError);
-    return;
-  }
-  endpoints.value = (endpointData ?? []).filter((ep) => ep.bundle_name === bundleName.value);
-  tools.value = toolData ?? [];
-  prompts.value = promptData ?? [];
-  resources.value = resourceData ?? [];
+interface CatalogueBundleDetail {
+  endpoints: AvailableEndpointRead[];
+  tools: CatalogueToolRead[];
+  prompts: CataloguePromptRead[];
+  resources: CatalogueResourceRead[];
 }
-await load();
+
+const { data: detail, error: loadError } = await useQuery<CatalogueBundleDetail>(
+  () => queryKeys.catalogueBundle(bundleName.value),
+  async () => {
+    // All requests are started before any is awaited, so they overlap.
+    const endpointRequest = api.GET("/api/v1/me/endpoints");
+    const bundlePath = { params: { path: { bundle_name: bundleName.value } } };
+    const toolRequest = api.GET("/api/v1/me/bundles/{bundle_name}/tools", bundlePath);
+    // the context the bundle itself offers
+    const promptRequest = api.GET("/api/v1/me/bundles/{bundle_name}/prompts", bundlePath);
+    const resourceRequest = api.GET("/api/v1/me/bundles/{bundle_name}/resources", bundlePath);
+    const available = unwrap(await endpointRequest);
+    // A bundle with no endpoint this person can use answers 404 here; the empty
+    // endpoint list already says so, so the tool list simply stays empty.
+    const [toolResult, promptResult, resourceResult] = await Promise.all([
+      toolRequest,
+      promptRequest,
+      resourceRequest,
+    ]);
+    return {
+      endpoints: available.filter((ep) => ep.bundle_name === bundleName.value),
+      tools: toolResult.data ?? [],
+      prompts: promptResult.data ?? [],
+      resources: resourceResult.data ?? [],
+    };
+  },
+  { default: () => ({ endpoints: [], tools: [], prompts: [], resources: [] }) },
+);
+const endpoints = computed(() => detail.value.endpoints);
+const tools = computed(() => detail.value.tools);
+const prompts = computed(() => detail.value.prompts);
+const resources = computed(() => detail.value.resources);
 
 const description = computed(() => endpoints.value[0]?.bundle_description ?? null);
 const overview = computed(() => endpoints.value[0]?.bundle_overview ?? null);
@@ -54,7 +63,7 @@ const overview = computed(() => endpoints.value[0]?.bundle_overview ?? null);
 const overviewParagraphs = computed(() =>
   (overview.value ?? "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
 );
-/** Tools grouped by the server that provides them, in the order the API returned. */
+/** Tools grouped by the upstream server that provides them, in the order the API returned. */
 const toolsByServer = computed(() => {
   const grouped = new Map<string, CatalogueToolRead[]>();
   for (const tool of tools.value) {
@@ -93,7 +102,7 @@ function steps(ep: AvailableEndpointRead): string[] {
       ];
     default:
       return [
-        "Add the URL as a remote MCP server in your client (claude.ai, ChatGPT, Claude Code, …).",
+        "Add the URL to your client (claude.ai, ChatGPT, Claude Code, …) as a remote MCP connection.",
         "Choose OAuth when the client asks how to authenticate.",
         "Sign in with your usual account and approve the consent screen.",
       ];
@@ -120,7 +129,9 @@ function steps(ep: AvailableEndpointRead): string[] {
         <p v-if="description" class="text-sm text-toned">{{ description }}</p>
       </div>
 
-      <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+      <p v-if="loadError" class="text-red-600 text-sm" data-testid="error">
+        {{ loadError.message }}
+      </p>
 
       <div v-if="overviewParagraphs.length" class="wf-card space-y-2" data-testid="catalogue-overview">
         <h2 class="text-sm font-semibold">About this bundle</h2>
@@ -151,7 +162,7 @@ function steps(ep: AvailableEndpointRead): string[] {
             >
               <!-- The title is what this reader needs; the prefixed wire name is
                    how the model addresses the tool, so it stays on hover unless
-                   the server published no title and it is all we have. -->
+                   the upstream published no title and it is all we have. -->
               <p v-if="tool.title" class="text-sm" :title="tool.name">{{ tool.title }}</p>
               <code v-else class="rounded bg-elevated px-1.5 py-0.5 text-xs">{{ tool.name }}</code>
               <p v-if="tool.description" class="mt-1 text-xs text-toned">{{ tool.description }}</p>

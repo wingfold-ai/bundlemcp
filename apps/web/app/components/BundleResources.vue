@@ -9,7 +9,6 @@ type BundleResourceRead = components["schemas"]["BundleResourceRead"];
 type ResourceMimeType = components["schemas"]["ResourceMimeType"];
 
 const props = defineProps<{ bundleName: string }>();
-const emit = defineEmits<{ changed: [] }>();
 
 const MIME_TYPES: ResourceMimeType[] = [
   "text/markdown",
@@ -21,7 +20,16 @@ const MIME_TYPES: ResourceMimeType[] = [
 
 const api = useApi();
 const errorMsg = ref("");
-const resources = ref<BundleResourceRead[]>([]);
+const { data: resources, error: loadError } = useQuery<BundleResourceRead[]>(
+  () => queryKeys.bundleResources(props.bundleName),
+  async () =>
+    unwrap(
+      await api.GET("/api/v1/bundles/{bundle}/resources", {
+        params: { path: { bundle: props.bundleName }, query: { offset: 0, limit: 200 } },
+      }),
+    ).items,
+  { default: () => [] },
+);
 
 // the open editor; `original` is the name being edited, "" for a new resource
 const editing = ref(false);
@@ -37,16 +45,12 @@ const saving = ref(false);
 const previewHtml = computed(() => renderMarkdown(content.value));
 const contentBytes = computed(() => new TextEncoder().encode(content.value).length);
 
-async function load() {
-  const { data, error } = await api.GET("/api/v1/bundles/{bundle}/resources", {
-    params: { path: { bundle: props.bundleName }, query: { offset: 0, limit: 200 } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  resources.value = data.items;
-}
+// a new resource's name must be free; an edited one keeps the name it has
+const takenNames = computed(() => (original.value ? [] : resources.value.map((r) => r.name)));
+// shown while typing, so a bad or taken name is seen before anything is sent
+const nameHint = computed(() =>
+  editing.value && name.value ? nameProblem("resource", name.value, takenNames.value) : null,
+);
 
 function openEditor(resource?: BundleResourceRead) {
   errorMsg.value = "";
@@ -62,8 +66,9 @@ function openEditor(resource?: BundleResourceRead) {
 
 async function save() {
   errorMsg.value = "";
-  if (!BUNDLE_RESOURCE_NAME_RE.test(name.value)) {
-    errorMsg.value = "Name: letters, digits, _ and -, with '/' between folders";
+  const problem = nameProblem("resource", name.value, takenNames.value);
+  if (problem) {
+    errorMsg.value = problem;
     return;
   }
   saving.value = true;
@@ -83,8 +88,8 @@ async function save() {
       return;
     }
     editing.value = false;
-    await load();
-    emit("changed");
+    // the prompts card reads the same resources for its embed choices
+    await invalidate(queryKeys.bundle(props.bundleName), queryKeys.catalogue);
   } finally {
     saving.value = false;
   }
@@ -101,12 +106,8 @@ async function remove(resourceName: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
-  emit("changed");
+  await invalidate(queryKeys.bundle(props.bundleName), queryKeys.catalogue);
 }
-
-defineExpose({ load });
-onMounted(load);
 </script>
 
 <template>
@@ -121,7 +122,9 @@ onMounted(load);
       </p>
     </div>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="resources-error">{{ errorMsg }}</p>
+    <p v-if="errorMsg || loadError" class="text-red-600 text-sm" data-testid="resources-error">
+      {{ errorMsg || loadError?.message }}
+    </p>
 
     <div class="overflow-x-auto">
       <table class="wf-table wf-table-controls" data-testid="resources-table">
@@ -191,6 +194,9 @@ onMounted(load);
             placeholder="guides/style"
             data-testid="resource-name"
           />
+          <p v-if="nameHint" class="text-red-600 text-xs mt-1" data-testid="resource-name-hint">
+            {{ nameHint }}
+          </p>
           <p class="wf-help">Unique in the bundle; "/" separates folders.</p>
         </div>
         <div>

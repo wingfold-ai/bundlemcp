@@ -87,6 +87,16 @@ class ApiKeyService:
         await self._uow.refresh(key)
         return ApiKeyRead.from_entity(key)
 
+    async def activate(self, key_id: uuid.UUID) -> ApiKeyRead:
+        """Accept a deactivated key again, on every replica once the invalidation event lands."""
+        key = await self._get(key_id)
+        key.is_active = True
+        self._keys.add(key)
+        self._invalidate(key_id, "updated")
+        await self._uow.commit()
+        await self._uow.refresh(key)
+        return ApiKeyRead.from_entity(key)
+
     async def delete(self, key_id: uuid.UUID) -> None:
         key = await self._keys.get(key_id)
         if key is None:

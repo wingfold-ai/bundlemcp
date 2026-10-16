@@ -2,7 +2,6 @@
 const api = useApi();
 
 const errorMsg = ref("");
-const keys = ref<string[]>([]);
 const values = ref<Record<string, string>>({});
 
 function asString(v: unknown): string {
@@ -17,17 +16,19 @@ function coerce(s: string): unknown {
   return s;
 }
 
-async function load() {
-  const { data, error } = await api.GET("/api/v1/config");
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  const config = (data ?? {}) as Record<string, unknown>;
-  keys.value = Object.keys(config).sort();
-  values.value = Object.fromEntries(keys.value.map((k) => [k, asString(config[k])]));
-}
-await load();
+const { data: config, error: loadError } = await useQuery<Record<string, unknown>>(
+  queryKeys.config,
+  async () => unwrap(await api.GET("/api/v1/config")) as Record<string, unknown>,
+  { default: () => ({}) },
+);
+const keys = computed(() => Object.keys(config.value).sort());
+watch(
+  config,
+  (current) => {
+    values.value = Object.fromEntries(keys.value.map((k) => [k, asString(current[k])]));
+  },
+  { immediate: true },
+);
 
 async function saveKey(key: string) {
   errorMsg.value = "";
@@ -39,7 +40,7 @@ async function saveKey(key: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
+  await invalidate(queryKeys.config);
 }
 
 async function resetKey(key: string) {
@@ -51,7 +52,7 @@ async function resetKey(key: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
+  await invalidate(queryKeys.config);
 }
 </script>
 
@@ -59,7 +60,9 @@ async function resetKey(key: string) {
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">Settings</h1>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="error">{{ errorMsg }}</p>
+    <p v-if="errorMsg || loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ errorMsg || loadError?.message }}
+    </p>
 
     <div class="overflow-x-auto">
       <table class="wf-table wf-table-controls" data-testid="config-table">
