@@ -21,6 +21,8 @@ before it is registered), not this interactive tool.
   any client; upstream and ad-hoc calls are logged with `source=inspector` and are not audited.
 - The *Inspector* page replaces the placeholder: target picker, capability view, tool list with schemas, a form
   generated from the input schema with a raw-JSON fallback, results, errors, progress and timing.
+- `documentation`: DOC-2 — with every reserved surface now built, the operations page's "Not part of this release"
+  section is left out rather than listing surfaces that exist.
 - `security`'s SEC-1 names inspector ad-hoc targets in the egress policy's scope.
 
 Out of scope (carried from the original spec): browsing resources and prompts in v1 (tools first; member passthrough
@@ -35,9 +37,11 @@ None.
 
 ### Modified Capabilities
 
-- `admin-ui`: adds UI-8..UI-11 — targets, operations, the management-API proxy, and audit/log attribution. On archive,
-  extend the slice's Purpose to mention the inspector.
+- `admin-ui`: adds UI-8..UI-11 — targets, operations, the management-API proxy, and audit/log attribution; UI-1 lists
+  the Inspector page instead of a placeholder. On archive, extend the slice's Purpose to mention the inspector.
 - `security`: SEC-1 — inspector ad-hoc targets are within the egress policy's scope.
+- `documentation`: DOC-2 — the operations page names no admin UI page as a placeholder; its "Not part of this
+  release" section is left out when nothing is reserved but unbuilt.
 
 ## Impact
 

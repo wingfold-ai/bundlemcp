@@ -379,6 +379,17 @@
         "OPS-15"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-37",
+      "testFile": "inspector.spec.ts",
+      "slug": "inspector-call-tool",
+      "title": "The inspector connects to an upstream, builds a call from the tool's schema, streams its progress and result, and reaches an endpoint through its public path",
+      "requirements": [
+        "UI-9",
+        "UI-8"
+      ],
+      "new": true
     }
   ]
 }

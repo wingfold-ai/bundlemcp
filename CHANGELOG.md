@@ -6,6 +6,42 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.15] - 2026-10-16
+
+### Added
+
+- A built-in Inspector page in the admin UI replaces the placeholder. Connect to a registered upstream, an endpoint of
+  this gateway or any URL with headers, see the server's info, protocol revision and capabilities, ping it, list its
+  tools with their schemas and call them. ([#149](https://github.com/wingfold-ai/bundlemcp/pull/149))
+- Tool calls in the Inspector get a form built from the tool's input schema, with a raw-JSON toggle and a confirmation
+  for tools marked `destructiveHint`. They show progress as it arrives, then the result or error, with connecting and
+  call times reported separately. ([#149](https://github.com/wingfold-ai/bundlemcp/pull/149))
+- Four management API routes back the Inspector: `POST /api/v1/inspector:connect`, `:ping`, `:list-tools` and
+  `:call-tool`. `:call-tool` answers with Server-Sent Events, a `progress` event per notification and then one `result`
+  or `failure`. ([#149](https://github.com/wingfold-ai/bundlemcp/pull/149))
+- Inspecting an endpoint goes through its public path, so its authentication, profile, curation, metering and audit
+  apply, and the tool list matches what its clients see. Enter an API key or OAuth access token for the endpoint; it is
+  used for that request only. Calls through an endpoint are metered like any client's, so use a test key or endpoint if
+  they may be billed. ([#149](https://github.com/wingfold-ai/bundlemcp/pull/149))
+- The demo `echo-mcp` server gains a `countdown` tool that reports progress.
+  ([#149](https://github.com/wingfold-ai/bundlemcp/pull/149))
+
+### Changed
+
+- The operations guide no longer has a "Not part of this release" section, since every reserved surface now exists. New
+  Inspector docs cover targets, credentials, and how calls are logged, audited and metered.
+  ([#149](https://github.com/wingfold-ai/bundlemcp/pull/149))
+
+### Security
+
+- Stored upstream credentials stay on the gateway when inspecting: the management API proxies every Inspector request,
+  so no secret reaches the browser and no target needs CORS. A credential value a target echoes back is redacted.
+  ([#149](https://github.com/wingfold-ai/bundlemcp/pull/149))
+- Ad-hoc URLs in the Inspector go through the egress policy. A URL in a blocked range, such as `169.254.169.254`, is
+  refused with `egress_denied` and nothing is sent. ([#149](https://github.com/wingfold-ai/bundlemcp/pull/149))
+- Upstream and ad-hoc Inspector calls are logged with `source=inspector` and are not audited. A service key cannot
+  inspect a per-user OAuth upstream and gets `409`. ([#149](https://github.com/wingfold-ai/bundlemcp/pull/149))
+
 ## [0.1.14] - 2026-10-16
 
 ### Added
