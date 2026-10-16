@@ -21,8 +21,8 @@ view: index — "bundlemcp — System Context"
 
 All external interfaces are HTTPS (TLS at the operator's reverse proxy,
 [DEP-1/2](../../openspec/specs/deployment/spec.md)): MCP Streamable HTTP on `/{endpoint}/mcp`, OAuth/`.well-known`
-routes, REST `/api/v1`, and probes `/healthz` and `/readyz` ([ARC-11](../../openspec/specs/architecture/spec.md)); the
-`/metrics` route ARC-11 reserves is not built yet (§11).
+routes, REST `/api/v1`, probes `/healthz` and `/readyz`, and Prometheus metrics on `/metrics`
+([ARC-11](../../openspec/specs/architecture/spec.md)).
 
 ## Out of scope
 

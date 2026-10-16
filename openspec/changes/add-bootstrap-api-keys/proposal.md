@@ -36,7 +36,7 @@ None.
   the startup log, but OPS-8 and SEC-10 say a secret never appears in logs. The delta here keeps the original wording.
   Alternatives the maintainers choose between before applying:
   1. Build it as written, and carve a one-time exception into SEC-10 and OPS-8 (both are modified by other changes —
-     [add-prometheus-metrics](../add-prometheus-metrics/proposal.md) and
+     [add-prometheus-metrics](../archive/2026-10-16-add-prometheus-metrics/proposal.md) and
      [improve-request-observability](../archive/2026-10-16-improve-request-observability/proposal.md) — so the exception
      lands in whichever of them is applied later).
   2. Write the generated value to an operator-named file (created `0600`, never overwritten) instead of the log.
