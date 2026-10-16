@@ -31,6 +31,8 @@ from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
 
+from tests.application.upstream_health_on_fakes import health_on
+
 
 @pytest.fixture
 def uow() -> InMemoryUnitOfWork:
@@ -272,7 +274,7 @@ async def _discovered_member(uow) -> tuple[DiscoveryService, ScriptedProbe, uuid
     await bundles.upsert(BundleUpsert(name="demo"))
     await bundles.set_member("demo", "echo", BundleServerUpdate())
     probe = ScriptedProbe("alpha", "beta")
-    discovery = DiscoveryService(InMemoryUnitOfWorkFactory(uow), probe)
+    discovery = DiscoveryService(InMemoryUnitOfWorkFactory(uow), probe, health=health_on(uow))
     server = await uow.servers.by_name("echo")
     await discovery.discover(server.id)
     return discovery, probe, server.id

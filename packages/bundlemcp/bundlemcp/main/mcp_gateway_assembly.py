@@ -45,6 +45,7 @@ from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkF
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
+from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.metering.metering_hook import MeteringHook
 from bundlemcp.application.metering.metering_stage import MeteringStage
 from bundlemcp.application.serving.audit_stage import AuditStage
@@ -91,6 +92,9 @@ class McpGatewayAssembly(BaseModel):
         description="Builds an MCP client for an upstream server"
     )
     runtime_config: RuntimeConfig = Field(description="Runtime-tunable config, cached per replica")
+    upstream_health: UpstreamHealth = Field(
+        description="Counts live calls that could not reach their upstream toward its health"
+    )
     upstream_tokens: UpstreamTokenService | None = Field(
         description="Store for upstream OAuth tokens; None when no encryption keys are configured"
     )
@@ -152,6 +156,7 @@ class McpGatewayAssembly(BaseModel):
                 signals=self.signals,
                 presence=self.presence,
                 runtime_config=self.runtime_config,
+                upstream_health=self.upstream_health,
                 state_cipher=self.state_cipher,
             ),
             connect_prompts,

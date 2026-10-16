@@ -7,12 +7,12 @@ from bundlemcp.application.contracts.persistence.invalidation_event import Inval
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from bundlemcp.application.contracts.upstream.upstream_probe import UpstreamProbe
 from bundlemcp.application.discovery.connection_diagnoser import ConnectionDiagnoser
+from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.schemas import DiscoveryResult, DiscoverySweep
 from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
 from bundlemcp.domain.servers.connection_state import ConnectionState
-from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.probe_failure import ProbeFailure
 from bundlemcp.domain.servers.tool_sync import sync_tools
@@ -20,7 +20,6 @@ from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import UpstreamOAuthNotConfigured
 
-DEFAULT_MAX_ATTEMPTS = 3  # consecutive failures before health_status=error
 NOT_CONNECTED = "upstream not connected"
 SWEEP_PAGE_SIZE = 100
 # one hanging upstream must not hold up a sweep of every other server
@@ -47,9 +46,9 @@ class DiscoveryService:
       revision onto ``McpServer.protocol_version``. The snapshot is what
       capability gating reads when serving; the revision tells an operator
       which era the upstream speaks.
-    - **Health** — consecutive failures are counted per server; at
-      ``max_attempts`` the server flips to error with its last error recorded,
-      and any success resets the streak.
+    - **Health** — every failure and success is reported to ``UpstreamHealth``,
+      which keeps the streak shared by every replica and flips the server to
+      error once it reaches ``server_error_attempts``.
     - **Connection state** — every probe records what it found out, classified
       from the upstream's HTTP response: ready, a refusal that names OAuth, a
       refusal that wants some other credential, a URL that is not MCP, an
@@ -70,16 +69,15 @@ class DiscoveryService:
         units: UnitOfWorkFactory,
         probe: UpstreamProbe,
         *,
+        health: UpstreamHealth,
         credentials: UpstreamCredentialResolver | None = None,
         diagnoser: ConnectionDiagnoser | None = None,
-        max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     ) -> None:
         self._units = units
         self._probe = probe
+        self._health = health
         self._credentials = credentials
         self._diagnoser = diagnoser or ConnectionDiagnoser(None)
-        self._max_attempts = max_attempts
-        self._failures: dict[uuid.UUID, int] = {}
         self._tasks: set[asyncio.Task] = set()
 
     async def schedule_probe(self, server_id: uuid.UUID, *, announce: bool = False) -> None:
@@ -235,8 +233,7 @@ class DiscoveryService:
     async def _record_failure(
         self, uow: UnitOfWork, server: McpServer, error: str, state: ConnectionState
     ) -> DiscoveryResult:
-        count = self._failures.get(server.id, 0) + 1
-        self._failures[server.id] = count
+        count = await self._health.apply_failure(server, error)
         # every failure is observable, not only the one that flips health
         log.warning(
             "discovery.failed",
@@ -246,17 +243,10 @@ class DiscoveryService:
             error=error[:200],
         )
         server.connection_state = state  # recorded on every probe
-        if count >= self._max_attempts and server.health_status != HealthStatus.ERROR:
-            server.health_status = HealthStatus.ERROR
-            server.last_error = error[:500]
-            log.warning("discovery.server_marked_error", server=server.name)
         uow.servers.add(server)
         await uow.commit()
         return DiscoveryResult(error=error, connection_state=state)
 
     async def _record_success(self, uow: UnitOfWork, server: McpServer) -> None:
-        self._failures.pop(server.id, None)
-        if server.health_status != HealthStatus.OK:
-            server.health_status = HealthStatus.OK  # self-heal
-            server.last_error = None
+        if await self._health.apply_success(server):  # self-heal
             uow.servers.add(server)

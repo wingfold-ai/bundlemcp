@@ -49,6 +49,7 @@ from bundlemcp.domain.access.credential_headers import CredentialHeaders
 from bundlemcp.domain.audit.audit_status import AuditStatus
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
 from bundlemcp.domain.config.call_timeouts import CallTimeouts
+from bundlemcp.domain.servers.upstream_reach import UpstreamReach
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import UpstreamOAuthNotConfigured
 
@@ -379,6 +380,19 @@ class ToolCall:
             resume=self._resume,
         )
 
+    async def _report_health(self, outcome: CallOutcome) -> None:
+        """Tell the upstream's health whether this call reached it; never fails the call."""
+        server = self._tool.server
+        health = self._support.upstream_health
+        try:
+            match outcome.upstream_reach:
+                case UpstreamReach.UNREACHABLE:
+                    await health.failed(server.id, outcome.error_message or "unreachable")
+                case UpstreamReach.ANSWERED:
+                    await health.succeeded(server.id, server.health_status)
+        except Exception:
+            log.warning("health.report_failed", server=server.name, exc_info=True)
+
     def _release(self) -> None:
         if self._handle is not None:
             self._support.registry.unregister_call(self._handle)
@@ -387,6 +401,7 @@ class ToolCall:
     async def finish(self, outcome: CallOutcome, started: float) -> None:
         """Account for the call: release the handle and tell every stage how it ended."""
         self._release()
+        await self._report_health(outcome)
         status = AuditStatus.SUCCESS if outcome.status is CallStatus.SUCCESS else AuditStatus.ERROR
         await self._chain.settle(
             self._call,

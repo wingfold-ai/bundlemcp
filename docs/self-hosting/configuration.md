@@ -171,7 +171,7 @@ rejects `1`, an integer key rejects `"3"`, and a value outside a key's range is 
 | `max_total_timeout` | `1800.0` | Absolute ceiling in seconds for one call, progress or not. |
 | `session_lifetime` | `86400` | Idle lifetime in seconds of a handshake-era session record. `0` disables idle expiry. |
 | `list_cache_ttl_ms` | `300000` | Milliseconds a modern-era client may cache a tools, prompts or resources list. |
-| `server_error_attempts` | `3` | Intended number of consecutive connection failures before a server is marked `error`. **Not read yet** — the threshold is fixed at 3. |
+| `server_error_attempts` | `3` | Consecutive connection failures, across every replica, before a server is marked `error`; at least 1. |
 | `audit_retention_days` | `90` | Intended age after which audit records should be purged. **Advisory only — no purge job reads it yet**; see [Audit retention](/self-hosting/operations#audit-retention). |
 | `authorization_code_lifetime` | `600` | Seconds a client has to redeem an authorization code from the gateway's OAuth server. |
 | `access_token_lifetime` | `3600` | Seconds an access token issued by the gateway's OAuth server stays valid. |

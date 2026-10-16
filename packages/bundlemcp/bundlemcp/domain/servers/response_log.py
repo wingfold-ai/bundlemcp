@@ -14,6 +14,11 @@ class ResponseLog(BaseModel):
     responses: list[ObservedResponse] = Field(
         default_factory=list, description="Every unusable response, oldest first"
     )
+    transport_failed: bool = Field(
+        default=False,
+        description="Whether connecting, sending or reading failed below HTTP: refused or reset "
+        "connection, TLS failure, a stream that dropped",
+    )
     oversized_limit: int | None = Field(
         default=None,
         description="The byte cap a single upstream message crossed, once one has; the "
@@ -22,6 +27,9 @@ class ResponseLog(BaseModel):
 
     def record(self, response: ObservedResponse) -> None:
         self.responses.append(response)
+
+    def record_transport_failure(self) -> None:
+        self.transport_failed = True
 
     def record_oversized(self, limit: int) -> None:
         self.oversized_limit = limit

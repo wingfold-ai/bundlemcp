@@ -71,17 +71,39 @@ always contact the upstream.
 - **THEN** the response carries `static_header_names: ["Authorization"]` and no header value
 
 ### Requirement: UPS-4 Health status
-`health_status` + `last_error` MUST be maintained by discovery probes: set to `error` with a message after 3
-consecutive failed probes, reset to `ok` on the next successful probe — metamcp's error tracker semantics, minus the
-process babysitting. The consecutive-failure count is held by the replica running the probes.
+`health_status` + `last_error` MUST be maintained: set to `error` with a message after `N` consecutive connection
+failures, reset to `ok` on the next successful connect — metamcp's error tracker semantics, minus the process
+babysitting. `N` is the runtime config key `server_error_attempts` (default 3), read when a failure is counted, so a
+change applies without a restart. Both discovery probes and live upstream calls count: a call counts as a failure when
+the upstream could not be reached or answered without a valid MCP response, and as a success when it got any MCP
+response, including a tool error. A refused credential, a call timeout and a cancellation count as neither. The
+consecutive-failure count is shared by every replica, so failures seen on different replicas add up.
 
 #### Scenario: Three failed probes mark the server as failing
-- **WHEN** discovery fails three times in a row for a server on one replica
+- **WHEN** discovery fails three times in a row for a server
 - **THEN** the server's `health_status` is `error` and `last_error` carries the last failure's message
 
 #### Scenario: A success heals the server
 - **WHEN** a server with `health_status: error` is probed successfully
 - **THEN** `health_status` becomes `ok` and `last_error` is cleared
+
+#### Scenario: The threshold is runtime-configurable
+- **GIVEN** `server_error_attempts` is set to `5` through the config API
+- **WHEN** discovery fails four times in a row for a server
+- **THEN** its `health_status` is not `error`, and it becomes `error` on the fifth consecutive failure
+
+#### Scenario: Failures on different replicas add up
+- **WHEN** two consecutive probes of a server fail on replica A and the third fails on replica B
+- **THEN** the server's `health_status` is `error`
+
+#### Scenario: Live call failures count
+- **GIVEN** `server_error_attempts` is `3` and a member upstream that stopped accepting connections
+- **WHEN** three `tools/call` requests to its tools fail because the upstream cannot be reached
+- **THEN** the server's `health_status` is `error`
+
+#### Scenario: A tool error is not a connection failure
+- **WHEN** a call reaches the upstream and returns a tool result with `isError: true`
+- **THEN** the failure count is reset and a server with `health_status: error` becomes `ok`
 
 ### Requirement: UPS-5 Rename guard
 Renaming a server MUST be rejected while it is a member of any bundle (the name is baked into prefixed tool names),
@@ -383,12 +405,14 @@ Periodic refresh: every `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL` seconds (default 
 re-run discovery for every registered server, one server at a time. Only one replica refreshes per interval: the run
 takes a shared, self-expiring lease in Valkey, and a replica that finds it held skips that tick. Each run is an
 ordinary discovery, so a changed tool set is announced (BND-7), and failures count toward `health_status` like any other
-probe ([UPS-4](../upstreams/spec.md)). One server's failure never stops the run for the rest, and every
-discovery probe is bounded (60 s) so a hanging upstream fails instead of stalling the run. This covers the upstreams the
-other triggers miss: one that was unreachable when it was registered, and one whose tools change while no call is open
-to it. Per-call upstream connections ([ADR-0012](../../../docs/adr/0012-per-call-upstream-connections.md)) never
-receive a `list_changed` sent between calls ([PROT-10](../protocol/spec.md) residual). Rationale and the
-alternatives weighed: [ADR-0038](../../../docs/adr/0038-periodic-tool-refresh.md).
+probe ([UPS-4](../upstreams/spec.md)): because the failure count is shared by every replica, an
+upstream that stays unreachable is marked `error` after `server_error_attempts` refreshes instead of staying `unknown`,
+whichever replica ran each sweep. One server's failure never stops the run for the rest, and every discovery probe is
+bounded (60 s) so a hanging upstream fails instead of stalling the run. This covers the upstreams the other triggers
+miss: one that was unreachable when it was registered, and one whose tools change while no call is open to it.
+Per-call upstream connections ([ADR-0012](../../../docs/adr/0012-per-call-upstream-connections.md)) never
+receive a `list_changed` sent between calls ([PROT-10](../protocol/spec.md) residual).
+Rationale and the alternatives weighed: [ADR-0038](../../../docs/adr/0038-periodic-tool-refresh.md).
 
 #### Scenario: One replica sweeps per interval
 - **WHEN** two replicas reach the same refresh tick
@@ -401,6 +425,11 @@ alternatives weighed: [ADR-0038](../../../docs/adr/0038-periodic-tool-refresh.md
 #### Scenario: Interval 0 disables the refresh
 - **WHEN** `BUNDLEMCP_DISCOVERY_REFRESH_INTERVAL=0`
 - **THEN** no periodic sweep runs
+
+#### Scenario: An upstream that stays down is marked as failing
+- **GIVEN** `server_error_attempts` is `3` and a server that was unreachable when it was registered
+- **WHEN** three consecutive sweeps, run by different replicas, fail to reach it
+- **THEN** its `health_status` is `error` rather than `unknown`
 
 ### Requirement: UPS-25 Client identity and authorization server discovery
 A server with `auth_mode=upstream_oauth` ([UPS-1](../upstreams/spec.md)) needs a client identity at the
@@ -654,9 +683,6 @@ Origin: metamcp carry-over, narrowed to Streamable HTTP. Prior art: `../metamcp/
 
 Open question: per-server request timeout overrides vs. global-only (lean: global `Config` values first, per-server
 later if needed).
-
-The runtime config key `server_error_attempts` (default 3) exists in the config registry but the failure threshold of
-UPS-4 does not read it yet; the threshold is the constant 3.
 
 ### Tool discovery
 
