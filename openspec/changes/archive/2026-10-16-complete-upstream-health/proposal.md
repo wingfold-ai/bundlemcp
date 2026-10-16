@@ -49,6 +49,6 @@ written, nothing is REMOVED because UPS-9 was never in the main spec, and the ID
   `docs/self-hosting/operations.md`.
 - **Related changes:** [add-upstream-session-pooling](../add-upstream-session-pooling/proposal.md) (SES-7: repeated
   re-initialize failures feed `health_status`) should report through the health reporter added here.
-  [add-prometheus-metrics](../add-prometheus-metrics/proposal.md) may export health transitions as a metric; not
-  required here.
+  [add-prometheus-metrics](../2026-10-16-add-prometheus-metrics/proposal.md) may export health transitions as a metric;
+  not required here.
 - No ADR: the change brings the implementation in line with the existing state-model rule (ARC, ADR-0004).

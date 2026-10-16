@@ -19,7 +19,7 @@ Documentation and docstrings only — no behaviour change, so no spec delta (`sk
   stream decision itself is in
   [improve-request-observability](../2026-10-16-improve-request-observability/proposal.md)).
 - `infrastructure/inprocess/counters.py` and `infrastructure/postgres/audit_writer.py`: drop the claimed `/metrics`
-  export ([add-prometheus-metrics](../../add-prometheus-metrics/proposal.md) builds it).
+  export ([add-prometheus-metrics](../2026-10-16-add-prometheus-metrics/proposal.md) builds it).
 - `api/mcp/README.md`: replace the deleted modules (`composition.py`, `streams.py`, `signals.py`, `metering.py`,
   `upstream.py`, `_drive_upstream`) with the current ones, and stop claiming `session_lifetime` sets the session TTL
   (it is registered but read by nothing; the TTL is fixed at 24 h).

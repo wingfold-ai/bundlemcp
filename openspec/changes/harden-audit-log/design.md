@@ -53,8 +53,8 @@ queueing; if the queue fills, overflow applies (D2).
 
 On `QueueFull` the **new** record is dropped (as today), logged as `audit.queue_overflow` with `idempotency_key`,
 `endpoint_name`, `presented_tool_name` and `status`, and counted via the metrics contract of
-[add-prometheus-metrics](../add-prometheus-metrics/proposal.md) (`audit_dropped(reason="overflow")`). The queue depth
-gauge is that change's.
+[add-prometheus-metrics](../archive/2026-10-16-add-prometheus-metrics/proposal.md) (`audit_dropped(reason="overflow")`).
+The queue depth gauge is that change's.
 
 ### D3. Bounded drain on shutdown
 

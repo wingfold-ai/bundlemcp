@@ -35,8 +35,9 @@ not entitled to is answered at admission and leaves no audit trace at all.
 
 ## Impact
 
-- **Depends on** [add-prometheus-metrics](../add-prometheus-metrics/proposal.md): the overflow, failed-write and
-  rejection metrics are recorded through its metrics contract and exported on its `/metrics` route. Land it first.
+- **Depends on** [add-prometheus-metrics](../archive/2026-10-16-add-prometheus-metrics/proposal.md): the overflow,
+  failed-write and rejection metrics are recorded through its metrics contract and exported on its `/metrics` route.
+  Land it first.
 - **Schema:** a nullable `idempotency_key` column (indexed) on `audit_records` — expand-only migration (DEP-5).
 - **API:** `AuditRecordRead` gains `idempotency_key`; `AuditFilter` gains `idempotency_key`; new route
   `GET /api/v1/audit-records:export` (CSV, same filters). `apps/web/openapi.json` and `types/api.d.ts` regenerate.
