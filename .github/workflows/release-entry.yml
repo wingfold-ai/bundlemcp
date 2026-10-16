@@ -49,6 +49,13 @@ jobs:
           echo "$labels"
           echo "labels=$(echo "$labels" | paste -sd, -)" >> "$GITHUB_OUTPUT"
           echo "semver=$(echo "$labels" | sed -n 's/^semver: //p')" >> "$GITHUB_OUTPUT"
+      - name: The description skips no CI on main
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$BODY" > "$RUNNER_TEMP/body.md"
+          uv run --no-project --with "$PYDANTIC" python tools/pull_request_release.py \
+            description "$RUNNER_TEMP/body.md"
       - name: Replace the type and semver labels
         env:
           GH_TOKEN: ${{ github.token }}
