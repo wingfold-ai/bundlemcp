@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
+from mcp.shared.exceptions import MCPError
 from mcp.types import LOG_LEVEL_META_KEY, InputRequiredResult, InputResponses
 from pydantic import TypeAdapter
 
@@ -22,6 +23,7 @@ from bundlemcp.application.serving.call_handle import CallHandle
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
 from bundlemcp.domain.config.call_timeouts import CallTimeouts
 from bundlemcp.domain.servers.response_log import ResponseLog
+from bundlemcp.domain.servers.upstream_reach import UpstreamReach
 from bundlemcp.domain.sessions.session_record import SessionRecord
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
 
@@ -195,8 +197,32 @@ class UpstreamCall:
                 else str(exc)[:500]
             )
             return CallOutcome(
-                status=CallStatus.ERROR, error_message=message, code=UPSTREAM_FAILURE
+                status=CallStatus.ERROR,
+                error_message=message,
+                code=UPSTREAM_FAILURE,
+                failure_reach=UpstreamReach.of_failure(
+                    self.responses, jsonrpc_code=_jsonrpc_code(exc)
+                ),
             )
         finally:
             watchdog.cancel()
             canceller.cancel()
+
+
+def _jsonrpc_code(exc: BaseException) -> int | None:
+    """The code of the JSON-RPC error anywhere in ``exc``'s chain or groups, if there is one."""
+    pending: list[BaseException] = [exc]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, MCPError):
+            return current.code
+        if isinstance(current, BaseExceptionGroup):
+            pending.extend(current.exceptions)
+        for linked in (current.__cause__, current.__context__):
+            if linked is not None:
+                pending.append(linked)
+    return None

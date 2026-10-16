@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from bundlemcp.api.mcp.tool_call.call_status import CallStatus
 from bundlemcp.application.metering.meter_outcome import MeterOutcome
+from bundlemcp.domain.servers.upstream_reach import UpstreamReach
 
 UPSTREAM_FAILURE = -32000
 CANCELLED = -32800
@@ -25,11 +26,22 @@ class CallOutcome(BaseModel):
         default=None, description="Human-readable failure text when the call did not succeed"
     )
     code: int | None = Field(default=None, description="JSON-RPC error code to report, if any")
+    failure_reach: UpstreamReach = Field(
+        default=UpstreamReach.UNDECIDED,
+        description="For a call that raised, whether it got as far as the upstream",
+    )
 
     @property
     def reached_upstream(self) -> bool:
         """The upstream answered, even if with an error result or a request for input."""
         return self.result is not None or self.input_required is not None
+
+    @property
+    def upstream_reach(self) -> UpstreamReach:
+        """What this call tells about the upstream's health."""
+        if self.reached_upstream:
+            return UpstreamReach.ANSWERED  # any MCP answer, a tool error included
+        return self.failure_reach
 
     @property
     def meter_outcome(self) -> MeterOutcome:

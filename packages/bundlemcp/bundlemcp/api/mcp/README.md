@@ -160,9 +160,12 @@ Discovery is the **only writer of the `Tool` cache** in Postgres; `tools/list` r
   vanished or it reappeared, so an unchanged run writes no tool (UPS-18). A tool that vanishes upstream is **not
   deleted**: `stale_since` is set, the tool pipeline's stale filter stops serving it, and its curation is kept for when
   it reappears; `:refresh-tools?prune=true` deletes stale tools after a successful probe (UPS-19).
-- **Health (UPS-4):** a per-server consecutive-failure counter flips `health_status` to `error` after 3 failed probes
-  and self-heals to `ok` on the next success. The threshold is fixed (the `server_error_attempts` setting is not read
-  yet), and the counter lives in the memory of the replica running the probes.
+- **Health (UPS-4):** `UpstreamHealth` (`application/discovery/upstream_health.py`) keeps one consecutive-failure
+  streak per server in Valkey (`FailureStreak`), shared by every replica, and flips `health_status` to `error` after
+  `server_error_attempts` of them; the next answer heals it. Discovery reports every probe, and `ToolCall.finish`
+  reports each live call by its `CallOutcome.upstream_reach`: unreachable counts, any MCP answer resets, a refusal,
+  timeout or cancellation is neither. The transport notes a connection that failed below HTTP on the call's
+  `ResponseLog`, which is how a refused connection is told from the upstream's own error.
 
 ---
 
@@ -241,8 +244,8 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   (`domain/config/config_registry.py`) maps each key to its default and type (`call_timeout`,
   `reset_timeout_on_progress`, `max_total_timeout`, `session_lifetime`, `list_cache_ttl_ms`, `server_error_attempts`,
   `audit_retention_days`, token lifetimes). Unknown keys are rejected. Stored overrides live in `config_entries`;
-  `RuntimeConfig` caches the effective values per replica and `flush`es on invalidation. `session_lifetime`,
-  `server_error_attempts` and `audit_retention_days` are registered but nothing reads them yet.
+  `RuntimeConfig` caches the effective values per replica and `flush`es on invalidation. `session_lifetime` and
+  `audit_retention_days` are registered but nothing reads them yet.
 - **Audit (`infrastructure/postgres/audit_writer.py`):** `QueuedAuditWriter` owns a bounded in-process queue. `record()`
   is `put_nowait` — fire-and-forget, never blocks or fails the call path; queue overflow is logged with a dropped count
   (OPS-3). A background drain

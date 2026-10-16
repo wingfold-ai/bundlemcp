@@ -16,7 +16,7 @@ per-replica cache invalidated by invalidation events; `server_error_attempts` is
 
 - One shared, atomic failure streak per server, in Valkey.
 - One component that turns "a connect to server X failed / succeeded" into health transitions, used by every source
-  (discovery, live calls, polling, later SES-7).
+  (discovery, live calls, later SES-7).
 - No Postgres write on the hot path unless the health status actually changes.
 
 **Non-Goals:**
@@ -63,14 +63,6 @@ Pipes-and-Filters stage for after-call accounting.
 on the next failure without restart, within the propagation budget (SES-19). Values below 1 are rejected by adding
 `ge=1` validation for this key in the config registry.
 
-### Polling reuses the lease pattern (only if UPS-9 is built)
-
-`api/jobs/health_poller.py` mirrors `ToolRefresher`: every replica ticks, one takes the lease
-`bundlemcp:health:poll`. The interval and enable flag are runtime keys (`health_poll_enabled`, `health_poll_interval`)
-read at each tick, so the loop runs on every replica but does nothing while disabled. A poll is a bounded connect
-(`initialize` or `server/discover` per UPS-10, 10 s) through the existing `UpstreamProbe`, without `tools/list`, and
-reports to `UpstreamHealth`. Upstream-OAuth servers without a connected account are skipped as in UPS-17.
-
 ## Risks / Trade-offs
 
 - [A burst of concurrent failed calls flips health on its first few calls] → That is the semantics of a shared
@@ -79,7 +71,6 @@ reports to `UpstreamHealth`. Upstream-OAuth servers without a connected account 
   the order Valkey sees; a flapping upstream stays `ok`, which matches metamcp's tracker.
 - [Valkey down] → Counting is skipped and logged (fail-open); health is not updated until Valkey is back. Calls are
   unaffected.
-- [Polling adds upstream traffic] → Off by default; the interval floor is 30 s.
 
 ## Migration Plan
 
