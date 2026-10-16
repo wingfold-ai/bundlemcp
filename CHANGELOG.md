@@ -6,6 +6,55 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.9] - 2026-10-16
+
+### Added
+
+- Upstream MCP sessions are now pooled and reused, so most calls skip the upstream `initialize`. A client's session gets
+  its own upstream session on each member, and any replica continues it from the session record.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- Member tool, prompt and resource list changes now reach clients between calls, on the GET stream for handshake clients
+  and on `subscriptions/listen` for modern clients. Several replicas hearing the same change re-discover the server
+  once. ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- `resources/subscribe` now delivers `notifications/resources/updated` between calls, and `resources/unsubscribe` is
+  supported. `subscriptions/listen` honours `resourceSubscriptions` and unsubscribes upstream when the stream closes.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- `logging/setLevel` is now passed on to every member that advertises logging, and log messages a member sends between
+  calls reach the client's GET stream. ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- Member list changes and `resources.subscribe` are now advertised in a bundle's capabilities.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- New runtime config keys `upstream_sessions_max` (256), `upstream_sessions_per_server_max` (32) and
+  `upstream_session_idle_timeout` (300 seconds) cap and age out pooled upstream sessions. At a cap, idle sessions are
+  closed, identity-free ones first. With none idle, the request gets a connection of its own.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- New setting `BUNDLEMCP_UPSTREAM_POOLING_ENABLED` (default `true`). Setting it to `false` restores a fresh upstream
+  connection per request, with no between-call notifications, and needs no redeploy of the previous image.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+
+### Changed
+
+- A handshake client's `DELETE` on the endpoint's `/mcp` path now also ends the upstream sessions bound to its session.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- Changing a server's URL, headers or authentication now closes its pooled upstream sessions on every replica. A session
+  bound under the old configuration is re-established on its next use.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+- A session continued on another replica has no upstream GET stream there. Its between-call messages arrive only while
+  the replica that initialized it still holds the transport. ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+
+### Fixed
+
+- An upstream restart no longer surfaces as a client error. The gateway opens a new upstream session and retries the
+  call once under the same idempotency key, with one `pre_call` and one `post_call`. A `tools/call` is retried only when
+  the upstream cannot have run it, and reads are also retried after any transport loss.
+  ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+
+### Security
+
+- Pooled upstream sessions never cross callers. A session is reused only for the same server configuration and, unless
+  the server is identity-free, the same caller with the same forwarded headers, identified by a hash. Header values are
+  never stored. Per-request credentials such as the upstream bearer or a delegated token are injected per request and
+  never fixed into the transport. ([#142](https://github.com/wingfold-ai/bundlemcp/pull/142))
+
 ## [0.1.8] - 2026-10-16
 
 ### Added
