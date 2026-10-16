@@ -119,7 +119,7 @@ listing itself is unchanged (UPS-20).
 - [A slow store makes scrapes slow] → per-store timeout and a 5 s cache on the health gauge.
 - [Counters reset on restart] → normal Prometheus semantics; `rate()`/`increase()` handle resets.
 - [Two changes touch the audit writer] → this change only exposes its depth and drop count; durability is
-  [harden-audit-log](../harden-audit-log/proposal.md).
+  [harden-audit-log](../2026-10-16-harden-audit-log/proposal.md).
 
 ## Migration Plan
 

@@ -49,8 +49,6 @@ Keycloak in the compose file is for development and ships with
 ### What you own that the gateway does not do
 
 - **TLS.** Terminate it at your proxy.
-- **Audit log retention.** `audit_retention_days` is advisory; no purge job
-  reads it yet, so schedule your own deletion.
 - **Backups.** Postgres only; Valkey is deliberately disposable.
 
 ## Not multi-tenant

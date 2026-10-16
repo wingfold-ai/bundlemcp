@@ -19,10 +19,18 @@ from bundlemcp.api.mcp.routing.authentication import (
     presents_bearer,
     unauthorized_challenge,
 )
+from bundlemcp.application.contracts.persistence.audit_sink import AuditSink
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWorkFactory
 from bundlemcp.application.serving.bundle_view_loader import load_bundle_view
+from bundlemcp.domain.access.caller_identity import CallerIdentity
+from bundlemcp.domain.audit.audit_record import AuditRecord
+from bundlemcp.domain.audit.audit_status import AuditStatus
+from bundlemcp.domain.bundles.bundle_view import BundleView
 from bundlemcp.domain.endpoints.endpoint import Endpoint
 from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
+
+# the audit reason of a call whose valid credential is not entitled to the endpoint
+FORBIDDEN = "forbidden"
 
 
 def _carries_credential(request: Request) -> bool:
@@ -38,12 +46,14 @@ class AdmissionGate:
         unit_of_work_factory: UnitOfWorkFactory,
         authentication: EndpointAuthentication,
         auth_failures: AuthFailureGuard,
+        audit: AuditSink,
         public_base: str,
         profiles: ProfileCatalog,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._authentication = authentication
         self._auth_failures = auth_failures
+        self._audit = audit
         self._public_base = public_base
         public = urlsplit(public_base)
         self._public_origin = f"{public.scheme}://{public.netloc}"
@@ -59,6 +69,25 @@ class AdmissionGate:
                 rpc_error(None, INVALID_REQUEST, "origin not allowed for this endpoint", status=403)
             )
         return CorsGrant(origin=origin)
+
+    def _audit_forbidden(
+        self, view: BundleView, holder: CallerIdentity, message: JsonRpcMessage
+    ) -> None:
+        if message.method != "tools/call":
+            return  # only a call is worth a record; listings stay out of the log
+        self._audit.record(
+            AuditRecord(
+                endpoint_id=view.endpoint.id,
+                endpoint_name=view.endpoint.name,
+                bundle_name=view.bundle.name,
+                presented_tool_name=str(message.param("name", "")) or None,
+                user_id=holder.user_uuid,
+                api_key_id=holder.api_key_uuid,
+                auth_method=holder.auth_method,
+                status=AuditStatus.DENIED,
+                denied_reason=FORBIDDEN,
+            )
+        )
 
     async def preflight(self, request: Request, endpoint_name: str) -> Response:
         """Answer a browser's CORS preflight from the endpoint's allowed origins alone."""
@@ -78,8 +107,15 @@ class AdmissionGate:
         except (ValueError, ValidationError):
             raise RequestRejected(rpc_error(None, PARSE_ERROR, "parse error", status=400)) from None
 
-    async def admit_caller(self, request: Request, endpoint_name: str) -> EndpointContext:
-        """Resolve endpoint and authenticate caller via database UnitOfWork."""
+    async def admit_caller(
+        self, request: Request, endpoint_name: str, message: JsonRpcMessage | None = None
+    ) -> EndpointContext:
+        """Resolve endpoint and authenticate caller via database UnitOfWork.
+
+        A ``tools/call`` (``message``) refused because its valid credential is
+        not entitled to the endpoint is audited as denied, ``forbidden``; the
+        answer is the same as for any refused credential.
+        """
         async with self._unit_of_work_factory.open() as uow:
             view = await load_bundle_view(uow, endpoint_name, self._profiles)
             if view is None:
@@ -91,8 +127,11 @@ class AdmissionGate:
                 locked = await self._auth_failures.rejection_if_locked(request)
                 if locked is not None:
                     raise RequestRejected(locked, cors)
-            identity = await self._authentication.authenticate(request, uow, view)
+            outcome = await self._authentication.authenticate(request, uow, view)
+        identity = outcome.identity
         if identity is None:
+            if outcome.forbidden is not None and message is not None:
+                self._audit_forbidden(view, outcome.forbidden, message)
             locked = await self._auth_failures.note_failure(request)
             challenge = unauthorized_challenge(
                 self._public_base,

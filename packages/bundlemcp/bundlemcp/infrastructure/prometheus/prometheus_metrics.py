@@ -13,6 +13,7 @@ from prometheus_client import (
 )
 
 from bundlemcp.application.contracts.observability.gateway_metrics import (
+    AuditDropReason,
     RateLimitScope,
     ToolCallStatus,
 )
@@ -109,6 +110,12 @@ class PrometheusMetrics:
             ["endpoint", "server"],
             registry=self.registry,
         )
+        self._audit_dropped = Counter(
+            "bundlemcp_audit_dropped",
+            "Audit records that were never written, by why",
+            ["reason"],
+            registry=self.registry,
+        )
         Gauge(
             "bundlemcp_open_streams",
             "Notification streams this replica holds",
@@ -165,6 +172,9 @@ class PrometheusMetrics:
 
     def tools_list_degraded(self, *, endpoint: str, server: str) -> None:
         self._degraded.labels(endpoint, server).inc()
+
+    def audit_dropped(self, *, reason: AuditDropReason) -> None:
+        self._audit_dropped.labels(reason.value).inc()
 
     # --- MetricsExposition ----------------------------------------------------------------
 

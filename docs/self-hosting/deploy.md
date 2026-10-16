@@ -434,7 +434,7 @@ hook's, whose URL is your own configuration.
 - [ ] `/readyz` wired into the proxy and orchestrator.
 - [ ] Postgres backups scheduled and a [restore rehearsed](#rehearsing-the-restore).
 - [ ] Proxy allows 4 MiB bodies, 1800 s reads, and does not buffer.
-- [ ] An audit-log retention job of your own, since the gateway has none.
+- [ ] `audit_retention_days` set longer than any billing reconciliation window.
 - [ ] `BUNDLEMCP_EGRESS_ALLOW_CIDRS` reviewed — it overrides the built-in blocks.
 
 ## Limits
@@ -449,7 +449,7 @@ hook's, whose URL is your own configuration.
 | Rate limits | per endpoint, fixed window, counted in Valkey |
 | Auth-failure lockout | 20 failures per 300 s per IP |
 | Process model | one uvicorn worker per container, port 8000 |
-| Audit growth | one row per tool call, never purged — the main unbounded cost |
+| Audit growth | one row per tool call, kept for `audit_retention_days` (90) |
 
 The runtime-tunable values are the ones with names; see
 [Configuration](/self-hosting/configuration#runtime-settings).

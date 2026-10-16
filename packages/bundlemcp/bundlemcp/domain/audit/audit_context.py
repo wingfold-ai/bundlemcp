@@ -39,9 +39,11 @@ class AuditContext(BaseModel):
         denied_reason: str | None = None,
         error_message: str | None = None,
         duration_ms: int | None = None,
+        idempotency_key: str | None = None,
     ) -> AuditRecord:
         return AuditRecord(
             status=status,
+            idempotency_key=idempotency_key,
             denied_reason=denied_reason,
             error_message=error_message,
             duration_ms=duration_ms,

@@ -6,6 +6,45 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.8] - 2026-10-16
+
+### Added
+
+- Audit records carry the metering idempotency key of the invocation, the same on every leg of a paused and resumed
+  call. `GET /api/v1/audit-records` filters by `idempotency_key`, so a metering ledger can reconcile by key instead of
+  by time. ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+- `GET /api/v1/audit-records:export` streams the whole filtered result as CSV, including the caller and idempotency key
+  columns. It takes the same filters as the list and needs management credentials.
+  ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+- The audit page filters by bundle, upstream, API key and user, and shows how many records match.
+  ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+- A `tools/call` made with a valid credential that is not entitled to the endpoint is audited as `denied` with reason
+  `forbidden`. The response is unchanged, and listings and authentication failures are still not audited.
+  ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+- A purge job deletes audit records older than `audit_retention_days` (90 by default). It runs every 15 minutes on one
+  replica at a time, picks up setting changes without a restart, and `0` keeps everything.
+  ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+- Every audit record that is never written is logged with its idempotency key (`audit.queue_overflow`,
+  `audit.write_failed` or `audit.lost_on_shutdown`) and counted in the new `bundlemcp_audit_dropped_total` metric,
+  labelled by reason. ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+
+### Changed
+
+- Audit records are written in batches of up to 100. A failed write is retried with backoff for 60 seconds before it is
+  given up, and shutdown drains the queue for up to 10 seconds.
+  ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+- Export CSV on the audit page downloads every record matching the current filters from the gateway, not only the loaded
+  rows. ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+- `audit_retention_days` now takes effect, and purging starts at the default of 90 days after upgrading. Set it to `0`
+  before upgrading to keep every record. ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+- The `0012` database migration adds a nullable, indexed `idempotency_key` column to the audit table. It only adds to
+  the schema, so it is safe for the previous release. ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+
+### Fixed
+
+- A batch of audit records still being retried when the shutdown drain ran out is now logged as lost instead of being
+  dropped silently. ([#141](https://github.com/wingfold-ai/bundlemcp/pull/141))
+
 ## [0.1.7] - 2026-10-16
 
 ### Added

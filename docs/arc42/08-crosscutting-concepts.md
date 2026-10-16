@@ -37,7 +37,10 @@ Structured JSON logs (redacted) on standard error, each line of a request carryi
 configured ([ADR-0051](../adr/0051-request-context-readiness-report-and-optional-tracing.md)); Prometheus metrics on
 `/metrics`, per replica, behind the management credentials, with a closed label set
 ([ADR-0052](../adr/0052-per-replica-prometheus-metrics-with-a-closed-label-set.md)); per-call audit records in Postgres
-as the billing reconciliation source ([OPS-7](../../openspec/specs/operations/spec.md)).
+as the billing reconciliation source, each carrying the invocation's idempotency key, written in retried batches with
+every loss named by that key, and purged after `audit_retention_days`
+([ADR-0053](../adr/0053-audit-durability-and-the-idempotency-key-join.md),
+[OPS-7](../../openspec/specs/operations/spec.md)).
 
 ## Configuration
 Deploy-time: `BUNDLEMCP_*` env via pydantic-settings. Runtime-tunable: the `config_entries` table, its legal keys

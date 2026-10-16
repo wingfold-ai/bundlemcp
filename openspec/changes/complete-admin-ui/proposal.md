@@ -17,7 +17,8 @@ page's title. The main spec was narrowed to what exists; this change restores th
 - **Bundle detail page:** curation table edits description and annotation overrides and flags stale tools (BND-16, from
   complete-tool-curation).
 - **Audit page:** filters for bundle, upstream and caller as well as endpoint, status, tool and time range, and a CSV
-  export of the whole filtered result (OPS-6, from [harden-audit-log](../harden-audit-log/proposal.md)).
+  export of the whole filtered result (OPS-6, from
+  [harden-audit-log](../archive/2026-10-16-harden-audit-log/proposal.md)).
 - **Non-admin access (UI-2):** a signed-in non-admin who opens a management page sees a *no access* page that links to
   the catalogue, instead of a silent redirect — see the open decision.
 - **Data layer (UI-3):** query results are cached by key and a mutation invalidates every cached query it affects, so
@@ -52,8 +53,9 @@ None.
 
 - **Depends on** [complete-tool-curation](../archive/2026-10-13-complete-tool-curation/proposal.md) (refresh & prune,
   stale tools, description and annotation overrides — BND-16, UPS-19) and
-  [harden-audit-log](../harden-audit-log/proposal.md) (the bundle, upstream and caller filters and the full-result CSV —
-  OPS-6). The UI-1 parts that rely on them land after those changes; the rest of this change does not wait.
+  [harden-audit-log](../archive/2026-10-16-harden-audit-log/proposal.md) (the bundle, upstream and caller filters and
+  the full-result CSV — OPS-6). The UI-1 parts that rely on them land after those changes; the rest of this change does
+  not wait.
 - **Coordination:** the per-server *probe* action of the original UI-1 is the *Refresh tools* action that already
   re-probes; [align-management-api](../archive/2026-10-15-align-management-api/proposal.md) decided against a separate
   `:probe` route (MGMT-1). The Settings page's export/import belongs to

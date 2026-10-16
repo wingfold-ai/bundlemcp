@@ -21,3 +21,7 @@ class AuditFilter(BaseModel):
     user_id: uuid.UUID | None = Field(default=None, description="Only calls by this user")
     api_key_id: uuid.UUID | None = Field(default=None, description="Only calls with this key")
     status: AuditStatus | None = Field(default=None, description="Only calls with this outcome")
+    idempotency_key: str | None = Field(
+        default=None,
+        description="Only the legs of the invocation with this metering idempotency key",
+    )
