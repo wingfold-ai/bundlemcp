@@ -16,8 +16,8 @@ The admin UI SHALL provide these pages:
   ([bundles](../bundles/spec.md)), endpoints of this bundle, and the
   catalogue overview shown to users ([BND-11](../bundles/spec.md)).
 - **Catalogue** — what a signed-in non-admin sees: the bundles they can connect to, each with its overview and the
-  tools it serves ([BND-11](../bundles/spec.md)), and per endpoint the copy-paste URL and setup steps for
-  the client it is shaped for.
+  tools it serves ([BND-11](../bundles/spec.md)), and per endpoint the copy-paste URL and setup steps for the client its
+  profile is recommended for.
 - **Composition** — one grid of bundles against registered servers, marking each membership and whether it is enabled
   ([BND-4](../bundles/spec.md)). It answers what spans bundles: which bundles a server is used by, and
   which servers are registered but in no bundle, so unreachable through any endpoint.
@@ -82,27 +82,6 @@ not implemented ([add-live-logs](../../changes/add-live-logs/proposal.md),
 - **GIVEN** a user with an OAuth consent
 - **WHEN** the admin expands that user's consents on the Users page and revokes one
 - **THEN** the consent is removed from the list
-
-### Requirement: UI-2 Auth
-Every route of the admin UI MUST require a signed-in user: an anonymous visitor is redirected to the gateway's OIDC
-login ([auth](../auth/spec.md)) and returned to the page they asked for, and a session that
-expires mid-visit sends the browser back through login on the next `401`. A signed-in user without admin rights SHALL
-only reach the catalogue: no management navigation is shown, and a management page opened directly renders a *no
-access* page that says admin rights are required and links to `/catalogue`, without loading any management data.
-
-#### Scenario: Anonymous visitor is sent to login
-- **WHEN** a visitor without a session opens `/bundles`
-- **THEN** the browser is redirected to the gateway's `/login` with a `next` parameter pointing back at `/bundles`
-
-#### Scenario: Non-admin is kept on the catalogue
-- **GIVEN** a person without admin rights signed in through the identity provider
-- **WHEN** they open `/bundles` directly
-- **THEN** a *no access* page is shown with a link to the catalogue, and no management API request is made
-
-#### Scenario: Non-admin navigation shows only the catalogue
-- **GIVEN** a person without admin rights signed in
-- **WHEN** the admin UI renders its navigation
-- **THEN** only the catalogue entry is shown
 
 ### Requirement: UI-3 Frontend API layer
 The UI MUST call the management API only through a client typed from the generated `/api/v1/openapi.json`

@@ -6,6 +6,7 @@
 import type { components } from "~~/types/api";
 
 type BundlePromptRead = components["schemas"]["BundlePromptRead"];
+type BundleResourceRead = components["schemas"]["BundleResourceRead"];
 type PromptRole = components["schemas"]["PromptRole"];
 
 interface ArgumentDraft {
@@ -25,8 +26,32 @@ const props = defineProps<{ bundleName: string }>();
 
 const api = useApi();
 const errorMsg = ref("");
-const prompts = ref<BundlePromptRead[]>([]);
-const resourceNames = ref<string[]>([]);
+
+const { data: prompts, error: promptsError } = useQuery<BundlePromptRead[]>(
+  () => queryKeys.bundlePrompts(props.bundleName),
+  async () =>
+    unwrap(
+      await api.GET("/api/v1/bundles/{bundle}/prompts", {
+        params: { path: { bundle: props.bundleName }, query: { offset: 0, limit: 100 } },
+      }),
+    ).items,
+  { default: () => [] },
+);
+// the same query the resources card reads, so a resource change reaches the embed choices
+const { data: resources, error: resourcesError } = useQuery<BundleResourceRead[]>(
+  () => queryKeys.bundleResources(props.bundleName),
+  async () =>
+    unwrap(
+      await api.GET("/api/v1/bundles/{bundle}/resources", {
+        params: { path: { bundle: props.bundleName }, query: { offset: 0, limit: 200 } },
+      }),
+    ).items,
+  { default: () => [] },
+);
+const resourceNames = computed(() => resources.value.map((r) => r.name));
+const loadError = computed(
+  () => (promptsError.value ?? resourcesError.value)?.message ?? "",
+);
 
 const editing = ref(false);
 const original = ref("");
@@ -38,22 +63,12 @@ const messages = ref<MessageDraft[]>([]);
 const samples = ref<Record<string, string>>({});
 const saving = ref(false);
 
-async function load() {
-  const [promptList, resourceList] = await Promise.all([
-    api.GET("/api/v1/bundles/{bundle}/prompts", {
-      params: { path: { bundle: props.bundleName }, query: { offset: 0, limit: 100 } },
-    }),
-    api.GET("/api/v1/bundles/{bundle}/resources", {
-      params: { path: { bundle: props.bundleName }, query: { offset: 0, limit: 200 } },
-    }),
-  ]);
-  if (promptList.error || resourceList.error) {
-    errorMsg.value = apiErrorMessage(promptList.error ?? resourceList.error);
-    return;
-  }
-  prompts.value = promptList.data.items;
-  resourceNames.value = resourceList.data.items.map((r) => r.name);
-}
+// a new prompt's name must be free; an edited one keeps the name it has
+const takenNames = computed(() => (original.value ? [] : prompts.value.map((p) => p.name)));
+// shown while typing, so a bad or taken name is seen before anything is sent
+const nameHint = computed(() =>
+  editing.value && name.value ? nameProblem("prompt", name.value, takenNames.value) : null,
+);
 
 function openEditor(prompt?: BundlePromptRead) {
   errorMsg.value = "";
@@ -104,8 +119,9 @@ const rendered = computed(() =>
 
 async function save() {
   errorMsg.value = "";
-  if (!PROMPT_NAME_RE.test(name.value)) {
-    errorMsg.value = "Name: letters, digits, _ and -, and never '__'";
+  const problem = nameProblem("prompt", name.value, takenNames.value);
+  if (problem) {
+    errorMsg.value = problem;
     return;
   }
   saving.value = true;
@@ -137,7 +153,7 @@ async function save() {
       return;
     }
     editing.value = false;
-    await load();
+    await invalidate(queryKeys.bundle(props.bundleName), queryKeys.catalogue);
   } finally {
     saving.value = false;
   }
@@ -153,11 +169,8 @@ async function remove(promptName: string) {
     errorMsg.value = apiErrorMessage(error);
     return;
   }
-  await load();
+  await invalidate(queryKeys.bundle(props.bundleName), queryKeys.catalogue);
 }
-
-defineExpose({ load });
-onMounted(load);
 </script>
 
 <template>
@@ -166,13 +179,15 @@ onMounted(load);
       <h2 class="text-sm font-semibold">Prompts</h2>
       <p class="wf-help">
         Message templates this bundle serves itself, listed before the upstream servers' prompts
-        and named without a server prefix. Use them to tell the model how this bundle's tools are
+        and named without an upstream prefix. Use them to tell the model how this bundle's tools are
         meant to be used. Text may refer to an argument as <code v-pre>{{argument}}</code>. Not
         secret: every caller of the bundle's endpoints, and the model, can read them.
       </p>
     </div>
 
-    <p v-if="errorMsg" class="text-red-600 text-sm" data-testid="prompts-error">{{ errorMsg }}</p>
+    <p v-if="errorMsg || loadError" class="text-red-600 text-sm" data-testid="prompts-error">
+      {{ errorMsg || loadError }}
+    </p>
 
     <div class="overflow-x-auto">
       <table class="wf-table wf-table-controls" data-testid="prompts-table">
@@ -236,6 +251,9 @@ onMounted(load);
             :disabled="original !== ''"
             data-testid="prompt-name"
           />
+          <p v-if="nameHint" class="text-red-600 text-xs mt-1" data-testid="prompt-name-hint">
+            {{ nameHint }}
+          </p>
         </div>
         <div>
           <label class="wf-label" for="prompt-title">Title</label>

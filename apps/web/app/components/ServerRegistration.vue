@@ -14,6 +14,9 @@ const emit = defineEmits<{ created: [name: string] }>();
 const api = useApi();
 const errorMsg = ref("");
 
+// the names already taken, from the list the page shows
+const { data: upstreams } = useUpstreams();
+
 // ---- step 1: where the server is ----
 const url = ref("");
 const serverJson = ref("");
@@ -41,6 +44,12 @@ const identityHeaderTouched = ref(false); // an explicit choice outlives any def
 const protocolMode = ref("auto");
 const fwdRows = ref<{ key: string; val: string }[]>([]);
 const creating = ref(false);
+// shown while typing, so a bad or taken name is seen before anything is sent
+const nameHint = computed(() =>
+  name.value.trim()
+    ? nameProblem("upstream", name.value.trim(), upstreams.value.map((u) => u.name))
+    : null,
+);
 
 const oauth = computed(() => inspection.value?.oauth ?? null);
 /** What the server's publisher says about the header being filled in, from its server.json. */
@@ -118,7 +127,7 @@ function suggestName(result: ServerInspection) {
 async function inspect(withCredential = false) {
   errorMsg.value = "";
   if (!url.value.trim()) {
-    errorMsg.value = "Enter the server's URL first";
+    errorMsg.value = "Enter the upstream's URL first";
     return;
   }
   inspecting.value = true;
@@ -182,13 +191,10 @@ async function importServerJson() {
 async function create() {
   errorMsg.value = "";
   const trimmed = name.value.trim();
-  // client-side validation before submit
-  if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
-    errorMsg.value = "Name must match ^[a-zA-Z0-9_-]+$";
-    return;
-  }
-  if (trimmed.includes("__")) {
-    errorMsg.value = 'Server name must not contain "__"';
+  // client-side validation before submit, against the published rules and the known names
+  const problem = nameProblem("upstream", trimmed, upstreams.value.map((u) => u.name));
+  if (problem) {
+    errorMsg.value = problem;
     return;
   }
   if (source.value === "key" && !Object.keys(credentialHeaders()).length) {
@@ -286,7 +292,7 @@ watch(url, (value) => {
         >
       </div>
       <p class="wf-help">
-        The gateway contacts the server and works out what it needs: whether it asks for OAuth
+        The gateway contacts the upstream and works out what it needs: whether it asks for OAuth
         sign-in, an API key, or nothing. Nothing is saved yet.
         <button
           type="button"
@@ -376,6 +382,9 @@ watch(url, (value) => {
             data-testid="create-name"
             @input="nameEdited = true"
           />
+          <p v-if="nameHint" class="text-red-600 text-xs mt-1" data-testid="create-name-hint">
+            {{ nameHint }}
+          </p>
           <p class="wf-help">Prefixes the upstream's tools, e.g. <code>{{ name || "name" }}__search</code>.</p>
         </div>
         <div>
@@ -463,7 +472,7 @@ watch(url, (value) => {
           >
           <span v-if="verified === 'ok'" class="text-success">The upstream accepted it.</span>
           <span v-else-if="verified === 'refused'" class="text-error">
-            The server refused it ({{ CONNECTION_STATE_LABEL[inspection?.connection_state ?? "error"] }}).
+            The upstream refused it ({{ CONNECTION_STATE_LABEL[inspection?.connection_state ?? "error"] }}).
           </span>
         </div>
         <p v-if="declaredHeaderHelp" class="wf-help" data-testid="create-header-help">
@@ -525,8 +534,8 @@ watch(url, (value) => {
             <span>
               Send the caller's identity as <code>X-MCP-User</code>
               <span class="block wf-help mt-0">
-                On by default only for servers on the gateway's own network; a third-party
-                server does not receive your users' ids unless you turn this on.
+                On by default only for upstreams on the gateway's own network; a third-party
+                upstream does not receive your users' ids unless you turn this on.
               </span>
             </span>
           </label>
@@ -539,7 +548,7 @@ watch(url, (value) => {
             <UButton size="xs" variant="soft" @click="addFwdRow">Add forward header</UButton>
             <p v-if="forwardsCallerToken" class="wf-help text-warning">
               Forwarding <code>authorization</code> passes the caller's own gateway token to the
-              server (token passthrough, which the MCP spec forbids). Prefer "A token the gateway
+              upstream (token passthrough, which the MCP spec forbids). Prefer "A token the gateway
               issues for each caller".
             </p>
           </div>

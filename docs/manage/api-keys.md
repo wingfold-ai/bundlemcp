@@ -45,7 +45,8 @@ The response is the only time the value is shown:
 Only a hash and the display prefix are stored. A lost key is replaced, not recovered.
 
 `endpoint_ids` scopes an `endpoint` key to specific endpoints; an empty list means every endpoint. Endpoint ids come
-from `GET /api/v1/endpoints`.
+from `GET /api/v1/endpoints`. In the admin UI the **API keys** page shows an endpoint picker for an `endpoint` key: tick
+the endpoints it may call, or none for every endpoint. The list shows each key's scope.
 
 ## Using a key
 
@@ -64,10 +65,12 @@ parameter.
 The caller identity of a key is `api_key:<id>`. That is what appears in audit records, what the metering hook receives,
 what `X-MCP-User` carries upstream, and what the introspection route reports for the key.
 
-## Deactivating and deleting
+## Deactivating, re-activating and deleting
 
-`POST /api/v1/api-keys/{id}:deactivate` keeps the record but stops accepting the key; `DELETE /api/v1/api-keys/{id}`
-removes it. Both take effect on every replica within the cross-replica signalling budget, not after a cache expiry.
+`POST /api/v1/api-keys/{id}:deactivate` keeps the record but stops accepting the key, and
+`POST /api/v1/api-keys/{id}:activate` accepts it again; `DELETE /api/v1/api-keys/{id}` removes it. All three take
+effect on every replica within the cross-replica signalling budget, not after a cache expiry. The **API keys** page
+offers *Deactivate* on an active key and *Re-activate* on an inactive one.
 
 `last_used_at` is maintained coarsely (at most about once a minute per key) so you can spot keys nobody uses before
 revoking them.
