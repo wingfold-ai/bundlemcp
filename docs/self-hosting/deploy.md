@@ -16,8 +16,9 @@ ghcr.io/wingfold-ai/bundlemcp-web:1.2.0
 ghcr.io/wingfold-ai/bundlemcp-gateway:<sha>     # any commit on main
 ```
 
-Pin a release version, or a SHA or digest, rather than `:latest`, which moves with every merge to `main`. A release's
-notes on GitHub come from [`CHANGELOG.md`](https://github.com/wingfold-ai/bundlemcp/blob/main/CHANGELOG.md) and name the
+Pin a release version, or a SHA or digest, rather than `:latest`, which moves with every merge to `main`. Every merge
+that adds or fixes something is a release, versioned from its pull request's title. A release's notes on GitHub come
+from [`CHANGELOG.md`](https://github.com/wingfold-ai/bundlemcp/blob/main/CHANGELOG.md) and name the
 [metering-hook protocol version](/integrate/metering-hook#versioning) it ships; read them before upgrading. To build
 from a checkout instead, for your own registry:
 
@@ -32,8 +33,9 @@ docker push your-registry/bundlemcp-gateway:$SHA
 docker push your-registry/bundlemcp-web:$SHA
 ```
 
-"Upgrading" means deploying a newer commit; there are no release notes, so the diff between the two commits is the
-changelog — see [Migrations and upgrades](#migrations-and-upgrades) for what to look for in it.
+"Upgrading" means deploying a newer release: read every changelog entry between the two versions first — see
+[Migrations and upgrades](#migrations-and-upgrades) for what to look for in them. A merge that releases nothing
+(documentation, tests, CI) still publishes `:latest` and `:<sha>`.
 
 ## Topology
 

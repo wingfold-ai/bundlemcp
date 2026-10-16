@@ -1,13 +1,28 @@
 # Changelog
 
 Every release of bundlemcp, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-and versions follow [Semantic Versioning](https://semver.org/). Each entry names the metering-hook protocol version it
-ships (`METERING_PROTOCOL_VERSION`), so a hook author can tell from the changelog alone whether a release changes the
-contract their hook implements. [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release) says how a release is cut.
+and versions follow [Semantic Versioning](https://semver.org/). A release that changes the metering-hook protocol
+(`METERING_PROTOCOL_VERSION`) says so in its entry, as a breaking change, so a hook author can tell from the changelog
+alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
+protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
+
+## [0.1.1] - 2026-10-15
+
+### Added
+
+- Every merge into `main` that adds, fixes or improves something is now a release: its version follows from the pull
+  request title, and the merge tags it and publishes the versioned images and the GitHub release without anyone pushing
+  a tag. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+
+### Changed
+
+- Changelog entries name the metering-hook protocol only in a release that changes it, as a breaking bullet; the
+  `Metering-hook protocol: <n>` line is gone from entries. The GitHub release notes still end with the protocol version
+  and whether it changed. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
+- The gateway's reported version (OpenAPI `info.version` and MCP `serverInfo.version`) is read from the installed
+  package, so it always matches the release. ([#134](https://github.com/wingfold-ai/bundlemcp/pull/134))
 
 ## [0.1.0] - 2026-10-15
-
-Metering-hook protocol: 2
 
 The first release. It is the whole history from the repository's start on 2026-07-04 to this tag, grouped by what a
 user, operator or integrator gets; pull requests are linked where the work landed through one. Releases from here on

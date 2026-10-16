@@ -105,7 +105,7 @@ python3 tools/check_docs_symbols.py     # the living docs name no dead symbols
 python3 tools/check_docs_settings.py    # env vars and requirement IDs are real
 python3 tools/check_adr_graph.py        # ADR statuses and indexes agree
 python3 tools/check_spec_ids.py         # requirement codes are well-formed, unique and real
-python3 tools/release_notes.py --check  # CHANGELOG.md names the metering-hook protocol version
+python3 tools/release_notes.py --check  # CHANGELOG.md entries have dated headings, newest first
 openspec validate --all --strict        # specs and changes are well-formed
 ```
 
@@ -229,22 +229,48 @@ files.
 CI runs all of these on every pull request, plus the frontend build, the docs build, LikeC4 validation, both image
 builds and the integration suite against the compose stack; one `ci-passed` check requires every job.
 
-## Cutting a release
+## How a release happens
 
-Releases are semantic versions, tagged `v<major>.<minor>.<patch>` on `main`. A maintainer cuts one:
+Every pull request into `main` carries the release its merge makes; nobody cuts one by hand.
+`.github/workflows/release-entry.yml` does the work:
 
-1. In `CHANGELOG.md`, add `## [1.2.0] - <date>` above the previous release, listing what changed since it, or rename
-   `## [Unreleased]` to that heading if changes were collected there. An `[Unreleased]` section exists only while it
-   lists something; none is left behind empty. Every entry starts with a `Metering-hook protocol: <n>` line; if the
-   release changes the protocol, the version bump in `application/metering/metering_hook.py` and the line change
-   together, and the bump is a breaking change.
-2. Check the notes: `python3 tools/release_notes.py v1.2.0` prints exactly what the release will say.
-3. Merge that, then tag the merge commit and push the tag: `git tag v1.2.0 && git push origin v1.2.0`.
+1. **The title decides the version.** The title must be a Conventional Commit (`feat(bundles): Order members by
+   hand`, at most 72 characters). CI labels the pull request `type: <type>` and `semver: <bump>` from it, and again
+   whenever the title is edited: `!` is `major`, `feat` is `minor`, `fix`, `perf` and `revert` are `patch`, everything
+   else is `none`. Below 1.0 each bump moves one place to the right: a breaking change takes `0.1.0` to `0.2.0`, a
+   feature or fix to `0.1.1`. Reaching `1.0.0` is a pull request of its own.
+2. **CI commits the entry to your branch.** For any bump but `none`, CI pushes one commit,
+   `chore(repo): Release <version>`, adding the `## [<version>] - <date>` entry to `CHANGELOG.md` and raising the
+   version in both `pyproject.toml` files, `uv.lock` and `apps/web/openapi.json`. That commit says `[skip ci]`, so it
+   starts no CI run; the squash merge takes its message from the pull request body, so the marker never reaches `main`.
+   Its text is written by Claude from your diff and description, so it says what users get rather than repeating the
+   title; the diff and description are sent to the Claude API to write it. Reword it on the branch if you like: once the
+   text differs from what CI last wrote, CI keeps yours and only renumbers it. Without your edit, CI rewrites the text
+   on each push.
+3. **CI keeps the version free.** When the title changes or `main` moves on, CI merges `main` into your branch and
+   renumbers the entry above the newest release. If that merge conflicts outside the changelog and the version files,
+   CI comments once; merge or rebase onto `main` yourself, and your next push renumbers it.
+4. **The merge releases.** The squash commit carries the entry and the bump. On `main`, CI tags `v<version>` and runs
+   `.github/workflows/release.yml`: it rehearses the documented restore against the compose stack
+   (`restore-rehearsal.yml`), publishes both images as `:<version>`, and creates the GitHub release from the entry,
+   ending with the metering-hook protocol version and whether it changed since the previous release. A failed
+   rehearsal publishes nothing. A `semver: none` pull request releases nothing.
 
-The tag starts `.github/workflows/release.yml`. It fails at once when the changelog has no entry for the version, then
-rehearses the documented restore against the compose stack (`restore-rehearsal.yml`), publishes both images as
-`:1.2.0`, and creates the GitHub release from the changelog entry, ending with the protocol version and whether it
-changed since the previous release. A failed rehearsal publishes nothing.
+What this means while you work on a branch:
+
+- CI owns the release entry and the version lines; a hand edit to the version is replaced. Pull before you push
+  (`git pull --rebase`), because CI may have pushed to your branch since your last pull.
+- A release that changes the metering-hook protocol bumps `METERING_PROTOCOL_VERSION` in
+  `application/metering/metering_hook.py` in the same pull request, and its title is marked breaking (`!`); CI refuses
+  the entry otherwise. The entry then says the protocol changed, with a breaking bullet CI adds unless the text already
+  names it. An entry names the protocol only in that case.
+- `main` only accepts a pull request whose `ci-passed` check succeeded. CI's own commits run no CI, so
+  `.github/workflows/ci-result-relay.yml` sets the result CI reached on the commit before them as the head's
+  `ci-passed`; until that run finishes, the check is pending and the merge waits.
+- CI cannot push to a fork. A pull request from a fork fails its entry check; a maintainer moves the branch into the
+  repository before merging.
+- `python3 tools/release_notes.py v1.2.0` prints what a release will say. A tag pushed by hand (`git tag v1.2.0 && git
+  push origin v1.2.0`) still runs the same release, as long as the changelog has its entry.
 
 ## Opening a pull request
 

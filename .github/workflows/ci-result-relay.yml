@@ -1,0 +1,37 @@
+# The commits CI pushes to a pull request's branch say [skip ci], so no run
+# checks them. When CI finishes on the commit before them, set its result as the
+# head's ci-passed status, which is the check the branch ruleset requires.
+name: CI result relay
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  relay:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+      statuses: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Set the branch head's ci-passed from this run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          head=$(gh api "repos/$GH_REPO/branches/$BRANCH" --jq .commit.sha)
+          uv run --no-project --with pydantic==2.13.5 python tools/ci_result_relay.py "$head"

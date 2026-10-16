@@ -275,11 +275,12 @@ longer than your reconciliation window — noting that
 
 `METERING_PROTOCOL_VERSION` is `2`. A change that breaks a hook written against
 the documented contract bumps it and is a breaking change in the gateway's
-release notes; new optional fields do not. Every entry of
+release notes; new optional fields do not. The
 [`CHANGELOG.md`](https://github.com/wingfold-ai/bundlemcp/blob/main/CHANGELOG.md)
-names the protocol version that release ships, and the GitHub release notes end
-with it and say whether it changed since the previous release, so watching the
-repository's releases is enough to hear about a change. The HTTP bodies carry the version as
+entry of a release that changes it says so, as a breaking change; an entry that
+does not mention the protocol leaves it unchanged. The GitHub release notes always
+end with the version and say whether it changed since the previous release, so
+watching the repository's releases is enough to hear about a change. The HTTP bodies carry the version as
 `protocol_version`. The hook is not consulted for `tools/list`;
 entitlement-based tool hiding is not part of version 2.
 
