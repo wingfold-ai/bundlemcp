@@ -7,8 +7,7 @@ is to disable the whole membership, which also hides every tool of that member. 
 and resources spec recorded per-bundle curation of member prompts and resources as a **MAY, decided separately** from
 the bundle-owned prompts and resources that shipped. This change writes that option down so it can be decided.
 
-**This change is optional and needs an explicit go/no-go from the maintainers before it is applied.** It is a feature
-nobody has asked for yet, and it adds a discovery cache that BND-8 deliberately avoided.
+It adds a discovery cache that BND-8 deliberately avoided, used for curation only.
 
 ## What Changes
 
@@ -34,13 +33,10 @@ None.
   resources/prompts is handled in bundles … never the prompt/resource lists themselves") must be reworded on archive.
 - `bundles`: BND-8 (passthrough is curated as far as BND-37 allows).
 
-## Open decision
+## Decision
 
-**Go / no-go.** Arguments for: per-bundle shaping of prompts matches what bundles do for tools, and a member exposing
-dozens of prompts can drown a bundle's own (BND-26). Arguments against: a second discovery cache to keep consistent,
-more upstream traffic at every probe (ADR-0043 asks for a reason to contact an upstream — the probe already happening is
-that reason, but the listing adds requests), resource listings that can be huge or per-user, and no consumer request so
-far. A no-go closes this change unapplied; BND-37 then stays out of the main spec and its ID unused.
+**Go**, decided by the maintainers on 2026-10-16: per-bundle curation of member prompts and resources is built as
+specified here.
 
 ## Impact
 

@@ -273,6 +273,12 @@ request instead.
 tools were discovered and how many changed: new, redefined, gone stale or back again. A discovery that finds exactly
 what is cached writes no tool and tells no client to re-list.
 
+When the upstream advertises prompts or resources, the same discovery also lists them and caches their names, URIs,
+titles and descriptions — never prompt messages or resource content — for per-bundle curation
+([Bundles](/manage/bundles#curating-members-prompts-and-resources)). The cache is never served: clients always get the
+member's live lists. A listing that fails leaves the cache as it was, and one longer than 500 entries is cached cut to
+500 and logged as `discovery.listing_truncated`.
+
 Creating a server probes it in the background. Updating one probes it only when the update changes how the upstream is
 reached — `url`, `static_headers`, `forward_headers`, `auth_mode`, `identity_mode`, `send_identity_header` or
 `protocol_mode` — or when its last probe failed. Re-sending an unchanged definition to a working server only writes the

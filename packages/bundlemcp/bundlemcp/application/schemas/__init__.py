@@ -22,6 +22,8 @@ from bundlemcp.application.schemas.bundles import (
     CataloguePromptRead,
     CatalogueResourceRead,
     CatalogueToolRead,
+    MemberEntryCurationRead,
+    MemberEntryCurationUpdate,
     ToolCurationRead,
 )
 from bundlemcp.application.schemas.common import EntityRead, Page
@@ -90,6 +92,8 @@ __all__ = [
     "ClientRegistrationResponse",
     "ConfigEntryRead",
     "ImportOutcome",
+    "MemberEntryCurationRead",
+    "MemberEntryCurationUpdate",
     "ImportReport",
     "ImportResult",
     "ConfigValue",

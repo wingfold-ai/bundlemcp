@@ -6,6 +6,36 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.13] - 2026-10-16
+
+### Added
+
+- Curate a bundle's member prompts and resources like tools: hide an entry from one bundle without disabling the whole
+  membership, or present another title or description. The name, URI, arguments and content stay the member's.
+  ([#146](https://github.com/wingfold-ai/bundlemcp/pull/146))
+- Manage member curation through `GET` and `PUT` on `/api/v1/bundles/{name}/member-prompts` and
+  `/api/v1/bundles/{name}/member-resources`, and through new *Member prompts* and *Member resources* cards on the bundle
+  page. ([#146](https://github.com/wingfold-ai/bundlemcp/pull/146))
+- Discovery caches the names or URIs, titles and descriptions of members that advertise prompts or resources, never
+  prompt messages or resource content, so there is something to curate. The cache keeps at most 500 entries per server
+  and kind, and a longer listing is logged as `discovery.listing_truncated`. Entries a member stops listing are marked
+  stale and keep their curation. ([#146](https://github.com/wingfold-ai/bundlemcp/pull/146))
+
+### Changed
+
+- A disabled member prompt or resource is left out of `prompts/list` and `resources/list` for that bundle. `prompts/get`
+  and `resources/read` refuse it without contacting the member. A bundle with no curation serves exactly as before.
+  ([#146](https://github.com/wingfold-ai/bundlemcp/pull/146))
+- Curating a member prompt or resource tells the bundle's connected clients that the prompt or resource list changed.
+  ([#146](https://github.com/wingfold-ai/bundlemcp/pull/146))
+- Each discovery probe of a member that advertises prompts or resources makes one or two more requests. The cache fills
+  on each server's next discovery. ([#146](https://github.com/wingfold-ai/bundlemcp/pull/146))
+
+### Fixed
+
+- Hiding a member's resource no longer exposes another member's resource with the same URI in that bundle.
+  ([#146](https://github.com/wingfold-ai/bundlemcp/pull/146))
+
 ## [0.1.12] - 2026-10-16
 
 ### Added

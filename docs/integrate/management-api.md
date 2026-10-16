@@ -128,6 +128,10 @@ Upstream servers live under `/upstreams` (the short form of *upstream servers*),
 | `DELETE` | `/bundles/{name}/upstreams/{server_name}` | Remove a membership. |
 | `GET` | `/bundles/{name}/tools` | Every tool with its curation, presented name and staleness. |
 | `PUT` | `/bundles/{name}/tools/{tool_id}` | Enable, disable, override. |
+| `GET` | `/bundles/{name}/member-prompts` | The members' prompts discovery cached, with this bundle's curation. |
+| `PUT` | `/bundles/{name}/member-prompts/{prompt_id}` | Enable, disable, or override a member prompt's title and description. |
+| `GET` | `/bundles/{name}/member-resources` | The members' resources discovery cached, with this bundle's curation. |
+| `PUT` | `/bundles/{name}/member-resources/{resource_id}` | The same for a member resource. |
 | `GET` | `/bundles/{name}/prompts` | The bundle's own prompts, paginated. |
 | `GET` `PUT` `DELETE` | `/bundles/{name}/prompts/{prompt}` | Read, create or replace, delete one prompt. |
 | `GET` | `/bundles/{name}/resources` | The bundle's own resources, paginated. |

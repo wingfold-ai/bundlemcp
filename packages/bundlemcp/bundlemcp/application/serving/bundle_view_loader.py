@@ -1,13 +1,19 @@
 """Assembling what one endpoint serves: its bundle's tools, prompts and resources."""
 
+import uuid
+
 import structlog
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.serving.tool_chain import ToolChain
 from bundlemcp.domain.bundles.bundle_view import BundleView
+from bundlemcp.domain.bundles.member_entry_curation import MemberEntryCuration
+from bundlemcp.domain.bundles.member_entry_ref import MemberEntryRef
 from bundlemcp.domain.bundles.presented_name_claims import PresentedNameClaims
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
 from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
+from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
 
 log = structlog.get_logger(__name__)
 
@@ -46,6 +52,7 @@ async def load_bundle_view(
             displaced=f"{displaced.server.name}/{displaced.tool.name}",
         )
     return BundleView(
+        member_curations=await _member_curations(uow, bundle.id, server_by_id),
         endpoint=endpoint,
         bundle=bundle,
         servers={server.name: server for server in server_by_id.values()},
@@ -53,3 +60,24 @@ async def load_bundle_view(
         prompts=await uow.bundle_prompts.listings(bundle.id),
         resources=await uow.bundle_resources.listings(bundle.id),
     )
+
+
+async def _member_curations(
+    uow: UnitOfWork, bundle_id: uuid.UUID, server_by_id: dict[uuid.UUID, McpServer]
+) -> dict[MemberEntryRef, MemberEntryCuration]:
+    """The bundle's curation of its members' prompts and resources, by live listing identity.
+
+    A bundle without such curation costs one query and loads nothing further.
+    """
+    curations = {c.entry_id: c for c in await uow.member_curations.for_bundle(bundle_id)}
+    if not curations:
+        return {}
+    curated: dict[MemberEntryRef, MemberEntryCuration] = {}
+    for kind in MemberEntryKind:
+        for entry in await uow.member_entries.for_servers(server_by_id, kind):
+            if entry.id in curations:
+                ref = MemberEntryRef(
+                    kind=kind, server_name=server_by_id[entry.server_id].name, key=entry.key
+                )
+                curated[ref] = curations[entry.id]
+    return curated

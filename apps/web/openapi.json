@@ -2361,6 +2361,155 @@
         "title": "MeRead",
         "type": "object"
       },
+      "MemberEntryCurationRead": {
+        "description": "A member's prompt or resource as discovery last saw it, with how this bundle curates it.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description the upstream reports",
+            "title": "Description"
+          },
+          "enabled": {
+            "description": "Whether this bundle lists and serves it",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "entry_id": {
+            "description": "Identifier of the cached entry; the path parameter of its curation route",
+            "format": "uuid",
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "key": {
+            "description": "The prompt's name, or the resource's URI, as the upstream lists it",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MemberEntryKind",
+            "description": "'prompt' or 'resource'"
+          },
+          "override_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description this bundle presents instead",
+            "title": "Override Description"
+          },
+          "override_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Title this bundle presents instead",
+            "title": "Override Title"
+          },
+          "presented_name": {
+            "description": "What clients see it as: '<upstream>__<prompt>' for a prompt, the URI for a resource",
+            "title": "Presented Name",
+            "type": "string"
+          },
+          "server_name": {
+            "description": "The member upstream that lists it",
+            "title": "Server Name",
+            "type": "string"
+          },
+          "stale": {
+            "description": "Whether the upstream's last successful discovery no longer listed it; its curation is kept",
+            "title": "Stale",
+            "type": "boolean"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Title the upstream reports",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "entry_id",
+          "kind",
+          "server_name",
+          "key",
+          "presented_name",
+          "title",
+          "description",
+          "stale",
+          "enabled",
+          "override_title",
+          "override_description"
+        ],
+        "title": "MemberEntryCurationRead",
+        "type": "object"
+      },
+      "MemberEntryCurationUpdate": {
+        "description": "How a bundle presents one member prompt or resource; the whole curation is replaced.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Whether the bundle lists and serves it; false hides it from clients of this bundle and refuses fetching it",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "override_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description presented instead of the upstream's; null keeps it",
+            "title": "Override Description"
+          },
+          "override_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Title presented instead of the upstream's; null keeps it",
+            "title": "Override Title"
+          }
+        },
+        "title": "MemberEntryCurationUpdate",
+        "type": "object"
+      },
+      "MemberEntryKind": {
+        "description": "Which of a member's listings an entry comes from.",
+        "enum": [
+          "prompt",
+          "resource"
+        ],
+        "title": "MemberEntryKind",
+        "type": "string"
+      },
       "OAuthInspection": {
         "description": "What an OAuth-protected upstream's authorization chain revealed.",
         "properties": {
@@ -4051,7 +4200,7 @@
   },
   "info": {
     "title": "bundlemcp",
-    "version": "0.1.12"
+    "version": "0.1.13"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4766,6 +4915,222 @@
           }
         },
         "summary": "List Bundles",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{bundle}/member-prompts": {
+      "get": {
+        "operationId": "list_member_prompts_api_v1_bundles__bundle__member_prompts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberEntryCurationRead"
+                  },
+                  "title": "Response List Member Prompts Api V1 Bundles  Bundle  Member Prompts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Member Prompts",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{bundle}/member-prompts/{prompt_id}": {
+      "put": {
+        "operationId": "curate_member_prompt_api_v1_bundles__bundle__member_prompts__prompt_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "prompt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Prompt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberEntryCurationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberEntryCurationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Curate Member Prompt",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{bundle}/member-resources": {
+      "get": {
+        "operationId": "list_member_resources_api_v1_bundles__bundle__member_resources_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberEntryCurationRead"
+                  },
+                  "title": "Response List Member Resources Api V1 Bundles  Bundle  Member Resources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Member Resources",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{bundle}/member-resources/{resource_id}": {
+      "put": {
+        "operationId": "curate_member_resource_api_v1_bundles__bundle__member_resources__resource_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bundle",
+            "required": true,
+            "schema": {
+              "title": "Bundle",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberEntryCurationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberEntryCurationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Curate Member Resource",
         "tags": [
           "bundles"
         ]

@@ -2,7 +2,7 @@
 
 ## Context
 
-See [proposal.md](proposal.md) — this is an optional feature behind a go/no-go. Today `DiscoveryService`
+See [proposal.md](proposal.md); the maintainers decided to build it. Today `DiscoveryService`
 (application) probes `tools/list` through `UpstreamProbe` and snapshots capabilities (UPS-22); member prompts and
 resources are fetched live per request by `MemberFanout` (`api/mcp/dispatch/handlers/member_fanout.py`), whose
 `merged(...)` takes a `present` callback per entry. `BundleView` (domain) is composed once per request and already
@@ -28,8 +28,8 @@ carries the bundle's own prompts and resources (BND-25).
 ### Cache listings at discovery, not on page view
 
 `UpstreamProbe` gains optional `list_prompts` / `list_resources` steps run in the same connection as `tools/list` when
-the negotiated capabilities advertise them. New domain entities `MemberPrompt` (server, name, title, description, hash,
-stale marker) and `MemberResource` (server, uri, name, title, description, hash, stale marker) in `domain/servers/`,
+the negotiated capabilities advertise them. One domain entity `MemberEntry` (server, kind `prompt` or `resource`, key —
+the prompt name or resource URI —, name, title, description, hash, stale marker) in `domain/servers/`,
 synced by a sibling of `sync_tools` with the same hash-gating and staleness rules
 ([complete-tool-curation](../archive/2026-10-13-complete-tool-curation/design.md)). The bound is 500 entries per server
 and kind, following list pagination up to it; truncation logs `discovery.listing_truncated`.
@@ -40,12 +40,11 @@ curation records with nothing to show next to them.
 
 ### Curation is keyed by the upstream's own identifier
 
-`BundleMemberPrompt` (bundle, member prompt id, enabled, override title, override description) and
-`BundleMemberResource` (same shape) in `domain/bundles/`, with row classes, repositories and fakes. The serving path
-needs to match a live entry to its curation without the cache, so `BundleView` gains two maps loaded with the
-view: `(server name, prompt name) → curation` and `(server name, uri) → curation`, joined through the cached entry in
-the loader query. An empty map costs one indexed query per request; a bundle without such curation loads nothing
-further.
+`MemberEntryCuration` (bundle, member entry id, enabled, override title, override description) in `domain/bundles/`,
+with row classes, repositories and fakes. The serving path needs to match a live entry to its curation without the
+cache, so `BundleView` gains two maps loaded with the view: `(server name, prompt name) → curation` and
+`(server name, uri) → curation`, joined through the cached entry in the loader query. An empty map costs one indexed
+query per request; a bundle without such curation loads nothing further.
 
 ### The fan-out applies curation through its existing callback
 
@@ -75,6 +74,6 @@ entries). DTOs in `application/schemas/bundles/`, one per file, every field desc
 
 ## Migration Plan
 
-One Alembic revision creating four tables; no backfill — the cache fills on the next probe of each server (at most one
-UPS-23 interval), and curation starts empty. Rollback drops the tables; serving is unaffected because it never read
-them without curation present.
+One Alembic revision (`0015`) creating two tables, `member_entries` and `bundle_member_entries`; no backfill — the cache
+fills on the next probe of each server (at most one UPS-23 interval), and curation starts empty. Rollback drops the
+tables; serving is unaffected because it never read them without curation present.

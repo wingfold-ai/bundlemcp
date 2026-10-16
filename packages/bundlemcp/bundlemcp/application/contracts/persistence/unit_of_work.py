@@ -22,6 +22,12 @@ from bundlemcp.application.contracts.persistence.consent_repository import Conse
 from bundlemcp.application.contracts.persistence.curation_repository import CurationRepository
 from bundlemcp.application.contracts.persistence.endpoint_repository import EndpointRepository
 from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
+from bundlemcp.application.contracts.persistence.member_curation_repository import (
+    MemberCurationRepository,
+)
+from bundlemcp.application.contracts.persistence.member_entry_repository import (
+    MemberEntryRepository,
+)
 from bundlemcp.application.contracts.persistence.membership_repository import MembershipRepository
 from bundlemcp.application.contracts.persistence.oauth_client_repository import (
     OAuthClientRepository,
@@ -58,6 +64,10 @@ class UnitOfWork(Protocol):
     def memberships(self) -> MembershipRepository: ...
     @property
     def curations(self) -> CurationRepository: ...
+    @property
+    def member_entries(self) -> MemberEntryRepository: ...
+    @property
+    def member_curations(self) -> MemberCurationRepository: ...
     @property
     def bundle_prompts(self) -> BundlePromptRepository: ...
     @property

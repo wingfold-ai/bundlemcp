@@ -127,6 +127,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bundles/{bundle}/member-prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Member Prompts */
+        get: operations["list_member_prompts_api_v1_bundles__bundle__member_prompts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bundles/{bundle}/member-prompts/{prompt_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Curate Member Prompt */
+        put: operations["curate_member_prompt_api_v1_bundles__bundle__member_prompts__prompt_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bundles/{bundle}/member-resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Member Resources */
+        get: operations["list_member_resources_api_v1_bundles__bundle__member_resources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bundles/{bundle}/member-resources/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Curate Member Resource */
+        put: operations["curate_member_resource_api_v1_bundles__bundle__member_resources__resource_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bundles/{bundle}/prompts": {
         parameters: {
             query?: never;
@@ -2287,6 +2355,93 @@ export interface components {
             user_id?: string | null;
         };
         /**
+         * MemberEntryCurationRead
+         * @description A member's prompt or resource as discovery last saw it, with how this bundle curates it.
+         */
+        MemberEntryCurationRead: {
+            /**
+             * Description
+             * @description Description the upstream reports
+             */
+            description: string | null;
+            /**
+             * Enabled
+             * @description Whether this bundle lists and serves it
+             */
+            enabled: boolean;
+            /**
+             * Entry Id
+             * Format: uuid
+             * @description Identifier of the cached entry; the path parameter of its curation route
+             */
+            entry_id: string;
+            /**
+             * Key
+             * @description The prompt's name, or the resource's URI, as the upstream lists it
+             */
+            key: string;
+            /** @description 'prompt' or 'resource' */
+            kind: components["schemas"]["MemberEntryKind"];
+            /**
+             * Override Description
+             * @description Description this bundle presents instead
+             */
+            override_description: string | null;
+            /**
+             * Override Title
+             * @description Title this bundle presents instead
+             */
+            override_title: string | null;
+            /**
+             * Presented Name
+             * @description What clients see it as: '<upstream>__<prompt>' for a prompt, the URI for a resource
+             */
+            presented_name: string;
+            /**
+             * Server Name
+             * @description The member upstream that lists it
+             */
+            server_name: string;
+            /**
+             * Stale
+             * @description Whether the upstream's last successful discovery no longer listed it; its curation is kept
+             */
+            stale: boolean;
+            /**
+             * Title
+             * @description Title the upstream reports
+             */
+            title: string | null;
+        };
+        /**
+         * MemberEntryCurationUpdate
+         * @description How a bundle presents one member prompt or resource; the whole curation is replaced.
+         */
+        MemberEntryCurationUpdate: {
+            /**
+             * Enabled
+             * @description Whether the bundle lists and serves it; false hides it from clients of this bundle and refuses fetching it
+             * @default true
+             */
+            enabled?: boolean;
+            /**
+             * Override Description
+             * @description Description presented instead of the upstream's; null keeps it
+             */
+            override_description?: string | null;
+            /**
+             * Override Title
+             * @description Title presented instead of the upstream's; null keeps it
+             */
+            override_title?: string | null;
+        };
+        /**
+         * MemberEntryKind
+         * @description Which of a member's listings an entry comes from.
+         * @enum {string}
+         */
+        MemberEntryKind: "prompt" | "resource";
+        /**
          * OAuthInspection
          * @description What an OAuth-protected upstream's authorization chain revealed.
          */
@@ -3544,6 +3699,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_BundleRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_member_prompts_api_v1_bundles__bundle__member_prompts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberEntryCurationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    curate_member_prompt_api_v1_bundles__bundle__member_prompts__prompt_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+                prompt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberEntryCurationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberEntryCurationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_member_resources_api_v1_bundles__bundle__member_resources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberEntryCurationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    curate_member_resource_api_v1_bundles__bundle__member_resources__resource_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberEntryCurationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberEntryCurationRead"];
                 };
             };
             /** @description Validation Error */

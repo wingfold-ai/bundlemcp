@@ -1,19 +1,28 @@
 """Probing an upstream server through the MCP client library."""
 
+from typing import Any
+
 import httpx2
+import structlog
 
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.contracts.upstream.upstream_probe import ProbeResult
 from bundlemcp.domain.servers.connection_classifier import classify_refusal
 from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
 from bundlemcp.domain.servers.probe_failure import ProbeFailure
+from bundlemcp.domain.servers.probed_entry import ProbedEntry
 from bundlemcp.domain.servers.probed_server_info import ProbedServerInfo
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, HostUnresolvable
 
 TRANSPORT_FAILURES = (httpx2.TransportError, OSError, TimeoutError)
+# the most entries of one kind cached per server; a longer listing is cut, and that is logged
+MEMBER_LISTING_LIMIT = 500
+
+log = structlog.get_logger(__name__)
 
 
 def _in_chain[E: BaseException](
@@ -60,6 +69,21 @@ class FastMcpUpstreamProbe:
                 capabilities = client.server_capabilities
                 protocol_version = client.protocol_version
                 info = client.server_info
+                truncated: list[MemberEntryKind] = []
+                prompts = (
+                    await self._listing(
+                        server, client.list_prompts, MemberEntryKind.PROMPT, truncated
+                    )
+                    if capabilities is not None and capabilities.prompts is not None
+                    else None
+                )
+                resources = (
+                    await self._listing(
+                        server, client.list_resources, MemberEntryKind.RESOURCE, truncated
+                    )
+                    if capabilities is not None and capabilities.resources is not None
+                    else None
+                )
         except HostUnresolvable as exc:
             raise ProbeFailure(str(exc), state=ConnectionState.UNREACHABLE) from exc
         except EgressDenied as exc:
@@ -93,6 +117,9 @@ class FastMcpUpstreamProbe:
                 else None
             ),
             protocol_version=protocol_version,
+            prompts=prompts,
+            resources=resources,
+            truncated=truncated,
             server_info=(
                 ProbedServerInfo(
                     name=info.name,
@@ -105,3 +132,33 @@ class FastMcpUpstreamProbe:
                 else None
             ),
         )
+
+    @staticmethod
+    async def _listing(
+        server: McpServer, fetch: Any, kind: MemberEntryKind, truncated: list[MemberEntryKind]
+    ) -> list[ProbedEntry] | None:
+        """One of the server's listings as cache entries; None when listing it failed."""
+        try:
+            listed = await fetch()
+        except Exception:
+            log.warning("discovery.listing_failed", server=server.name, kind=kind.value)
+            return None
+        if len(listed) > MEMBER_LISTING_LIMIT:
+            log.warning(
+                "discovery.listing_truncated",
+                server=server.name,
+                kind=kind.value,
+                listed=len(listed),
+                kept=MEMBER_LISTING_LIMIT,
+            )
+            truncated.append(kind)
+            listed = listed[:MEMBER_LISTING_LIMIT]
+        if kind is MemberEntryKind.PROMPT:
+            return [
+                ProbedEntry(key=p.name, name=p.name, title=p.title, description=p.description)
+                for p in listed
+            ]
+        return [
+            ProbedEntry(key=str(r.uri), name=r.name, title=r.title, description=r.description)
+            for r in listed
+        ]
