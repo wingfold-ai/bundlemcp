@@ -56,6 +56,7 @@ from bundlemcp.application.metering.metering_hook import MeteringHook
 from bundlemcp.application.metering.metering_stage import MeteringStage
 from bundlemcp.application.serving.audit_stage import AuditStage
 from bundlemcp.application.serving.bundle_content_reader import BundleContentReader
+from bundlemcp.application.serving.member_listing_reader import MemberListingReader
 from bundlemcp.application.serving.replica_drain import ReplicaDrain
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
@@ -146,6 +147,7 @@ class McpGatewayAssembly(BaseModel):
             self.signals,
             self.presence,
             self.runtime_config,
+            MemberListingReader(self.unit_of_work_factory),
         )
         content = BundleContentReader(self.unit_of_work_factory)
         bridge = InputRequiredBridge(

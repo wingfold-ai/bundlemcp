@@ -1,9 +1,13 @@
 import asyncio
 import uuid
+from datetime import datetime
 
 import structlog
 
-from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
+from bundlemcp.application.contracts.persistence.invalidation_event import (
+    EntityType,
+    InvalidationEvent,
+)
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from bundlemcp.application.contracts.upstream.upstream_probe import UpstreamProbe
 from bundlemcp.application.discovery.connection_diagnoser import ConnectionDiagnoser
@@ -13,10 +17,13 @@ from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
     UpstreamCredentialResolver,
 )
 from bundlemcp.domain.servers.connection_state import ConnectionState
+from bundlemcp.domain.servers.listing_kind import ListingKind
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
 from bundlemcp.domain.servers.member_entry_sync import sync_member_entries
+from bundlemcp.domain.servers.member_listing_sync import sync_member_listing
 from bundlemcp.domain.servers.probe_failure import ProbeFailure
+from bundlemcp.domain.servers.probed_listing import ProbedListing
 from bundlemcp.domain.servers.tool_sync import sync_tools
 from bundlemcp.domain.shared.clock import utcnow
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
@@ -28,6 +35,13 @@ SWEEP_PAGE_SIZE = 100
 PROBE_TIMEOUT_SECONDS = 60
 
 log = structlog.get_logger(__name__)
+
+# which list a client should read again when a member's stored listing changes
+_RELISTED: dict[ListingKind, EntityType] = {
+    ListingKind.PROMPTS: "bundle_prompt",
+    ListingKind.RESOURCES: "bundle_resource",
+    ListingKind.RESOURCE_TEMPLATES: "bundle_resource",
+}
 
 
 class DiscoveryService:
@@ -56,7 +70,13 @@ class DiscoveryService:
       refusal that wants some other credential, a URL that is not MCP, an
       unreachable host. Unlike health it is updated on every probe.
 
-    Caching all three is what lets bundles stay curatable and servable while
+    - **Prompt, resource and resource-template listings** — when advertised,
+      each listing is stored in full as ``MemberListing``, which is what the
+      list methods serve, and its prompts and resources as ``MemberEntry``
+      rows for curation. A listing that changed is announced to the clients
+      of the server's bundles.
+
+    Caching all of this is what lets bundles stay curatable and servable while
     an upstream is unreachable.
 
     A server behind upstream OAuth is probed with a connected account's token.
@@ -95,7 +115,12 @@ class DiscoveryService:
             log.warning("discovery.probe_failed", server_id=str(server_id), exc_info=True)
 
     async def discover(
-        self, server_id: uuid.UUID, *, announce: bool = False, prune: bool = False
+        self,
+        server_id: uuid.UUID,
+        *,
+        announce: bool = False,
+        prune: bool = False,
+        relisted: EntityType | None = None,
     ) -> DiscoveryResult:
         """Probe now and report how many tools were seen and how many changed.
 
@@ -103,7 +128,9 @@ class DiscoveryService:
         for a change the tool cache does not see, such as a user connecting the
         account that decides which tools they are offered. ``prune`` deletes the
         server's stale tools and their curation in every bundle, only once the
-        probe has succeeded.
+        probe has succeeded. ``relisted`` names a list the server said changed,
+        announced once the probe succeeds even when the stored listing did not
+        change, since the server may list differently for its other callers.
         """
         async with self._units.open() as uow:
             server = await uow.servers.get(server_id)
@@ -161,10 +188,15 @@ class DiscoveryService:
                 cached = {e.key: e for e in await uow.member_entries.for_server(server.id, kind)}
                 for row in sync_member_entries(server.id, kind, cached, entries, now):
                     uow.member_entries.add(row)
+            changed_lists = await self._store_listings(uow, server, seen.listings, now)
+            if relisted is not None:
+                changed_lists.add(relisted)
             pruned = await self._prune(uow, server) if prune else 0
             await self._record_success(uow, server)
             if sync.changed or pruned or announce:
                 await self._announce(uow, server)  # clients re-list the bundle
+            for entity_type in sorted(changed_lists):
+                await self._announce(uow, server, entity_type, enabled_only=True)
             await uow.commit()
             return DiscoveryResult(
                 discovered=len(seen.tools),
@@ -220,13 +252,40 @@ class DiscoveryService:
         return len(stale)
 
     @staticmethod
-    async def _announce(uow: UnitOfWork, server: McpServer) -> None:
+    async def _store_listings(
+        uow: UnitOfWork, server: McpServer, probed: list[ProbedListing], now: datetime
+    ) -> set[EntityType]:
+        """Write the listings that changed; which lists the bundles' clients should re-read.
+
+        A kind the probe did not list keeps its stored listing.
+        """
+        stored = {
+            listing.kind: listing for listing in await uow.member_listings.for_server(server.id)
+        }
+        relisted: set[EntityType] = set()
+        for listing in probed:
+            written = sync_member_listing(server.id, stored.get(listing.kind), listing, now)
+            if written is not None:
+                uow.member_listings.add(written)
+                relisted.add(_RELISTED[listing.kind])
+        return relisted
+
+    @staticmethod
+    async def _announce(
+        uow: UnitOfWork,
+        server: McpServer,
+        entity_type: EntityType = "bundle",
+        *,
+        enabled_only: bool = False,
+    ) -> None:
         """Invalidate every bundle the server belongs to, once the commit lands."""
         for membership in await uow.memberships.for_server(server.id):
+            if enabled_only and not membership.enabled:
+                continue
             bundle = await uow.bundles.get(membership.bundle_id)
             if bundle is not None:
                 uow.invalidate(
-                    InvalidationEvent(entity_type="bundle", key=bundle.name, action="updated")
+                    InvalidationEvent(entity_type=entity_type, key=bundle.name, action="updated")
                 )
 
     async def _state_of(self, server: McpServer, failure: ProbeFailure) -> ConnectionState:

@@ -1,14 +1,16 @@
 """Probing an upstream server through the MCP client library."""
 
-from typing import Any
+from typing import Any, Literal
 
 import structlog
 
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.contracts.upstream.upstream_probe import ProbeResult
+from bundlemcp.domain.servers.listing_kind import ListingKind
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
 from bundlemcp.domain.servers.probed_entry import ProbedEntry
+from bundlemcp.domain.servers.probed_listing import ProbedListing
 from bundlemcp.domain.servers.probed_server_info import ProbedServerInfo
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.response_log import ResponseLog
@@ -16,6 +18,20 @@ from bundlemcp.infrastructure.fastmcp.connection_failure import connection_failu
 
 # the most entries of one kind cached per server; a longer listing is cut, and that is logged
 MEMBER_LISTING_LIMIT = 500
+# a server that keeps handing out new cursors is not read forever
+LISTING_PAGE_LIMIT = 50
+
+# the client method that reads one page of each listing, and the page's field holding its entries
+_PAGES: dict[ListingKind, tuple[str, str]] = {
+    ListingKind.PROMPTS: ("list_prompts_mcp", "prompts"),
+    ListingKind.RESOURCES: ("list_resources_mcp", "resources"),
+    ListingKind.RESOURCE_TEMPLATES: ("list_resource_templates_mcp", "resource_templates"),
+}
+# the listings curation keeps entries of
+_CURATED: dict[ListingKind, MemberEntryKind] = {
+    ListingKind.PROMPTS: MemberEntryKind.PROMPT,
+    ListingKind.RESOURCES: MemberEntryKind.RESOURCE,
+}
 
 log = structlog.get_logger(__name__)
 
@@ -40,21 +56,13 @@ class FastMcpUpstreamProbe:
                 capabilities = client.server_capabilities
                 protocol_version = client.protocol_version
                 info = client.server_info
-                truncated: list[MemberEntryKind] = []
-                prompts = (
-                    await self._listing(
-                        server, client.list_prompts, MemberEntryKind.PROMPT, truncated
-                    )
-                    if capabilities is not None and capabilities.prompts is not None
-                    else None
-                )
-                resources = (
-                    await self._listing(
-                        server, client.list_resources, MemberEntryKind.RESOURCE, truncated
-                    )
-                    if capabilities is not None and capabilities.resources is not None
-                    else None
-                )
+                listings = []
+                for kind in ListingKind:
+                    if capabilities is None or getattr(capabilities, kind.capability.value) is None:
+                        continue
+                    listing = await self._listing(server, client, kind)
+                    if listing is not None:
+                        listings.append(listing)
         except Exception as exc:
             raise connection_failure(exc, responses) from exc
         return ProbeResult(
@@ -76,9 +84,14 @@ class FastMcpUpstreamProbe:
                 else None
             ),
             protocol_version=protocol_version,
-            prompts=prompts,
-            resources=resources,
-            truncated=truncated,
+            prompts=self._entries(listings, ListingKind.PROMPTS),
+            resources=self._entries(listings, ListingKind.RESOURCES),
+            listings=[listing for listing, _ in listings],
+            truncated=[
+                _CURATED[listing.kind]
+                for listing, _ in listings
+                if not listing.complete and listing.kind in _CURATED
+            ],
             server_info=(
                 ProbedServerInfo(
                     name=info.name,
@@ -94,30 +107,74 @@ class FastMcpUpstreamProbe:
 
     @staticmethod
     async def _listing(
-        server: McpServer, fetch: Any, kind: MemberEntryKind, truncated: list[MemberEntryKind]
-    ) -> list[ProbedEntry] | None:
-        """One of the server's listings as cache entries; None when listing it failed."""
+        server: McpServer, client: Any, kind: ListingKind
+    ) -> tuple[ProbedListing, list[dict[str, Any]]] | None:
+        """One of the server's listings read to its last page, with the entries kept for
+        curation; None when listing it failed.
+
+        Pages are read without the client's response cache, so the scope each
+        page carries is the server's own.
+        """
+        fetch, field = _PAGES[kind]
+        entries: list[dict[str, Any]] = []
+        scopes: set[str | None] = set()
+        cursors: set[str] = set()
+        cursor: str | None = None
+        ended = False
         try:
-            listed = await fetch()
+            for _ in range(LISTING_PAGE_LIMIT):
+                page = await getattr(client, fetch)(cursor=cursor, cache_mode="bypass")
+                # the client model fills in 'private' when a server sent no scope
+                scopes.add(page.cache_scope if "cache_scope" in page.model_fields_set else None)
+                entries.extend(
+                    item.model_dump(by_alias=True, mode="json", exclude_none=True)
+                    for item in getattr(page, field)
+                )
+                if len(entries) > MEMBER_LISTING_LIMIT:
+                    break
+                cursor = page.next_cursor
+                # a repeated cursor would only read the same pages again
+                if cursor is None or cursor in cursors:
+                    ended = True
+                    break
+                cursors.add(cursor)
         except Exception:
             log.warning("discovery.listing_failed", server=server.name, kind=kind.value)
             return None
-        if len(listed) > MEMBER_LISTING_LIMIT:
+        complete = ended and len(entries) <= MEMBER_LISTING_LIMIT
+        if not complete:
             log.warning(
                 "discovery.listing_truncated",
                 server=server.name,
                 kind=kind.value,
-                listed=len(listed),
+                listed=len(entries),
                 kept=MEMBER_LISTING_LIMIT,
             )
-            truncated.append(kind)
-            listed = listed[:MEMBER_LISTING_LIMIT]
-        if kind is MemberEntryKind.PROMPT:
-            return [
-                ProbedEntry(key=p.name, name=p.name, title=p.title, description=p.description)
-                for p in listed
-            ]
-        return [
-            ProbedEntry(key=str(r.uri), name=r.name, title=r.title, description=r.description)
-            for r in listed
-        ]
+        scope: Literal["public", "private"] | None = None
+        if "private" in scopes:
+            scope = "private"
+        elif scopes == {"public"}:
+            scope = "public"
+        listing = ProbedListing(
+            kind=kind, entries=entries if complete else [], cache_scope=scope, complete=complete
+        )
+        return listing, entries[:MEMBER_LISTING_LIMIT]
+
+    @staticmethod
+    def _entries(
+        listings: list[tuple[ProbedListing, list[dict[str, Any]]]], kind: ListingKind
+    ) -> list[ProbedEntry] | None:
+        """The curation entries of one listing; None when it was not listed."""
+        for listing, kept in listings:
+            if listing.kind is kind:
+                key = kind.key
+                return [
+                    ProbedEntry(
+                        key=entry[key],
+                        name=entry.get("name", entry[key]),
+                        title=entry.get("title"),
+                        description=entry.get("description"),
+                    )
+                    for entry in kept
+                ]
+        return None

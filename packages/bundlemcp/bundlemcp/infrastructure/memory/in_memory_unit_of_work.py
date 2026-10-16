@@ -35,6 +35,9 @@ from bundlemcp.infrastructure.memory.in_memory_member_curation_repository import
 from bundlemcp.infrastructure.memory.in_memory_member_entry_repository import (
     InMemoryMemberEntryRepository,
 )
+from bundlemcp.infrastructure.memory.in_memory_member_listing_repository import (
+    InMemoryMemberListingRepository,
+)
 from bundlemcp.infrastructure.memory.in_memory_membership_repository import (
     InMemoryMembershipRepository,
 )
@@ -67,6 +70,7 @@ class InMemoryUnitOfWork:
         self.memberships = InMemoryMembershipRepository()
         self.curations = InMemoryCurationRepository()
         self.member_entries = InMemoryMemberEntryRepository()
+        self.member_listings = InMemoryMemberListingRepository()
         self.member_curations = InMemoryMemberCurationRepository()
         self.bundle_prompts = InMemoryBundlePromptRepository()
         self.bundle_resources = InMemoryBundleResourceRepository()

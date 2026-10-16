@@ -912,6 +912,17 @@
             "default": "shared",
             "description": "Whether all callers share one upstream identity or each gets their own"
           },
+          "listing_snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ListingSnapshotMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How prompts/list, resources/list and resources/templates/list are answered for this server's prompts and resources: 'auto' serves the listing stored at its last discovery when the server marked it public, or gave no cache scope and is sent nothing that depends on the caller (no forwarded headers, no X-MCP-User, no per-user or delegated tokens); 'shared' serves the stored listing to every caller, for a server that lists the same for everyone but is sent the caller's identity or marks its results private by default; 'live' always asks the server. Omitted on create it is 'auto'; omitted on update, the stored value is kept. Changing it does not contact the server"
+          },
           "name": {
             "description": "Unique server name: letters, digits, underscores and hyphens, without a double underscore because that separates server from tool in presented tool names",
             "not": {
@@ -2767,6 +2778,16 @@
         "title": "InspectorToolList",
         "type": "object"
       },
+      "ListingSnapshotMode": {
+        "description": "Whether a server's prompt and resource listings are served from its discovery snapshot.",
+        "enum": [
+          "auto",
+          "shared",
+          "live"
+        ],
+        "title": "ListingSnapshotMode",
+        "type": "string"
+      },
       "LiveLogEntry": {
         "description": "One log event as the live log view shows it: the already-redacted process log line.",
         "properties": {
@@ -4079,6 +4100,10 @@
             "description": "Why the last probe failed, if it did",
             "title": "Last Error"
           },
+          "listing_snapshot": {
+            "$ref": "#/components/schemas/ListingSnapshotMode",
+            "description": "How this server's prompt, resource and resource-template lists are answered: 'auto' (from the listing stored at discovery when every caller may be shown it), 'shared' (from the stored listing, for every caller) or 'live' (always asking the server)"
+          },
           "name": {
             "description": "Unique server name",
             "title": "Name",
@@ -4137,6 +4162,7 @@
           "identity_mode",
           "send_identity_header",
           "protocol_mode",
+          "listing_snapshot",
           "protocol_version",
           "health_status",
           "last_error",
@@ -4185,6 +4211,17 @@
             "$ref": "#/components/schemas/IdentityMode",
             "default": "shared",
             "description": "Whether all callers share one upstream identity or each gets their own"
+          },
+          "listing_snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ListingSnapshotMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How prompts/list, resources/list and resources/templates/list are answered for this server's prompts and resources: 'auto' serves the listing stored at its last discovery when the server marked it public, or gave no cache scope and is sent nothing that depends on the caller (no forwarded headers, no X-MCP-User, no per-user or delegated tokens); 'shared' serves the stored listing to every caller, for a server that lists the same for everyone but is sent the caller's identity or marks its results private by default; 'live' always asks the server. Omitted on create it is 'auto'; omitted on update, the stored value is kept. Changing it does not contact the server"
           },
           "name": {
             "description": "Unique server name: letters, digits, underscores and hyphens, without a double underscore because that separates server from tool in presented tool names",
