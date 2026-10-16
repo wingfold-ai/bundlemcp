@@ -12,19 +12,33 @@ from cryptography.fernet import Fernet, InvalidToken
 from helpers import wait_ready
 
 COMPOSE = ["docker", "compose", "-f", "deploy/docker-compose.yml"]
+REPLICAS = [*COMPOSE, "-f", "deploy/docker-compose.replicas.yml"]
 DEFAULT_KEY = "Uqw2PEJomK66Xa6lD-TmIU75wHfWRU6T1n9jpYqjv80="  # the compose file's default
 SERVER = "rotation-check"
 SWEEP_SECONDS = 3
 
 
+def _replicas() -> tuple[list[str], list[str]]:
+    """The compose command and gateway services: both replicas when the overlay is running."""
+    running = subprocess.run(
+        [*REPLICAS, "ps", "-q", "gateway-b"], capture_output=True, text=True
+    ).stdout.strip()
+    return (REPLICAS, ["gateway", "gateway-b"]) if running else (COMPOSE, ["gateway"])
+
+
 def _restart_gateway(keys: list[str] | None, interval: int | None = None) -> None:
-    """Recreate the gateway with these keys (None: the compose defaults) and wait until ready."""
+    """Recreate every gateway replica with these keys (None: the compose defaults).
+
+    A rotation reaches every replica: one still holding the old list could run
+    the sweep and know nothing of the new key.
+    """
     env = {k: v for k, v in os.environ.items() if not k.startswith("BUNDLEMCP_TOKEN_")}
     if keys is not None:
         env["BUNDLEMCP_TOKEN_ENCRYPTION_KEYS"] = json.dumps(keys)
     if interval is not None:
         env["BUNDLEMCP_TOKEN_REENCRYPTION_INTERVAL"] = str(interval)
-    subprocess.run([*COMPOSE, "up", "-d", "--wait", "gateway"], check=True, env=env)
+    compose, services = _replicas()
+    subprocess.run([*compose, "up", "-d", "--no-deps", "--wait", *services], check=True, env=env)
     wait_ready(GATEWAY_URL)
 
 

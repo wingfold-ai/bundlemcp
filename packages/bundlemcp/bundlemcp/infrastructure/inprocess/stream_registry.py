@@ -57,6 +57,11 @@ class InProcessStreamRegistry:
         handle.cancel_event.set()
         return True
 
+    def cancel_calls(self) -> int:
+        for handle in self._calls.values():
+            handle.cancel_event.set()
+        return len(self._calls)
+
     # --- correlation replies ---
 
     def register_reply(self, correlation_id: str) -> asyncio.Future:

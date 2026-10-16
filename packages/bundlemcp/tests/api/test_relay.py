@@ -15,6 +15,7 @@ import asyncio
 import contextlib
 import json
 import socket
+import time
 
 import pytest
 import uvicorn
@@ -870,3 +871,24 @@ async def test_modern_client_disconnect_cancels_the_call(relay_env):
             break
     hang = next(r for r in records if r.tool_name == "hang")
     assert (hang.status, hang.error_message) == ("error", "cancelled")
+
+
+async def test_ses13_an_elicitation_with_no_open_stream_fails_within_a_second(relay_env):
+    """SES-13: no replica holds the client's GET stream, so the upstream's request is refused
+    at once and the call ends with an error instead of waiting out the call timeout."""
+    http, _app, _base_url = relay_env
+    session = await _initialize_with_caps(http, {"elicitation": {}})
+    started = time.monotonic()
+    resp = await http.post(
+        "/main/mcp",
+        headers={"Mcp-Session-Id": session},
+        json={
+            "jsonrpc": "2.0",
+            "id": 8,
+            "method": "tools/call",
+            "params": {"name": "relay__ask_name", "arguments": {}},
+        },
+    )
+    assert time.monotonic() - started < 1
+    body = resp.json()
+    assert "error" in body or body["result"].get("isError")

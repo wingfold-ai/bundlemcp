@@ -1,6 +1,6 @@
 [project]
 name = "bundlemcp-workspace"
-version = "0.1.4"
+version = "0.1.5"
 description = "bundlemcp workspace root (see packages/ and apps/)"
 requires-python = ">=3.13"
 license = "Apache-2.0"
@@ -61,6 +61,7 @@ asyncio_mode = "auto"
 testpaths = ["packages/bundlemcp/tests"]
 markers = [
     "fleet: integration test requiring the private GHCR fleet images (skipped in CI)",
+    "replicas: integration test requiring deploy/docker-compose.replicas.yml (two gateways)",
 ]
 
 # Import-graph contracts. Run with `uv run lint-imports`.

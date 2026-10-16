@@ -9,6 +9,7 @@ from bundlemcp.domain.config.call_timeouts import CallTimeouts
 from bundlemcp.domain.config.config_registry import DEFAULTS, coerce
 from bundlemcp.domain.config.unknown_config_key import UnknownConfigKey
 from bundlemcp.domain.oauth.token_policy import TokenPolicy
+from bundlemcp.domain.sessions.session_lifetime import SessionLifetime
 
 log = structlog.get_logger(__name__)
 
@@ -19,10 +20,15 @@ class RuntimeConfig:
     Besides the cache, a snapshot holds the values of the last completed load.
     A flush does not clear it, so ``current`` keeps answering with the stored
     values until the next load replaces them.
+
+    With ``cache_disabled`` every ``get`` reads the store, a debugging aid that
+    must change nothing but speed; ``current`` still answers from the snapshot
+    of the last read, since it must never do I/O.
     """
 
-    def __init__(self, units: UnitOfWorkFactory) -> None:
+    def __init__(self, units: UnitOfWorkFactory, *, cache_disabled: bool = False) -> None:
         self._units = units
+        self._cache_disabled = cache_disabled
         self._cache: dict[str, Any] = {}
         self._snapshot: dict[str, Any] = {}
         self._loaded = False
@@ -31,6 +37,8 @@ class RuntimeConfig:
     async def get(self, key: str) -> Any:
         if key not in DEFAULTS:
             raise UnknownConfigKey(key)
+        if self._cache_disabled:
+            await self.flush()
         if not self._loaded:
             await self._load()
         return self._cache.get(key, DEFAULTS[key].default)
@@ -45,6 +53,10 @@ class RuntimeConfig:
         if key not in DEFAULTS:
             raise UnknownConfigKey(key)
         return self._snapshot.get(key, DEFAULTS[key].default)
+
+    async def session_lifetime(self) -> SessionLifetime:
+        """How long a handshake-era session lives without activity."""
+        return SessionLifetime(seconds=int(await self.get("session_lifetime")))
 
     async def call_timeouts(self) -> CallTimeouts:
         """The current upstream call limits, from overrides or the registry defaults."""
@@ -65,6 +77,8 @@ class RuntimeConfig:
         )
 
     async def all(self) -> dict[str, Any]:
+        if self._cache_disabled:
+            await self.flush()
         if not self._loaded:
             await self._load()
         return {key: self._cache.get(key, setting.default) for key, setting in DEFAULTS.items()}

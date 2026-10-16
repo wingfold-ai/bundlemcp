@@ -42,14 +42,13 @@ asserted for the cases the spec names.
 - `sessions`: MODIFIED SES-19 (integration tests assert the budget) and SES-22 (cache-off debug setting).
 - `deployment`: MODIFIED DEP-7 (zero downtime verified by a rolling `compose up` under load).
 
-## Open decision
+## Decision: no stale cache during a Postgres outage
 
-- **Serving existing sessions while Postgres is down (SES-14).** The original matrix says existing sessions "keep
-  serving from cached config/tool data where possible". Today nothing is cached except runtime config (SES-22): endpoint
-  lookups, bundle composition and key validation read Postgres on every request. Building it needs a last-known-good
-  view cache used only when Postgres is unreachable, invalidated by the same events (and SES-22 amended to allow it).
-  The delta leaves the clause out — every request that needs Postgres answers 503 — until the maintainers decide to
-  build the cache.
+The original matrix says existing sessions "keep serving from cached config/tool data where possible" while Postgres
+is down. Nothing is cached today except runtime config (SES-22): endpoint lookups, bundle composition and key
+validation read Postgres on every request, and building a last-known-good view cache would also need SES-22 amended.
+The maintainers chose not to build it: every request that needs Postgres answers 503 with `Retry-After`, which is
+honest and retryable, and the clause stays out of SES-14.
 
 ## Impact
 

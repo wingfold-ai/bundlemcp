@@ -61,7 +61,7 @@ gauge is that change's.
 `stop(deadline=10 s)` waits for the queue to empty or the deadline; then cancels the drain task and logs every record
 still in the queue (and the batch in flight) as `audit.lost_on_shutdown` with its key. The deadline is a module
 constant sized to fit inside the gateway's graceful-shutdown window (SES-11 in
-[complete-session-lifecycle](../complete-session-lifecycle/proposal.md)).
+[complete-session-lifecycle](../archive/2026-10-16-complete-session-lifecycle/proposal.md)).
 
 ### D4. The idempotency key on the record
 

@@ -1,15 +1,20 @@
 """One SQLAlchemy transaction, and the invalidation events that must follow it."""
 
 import asyncio
+import os
+import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import Any
 
 from redis.asyncio import Redis
+from sqlalchemy.exc import DBAPIError, InterfaceError, OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
+from bundlemcp.application.contracts.persistence.store_unavailable import StoreUnavailable
 from bundlemcp.infrastructure.postgres.api_key_repository import SqlAlchemyApiKeyRepository
 from bundlemcp.infrastructure.postgres.audit_repository import SqlAlchemyAuditRepository
 from bundlemcp.infrastructure.postgres.authorization_code_repository import (
@@ -200,5 +205,32 @@ class SqlAlchemyUnitOfWorkFactory:
 
     @asynccontextmanager
     async def open(self) -> AsyncIterator[SqlAlchemyUnitOfWork]:
-        async with self._sessions() as session:
-            yield SqlAlchemyUnitOfWork(session, self._redis)
+        """A unit of work; a database that cannot be reached surfaces as ``StoreUnavailable``."""
+        try:
+            async with self._sessions() as session:
+                yield SqlAlchemyUnitOfWork(session, self._redis)
+        except Exception as exc:
+            if is_store_outage(exc):
+                raise StoreUnavailable(type(exc).__name__) from exc
+            raise
+
+
+# Modules a connection failure is raised from; an OSError from anywhere else inside a
+# unit of work (an upstream probe, say) is not the database's.
+DRIVER_MODULES = ("sqlalchemy", "asyncpg", "aiosqlite")
+
+
+def is_store_outage(exc: BaseException) -> bool:
+    """Whether ``exc`` means the database could not be reached, not that a query failed."""
+    if isinstance(exc, OperationalError | InterfaceError | PoolTimeout):
+        return True
+    if isinstance(exc, DBAPIError) and exc.connection_invalidated:
+        return True
+    if isinstance(exc, OSError):
+        frames = traceback.extract_tb(exc.__traceback__)
+        return any(
+            f"{os.sep}{module}{os.sep}" in frame.filename
+            for frame in frames
+            for module in DRIVER_MODULES
+        )
+    return False
