@@ -76,6 +76,7 @@ export default defineConfig({
           { text: "Users and consents", link: "/manage/users" },
           { text: "Audit log", link: "/manage/audit" },
           { text: "Export and import", link: "/manage/export-import" },
+          { text: "Inspector", link: "/manage/inspector" },
         ],
       },
       {

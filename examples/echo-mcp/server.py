@@ -1,9 +1,11 @@
 """Tiny demo MCP server: a couple of tools incl. an annotated write tool
 so a fresh compose install has something to bundle, and the write_as_read profile has
-a write tool to re-annotate.
+a write tool to re-annotate, plus one that reports progress for the inspector to show.
 """
 
-from fastmcp import FastMCP
+import asyncio
+
+from fastmcp import Context, FastMCP
 
 mcp = FastMCP("echo")
 
@@ -24,6 +26,15 @@ def reverse(text: str) -> str:
 def shout(text: str) -> str:
     """Uppercase the text (declared as a write/destructive tool for demo purposes)."""
     return text.upper()
+
+
+@mcp.tool
+async def countdown(steps: int, ctx: Context) -> str:
+    """Count down from steps to zero, reporting progress at each step."""
+    for done in range(1, steps + 1):
+        await asyncio.sleep(0.3)
+        await ctx.report_progress(progress=done, total=steps, message=f"{steps - done} to go")
+    return "liftoff"
 
 
 if __name__ == "__main__":

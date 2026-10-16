@@ -2,51 +2,22 @@
 
 from typing import Any
 
-import httpx2
 import structlog
 
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.contracts.upstream.upstream_probe import ProbeResult
-from bundlemcp.domain.servers.connection_classifier import classify_refusal
-from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.member_entry_kind import MemberEntryKind
-from bundlemcp.domain.servers.probe_failure import ProbeFailure
 from bundlemcp.domain.servers.probed_entry import ProbedEntry
 from bundlemcp.domain.servers.probed_server_info import ProbedServerInfo
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.response_log import ResponseLog
-from bundlemcp.infrastructure.egress.egress_policy import EgressDenied, HostUnresolvable
+from bundlemcp.infrastructure.fastmcp.connection_failure import connection_failure
 
-TRANSPORT_FAILURES = (httpx2.TransportError, OSError, TimeoutError)
 # the most entries of one kind cached per server; a longer listing is cut, and that is logged
 MEMBER_LISTING_LIMIT = 500
 
 log = structlog.get_logger(__name__)
-
-
-def _in_chain[E: BaseException](
-    exc: BaseException, kinds: type[E] | tuple[type[E], ...]
-) -> E | None:
-    """The first exception of ``kinds`` in ``exc``'s cause chain, including exception groups.
-
-    The MCP client wraps what its connection raised, so an egress denial at
-    connect time arrives as the cause of a generic connection error.
-    """
-    seen: set[int] = set()
-    pending: list[BaseException] = [exc]
-    while pending:
-        current = pending.pop()
-        if id(current) in seen:
-            continue
-        seen.add(id(current))
-        if isinstance(current, kinds):
-            return current
-        if isinstance(current, BaseExceptionGroup):
-            pending.extend(current.exceptions)
-        if (linked := current.__cause__ or current.__context__) is not None:
-            pending.append(linked)
-    return None
 
 
 class FastMcpUpstreamProbe:
@@ -84,20 +55,8 @@ class FastMcpUpstreamProbe:
                     if capabilities is not None and capabilities.resources is not None
                     else None
                 )
-        except HostUnresolvable as exc:
-            raise ProbeFailure(str(exc), state=ConnectionState.UNREACHABLE) from exc
-        except EgressDenied as exc:
-            raise ProbeFailure(str(exc), state=ConnectionState.EGRESS_DENIED) from exc
         except Exception as exc:
-            if (unresolved := _in_chain(exc, HostUnresolvable)) is not None:
-                raise ProbeFailure(str(unresolved), state=ConnectionState.UNREACHABLE) from exc
-            if (denied := _in_chain(exc, EgressDenied)) is not None:
-                raise ProbeFailure(str(denied), state=ConnectionState.EGRESS_DENIED) from exc
-            observed = responses.last
-            unreachable = observed is None and _in_chain(exc, TRANSPORT_FAILURES) is not None
-            state = classify_refusal(observed, unreachable=unreachable)
-            message = f"HTTP {observed.status}: {exc}" if observed is not None else str(exc)
-            raise ProbeFailure(message, state=state, observed=observed) from exc
+            raise connection_failure(exc, responses) from exc
         return ProbeResult(
             tools=[
                 ProbedTool(

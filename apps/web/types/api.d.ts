@@ -534,6 +534,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inspector:call-tool": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Call Tool */
+        post: operations["call_tool_api_v1_inspector_call_tool_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspector:connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Connect */
+        post: operations["connect_api_v1_inspector_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspector:list-tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** List Tools */
+        post: operations["list_tools_api_v1_inspector_list_tools_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspector:ping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ping */
+        post: operations["ping_api_v1_inspector_ping_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs": {
         parameters: {
             query?: never;
@@ -981,6 +1049,29 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdhocInspectorTarget
+         * @description A URL that is not registered, with the headers to send to it.
+         */
+        AdhocInspectorTarget: {
+            /**
+             * Headers
+             * @description Headers sent with every request of this operation, e.g. an 'Authorization' header. Used once, never stored or logged
+             */
+            headers?: {
+                [key: string]: string;
+            };
+            /**
+             * @description Selects this target kind (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            kind: "adhoc";
+            /**
+             * Url
+             * @description Streamable HTTP MCP endpoint URL, e.g. 'https://mcp.example.com/mcp'. It must pass the gateway's egress policy
+             */
+            url: string;
+        };
         /**
          * ApiKeyCreate
          * @description Body for creating an API key.
@@ -2115,6 +2206,27 @@ export interface components {
          */
         EndpointAuthMode: "oauth" | "api_key" | "none";
         /**
+         * EndpointInspectorTarget
+         * @description An endpoint of this gateway, reached through its public MCP route.
+         */
+        EndpointInspectorTarget: {
+            /**
+             * Credential
+             * @description What a client of the endpoint would present: an API key scoped to it, or an OAuth access token issued for it. Sent as a bearer token for this request only, never stored or logged. Omit it for an endpoint that accepts anonymous calls
+             */
+            credential?: string | null;
+            /**
+             * @description Selects this target kind (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            kind: "endpoint";
+            /**
+             * Name
+             * @description Name of the endpoint
+             */
+            name: string;
+        };
+        /**
          * EndpointProfile
          * @enum {string}
          */
@@ -2349,6 +2461,241 @@ export interface components {
             name: string;
             /** @description 'created', 'updated', 'skipped' when nothing would change, or 'error' */
             outcome: components["schemas"]["ImportOutcome"];
+        };
+        /**
+         * InspectorCallOutcome
+         * @description How a call ended; the 'result' stream event, always the last one.
+         */
+        InspectorCallOutcome: {
+            /**
+             * Duration Ms
+             * @description Milliseconds the call itself took
+             */
+            duration_ms: number;
+            /**
+             * Error Code
+             * @description The JSON-RPC error code, when the target answered with one
+             */
+            error_code?: number | null;
+            /**
+             * Error Message
+             * @description The JSON-RPC error message, when the target answered with one
+             */
+            error_message?: string | null;
+            /**
+             * Initialize Ms
+             * @description Milliseconds connecting and initialising took, before the call
+             */
+            initialize_ms: number;
+            /**
+             * Is Error
+             * @description Whether the call failed: a result with 'isError' true, or a JSON-RPC error
+             */
+            is_error: boolean;
+            /**
+             * Result
+             * @description The CallToolResult the target returned, as on the wire ('content', 'structuredContent', 'isError'); absent when it answered with an error
+             */
+            result?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * @description Names the stream event this payload is (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "result";
+        };
+        /**
+         * InspectorCallRequest
+         * @description A tools/call the inspector sends to its target.
+         */
+        InspectorCallRequest: {
+            /**
+             * Arguments
+             * @description The call's arguments, matching the tool's input schema
+             */
+            arguments?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Target
+             * @description What to connect to: a registered upstream, an endpoint of this gateway, or an ad-hoc URL, selected by 'kind'
+             */
+            target: components["schemas"]["UpstreamInspectorTarget"] | components["schemas"]["EndpointInspectorTarget"] | components["schemas"]["AdhocInspectorTarget"];
+            /**
+             * Tool
+             * @description The tool's name as the target lists it; for an endpoint, the presented (prefixed) name
+             */
+            tool: string;
+        };
+        /**
+         * InspectorConnection
+         * @description What a target reported when the inspector connected and initialised.
+         */
+        InspectorConnection: {
+            /**
+             * Capabilities
+             * @description The capabilities the target advertised; a key is present exactly when that capability was advertised
+             */
+            capabilities?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Initialize Ms
+             * @description Milliseconds the connection and its initialisation took
+             */
+            initialize_ms: number;
+            /**
+             * Instructions
+             * @description The usage instructions the target sent, when it sent any
+             */
+            instructions?: string | null;
+            /**
+             * Protocol Version
+             * @description The MCP revision negotiated with the target
+             */
+            protocol_version?: string | null;
+            /** @description How the target describes itself, when it said */
+            server_info?: components["schemas"]["ServerInfoRead"] | null;
+        };
+        /**
+         * InspectorFailure
+         * @description Why the inspector got no MCP answer from its target; the 'failure' stream event.
+         */
+        InspectorFailure: {
+            /** @description What the gateway found out about the target, e.g. 'egress_denied', 'unreachable' or 'credential_required' */
+            connection_state: components["schemas"]["ConnectionState"];
+            /**
+             * Detail
+             * @description A sentence saying what that state means
+             */
+            detail: string;
+            /**
+             * @description Names the stream event this payload is (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "failure";
+        };
+        /**
+         * InspectorPing
+         * @description A ping the target answered.
+         */
+        InspectorPing: {
+            /**
+             * Duration Ms
+             * @description Milliseconds the ping itself took
+             */
+            duration_ms: number;
+            /**
+             * Initialize Ms
+             * @description Milliseconds connecting and initialising took, before the ping
+             */
+            initialize_ms: number;
+        };
+        /**
+         * InspectorProgress
+         * @description A progress notification the target sent during a call; the 'progress' stream event.
+         */
+        InspectorProgress: {
+            /**
+             * Elapsed Ms
+             * @description Milliseconds since the call was sent
+             */
+            elapsed_ms: number;
+            /**
+             * Message
+             * @description What the target is doing now
+             */
+            message?: string | null;
+            /**
+             * Progress
+             * @description Progress so far, in the target's own units
+             */
+            progress: number;
+            /**
+             * Total
+             * @description The total, when the target knows it
+             */
+            total?: number | null;
+            /**
+             * @description Names the stream event this payload is (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "progress";
+        };
+        /**
+         * InspectorRequest
+         * @description One inspector operation that needs nothing beyond its target.
+         */
+        InspectorRequest: {
+            /**
+             * Target
+             * @description What to connect to: a registered upstream, an endpoint of this gateway, or an ad-hoc URL, selected by 'kind'
+             */
+            target: components["schemas"]["UpstreamInspectorTarget"] | components["schemas"]["EndpointInspectorTarget"] | components["schemas"]["AdhocInspectorTarget"];
+        };
+        /**
+         * InspectorTool
+         * @description One tool as the target lists it.
+         */
+        InspectorTool: {
+            /**
+             * Annotations
+             * @description Behaviour hints such as 'readOnlyHint' and 'destructiveHint', as the target sent them
+             */
+            annotations?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Description
+             * @description What the tool says it does
+             */
+            description?: string | null;
+            /**
+             * Input Schema
+             * @description JSON Schema of the tool's arguments
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Name
+             * @description The name a tools/call uses
+             */
+            name: string;
+            /**
+             * Output Schema
+             * @description JSON Schema of the tool's structured result, when declared
+             */
+            output_schema?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Title
+             * @description Display title, when the tool sets one
+             */
+            title?: string | null;
+        };
+        /**
+         * InspectorToolList
+         * @description The tools a target lists, with how long listing them took.
+         */
+        InspectorToolList: {
+            /**
+             * Duration Ms
+             * @description Milliseconds the tools/list requests took
+             */
+            duration_ms: number;
+            /**
+             * Initialize Ms
+             * @description Milliseconds connecting and initialising took, before the listing
+             */
+            initialize_ms: number;
+            /**
+             * Tools
+             * @description Every tool, in the target's order
+             */
+            tools: components["schemas"]["InspectorTool"][];
         };
         /**
          * LiveLogEntry
@@ -3381,6 +3728,22 @@ export interface components {
          * @enum {string}
          */
         UpstreamGrant: "authorization_code" | "client_credentials";
+        /**
+         * UpstreamInspectorTarget
+         * @description A registered upstream server, reached with its stored configuration.
+         */
+        UpstreamInspectorTarget: {
+            /**
+             * @description Selects this target kind (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            kind: "upstream";
+            /**
+             * Name
+             * @description Name of the registered upstream server
+             */
+            name: string;
+        };
         /**
          * UpstreamOAuthClientRead
          * @description The stored upstream OAuth client registration, secret withheld.
@@ -4846,6 +5209,139 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    call_tool_api_v1_inspector_call_tool_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectorCallRequest"];
+            };
+        };
+        responses: {
+            /** @description A Server-Sent Events stream. Each event's name is its payload's `type`: `progress` for every progress notification the target sends, as it arrives, then exactly one `result` (the call's outcome) or `failure` (the target gave no MCP answer), after which the stream ends. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectorProgress"] | components["schemas"]["InspectorCallOutcome"] | components["schemas"]["InspectorFailure"];
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_api_v1_inspector_connect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectorConnection"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tools_api_v1_inspector_list_tools_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectorToolList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ping_api_v1_inspector_ping_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectorPing"];
                 };
             };
             /** @description Validation Error */

@@ -177,6 +177,18 @@ Upstream servers live under `/upstreams` (the short form of *upstream servers*),
 | `PUT` | `/config/{key}` | Set one (`{"value": …}`), type-checked. |
 | `DELETE` | `/config/{key}` | Reset one to its default. |
 
+### Inspector
+
+Each route takes a `target`: a registered upstream, an endpoint of this gateway, or an ad-hoc URL with headers. See
+[Inspector](/manage/inspector).
+
+| Method | Path | |
+|---|---|---|
+| `POST` | `/inspector:connect` | Initialise and report the target's info, revision and capabilities. |
+| `POST` | `/inspector:ping` | Ping the target. |
+| `POST` | `/inspector:list-tools` | The target's tools with their schemas. |
+| `POST` | `/inspector:call-tool` | Call a tool; answers Server-Sent Events, progress first and the outcome last. |
+
 ## A registrar loop
 
 The upsert semantics make a reconciling registrar short. In pseudocode:

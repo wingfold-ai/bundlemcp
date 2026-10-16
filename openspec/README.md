@@ -269,8 +269,8 @@ Spec: [`specs/management/spec.md`](specs/management/spec.md). Merged from: Manag
 **What operators see while the gateway runs.** The append-only audit log: one record per tool call (who, what, where,
 how long, how it ended), denied calls included, never arguments or results, written asynchronously without slowing
 calls, queryable through the API and UI, and the reconciliation source for an application layer's billing. Structured
-logs and the health and readiness probes for orchestrators. Metrics, tracing and the live log view will live here once
-built.
+logs and the health and readiness probes for orchestrators. Prometheus metrics, optional tracing, and the live log view
+of every replica's recent events.
 
 *Not here:* Rate-limit and lockout counters are specified with their limiters in the endpoints slice.
 
@@ -280,8 +280,8 @@ Spec: [`specs/operations/spec.md`](specs/operations/spec.md). Merged from: Audit
 
 **The admin app, and the catalogue signed-in users see.** A Nuxt single-page app that is a pure client of the management
 API, with types generated from its OpenAPI document: pages for upstreams (with guided registration), bundles and
-curation, endpoints and their connection cards, API keys, users and consents, audit and settings, and a catalogue
-showing a signed-in non-admin what they can connect to. The built-in inspector will live here once built.
+curation, endpoints and their connection cards, API keys, users and consents, audit, live logs and settings, the
+built-in inspector, and a catalogue showing a signed-in non-admin what they can connect to.
 
 *Not here:* Every action the UI offers is specified as API behaviour in the management slice and the feature slices.
 
@@ -314,8 +314,7 @@ Spec: [`specs/deployment/spec.md`](specs/deployment/spec.md).
 
 Until 2026-10-13 these were 31 smaller slices with their own prefixes (`DISC`, `OAS`, `MID`, …). Those prefixes are
 retired and never reused; [`slices.json`](slices.json) maps each code published under them (`DISC-3`) to its code now
-(`UPS-19`), and the Requirements page finds a requirement by either. The inspector is not built yet: its requirements
-are in the open change `add-inspector`. `openspec list` shows every open change.
+(`UPS-19`), and the Requirements page finds a requirement by either. `openspec list` shows every open change.
 
 ## Decision log — deliberately dropped from metamcp
 
@@ -377,7 +376,7 @@ slices were consolidated; `slices.json` maps each old code to its new one.
 | `spec/50-audit-log.md` | [`operations`](specs/operations/spec.md) (`OPS`) |
 | `spec/51-observability.md` | [`operations`](specs/operations/spec.md) (`OPS`) |
 | `spec/52-live-logs.md` | [`operations`](specs/operations/spec.md) (`OPS`) |
-| `spec/53-inspector.md` | [`admin-ui`](specs/admin-ui/spec.md) (`UI`) (not built — change [`add-inspector`](changes/add-inspector/proposal.md)) |
+| `spec/53-inspector.md` | [`admin-ui`](specs/admin-ui/spec.md) (`UI`) |
 | `spec/60-admin-ui.md` | [`admin-ui`](specs/admin-ui/spec.md) (`UI`) |
 | `spec/61-docs-and-onboarding.md` | [`documentation`](specs/documentation/spec.md) (`DOC`) |
 | `spec/62-architecture-documentation.md` | [`documentation`](specs/documentation/spec.md) (`DOC`) |

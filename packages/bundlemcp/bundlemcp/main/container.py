@@ -9,6 +9,10 @@ from bundlemcp.api.mcp.routing.gateway_router import McpGatewayRouter
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
+from bundlemcp.application.contracts.inspection.gateway_endpoint_client_factory import (
+    GatewayEndpointClientFactory,
+)
+from bundlemcp.application.contracts.inspection.inspector_connector import InspectorConnector
 from bundlemcp.application.contracts.live_state.admin_session_store import AdminSessionStore
 from bundlemcp.application.contracts.live_state.auth_failure_limiter import AuthFailureLimiter
 from bundlemcp.application.contracts.live_state.live_log_buffer import LiveLogBuffer
@@ -36,6 +40,9 @@ from bundlemcp.application.oauth_server import (
 from bundlemcp.application.serving.replica_drain import ReplicaDrain
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.application.settings.settings import Settings
+from bundlemcp.application.upstream_oauth.upstream_credential_resolver import (
+    UpstreamCredentialResolver,
+)
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
 from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 from bundlemcp.domain.oauth.registration_policy import RegistrationPolicy
@@ -75,6 +82,15 @@ class AppContainer(BaseModel):
     )
     connection_diagnoser: ConnectionDiagnoser = Field(
         description="Settles what an upstream's refusal means, following its OAuth chain"
+    )
+    upstream_credentials: UpstreamCredentialResolver = Field(
+        description="Resolves the credential headers an upstream needs for one caller"
+    )
+    inspector_connector: InspectorConnector = Field(
+        description="Opens the inspector's connections to upstreams and ad-hoc URLs"
+    )
+    endpoint_clients: GatewayEndpointClientFactory = Field(
+        description="Opens the inspector's connections to this gateway's own endpoints"
     )
     delegated_tokens: DelegatedTokenIssuer = Field(
         description="Issues and recognises the upstream-bound tokens of delegated_token servers"

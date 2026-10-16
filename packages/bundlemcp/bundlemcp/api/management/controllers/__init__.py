@@ -12,6 +12,7 @@ from bundlemcp.api.management.controllers.config_transfer_controller import (
     ConfigTransferController,
 )
 from bundlemcp.api.management.controllers.endpoint_controller import EndpointController
+from bundlemcp.api.management.controllers.inspector_controller import InspectorController
 from bundlemcp.api.management.controllers.live_log_controller import LiveLogController
 from bundlemcp.api.management.controllers.management_controller import ManagementController
 from bundlemcp.api.management.controllers.me_controller import MeController
@@ -30,6 +31,7 @@ __all__ = [
     "ConfigController",
     "ConfigTransferController",
     "EndpointController",
+    "InspectorController",
     "LiveLogController",
     "ManagementController",
     "MeController",

@@ -1,6 +1,38 @@
 {
   "components": {
     "schemas": {
+      "AdhocInspectorTarget": {
+        "description": "A URL that is not registered, with the headers to send to it.",
+        "properties": {
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Headers sent with every request of this operation, e.g. an 'Authorization' header. Used once, never stored or logged",
+            "title": "Headers",
+            "type": "object"
+          },
+          "kind": {
+            "const": "adhoc",
+            "description": "Selects this target kind",
+            "title": "Kind",
+            "type": "string"
+          },
+          "url": {
+            "description": "Streamable HTTP MCP endpoint URL, e.g. 'https://mcp.example.com/mcp'. It must pass the gateway's egress policy",
+            "maxLength": 2048,
+            "pattern": "^https?://",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url"
+        ],
+        "title": "AdhocInspectorTarget",
+        "type": "object"
+      },
       "ApiKeyCreate": {
         "description": "Body for creating an API key.",
         "properties": {
@@ -1902,6 +1934,41 @@
         "title": "EndpointAuthMode",
         "type": "string"
       },
+      "EndpointInspectorTarget": {
+        "description": "An endpoint of this gateway, reached through its public MCP route.",
+        "properties": {
+          "credential": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a client of the endpoint would present: an API key scoped to it, or an OAuth access token issued for it. Sent as a bearer token for this request only, never stored or logged. Omit it for an endpoint that accepts anonymous calls",
+            "title": "Credential"
+          },
+          "kind": {
+            "const": "endpoint",
+            "description": "Selects this target kind",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the endpoint",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "EndpointInspectorTarget",
+        "type": "object"
+      },
       "EndpointProfile": {
         "enum": [
           "default",
@@ -2283,6 +2350,421 @@
           "outcome"
         ],
         "title": "ImportResult",
+        "type": "object"
+      },
+      "InspectorCallOutcome": {
+        "description": "How a call ended; the 'result' stream event, always the last one.",
+        "properties": {
+          "duration_ms": {
+            "description": "Milliseconds the call itself took",
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The JSON-RPC error code, when the target answered with one",
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The JSON-RPC error message, when the target answered with one",
+            "title": "Error Message"
+          },
+          "initialize_ms": {
+            "description": "Milliseconds connecting and initialising took, before the call",
+            "minimum": 0.0,
+            "title": "Initialize Ms",
+            "type": "integer"
+          },
+          "is_error": {
+            "description": "Whether the call failed: a result with 'isError' true, or a JSON-RPC error",
+            "title": "Is Error",
+            "type": "boolean"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The CallToolResult the target returned, as on the wire ('content', 'structuredContent', 'isError'); absent when it answered with an error",
+            "title": "Result"
+          },
+          "type": {
+            "const": "result",
+            "default": "result",
+            "description": "Names the stream event this payload is",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "is_error",
+          "initialize_ms",
+          "duration_ms"
+        ],
+        "title": "InspectorCallOutcome",
+        "type": "object"
+      },
+      "InspectorCallRequest": {
+        "description": "A tools/call the inspector sends to its target.",
+        "properties": {
+          "arguments": {
+            "additionalProperties": true,
+            "description": "The call's arguments, matching the tool's input schema",
+            "title": "Arguments",
+            "type": "object"
+          },
+          "target": {
+            "description": "What to connect to: a registered upstream, an endpoint of this gateway, or an ad-hoc URL, selected by 'kind'",
+            "discriminator": {
+              "mapping": {
+                "adhoc": "#/components/schemas/AdhocInspectorTarget",
+                "endpoint": "#/components/schemas/EndpointInspectorTarget",
+                "upstream": "#/components/schemas/UpstreamInspectorTarget"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamInspectorTarget"
+              },
+              {
+                "$ref": "#/components/schemas/EndpointInspectorTarget"
+              },
+              {
+                "$ref": "#/components/schemas/AdhocInspectorTarget"
+              }
+            ],
+            "title": "Target"
+          },
+          "tool": {
+            "description": "The tool's name as the target lists it; for an endpoint, the presented (prefixed) name",
+            "minLength": 1,
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "tool"
+        ],
+        "title": "InspectorCallRequest",
+        "type": "object"
+      },
+      "InspectorConnection": {
+        "description": "What a target reported when the inspector connected and initialised.",
+        "properties": {
+          "capabilities": {
+            "additionalProperties": true,
+            "description": "The capabilities the target advertised; a key is present exactly when that capability was advertised",
+            "title": "Capabilities",
+            "type": "object"
+          },
+          "initialize_ms": {
+            "description": "Milliseconds the connection and its initialisation took",
+            "minimum": 0.0,
+            "title": "Initialize Ms",
+            "type": "integer"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The usage instructions the target sent, when it sent any",
+            "title": "Instructions"
+          },
+          "protocol_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The MCP revision negotiated with the target",
+            "title": "Protocol Version"
+          },
+          "server_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServerInfoRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the target describes itself, when it said"
+          }
+        },
+        "required": [
+          "initialize_ms"
+        ],
+        "title": "InspectorConnection",
+        "type": "object"
+      },
+      "InspectorFailure": {
+        "description": "Why the inspector got no MCP answer from its target; the 'failure' stream event.",
+        "properties": {
+          "connection_state": {
+            "$ref": "#/components/schemas/ConnectionState",
+            "description": "What the gateway found out about the target, e.g. 'egress_denied', 'unreachable' or 'credential_required'"
+          },
+          "detail": {
+            "description": "A sentence saying what that state means",
+            "title": "Detail",
+            "type": "string"
+          },
+          "type": {
+            "const": "failure",
+            "default": "failure",
+            "description": "Names the stream event this payload is",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_state",
+          "detail"
+        ],
+        "title": "InspectorFailure",
+        "type": "object"
+      },
+      "InspectorPing": {
+        "description": "A ping the target answered.",
+        "properties": {
+          "duration_ms": {
+            "description": "Milliseconds the ping itself took",
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "initialize_ms": {
+            "description": "Milliseconds connecting and initialising took, before the ping",
+            "minimum": 0.0,
+            "title": "Initialize Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "initialize_ms",
+          "duration_ms"
+        ],
+        "title": "InspectorPing",
+        "type": "object"
+      },
+      "InspectorProgress": {
+        "description": "A progress notification the target sent during a call; the 'progress' stream event.",
+        "properties": {
+          "elapsed_ms": {
+            "description": "Milliseconds since the call was sent",
+            "minimum": 0.0,
+            "title": "Elapsed Ms",
+            "type": "integer"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the target is doing now",
+            "title": "Message"
+          },
+          "progress": {
+            "description": "Progress so far, in the target's own units",
+            "title": "Progress",
+            "type": "number"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The total, when the target knows it",
+            "title": "Total"
+          },
+          "type": {
+            "const": "progress",
+            "default": "progress",
+            "description": "Names the stream event this payload is",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "progress",
+          "elapsed_ms"
+        ],
+        "title": "InspectorProgress",
+        "type": "object"
+      },
+      "InspectorRequest": {
+        "description": "One inspector operation that needs nothing beyond its target.",
+        "properties": {
+          "target": {
+            "description": "What to connect to: a registered upstream, an endpoint of this gateway, or an ad-hoc URL, selected by 'kind'",
+            "discriminator": {
+              "mapping": {
+                "adhoc": "#/components/schemas/AdhocInspectorTarget",
+                "endpoint": "#/components/schemas/EndpointInspectorTarget",
+                "upstream": "#/components/schemas/UpstreamInspectorTarget"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamInspectorTarget"
+              },
+              {
+                "$ref": "#/components/schemas/EndpointInspectorTarget"
+              },
+              {
+                "$ref": "#/components/schemas/AdhocInspectorTarget"
+              }
+            ],
+            "title": "Target"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "InspectorRequest",
+        "type": "object"
+      },
+      "InspectorTool": {
+        "description": "One tool as the target lists it.",
+        "properties": {
+          "annotations": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Behaviour hints such as 'readOnlyHint' and 'destructiveHint', as the target sent them",
+            "title": "Annotations"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the tool says it does",
+            "title": "Description"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "description": "JSON Schema of the tool's arguments",
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "name": {
+            "description": "The name a tools/call uses",
+            "title": "Name",
+            "type": "string"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "JSON Schema of the tool's structured result, when declared",
+            "title": "Output Schema"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display title, when the tool sets one",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "InspectorTool",
+        "type": "object"
+      },
+      "InspectorToolList": {
+        "description": "The tools a target lists, with how long listing them took.",
+        "properties": {
+          "duration_ms": {
+            "description": "Milliseconds the tools/list requests took",
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "initialize_ms": {
+            "description": "Milliseconds connecting and initialising took, before the listing",
+            "minimum": 0.0,
+            "title": "Initialize Ms",
+            "type": "integer"
+          },
+          "tools": {
+            "description": "Every tool, in the target's order",
+            "items": {
+              "$ref": "#/components/schemas/InspectorTool"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tools",
+          "initialize_ms",
+          "duration_ms"
+        ],
+        "title": "InspectorToolList",
         "type": "object"
       },
       "LiveLogEntry": {
@@ -4008,6 +4490,29 @@
         "title": "UpstreamGrant",
         "type": "string"
       },
+      "UpstreamInspectorTarget": {
+        "description": "A registered upstream server, reached with its stored configuration.",
+        "properties": {
+          "kind": {
+            "const": "upstream",
+            "description": "Selects this target kind",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the registered upstream server",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "UpstreamInspectorTarget",
+        "type": "object"
+      },
       "UpstreamOAuthClientRead": {
         "description": "The stored upstream OAuth client registration, secret withheld.",
         "properties": {
@@ -4281,7 +4786,7 @@
   },
   "info": {
     "title": "bundlemcp",
-    "version": "0.1.14"
+    "version": "0.1.15"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -6621,6 +7126,190 @@
         "summary": "Import Config",
         "tags": [
           "config-transfer"
+        ]
+      }
+    },
+    "/api/v1/inspector:call-tool": {
+      "post": {
+        "operationId": "call_tool_api_v1_inspector_call_tool_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectorCallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "failure": "#/components/schemas/InspectorFailure",
+                      "progress": "#/components/schemas/InspectorProgress",
+                      "result": "#/components/schemas/InspectorCallOutcome"
+                    },
+                    "propertyName": "type"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/InspectorProgress"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InspectorCallOutcome"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InspectorFailure"
+                    }
+                  ],
+                  "title": "Response 200 Call Tool Api V1 Inspector Call Tool Post"
+                }
+              },
+              "text/event-stream": {}
+            },
+            "description": "A Server-Sent Events stream. Each event's name is its payload's `type`: `progress` for every progress notification the target sends, as it arrives, then exactly one `result` (the call's outcome) or `failure` (the target gave no MCP answer), after which the stream ends."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Call Tool",
+        "tags": [
+          "inspector"
+        ]
+      }
+    },
+    "/api/v1/inspector:connect": {
+      "post": {
+        "operationId": "connect_api_v1_inspector_connect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectorConnection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connect",
+        "tags": [
+          "inspector"
+        ]
+      }
+    },
+    "/api/v1/inspector:list-tools": {
+      "post": {
+        "operationId": "list_tools_api_v1_inspector_list_tools_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectorToolList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Tools",
+        "tags": [
+          "inspector"
+        ]
+      }
+    },
+    "/api/v1/inspector:ping": {
+      "post": {
+        "operationId": "ping_api_v1_inspector_ping_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectorPing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ping",
+        "tags": [
+          "inspector"
         ]
       }
     },
