@@ -268,3 +268,21 @@ def test_dep12_a_protocol_change_without_a_breaking_title_is_refused(tree):
     _change_protocol(tree, 3)
     with pytest.raises(release.ReleaseError, match="mark the title with '!'"):
         _apply(tree, "feat(metering): Tell the hook more", TEXT)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "Tested: the bot's `Release 1.2.0 [skip ci]` commit.",
+        "[CI SKIP] please",
+        "Notes\n\nskip-checks: true\n",
+        "[skip actions]",
+    ],
+)
+def test_dep12_a_description_with_a_ci_skip_marker_is_refused(body):
+    with pytest.raises(release.ReleaseError, match="reword it"):
+        release.check_description(body)
+
+
+def test_dep12_a_description_without_a_marker_passes():
+    release.check_description("CI's own commits skip CI; the squash merge does not.")

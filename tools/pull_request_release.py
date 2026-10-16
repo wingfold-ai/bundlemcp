@@ -39,6 +39,10 @@ TITLE = re.compile(
 )
 EXPECTED = "<type>(<scope>)!: <Subject>, e.g. 'feat(bundles): Order members by hand'"
 BUMPS = {"feat": "minor", "fix": "patch", "perf": "patch", "revert": "patch"}
+# What makes GitHub skip a push's workflows when it appears in the head commit's message.
+SKIP_MARKER = re.compile(
+    r"\[(?:skip ci|ci skip|no ci|skip actions|actions skip)\]|^skip-checks: *true", re.I | re.M
+)
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 ENTRY = re.compile(r"^## \[(\d+\.\d+\.\d+)\][^\n]*\n", re.MULTILINE)
 SECOND_LEVEL = re.compile(r"^## ", re.MULTILINE)
@@ -93,6 +97,21 @@ def parse_title(title: str) -> TitleRelease:
         subject=match.group("subject"),
         bump="major" if breaking else BUMPS.get(kind, "none"),
     )
+
+
+def check_description(body: str) -> None:
+    """Refuse a description that would skip CI on ``main``.
+
+    The squash merge takes its message from the pull request's description, so
+    a CI-skip marker anywhere in it lands on ``main`` and skips its workflows,
+    the release included.
+    """
+    match = SKIP_MARKER.search(body)
+    if match is not None:
+        raise ReleaseError(
+            f"the description contains '{match.group(0)}', which would skip CI and the release "
+            "on main once squashed; reword it"
+        )
 
 
 def next_version(current: str, bump: str) -> str:
@@ -299,6 +318,8 @@ def main() -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     labels = commands.add_parser("labels", help="Print the labels a title derives")
     labels.add_argument("title")
+    description = commands.add_parser("description", help="Refuse a CI-skip marker")
+    description.add_argument("file", type=Path, help="File with the pull request description")
     applying = commands.add_parser("apply", help="Write the entry and the bump")
     applying.add_argument("--title", required=True)
     applying.add_argument("--number", type=int, required=True)
@@ -313,6 +334,8 @@ def main() -> int:
     try:
         if args.command == "labels":
             sys.stdout.write("\n".join(parse_title(args.title).labels) + "\n")
+        elif args.command == "description":
+            check_description(args.file.read_text())
         elif args.command == "apply":
             version = apply(
                 ROOT,
