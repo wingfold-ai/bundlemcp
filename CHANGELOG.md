@@ -8,11 +8,16 @@ protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) say
 
 ## [0.1.2] - 2026-10-16
 
+### Changed
+
+- The `ci-passed` result on CI's own `[skip ci]` commits (the changelog entry and the merge of `main`) is now set by the
+  pull request branch's own CI run. The separate `ci-result-relay.yml` workflow is removed.
+  ([#135](https://github.com/wingfold-ai/bundlemcp/pull/135))
+
 ### Fixed
 
-- CI's own `[skip ci]` commits on a pull request, such as the changelog entry and the merge of `main`, now get the
-  required `ci-passed` result from the branch's own CI run. They no longer stay pending until someone relays the result
-  by hand, and a result for an older commit is never set on a newer head.
+- A pull request no longer stays pending on the required `ci-passed` check after CI pushes its own commit, so it no
+  longer needs the result relayed by hand. A result for an older commit is never set on a newer head.
   ([#135](https://github.com/wingfold-ai/bundlemcp/pull/135))
 
 ## [0.1.1] - 2026-10-15
