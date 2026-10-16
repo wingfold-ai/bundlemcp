@@ -4,12 +4,19 @@ Every `tools/call` through every endpoint produces one audit record in Postgres:
 long it took, how it ended. It is the answer to "what happened?", and the reconciliation source for an application layer
 that meters calls.
 
+The same log also holds the few management actions that need a durable trace. Today that is one: an export made with
+`include_secrets=true` writes a record with action `export.secrets_included`, naming the admin who made it. A
+management record has `kind: management`; it names no endpoint, bundle or tool, its status is `success`, and it never
+holds a secret value. Every tool-call record has `kind: tool_call` and no action.
+
 ## What is recorded
 
 | Field | Meaning |
 |---|---|
+| `kind` | `tool_call` for a call through an endpoint, `management` for a management action. |
+| `action` | What a management record says happened, such as `export.secrets_included`; `null` on a tool-call record. |
 | `endpoint_id` | The endpoint's id, which survives a rename. |
-| `endpoint_name`, `bundle_name`, `server_name` | Where the call arrived and where it was routed, as named at the time. |
+| `endpoint_name`, `bundle_name`, `server_name` | Where the call arrived and where it was routed, as named at the time; empty on a management record. |
 | `tool_name`, `presented_tool_name` | The upstream tool and the name the client used, including any override. |
 | `user_id`, `api_key_id`, `auth_method` | The caller and how they authenticated. |
 | `session_id` | The MCP session for handshake-era clients. |
@@ -40,8 +47,9 @@ queue without a log line; see [Reconciling with a metering hook](#reconciling-wi
 
 ## Querying
 
-The **Audit** page filters by time range, endpoint, bundle, server, tool, caller and status, and **Export CSV**
-downloads the whole filtered result, not only the loaded page. The API takes the same filters:
+The **Audit** page filters by time range, kind, endpoint, bundle, server, tool, caller and status, and **Export CSV**
+downloads the whole filtered result, not only the loaded page. A management record shows its action where a tool call
+shows its tool. The API takes the same filters:
 
 ```bash
 curl -s "https://gw.example.com/api/v1/audit-records?endpoint_name=assistant&status=error&created_from=2026-09-01T00:00:00Z&limit=100" \
@@ -51,6 +59,7 @@ curl -s "https://gw.example.com/api/v1/audit-records?endpoint_name=assistant&sta
 | Parameter | |
 |---|---|
 | `created_from`, `created_to` | ISO 8601 timestamps. |
+| `kind` | `tool_call` or `management`; both when omitted. |
 | `endpoint_name`, `bundle_name`, `server_name`, `tool_name` | Exact match on the denormalised names. |
 | `user_id`, `api_key_id` | Caller filters. |
 | `status` | One of the four statuses. |

@@ -338,6 +338,27 @@
         "UI-7"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-33",
+      "testFile": "bundle-flow.spec.ts",
+      "slug": "bundle-rename-acknowledged",
+      "title": "A bundle is renamed only after its warning is acknowledged, and keeps its endpoint",
+      "requirements": [
+        "BND-10"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-34",
+      "testFile": "keys-settings.spec.ts",
+      "slug": "config-export-and-previewed-import",
+      "title": "The configuration exports as a file, and an import is previewed before anything is written",
+      "requirements": [
+        "MGMT-22",
+        "MGMT-19"
+      ],
+      "new": true
     }
   ]
 }

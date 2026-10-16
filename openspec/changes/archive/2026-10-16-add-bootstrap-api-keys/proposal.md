@@ -48,8 +48,8 @@ None.
 - **Code:** `application/bootstrap/` (a new document entry, applied by `BootstrapRunner` after endpoints so scopes
   resolve by name, inside the document's transaction), `application/management/api_key_service.py` (create from a
   supplied value, find by name), and the settings documentation for any new variable.
-- **Depends on** nothing; the export format of [add-export-import](../add-export-import/proposal.md) shares the
-  document's schema but never carries API keys (keys are not exportable — only their hashes are stored).
+- **Depends on** nothing; the export format of [add-export-import](../2026-10-16-add-export-import/proposal.md) shares
+  the document's schema but never carries API keys (keys are not exportable — only their hashes are stored).
 - **Docs:** `docs/self-hosting/bootstrap.md` (its *API keys* section says the document carries none), and
   `deploy/.env.example` / `deploy/seed.yaml` if the demo uses the feature.
 - **ADR:** none new; ADR-0013 is append-only and stays as written.

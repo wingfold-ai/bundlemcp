@@ -35,10 +35,12 @@ None.
 ### Modified Capabilities
 
 - `management`: adds MGMT-17..MGMT-22 — the export document, secret placeholders, transactional additive import with
-  dry run, and the UI. On archive, extend the slice's Purpose to mention export and import.
+  dry run, and the UI.
 - `security`: adds SEC-11, the controls on a secret-bearing export.
+- `operations`: adds OPS-18, management events in the audit log.
 - `bundles`: BND-32 — export/import carries a bundle's prompts and resources, and import deletes none.
-- `bundles`: BND-10 — the bundle name is the natural key for export and import as well as bootstrap.
+- `bundles`: BND-10 — the bundle name is the natural key for export and import as well as bootstrap, and a rename
+  action that warns about it.
 - `upstreams`: UPS-16 — the export document uses the key `upstreams` too.
 
 ## Impact
@@ -54,13 +56,12 @@ None.
 - ADR: one new ADR (next free number) recording that export and bootstrap share one document schema with secret
   placeholders.
 
-## Open decision
+## Decisions
 
-- **BND-10 rename warning.** The original BND-10 said the UI/API MUST warn on a bundle rename that automation keyed on
-  the old name will see a new bundle. No bundle rename exists (upstreams have `:rename` with `force`, UPS-5). The delta
-  as written keeps "no rename" and drops the warning. The alternative is to add a bundle rename action with the same
-  `force` acknowledgement and warning; if the maintainers choose it, add that action and a scenario to the BND-10 delta
-  and a task group before applying.
-- **What "audit-logged" means for SEC-11.** The audit log holds one record per tool call (OPS-1); a management action
-  has no record kind there. Either add a management-event kind to the audit log, or settle for a WARN log line
-  (`export.secrets_included`) naming the admin. The design proposes the log line; decide before applying.
+- **BND-10 — bundles get a rename action.** `POST /api/v1/bundles/{name}:rename?new_name=&force=` renames a bundle, its
+  endpoints and curation following by id. Because bootstrap and import key bundles by name, a document still naming
+  the old name would create a new bundle: the rename is refused with `409` explaining that unless `force=true`
+  acknowledges it, like an upstream rename (UPS-5). The bundle page offers it with that acknowledgement.
+- **SEC-11 — a management-event kind in the audit log.** An audit record gains a `kind` (`tool_call` or `management`)
+  and an `action`; a secret-bearing export writes a `management` record with action `export.secrets_included`, the
+  admin's user id and the time (OPS-18). The audit list filters by kind, and the CSV export carries both columns.

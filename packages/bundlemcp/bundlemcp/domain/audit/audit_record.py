@@ -3,27 +3,46 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from bundlemcp.domain.audit.audit_kind import AuditKind
 from bundlemcp.domain.audit.audit_status import AuditStatus
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.shared.clock import utcnow
 
 
 class AuditRecord(BaseModel):
-    """Append-only per-tool-call record; nullable FKs + denormalized names survive deletes."""
+    """Append-only record of a tool call or a management action.
+
+    Nullable foreign keys and denormalized names let a record outlive the endpoint, user or
+    key it names. A management record names no endpoint, bundle or tool; its ``action`` says
+    what happened.
+    """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="Identifier of the record")
     created_at: datetime = Field(
         default_factory=utcnow,
-        description="When the call was recorded",
+        description="When the call or action was recorded",
+    )
+    kind: AuditKind = Field(
+        default=AuditKind.TOOL_CALL,
+        description="What the record is about: a tool call, or a management action",
+    )
+    action: str | None = Field(
+        default=None,
+        description="What a management record says happened, such as "
+        "'export.secrets_included'; null on a tool-call record",
     )
     endpoint_id: uuid.UUID | None = Field(
         default=None,
         description="Endpoint the call arrived on; cleared if that endpoint is later deleted",
     )
     endpoint_name: str = Field(
-        description="Endpoint name as it was at the time, kept so the record survives a delete"
+        description="Endpoint name as it was at the time, kept so the record survives a delete; "
+        "empty on a management record"
     )
-    bundle_name: str = Field(description="Bundle the endpoint exposed at the time of the call")
+    bundle_name: str = Field(
+        description="Bundle the endpoint exposed at the time of the call; empty on a management "
+        "record"
+    )
     server_name: str | None = Field(
         default=None,
         description="Upstream server the call was routed to; null if it never got that far",
@@ -65,3 +84,27 @@ class AuditRecord(BaseModel):
     error_message: str | None = Field(
         default=None, description="Failure detail when the call errored, truncated if long"
     )
+
+    @classmethod
+    def management_event(
+        cls,
+        action: str,
+        *,
+        user_id: uuid.UUID | None,
+        api_key_id: uuid.UUID | None,
+        auth_method: EndpointAuthMode | None,
+    ) -> "AuditRecord":
+        """A successful management action by the given user or key; it names no endpoint or tool.
+
+        Only the action's name is kept, never a value the action handled.
+        """
+        return cls(
+            kind=AuditKind.MANAGEMENT,
+            action=action,
+            endpoint_name="",
+            bundle_name="",
+            user_id=user_id,
+            api_key_id=api_key_id,
+            auth_method=auth_method,
+            status=AuditStatus.SUCCESS,
+        )

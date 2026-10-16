@@ -223,3 +223,55 @@ test(testTitle("E2E-30"), async ({ page, steps }) => {
   await api.delete(`bundles/${bundle}`);
   await api.dispose();
 });
+
+// Renaming a bundle keeps everything attached to it, but automation naming the old
+// bundle would create a new one, so the admin must acknowledge that first.
+test(testTitle("E2E-33"), async ({ page, steps }) => {
+  const bundle = "e2e-rename-from";
+  const renamed = "e2e-rename-to";
+  const endpoint = "e2e-rename-api";
+  const api = await adminApi();
+  try {
+    await api.put(`bundles/${bundle}`, { data: { name: bundle, description: "e2e" } });
+    await api.put(`endpoints/${endpoint}`, {
+      data: { name: endpoint, bundle_name: bundle, auth_modes: ["api_key"] },
+    });
+
+    await steps.play([
+      given(`bundle "${bundle}" with endpoint "${endpoint}"`, { req: "BND-10" }, async () => {
+        await page.goto(`/bundles/${bundle}`);
+        await expect(page.getByTestId(`bundle-endpoint-${endpoint}`)).toBeVisible();
+      }),
+      when("typing the name of an existing bundle", { req: "BND-10" }, async () => {
+        await page.getByTestId("bundle-rename-input").fill("demo");
+      }),
+      then("the name is refused before anything is sent", { req: "BND-10" }, async () => {
+        await expect(page.getByTestId("bundle-rename-hint")).toBeVisible();
+        await expect(page.getByTestId("bundle-rename-submit")).toBeDisabled();
+      }),
+      when(`typing the free name "${renamed}"`, { req: "BND-10" }, async () => {
+        await page.getByTestId("bundle-rename-input").fill(renamed);
+      }),
+      then("the warning about documents naming the old bundle is shown", { req: "BND-10" }, async () => {
+        await expect(page.getByTestId("bundle-rename-hint")).toBeHidden();
+        await expect(page.getByTestId("bundle-rename-warning")).toContainText("new, empty bundle");
+        await expect(page.getByTestId("bundle-rename-submit")).toBeDisabled();
+      }),
+      when("acknowledging the warning and renaming", { req: "BND-10" }, async () => {
+        await page.getByTestId("bundle-rename-ack").check();
+        await page.getByTestId("bundle-rename-submit").click();
+      }),
+      then("the page moves to the new name and the endpoint stays with the bundle", { req: "BND-10" }, async () => {
+        await page.waitForURL(new RegExp(`/bundles/${renamed}$`));
+        await expect(page.getByRole("heading", { name: `Bundle: ${renamed}` })).toBeVisible();
+        await expect(page.getByTestId(`bundle-endpoint-${endpoint}`)).toBeVisible();
+        expect((await api.get(`bundles/${bundle}`)).status()).toBe(404);
+      }),
+    ]);
+  } finally {
+    await api.delete(`endpoints/${endpoint}`);
+    await api.delete(`bundles/${renamed}`);
+    await api.delete(`bundles/${bundle}`);
+    await api.dispose();
+  }
+});

@@ -225,4 +225,3 @@ class UpstreamCall:
         finally:
             watchdog.cancel()
             canceller.cancel()
-

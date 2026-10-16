@@ -152,7 +152,6 @@ reconciliation window; see [Audit log](/manage/audit#retention).
 
 ## Not part of this release
 
-There is no live log stream in the UI, no
-built-in MCP inspector, and no JSON export or import of the
-configuration; the UI's Live logs and Inspector pages are placeholders. Use the container
-logs, the audit API, and a bootstrap file instead.
+There is no live log stream in the UI and no built-in MCP inspector; the UI's Live logs and Inspector pages are
+placeholders. Use the container logs and the audit API instead. To back up or move the configuration, use
+[Export and import](/manage/export-import).

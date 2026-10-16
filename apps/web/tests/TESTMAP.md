@@ -38,6 +38,8 @@ Playwright test title, the recording filename, and this table.
 | E2E-30 | A bundle created on the Bundles page appears on the composition grid without a reload **(new)** | `tests/bundle-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-3 | `E2E-30__admin-ui__query-cache-mutation-refreshes-grid.webm` |
 | E2E-31 | A taken bundle name and a reserved endpoint name are refused before anything is sent **(new)** | `tests/server-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-4 | `E2E-31__admin-ui__names-checked-before-submit.webm` |
 | E2E-32 | An upstream's detail page is titled Upstream server and its errors say upstream **(new)** | `tests/server-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-7 | `E2E-32__admin-ui__upstream-detail-title.webm` |
+| E2E-33 | A bundle is renamed only after its warning is acknowledged, and keeps its endpoint **(new)** | `tests/bundle-flow.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-10 | `E2E-33__bundles__bundle-rename-acknowledged.webm` |
+| E2E-34 | The configuration exports as a file, and an import is previewed before anything is written **(new)** | `tests/keys-settings.spec.ts` | [`management`](../../../openspec/specs/management/spec.md) | MGMT-22, MGMT-19 | `E2E-34__management__config-export-and-previewed-import.webm` |
 
 ## Requirements referenced
 
@@ -86,3 +88,6 @@ Playwright test title, the recording filename, and this table.
 | OPS-6 | `operations` | GET /api/v1/audit-records (MGMT-5) SHALL list records newest first, paginated, with filters for time range, endpoint, bundle, server, tool, caller (user_id, … |
 | UI-3 | `admin-ui` | The UI MUST call the management API only through a client typed from the generated /api/v1/openapi.json (apps/web/openapi.json → apps/web/types/api.d.ts, via… |
 | UI-7 | `admin-ui` | Navigation, the list page's title and the detail page's title SHALL say Upstream servers / Upstream server (UPS-16); buttons, empty states, tooltips and erro… |
+| BND-10 | `bundles` | Bundle name MUST be the natural key for bootstrap upserts (MGMT-9) and for export and import (MGMT-17, MGMT-19): a bundle is created or updated by its name, … |
+| MGMT-22 | `management` | The admin UI SHALL offer an export button that downloads the document, and an import that first shows the dry-run report and applies the document only after … |
+| MGMT-19 | `management` | POST /api/v1/import SHALL apply a document transactionally as upserts by natural key, through the same operations the management API uses, and report a resul… |

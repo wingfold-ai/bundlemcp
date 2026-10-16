@@ -1,5 +1,5 @@
 import { test, expect, given, when, then } from "./gherkin";
-import { STORAGE } from "./flows";
+import { adminApi, STORAGE } from "./flows";
 import { testTitle } from "./spec-map";
 
 test.use({ storageState: STORAGE });
@@ -75,4 +75,39 @@ test(testTitle("E2E-29"), async ({ page, steps }) => {
       await expect(page.getByTestId(`key-${name}`)).toHaveCount(0);
     }),
   ]);
+});
+
+test(testTitle("E2E-34"), async ({ page, steps }) => {
+  const bundle = "e2e-imported";
+  const api = await adminApi();
+  const document = { version: 1, bundles: [{ name: bundle, description: "from a file" }] };
+  try {
+    await steps.play([
+      given("the admin on the settings page", () => page.goto("/settings")),
+      when("clicking Export", { req: "MGMT-22" }, async () => {
+        const download = page.waitForEvent("download");
+        await page.getByTestId("export-config").click();
+        expect((await download).suggestedFilename()).toBe("bundlemcp-export.json");
+      }),
+      when(`choosing a document that creates bundle "${bundle}"`, { req: "MGMT-22" }, async () => {
+        await page.getByTestId("import-file").setInputFiles({
+          name: "import.json",
+          mimeType: "application/json",
+          buffer: Buffer.from(JSON.stringify(document)),
+        });
+      }),
+      then("the dry-run report shows it as created, and nothing is written yet", { req: "MGMT-19" }, async () => {
+        await expect(page.getByTestId(`import-result-bundle-${bundle}`)).toContainText("created");
+        expect((await api.get(`bundles/${bundle}`)).status()).toBe(404);
+      }),
+      then("confirming the import writes it", { req: "MGMT-22" }, async () => {
+        await page.getByTestId("import-confirm").click();
+        await expect(page.getByTestId("import-applied")).toBeVisible();
+        expect((await api.get(`bundles/${bundle}`)).status()).toBe(200);
+      }),
+    ]);
+  } finally {
+    await api.delete(`bundles/${bundle}`);
+    await api.dispose();
+  }
 });

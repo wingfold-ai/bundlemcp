@@ -75,6 +75,7 @@ export default defineConfig({
           { text: "API keys", link: "/manage/api-keys" },
           { text: "Users and consents", link: "/manage/users" },
           { text: "Audit log", link: "/manage/audit" },
+          { text: "Export and import", link: "/manage/export-import" },
         ],
       },
       {

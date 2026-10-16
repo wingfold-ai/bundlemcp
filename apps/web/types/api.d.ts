@@ -307,6 +307,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bundles/{name}:rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rename Bundle */
+        post: operations["rename_bundle_api_v1_bundles__name__rename_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/config": {
         parameters: {
             query?: never;
@@ -409,6 +426,40 @@ export interface paths {
         put?: never;
         /** Rename Endpoint */
         post: operations["rename_endpoint_api_v1_endpoints__name__rename_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Config */
+        get: operations["export_config_api_v1_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Config */
+        post: operations["import_config_api_v1_import_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -950,10 +1001,21 @@ export interface components {
             name: string;
         };
         /**
+         * AuditKind
+         * @description What an audit record is about: a tool call through an endpoint, or a management action.
+         * @enum {string}
+         */
+        AuditKind: "tool_call" | "management";
+        /**
          * AuditRecordRead
-         * @description One recorded tool call, successful or not.
+         * @description One recorded tool call, successful or not, or one recorded management action.
          */
         AuditRecordRead: {
+            /**
+             * Action
+             * @description What a management record says happened, such as 'export.secrets_included'; null on a tool-call record. It never carries a value the action handled
+             */
+            action: string | null;
             /**
              * Api Key Id
              * @description API key used, when one was
@@ -963,13 +1025,13 @@ export interface components {
             auth_method: components["schemas"]["EndpointAuthMode"] | null;
             /**
              * Bundle Name
-             * @description Bundle the endpoint exposed at the time of the call
+             * @description Bundle the endpoint exposed at the time of the call; empty on a management record
              */
             bundle_name: string;
             /**
              * Created At
              * Format: date-time
-             * @description When the call was recorded
+             * @description When the call or action was recorded
              */
             created_at: string;
             /**
@@ -989,7 +1051,7 @@ export interface components {
             endpoint_id: string | null;
             /**
              * Endpoint Name
-             * @description Endpoint name as it was at the time of the call
+             * @description Endpoint name as it was at the time of the call; empty on a management record
              */
             endpoint_name: string;
             /**
@@ -1008,6 +1070,8 @@ export interface components {
              * @description The metering idempotency key the hook received for this invocation, the same on every leg; join the metering ledger on it. Null for a call denied before metering, such as an unknown tool
              */
             idempotency_key: string | null;
+            /** @description What the record is about: tool_call for a call through an endpoint, management for an administrative action such as a secret-bearing export */
+            kind: components["schemas"]["AuditKind"];
             /**
              * Presented Tool Name
              * @description Tool name as the client used it, including any override
@@ -1071,6 +1135,297 @@ export interface components {
             /**
              * Url
              * @description Full Streamable HTTP URL to enter in the MCP client, such as claude.ai's custom connector dialog
+             */
+            url: string;
+        };
+        /**
+         * BootstrapApiKey
+         * @description An API key the document provisions, without ever holding its value.
+         *
+         *     The value comes from an environment variable the entry names, or is
+         *     generated on first boot and written to a file the entry names. A key whose
+         *     name already exists is left exactly as it is.
+         */
+        BootstrapApiKey: {
+            /**
+             * Create If Missing
+             * @description Generate the value on first boot and write it to 'write_to' instead of reading it from a variable
+             * @default false
+             */
+            create_if_missing?: boolean;
+            /**
+             * Endpoints
+             * @description Names of the endpoints an endpoint-kind key may call; empty means every endpoint. Each must be defined by the document or already stored
+             * @default []
+             */
+            endpoints?: string[];
+            /**
+             * @description 'endpoint' keys call MCP endpoints; 'service' keys call the management API
+             * @default endpoint
+             */
+            kind?: components["schemas"]["ApiKeyKind"];
+            /**
+             * Name
+             * @description Name of the key; it is matched to a stored key by this
+             */
+            name: string;
+            /**
+             * Value From Env
+             * @description Environment variable holding the key's value, a bmcp_sk_ token supplied out of band; the document never carries a value itself
+             */
+            value_from_env?: string | null;
+            /**
+             * Write To
+             * @description File a generated value is written to, created with mode 0600 and never overwritten; a file that already holds a value supplies it instead
+             */
+            write_to?: string | null;
+        };
+        /**
+         * BootstrapBundle
+         * @description A bundle in a bootstrap document, with its membership and its own prompts and
+         *     resources; unknown keys are rejected.
+         */
+        BootstrapBundle: {
+            /**
+             * Description
+             * @description Free-text note about what this bundle is for
+             */
+            description?: string | null;
+            /**
+             * Name
+             * @description Unique bundle name: letters, digits, underscores and hyphens
+             */
+            name: string;
+            /**
+             * Overview
+             * @description Long-form description of the bundle for people browsing the catalogue: what it is for, what the tools can do, and anything a user must set up first. Plain text, paragraphs separated by blank lines. Unlike 'description' this is never sent to a model, so it can be as long as it needs to be
+             */
+            overview?: string | null;
+            /**
+             * Prompts
+             * @description Prompts the bundle itself serves, created or replaced by name; a prompt already stored but not listed here is kept
+             * @default []
+             */
+            prompts?: components["schemas"]["BundlePromptUpsert"][];
+            /**
+             * Resources
+             * @description Documents the bundle itself serves, created or replaced by name; a document already stored but not listed here is kept
+             * @default []
+             */
+            resources?: components["schemas"]["BundleResourceUpsert"][];
+            /**
+             * Upstreams
+             * @description The bundle's member upstream servers, first member first: a name means an enabled member, an object also sets its enable flag and its tools' curation. Members added elsewhere and not named here follow them
+             * @default []
+             */
+            upstreams?: (string | components["schemas"]["BootstrapMember"])[];
+        };
+        /**
+         * BootstrapCuration
+         * @description How a bundle presents one of a member's tools, the tool named as its upstream names it.
+         */
+        BootstrapCuration: {
+            /**
+             * Enabled
+             * @description Whether the bundle serves the tool
+             * @default true
+             */
+            enabled?: boolean;
+            /**
+             * Override Annotations
+             * @description Annotations presented instead of the upstream's
+             */
+            override_annotations?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Override Description
+             * @description Description shown instead
+             */
+            override_description?: string | null;
+            /**
+             * Override Name
+             * @description Name the bundle presents instead of the prefixed one
+             */
+            override_name?: string | null;
+            /**
+             * Override Title
+             * @description Title shown instead
+             */
+            override_title?: string | null;
+            /**
+             * Tool
+             * @description The tool's name as the upstream lists it
+             */
+            tool: string;
+        };
+        /**
+         * BootstrapDocument
+         * @description A declarative snapshot applied at startup; applying it twice changes nothing.
+         *
+         *     An unknown key is an error rather than ignored, so a misspelt or outdated
+         *     list name fails loudly instead of quietly provisioning nothing.
+         */
+        BootstrapDocument: {
+            /**
+             * Api Keys
+             * @description API keys to provision when no key of that name exists, each by reference to its value or generated on first boot
+             * @default []
+             */
+            api_keys?: components["schemas"]["BootstrapApiKey"][];
+            /**
+             * Bundles
+             * @description Bundles to create or update, with their membership
+             * @default []
+             */
+            bundles?: components["schemas"]["BootstrapBundle"][];
+            /**
+             * Endpoints
+             * @description Endpoints to create or update
+             * @default []
+             */
+            endpoints?: components["schemas"]["EndpointUpsert"][];
+            /**
+             * Upstreams
+             * @description Upstream servers to register or update, each optionally with the OAuth client the gateway presents to it
+             * @default []
+             */
+            upstreams?: components["schemas"]["BootstrapServer"][];
+            /**
+             * Version
+             * @description Format version of the document. Only 1 exists; a future format bumps it so an old document is rejected with a clear error rather than misread
+             * @default 1
+             */
+            version?: number;
+            /**
+             * Warning
+             * @description Set by an export that carries secret values, saying the document holds credentials; ignored when the document is applied
+             */
+            warning?: string | null;
+        };
+        /**
+         * BootstrapMember
+         * @description A bundle's member, with its enable flag and the curation of its tools.
+         */
+        BootstrapMember: {
+            /**
+             * Enabled
+             * @description Whether the bundle serves this member
+             * @default true
+             */
+            enabled?: boolean;
+            /**
+             * Name
+             * @description Name of the member upstream server
+             */
+            name: string;
+            /**
+             * Tools
+             * @description Curation of the member's tools; a tool not listed keeps what is stored, or the default when nothing is
+             * @default []
+             */
+            tools?: components["schemas"]["BootstrapCuration"][];
+        };
+        /**
+         * BootstrapOAuthClient
+         * @description An upstream OAuth client in a document, whose secret may be a placeholder.
+         */
+        BootstrapOAuthClient: {
+            /**
+             * Authorization Url
+             * @description Authorization endpoint, when it cannot be discovered automatically
+             */
+            authorization_url?: string | null;
+            /**
+             * Client Id
+             * @description Client id registered with the upstream authorization server
+             */
+            client_id: string;
+            /**
+             * Client Secret
+             * @description The client secret, or a placeholder that keeps the one the target stores; omit it for a public client
+             */
+            client_secret?: string | components["schemas"]["SecretRef"] | null;
+            /**
+             * @description How the gateway obtains tokens: 'authorization_code' (a person signs in through the browser) or 'client_credentials' (the gateway authenticates as this client, for a shared server that authorizes a machine; requires a client secret)
+             * @default authorization_code
+             */
+            grant_type?: components["schemas"]["UpstreamGrant"];
+            /**
+             * Token Url
+             * @description Token endpoint, when it cannot be discovered automatically
+             */
+            token_url?: string | null;
+        };
+        /**
+         * BootstrapServer
+         * @description A server in a bootstrap document, with the upstream OAuth client the API
+         *     sets through a separate route.
+         *
+         *     A header value or the client secret may be a placeholder that keeps what the
+         *     target stores; the management API itself never accepts one.
+         */
+        BootstrapServer: {
+            /**
+             * @description How the gateway authenticates to this server: 'none' or 'static_headers' (which of the two is derived from whether static headers are stored), 'upstream_oauth' (the gateway holds OAuth tokens from the server's authorization server) or 'delegated_token' (each call carries a short-lived token the gateway issues for the caller, valid only at this server, which the server verifies through the gateway's introspection endpoint). Run POST /upstreams:inspect to learn which one a server needs
+             * @default none
+             */
+            auth_mode?: components["schemas"]["ServerAuthMode"];
+            /**
+             * Description
+             * @description Free-text note about what this server provides
+             */
+            description?: string | null;
+            /**
+             * Force
+             * @description Confirm a rename that would otherwise be rejected, accepting that bundles and tool names derived from the old name change with it
+             * @default false
+             */
+            force?: boolean;
+            /**
+             * Forward Headers
+             * @description Client headers to pass through, mapped from incoming name to upstream name. Host, cookie, content-length, x-api-key, mcp-session-id and any sec-* or proxy-* header are refused. Forwarding 'authorization' passes the caller's gateway token through; prefer auth_mode 'delegated_token'
+             */
+            forward_headers?: {
+                [key: string]: string;
+            };
+            /**
+             * @description Whether all callers share one upstream identity or each gets their own
+             * @default shared
+             */
+            identity_mode?: components["schemas"]["IdentityMode"];
+            /**
+             * Name
+             * @description Unique server name: letters, digits, underscores and hyphens, without a double underscore because that separates server from tool in presented tool names
+             */
+            name: string;
+            /**
+             * Protocol Mode
+             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. Omitted on create it is 'auto'; omitted on update, the stored value is kept
+             */
+            protocol_mode?: string | null;
+            /**
+             * Send Identity Header
+             * @description Whether the calling user's identity is sent to the server as X-MCP-User. Omitted on create, it is on for a server on the gateway's own network and off for any public host; omitted on update, the stored value is kept
+             */
+            send_identity_header?: boolean | null;
+            /**
+             * Static Headers
+             * @description Headers sent on every upstream request; a value may be a placeholder that keeps the stored value of that header. Empty keeps every stored header
+             */
+            static_headers?: {
+                [key: string]: string | components["schemas"]["SecretRef"];
+            };
+            /**
+             * Transport
+             * @description Upstream transport. Only streamable-http is supported; the field exists so payloads that state it explicitly are accepted
+             */
+            transport?: "streamable-http" | null;
+            /** @description The pre-registered OAuth client the gateway presents to this server's authorization server. Needs token encryption keys; omit it for a server that is not behind upstream OAuth, or whose client the gateway registers itself */
+            upstream_oauth?: components["schemas"]["BootstrapOAuthClient"] | null;
+            /**
+             * Url
+             * @description Streamable HTTP URL of the upstream MCP server
              */
             url: string;
         };
@@ -1790,6 +2145,44 @@ export interface components {
             /** @description Rate limits for this endpoint; omit for unlimited */
             rate_limit?: components["schemas"]["RateLimitConfig"] | null;
         };
+        /**
+         * ExportDocument
+         * @description The document an export writes: a bootstrap document that never carries API keys.
+         *
+         *     Keys are identity, not configuration, and only their hashes are stored, so
+         *     the list is left out of what is written rather than shown empty.
+         */
+        ExportDocument: {
+            /**
+             * Bundles
+             * @description Bundles to create or update, with their membership
+             * @default []
+             */
+            bundles?: components["schemas"]["BootstrapBundle"][];
+            /**
+             * Endpoints
+             * @description Endpoints to create or update
+             * @default []
+             */
+            endpoints?: components["schemas"]["EndpointUpsert"][];
+            /**
+             * Upstreams
+             * @description Upstream servers to register or update, each optionally with the OAuth client the gateway presents to it
+             * @default []
+             */
+            upstreams?: components["schemas"]["BootstrapServer"][];
+            /**
+             * Version
+             * @description Format version of the document. Only 1 exists; a future format bumps it so an old document is rejected with a clear error rather than misread
+             * @default 1
+             */
+            version?: number;
+            /**
+             * Warning
+             * @description Set by an export that carries secret values, saying the document holds credentials; ignored when the document is applied
+             */
+            warning?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1805,6 +2198,56 @@ export interface components {
          * @enum {string}
          */
         IdentityMode: "shared" | "per_user";
+        /**
+         * ImportOutcome
+         * @description What importing one resource did, or would do on a dry run.
+         * @enum {string}
+         */
+        ImportOutcome: "created" | "updated" | "skipped" | "error";
+        /**
+         * ImportReport
+         * @description What an import did, resource by resource.
+         */
+        ImportReport: {
+            /**
+             * Applied
+             * @description Whether the document was written: false on a dry run, and whenever any resource errored, since a document lands entirely or not at all
+             */
+            applied: boolean;
+            /**
+             * Dry Run
+             * @description Whether this was a dry run that wrote nothing by design
+             */
+            dry_run: boolean;
+            /**
+             * Results
+             * @description One result per resource of the document, in the order they were applied
+             */
+            results: components["schemas"]["ImportResult"][];
+        };
+        /**
+         * ImportResult
+         * @description The outcome of importing one resource of the document.
+         */
+        ImportResult: {
+            /**
+             * Kind
+             * @description What the resource is: 'upstream', 'bundle', 'endpoint', or 'curation' for one tool's curation in a bundle
+             */
+            kind: string;
+            /**
+             * Message
+             * @description Why the resource errored or was skipped, when it was for a reason other than being unchanged
+             */
+            message?: string | null;
+            /**
+             * Name
+             * @description The resource's natural key; a curation is named '<bundle>/<upstream>/<tool>'
+             */
+            name: string;
+            /** @description 'created', 'updated', 'skipped' when nothing would change, or 'error' */
+            outcome: components["schemas"]["ImportOutcome"];
+        };
         /**
          * MeRead
          * @description The caller's own identity: session user (admin or not) or service key.
@@ -2185,6 +2628,20 @@ export interface components {
          * @enum {string}
          */
         ResourceMimeType: "text/markdown" | "text/plain" | "text/csv" | "application/json" | "application/yaml";
+        /**
+         * SecretRef
+         * @description A secret the document names instead of carrying, written ``{"$secret": "<NAME>"}``.
+         *
+         *     An export puts one where a header value or a client secret would be. On import
+         *     it means: keep the value the target already stores under that name.
+         */
+        SecretRef: {
+            /**
+             * $Secret
+             * @description What the withheld secret is: the header name, or 'client_secret'
+             */
+            $secret: string;
+        };
         /**
          * ServerAuthMode
          * @description How the gateway authenticates to an upstream server.
@@ -2993,6 +3450,7 @@ export interface operations {
                 limit?: number;
                 created_from?: string | null;
                 created_to?: string | null;
+                kind?: components["schemas"]["AuditKind"] | null;
                 endpoint_name?: string | null;
                 bundle_name?: string | null;
                 server_name?: string | null;
@@ -3033,6 +3491,7 @@ export interface operations {
             query?: {
                 created_from?: string | null;
                 created_to?: string | null;
+                kind?: components["schemas"]["AuditKind"] | null;
                 endpoint_name?: string | null;
                 bundle_name?: string | null;
                 server_name?: string | null;
@@ -3656,6 +4115,40 @@ export interface operations {
             };
         };
     };
+    rename_bundle_api_v1_bundles__name__rename_post: {
+        parameters: {
+            query: {
+                new_name: string;
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_config_api_v1_config_get: {
         parameters: {
             query?: never;
@@ -3910,6 +4403,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EndpointRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_config_api_v1_export_get: {
+        parameters: {
+            query?: {
+                include_secrets?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportDocument"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_config_api_v1_import_post: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BootstrapDocument"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReport"];
                 };
             };
             /** @description Validation Error */

@@ -42,6 +42,12 @@ class BundleController(ManagementController):
             )
         return await service.upsert(body)
 
+    @route.post("/{name}:rename")
+    async def rename_bundle(
+        self, name: str, new_name: str, service: BundleServiceProvider, force: bool = False
+    ) -> BundleRead:
+        return await service.rename(name, new_name, force=force)
+
     @route.get("/{name}")
     async def get_bundle(self, name: str, service: BundleServiceProvider) -> BundleRead:
         return await service.get(name)

@@ -34,6 +34,7 @@ from bundlemcp.domain.servers.self_reference import (
     self_reference_refusal,
 )
 from bundlemcp.domain.servers.tool import Tool
+from bundlemcp.domain.shared.resource_names import resource_name
 
 
 class BundleService(NamedResourceService[Bundle, BundleRead]):
@@ -57,6 +58,28 @@ class BundleService(NamedResourceService[Bundle, BundleRead]):
         bundle.description = body.description
         bundle.overview = body.overview
         return await self._save(bundle, name=body.name, created=created)
+
+    async def rename(self, name: str, new_name: str, *, force: bool) -> BundleRead:
+        """Change a bundle's name in place, keeping its id and everything attached to it.
+
+        Members, curation, prompts, resources and endpoints all refer to the bundle
+        by id, so they follow the rename. Automation that addresses the bundle by
+        name does not, which is why the caller must acknowledge it with ``force``.
+        Streams opened under the old name are told their list changed, as are
+        those that will look the bundle up under the new one.
+        """
+        if not force:
+            raise ConflictError(
+                f"a bootstrap file or exported document that still names bundle '{name}' "
+                "would create a new bundle under that name — retry with force=true (BND-10)"
+            )
+        bundle = await self._get(name)
+        if new_name == bundle.name:
+            return self._read(bundle)
+        if await self._by_name(new_name) is not None:
+            raise ConflictError(f"a bundle named '{new_name}' already exists (BND-10)")
+        self._invalidate(name)
+        return await self._rename(bundle, new_name, resource_name)
 
     async def _members(self, bundle: Bundle) -> list[tuple[McpServer, BundleServer]]:
         """The bundle's members with their memberships, in member order."""

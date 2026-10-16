@@ -63,5 +63,6 @@ EndpointName = Annotated[str, _pattern, AfterValidator(_endpoint_name), _not_res
 PromptName = Annotated[str, _pattern, AfterValidator(_prompt_name), _no_double_underscore]
 BundleResourceName = Annotated[str, StringConstraints(pattern=BUNDLE_RESOURCE_NAME_PATTERN)]
 
+resource_name = TypeAdapter(ResourceName)
 server_name = TypeAdapter(ServerName)
 endpoint_name = TypeAdapter(EndpointName)

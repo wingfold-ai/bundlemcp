@@ -18,6 +18,8 @@ from bundlemcp.application.management.audit_service import AuditService
 from bundlemcp.application.management.bundle_prompt_service import BundlePromptService
 from bundlemcp.application.management.bundle_resource_service import BundleResourceService
 from bundlemcp.application.management.bundle_service import BundleService
+from bundlemcp.application.management.config_export_service import ConfigExportService
+from bundlemcp.application.management.config_import_service import ConfigImportService
 from bundlemcp.application.management.config_service import ConfigService
 from bundlemcp.application.management.endpoint_service import EndpointService
 from bundlemcp.application.management.profile_service import ProfileService
@@ -95,6 +97,23 @@ def get_config_service(uow: UnitOfWorkProvider) -> ConfigService:
     return ConfigService(uow)
 
 
+def get_config_export_service(request: Request, uow: UnitOfWorkProvider) -> ConfigExportService:
+    return ConfigExportService(uow, cipher=request.app.state.container.token_cipher)
+
+
+def get_config_import_service(request: Request) -> ConfigImportService:
+    # the import owns its transaction, so it opens its own unit of work
+    container = request.app.state.container
+    return ConfigImportService(
+        container.unit_of_work_factory,
+        container.discovery,
+        cipher=container.token_cipher,
+        connections=container.upstream_connections,
+        profiles=container.profiles,
+        public_base=container.settings.public_base,
+    )
+
+
 def get_audit_service(uow: UnitOfWorkProvider) -> AuditService:
     return AuditService(uow)
 
@@ -137,6 +156,8 @@ ProfileServiceProvider = Annotated[ProfileService, Depends(get_profile_service)]
 ApiKeyServiceProvider = Annotated[ApiKeyService, Depends(get_api_key_service)]
 UserServiceProvider = Annotated[UserService, Depends(get_user_service)]
 ConfigServiceProvider = Annotated[ConfigService, Depends(get_config_service)]
+ConfigExportServiceProvider = Annotated[ConfigExportService, Depends(get_config_export_service)]
+ConfigImportServiceProvider = Annotated[ConfigImportService, Depends(get_config_import_service)]
 AuditServiceProvider = Annotated[AuditService, Depends(get_audit_service)]
 AuditExportServiceProvider = Annotated[AuditExportService, Depends(get_audit_export_service)]
 AuthServiceProvider = Annotated[AuthService, Depends(get_auth_service)]

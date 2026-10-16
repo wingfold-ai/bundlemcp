@@ -16,15 +16,7 @@ from bundlemcp.application.contracts.upstream.upstream_connection_registry impor
     UpstreamConnectionRegistry,
 )
 from bundlemcp.application.management.api_key_service import ApiKeyService
-from bundlemcp.application.management.bundle_prompt_service import BundlePromptService
-from bundlemcp.application.management.bundle_resource_service import BundleResourceService
-from bundlemcp.application.management.bundle_service import BundleService
-from bundlemcp.application.management.endpoint_service import EndpointService
-from bundlemcp.application.management.server_service import ServerService
-from bundlemcp.application.management.upstream_oauth_config_service import (
-    UpstreamOAuthConfigService,
-)
-from bundlemcp.application.schemas import BundleServerUpdate
+from bundlemcp.application.management.config_import_service import ConfigImportService
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
 from bundlemcp.domain.shared.secret_generator import SecretGenerator
@@ -80,31 +72,17 @@ class BootstrapRunner:
             if entry.value_from_env is not None:
                 api_key_value(entry, environ=self._environ, generate=lambda: "")
         probes = ProbesAfterCommit(self._discovery)
+        importer = ConfigImportService(
+            self._units,
+            self._discovery,
+            cipher=self._cipher,
+            connections=self._connections,
+            profiles=self._profiles,
+            public_base=self._public_base,
+        )
         async with self._units.open() as uow, uow.atomic():
-            servers = ServerService(uow, discovery=probes, public_base=self._public_base)
-            upstream_clients = UpstreamOAuthConfigService(
-                uow, cipher=self._cipher, connections=self._connections
-            )
-            bundles = BundleService(uow, public_base=self._public_base)
-            bundle_prompts = BundlePromptService(uow)
-            bundle_resources = BundleResourceService(uow)
-            endpoints = EndpointService(uow, profiles=self._profiles)
-            for server in doc.upstreams:
-                await servers.upsert(server)
-                if server.upstream_oauth is not None:
-                    await upstream_clients.set_client(server.name, server.upstream_oauth)
-            for bundle in doc.bundles:
-                await bundles.upsert(bundle)
-                for server_name in bundle.upstreams:
-                    await bundles.set_member(bundle.name, server_name, BundleServerUpdate())
-                await bundles.place_members_first(bundle.name, bundle.upstreams)
-                # resources first, since a prompt may embed one
-                for resource in bundle.resources:
-                    await bundle_resources.upsert(bundle.name, resource)
-                for prompt in bundle.prompts:
-                    await bundle_prompts.upsert(bundle.name, prompt)
-            for endpoint in doc.endpoints:
-                await endpoints.upsert(endpoint)
+            # the import route's code path, failing on the first resource that cannot apply
+            await importer.apply_in(uow, doc, probes, strict=True)
             keys = ApiKeyService(uow, hasher=self._hasher, generator=self._generator)
             for entry in doc.api_keys:
                 if await keys.exists(entry.name):
