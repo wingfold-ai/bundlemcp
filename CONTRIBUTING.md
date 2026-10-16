@@ -264,9 +264,9 @@ What this means while you work on a branch:
   `application/metering/metering_hook.py` in the same pull request, and its title is marked breaking (`!`); CI refuses
   the entry otherwise. The entry then says the protocol changed, with a breaking bullet CI adds unless the text already
   names it. An entry names the protocol only in that case.
-- `main` only accepts a pull request whose `ci-passed` check succeeded. CI's own commits run no CI, so
-  `.github/workflows/ci-result-relay.yml` sets the result CI reached on the commit before them as the head's
-  `ci-passed`; until that run finishes, the check is pending and the merge waits.
+- `main` only accepts a pull request whose `ci-passed` check succeeded. CI's own commits run no CI, so the result CI
+  reached on the commit before them is set on the head as `ci-passed`: by the `ci-passed` job itself when it finishes,
+  or by the job that pushed CI's commit when CI was already done. Until then the check is pending and the merge waits.
 - CI cannot push to a fork. A pull request from a fork fails its entry check; a maintainer moves the branch into the
   repository before merging.
 - `python3 tools/release_notes.py v1.2.0` prints what a release will say. A tag pushed by hand (`git tag v1.2.0 && git

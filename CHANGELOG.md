@@ -6,6 +6,20 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.2] - 2026-10-16
+
+### Changed
+
+- The `ci-passed` result on CI's own `[skip ci]` commits (the changelog entry and the merge of `main`) is now set by the
+  pull request branch's own CI run. The separate `ci-result-relay.yml` workflow is removed.
+  ([#135](https://github.com/wingfold-ai/bundlemcp/pull/135))
+
+### Fixed
+
+- A pull request no longer stays pending on the required `ci-passed` check after CI pushes its own commit, so it no
+  longer needs the result relayed by hand. A result for an older commit is never set on a newer head.
+  ([#135](https://github.com/wingfold-ai/bundlemcp/pull/135))
+
 ## [0.1.1] - 2026-10-15
 
 ### Added

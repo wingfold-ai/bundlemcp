@@ -171,7 +171,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: uv run --no-project --with "$PYDANTIC" python tools/ci_result_relay.py "$(git rev-parse HEAD)"
+        run: |
+          uv run --no-project --with "$PYDANTIC" python tools/ci_result_relay.py "$(git rev-parse HEAD)" \
+            --wait 300
 
   refresh:
     if: github.event_name == 'push'
