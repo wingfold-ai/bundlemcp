@@ -43,11 +43,13 @@ The admin UI SHALL provide these pages:
 - **Users** — list of provisioned users, admin flag display, deactivate action
   ([AUTH-20](../auth/spec.md)), per-user OAuth consents with revoke
   ([AUTH-11](../auth/spec.md)).
-- **Settings** — runtime `Config` editing: each key can be saved or reset to its default.
+- **Settings** — runtime `Config` editing: each key can be saved or reset to its default; export and import of the
+  configuration ([MGMT-22](../management/spec.md)).
+- **Live logs** — the live tail of every replica's recent events, with filters and pause/resume
+  ([OPS-15](../operations/spec.md)).
 
-The navigation also carries *Live logs* and *Inspector* entries; both pages are placeholders that state their backend is
-not implemented ([add-live-logs](../../changes/add-live-logs/proposal.md),
-[add-inspector](../../changes/add-inspector/proposal.md)).
+The navigation also carries an *Inspector* entry; the page is a placeholder that states its backend is not implemented
+([add-inspector](../../changes/add-inspector/proposal.md)).
 
 #### Scenario: Navigation reaches every page
 - **GIVEN** a signed-in admin

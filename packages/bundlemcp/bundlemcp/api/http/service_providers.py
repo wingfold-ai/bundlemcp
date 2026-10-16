@@ -22,6 +22,7 @@ from bundlemcp.application.management.config_export_service import ConfigExportS
 from bundlemcp.application.management.config_import_service import ConfigImportService
 from bundlemcp.application.management.config_service import ConfigService
 from bundlemcp.application.management.endpoint_service import EndpointService
+from bundlemcp.application.management.live_log_service import LiveLogService
 from bundlemcp.application.management.member_curation_service import MemberCurationService
 from bundlemcp.application.management.profile_service import ProfileService
 from bundlemcp.application.management.server_inspection_service import ServerInspectionService
@@ -79,6 +80,10 @@ def get_bundle_resource_service(uow: UnitOfWorkProvider) -> BundleResourceServic
 
 def get_member_curation_service(uow: UnitOfWorkProvider) -> MemberCurationService:
     return MemberCurationService(uow)
+
+
+def get_live_log_service(request: Request) -> LiveLogService:
+    return LiveLogService(request.app.state.container.live_log_buffer)
 
 
 def get_endpoint_service(request: Request, uow: UnitOfWorkProvider) -> EndpointService:
@@ -159,6 +164,9 @@ BundleResourceServiceProvider = Annotated[
 MemberCurationServiceProvider = Annotated[
     MemberCurationService, Depends(get_member_curation_service)
 ]
+
+
+LiveLogServiceProvider = Annotated[LiveLogService, Depends(get_live_log_service)]
 EndpointServiceProvider = Annotated[EndpointService, Depends(get_endpoint_service)]
 ProfileServiceProvider = Annotated[ProfileService, Depends(get_profile_service)]
 ApiKeyServiceProvider = Annotated[ApiKeyService, Depends(get_api_key_service)]

@@ -6,6 +6,35 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.14] - 2026-10-16
+
+### Added
+
+- The admin UI's Live logs page now shows every replica's events in one view: it loads the recent entries, then follows
+  new ones live. It filters by level, text, upstream and endpoint, pauses and resumes from the last entry shown, shows
+  which replica wrote each line, and indicates the connection state.
+  ([#148](https://github.com/wingfold-ai/bundlemcp/pull/148))
+- `GET /api/v1/logs` returns recent live log entries filtered by `level`, `q`, `upstream` and `endpoint`. `GET
+  /api/v1/logs/stream` serves the same entries as Server-Sent Events, resuming from `Last-Event-ID` or `since`, and
+  answers `429` when a replica already holds too many open streams.
+  ([#148](https://github.com/wingfold-ai/bundlemcp/pull/148))
+- Add `BUNDLEMCP_LIVE_LOG_LEVEL` (default `INFO`) to set the minimum severity copied to the live log view. An event must
+  also pass `BUNDLEMCP_LOG_LEVEL`. ([#148](https://github.com/wingfold-ai/bundlemcp/pull/148))
+
+### Changed
+
+- Each replica copies its log events into one capped Valkey stream, `bmcp:logs`, holding about the newest 10,000
+  entries. The buffer is ephemeral and safe to delete, so use your container platform's log stack for history.
+  ([#148](https://github.com/wingfold-ai/bundlemcp/pull/148))
+- At the default `INFO` level every access line becomes a batched write to Valkey, and each open live log view holds a
+  blocking read on Valkey for up to ten seconds at a time. On a very busy gateway, raise `BUNDLEMCP_LIVE_LOG_LEVEL`.
+  ([#148](https://github.com/wingfold-ai/bundlemcp/pull/148))
+
+### Security
+
+- Live log entries are exactly the process log's already-redacted lines, so they never contain API keys, tokens, header
+  values or tool arguments. ([#148](https://github.com/wingfold-ai/bundlemcp/pull/148))
+
 ## [0.1.13] - 2026-10-16
 
 ### Added

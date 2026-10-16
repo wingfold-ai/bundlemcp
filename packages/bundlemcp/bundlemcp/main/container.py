@@ -11,6 +11,7 @@ from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamCon
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.live_state.admin_session_store import AdminSessionStore
 from bundlemcp.application.contracts.live_state.auth_failure_limiter import AuthFailureLimiter
+from bundlemcp.application.contracts.live_state.live_log_buffer import LiveLogBuffer
 from bundlemcp.application.contracts.live_state.rate_limiter import RateLimiter
 from bundlemcp.application.contracts.live_state.single_use_state import SingleUseState
 from bundlemcp.application.contracts.observability.gateway_metrics import GatewayMetrics
@@ -79,6 +80,9 @@ class AppContainer(BaseModel):
         description="Issues and recognises the upstream-bound tokens of delegated_token servers"
     )
     audit: AuditSink = Field(description="Queued writer for audit records")
+    live_log_buffer: LiveLogBuffer = Field(
+        description="Every replica's recent log events, for the live log view"
+    )
     runtime_config: RuntimeConfig = Field(description="Runtime-tunable config, cached per replica")
     metrics: GatewayMetrics = Field(description="Where every counted fact is recorded")
     metrics_exposition: MetricsExposition = Field(
