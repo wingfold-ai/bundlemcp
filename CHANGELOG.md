@@ -6,6 +6,15 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.2] - 2026-10-16
+
+### Fixed
+
+- CI's own `[skip ci]` commits on a pull request, such as the changelog entry and the merge of `main`, now get the
+  required `ci-passed` result from the branch's own CI run. They no longer stay pending until someone relays the result
+  by hand, and a result for an older commit is never set on a newer head.
+  ([#135](https://github.com/wingfold-ai/bundlemcp/pull/135))
+
 ## [0.1.1] - 2026-10-15
 
 ### Added
