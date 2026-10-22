@@ -6,6 +6,23 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.17] - 2026-10-22
+
+### Changed
+
+- The gateway and example server images move to Python 3.14.9, which ships a patched pip, and the gateway image builds
+  with uv 0.13.5. ([#155](https://github.com/wingfold-ai/bundlemcp/pull/155))
+- Building from source now requires uv 0.13.4 or newer; an older uv refuses to work on the project.
+  ([#155](https://github.com/wingfold-ai/bundlemcp/pull/155))
+
+### Security
+
+- The gateway no longer trusts the distrusted eMudhra emSign CAs, which were found to use insecure private keys.
+  `certifi` is updated to 2026.10.19 and held at that version or newer, which closes a way to intercept outbound TLS
+  connections to upstreams and other hosts. ([#155](https://github.com/wingfold-ai/bundlemcp/pull/155))
+- The gateway and example images no longer ship a pip or uv that trust the distrusted eMudhra emSign CAs. Rebuild and
+  redeploy your images to pick up the fix. ([#155](https://github.com/wingfold-ai/bundlemcp/pull/155))
+
 ## [0.1.16] - 2026-10-16
 
 ### Added
