@@ -1,4 +1,4 @@
-FROM python:3.14-slim-bookworm
+FROM python:3.14.9-slim-bookworm
 WORKDIR /app
 RUN pip install --no-cache-dir "fastmcp>=3.4"
 COPY server.py .
