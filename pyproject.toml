@@ -1,6 +1,6 @@
 [project]
 name = "bundlemcp-workspace"
-version = "0.1.16"
+version = "0.1.17"
 description = "bundlemcp workspace root (see packages/ and apps/)"
 requires-python = ">=3.13"
 license = "Apache-2.0"
@@ -10,6 +10,9 @@ license-files = ["LICENSE"]
 members = ["packages/*"]
 
 [tool.uv]
+# certifi before 2026.10.19 and uv before 0.13.4 trust the distrusted eMudhra emSign CAs
+required-version = ">=0.13.4"
+constraint-dependencies = ["certifi>=2026.10.19"]
 dev-dependencies = [
     "pytest>=8.4",
     "pytest-asyncio>=1.0",
