@@ -7,6 +7,7 @@ import httpcore2
 import pytest
 from bundlemcp.infrastructure.config.settings import EnvSettings
 from bundlemcp.infrastructure.egress.egress_policy import EgressDenied
+from bundlemcp.infrastructure.egress.egress_scope import EgressScope
 from bundlemcp.infrastructure.egress.guarded_backend import GuardedNetworkBackend, guard_pool
 
 
@@ -197,3 +198,13 @@ def test_sec2_the_mcp_client_never_follows_redirects_itself():
 
     client = guarded_mcp_http_client(EnvSettings(_env_file=None))(follow_redirects=True)
     assert client.follow_redirects is False
+
+
+async def test_auth13_public_scope_refuses_rebinding_to_a_private_address():
+    """AUTH-13: a public-scope pool never dials a private address a name answers at connect time."""
+    network = FakeNetwork()
+    pool = httpcore.AsyncConnectionPool(network_backend=network)
+    guard_pool(pool, EnvSettings(_env_file=None), answers("10.0.0.5"), EgressScope.PUBLIC)
+    with pytest.raises(EgressDenied):
+        await pool.request("GET", "https://client.example/client.json")
+    assert network.log == []

@@ -106,7 +106,7 @@ Every official SDK speaks one era or the other, so the practical advice is to us
 | `GET` | `/.well-known/oauth-authorization-server` | RFC 8414 metadata. |
 | `GET` | `/.well-known/oauth-protected-resource/{endpoint}/mcp` | Protected-resource metadata for one endpoint. |
 | `POST` | `/oauth/register` | RFC 7591 dynamic client registration; public clients, redirect URIs must be https or localhost and on `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS` when it is set. Rate-limited per IP unless every redirect URI is allow-listed, and capped by a global quota of unused clients; either limit answers `429` with `too_many_requests`. |
-| `GET` | `/oauth/authorize` | Authorization code with S256 PKCE. Accepts `resource` (RFC 8707) naming the endpoint. Redirects to the identity provider when no browser session exists. Client ids that are `https://` URLs are resolved as client ID metadata documents. |
+| `GET` | `/oauth/authorize` | Authorization code with S256 PKCE. Accepts `resource` (RFC 8707) naming the endpoint. Redirects to the identity provider when no browser session exists. Client ids that are `https://` URLs are resolved as client ID metadata documents, fetched from public addresses only, at most 16 KiB within 5 seconds; a URL that failed is refused for a minute without a new fetch. |
 | `POST` | `/oauth/consent` | The consent form's submit. |
 | `POST` | `/oauth/token` | `authorization_code` and `refresh_token` grants. Refresh tokens rotate; reuse of a rotated token revokes the whole family. |
 | `POST` | `/oauth/introspect` | RFC 7662. Requires a service API key, as a bearer, in `X-API-Key`, or as the HTTP Basic client secret. |

@@ -65,6 +65,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0057](../adr/0057-live-logs-through-a-capped-valkey-stream.md) | Live log view through a capped Valkey stream fed by a second logging handler; SSE with resume | accepted | One view of every replica's events; logging never waits on it |
 | [0058](../adr/0058-inspector-proxied-by-the-management-api.md) | Inspector traffic proxied by four management routes; endpoint targets dispatched in-process through the public MCP route | accepted | Secrets stay server-side; an endpoint is inspected as its clients see it |
 | [0059](../adr/0059-member-lists-served-from-the-discovery-snapshot.md) | Prompt, resource and template lists served from the listing stored at discovery when shareable (`cacheScope`, identity-free, or the per-server `listing_snapshot`) | accepted | Connecting a client wakes no member whose lists are shareable; a listing changed without a notification is stale until the next discovery |
+| [0060](../adr/0060-unauthenticated-fetches-use-a-public-only-egress-scope.md) | A public-only egress scope for URLs an unauthenticated caller chooses; client metadata documents fetched bounded and failure-cached | accepted | No private-network probing through `/oauth/authorize`; a private-address document needs an allow entry |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).
