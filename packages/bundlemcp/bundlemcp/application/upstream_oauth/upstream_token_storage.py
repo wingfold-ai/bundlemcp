@@ -14,7 +14,7 @@ from bundlemcp.application.contracts.persistence.upstream_token_repository impor
     UpstreamTokenRepository,
 )
 from bundlemcp.application.contracts.secret_cipher import DecryptionError, SecretCipher
-from bundlemcp.domain.shared.clock import utcnow
+from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.upstream_oauth.client_identification import ClientIdentification
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_client_config import (
@@ -57,9 +57,10 @@ class UpstreamTokenStorage:
     is logged and never fails the read.
     """
 
-    def __init__(self, units: UnitOfWorkFactory, cipher: SecretCipher) -> None:
+    def __init__(self, units: UnitOfWorkFactory, cipher: SecretCipher, *, clock: Clock) -> None:
         self._units = units
         self._cipher = cipher
+        self._clock = clock
 
     async def load(
         self, server_id: uuid.UUID, user_id: uuid.UUID | None
@@ -75,7 +76,9 @@ class UpstreamTokenStorage:
         self, server_id: uuid.UUID, user_id: uuid.UUID | None, tokens: UpstreamTokens
     ) -> None:
         blob = self._cipher.encrypt(tokens.model_dump_json())
-        expires_at = utcnow() + timedelta(seconds=tokens.expires_in) if tokens.expires_in else None
+        expires_at = (
+            self._clock.now() + timedelta(seconds=tokens.expires_in) if tokens.expires_in else None
+        )
         async with self._units.open() as uow:
             row = await uow.upstream_tokens.find(server_id, user_id)
             if row is None:

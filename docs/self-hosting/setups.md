@@ -13,8 +13,11 @@ one is for, what it leaves insecure, and which settings a real deployment has to
 
 Both local setups run the compose stack in `deploy/`, which is built to start with one command, not to be safe. It:
 
-- **ships its secrets inline.** The service key `bmcp_sk_devservicekey…`, the token encryption key and the identity
-  provider's client secret are the same in every checkout. Anyone who knows the repository knows them.
+- **falls back to published secrets.** Without `deploy/.env`, the service key `bmcp_sk_devservicekey…`, the token
+  encryption key, the identity provider's admin password and its client secret are the same in every checkout. Plain
+  `docker compose up` uses them, which is safe only because every port the stack publishes listens on `127.0.0.1`.
+  `deploy/stack.sh` replaces the first three in `deploy/.env` with generated values before every start, and refuses
+  to open a tunnel while the running gateway still accepts the published service key.
 - **brings a development identity provider.** Keycloak with the login `admin` / `admin`, and a realm that accepts any
   redirect URI so that a tunnel's changing URL still works.
 - **speaks plain HTTP** on `localhost`. In the tunnel setup the tunnel adds HTTPS in front.
@@ -84,8 +87,21 @@ ngrok's static domain.
 | `deploy/stack.sh logs` | Follows the logs of every container |
 | `deploy/stack.sh down` | Stops everything; the database is kept |
 | `deploy/stack.sh rebuild` | Deletes the stack's data volumes, rebuilds the images and starts fresh from the seed |
+| `deploy/stack.sh secrets` | Generates any secret `deploy/.env` lacks or still holds at its published value, without starting |
 
 Every command has a `make` alias (`make up`, `make url`, …).
+
+If `up` stops with "the gateway still accepts the service key published in this repository", the stack's database was
+created before the script generated a key, for example by a plain `docker compose up`. A service key that already
+exists is never replaced by a new `BUNDLEMCP_INITIAL_SERVICE_KEY`, so revoke the published one under **API keys** in the
+admin UI, or start from empty volumes with `deploy/stack.sh rebuild`.
+
+::: details Reaching the stack from another device on your network
+Every host port binds to `127.0.0.1`, so other machines cannot reach the stack directly. To open it on purpose, and only
+on a network you trust, write your own compose file that republishes the ports you need, for example `ports: !override
+["8000:8000"]` under `gateway`, keep it out of the repository, and pass it after the stack's own:
+`docker compose -f deploy/docker-compose.yml -f <your file> up -d`.
+:::
 
 ::: warning Signing in through the tunnel works on this machine only
 The development identity provider is published at `http://localhost:8080`. When you sign in — to the admin UI through
