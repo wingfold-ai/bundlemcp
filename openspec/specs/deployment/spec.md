@@ -160,6 +160,11 @@ and the old key is dropped once that is zero. Losing all keys invalidates stored
 consequence, [UPS-29](../upstreams/spec.md) re-connect path). Implemented with `MultiFernet`
 ([ADR-0017](../../../docs/adr/0017-upstream-oauth-encryption.md)).
 
+The same keys encrypt a server's static header values. These are re-encrypted when the server is written and by the
+background job, not when they are read, because they are read on every upstream call. The job also encrypts static
+header values still stored in plaintext, and reports how many it sealed. Losing all keys makes stored static header
+values unreadable as well; an admin enters them again.
+
 #### Scenario: Old ciphertext still decrypts after rotation
 - **GIVEN** a token encrypted under key `old`
 - **WHEN** the key list becomes `[new, old]`
@@ -188,12 +193,23 @@ consequence, [UPS-29](../upstreams/spec.md) re-connect path). Implemented with `
 #### Scenario: Safe to drop the old key
 - **GIVEN** the job has reported that no stored value depends on an older key
 - **WHEN** the operator restarts the gateway with the key list `[new]`
-- **THEN** every stored upstream connection and client secret still decrypts
+- **THEN** every stored upstream connection, client secret and static header value still decrypts
 
 #### Scenario: Undecryptable values are reported, not rewritten
 - **GIVEN** a stored value that no configured key decrypts
 - **WHEN** the job runs
 - **THEN** the value is left unchanged and counted separately from the values still under an older key
+
+#### Scenario: Static header values move to the new key
+- **GIVEN** the key list `[new, old]` and a server whose static headers are stored under `old`
+- **WHEN** the background re-encryption job runs
+- **THEN** the headers are stored under `new`, still decrypt to the same values, and the job reports zero values still
+  under an older key
+
+#### Scenario: Sealing never overwrites headers an admin just wrote
+- **GIVEN** a server whose static headers are stored in plaintext
+- **WHEN** an admin writes new headers for it while the job is sealing the old ones
+- **THEN** the stored headers decrypt to the admin's new values
 
 ### Requirement: DEP-10 CI gates
 CI (GitHub Actions) MUST run on every pull request: `ruff`, `rumdl`, the import contracts (`lint-imports`), `pytest`,

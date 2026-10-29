@@ -22,7 +22,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0014](../adr/0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB tokens | accepted (amended by 0028, 0031, 0036) | claude.ai connectable without the UI; no introspect self-call |
 | [0015](../adr/0015-keycloak-dev-idp.md) | Keycloak as the dev IdP | accepted | Integration tests prove real federation; heavier compose |
 | [0016](../adr/0016-relay-design.md) | Protocol relay: registries + Redis signaling | accepted (amended by 0027, 0029) | Full bidirectional relay with any-replica correctness |
-| [0017](../adr/0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption | accepted (amended by 0028, 0037, 0040) | Protected upstreams work; tokens encrypted at rest with key rotation |
+| [0017](../adr/0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption | accepted (amended by 0028, 0037, 0040, 0061) | Protected upstreams work; tokens encrypted at rest with key rotation |
 | [0018](../adr/0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted | Cross-replica abuse protection; per-IP credential-scan throttling |
 | [0019](../adr/0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020, 0026) | Business logic in framework-free services; one DTO class per module |
 | [0020](../adr/0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted (amended by 0023, 0025, 0033) | Services/DTOs are library peers any subsystem consumes; framework-free AuthService |
@@ -66,6 +66,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0058](../adr/0058-inspector-proxied-by-the-management-api.md) | Inspector traffic proxied by four management routes; endpoint targets dispatched in-process through the public MCP route | accepted | Secrets stay server-side; an endpoint is inspected as its clients see it |
 | [0059](../adr/0059-member-lists-served-from-the-discovery-snapshot.md) | Prompt, resource and template lists served from the listing stored at discovery when shareable (`cacheScope`, identity-free, or the per-server `listing_snapshot`) | accepted | Connecting a client wakes no member whose lists are shareable; a listing changed without a notification is stale until the next discovery |
 | [0060](../adr/0060-unauthenticated-fetches-use-a-public-only-egress-scope.md) | A public-only egress scope for URLs an unauthenticated caller chooses; client metadata documents fetched bounded and failure-cached | accepted | No private-network probing through `/oauth/authorize`; a private-address document needs an allow entry |
+| [0061](../adr/0061-static-upstream-headers-encrypted-in-the-repository.md) | The server repository encrypts static header values; plaintext only without a key; sealed by the background pass | accepted | No header value at rest in plaintext once a keyed pass has run; consumers unchanged |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
 from bundlemcp.application.contracts.persistence.store_unavailable import StoreUnavailable
+from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.infrastructure.postgres.api_key_repository import SqlAlchemyApiKeyRepository
 from bundlemcp.infrastructure.postgres.audit_repository import SqlAlchemyAuditRepository
 from bundlemcp.infrastructure.postgres.authorization_code_repository import (
@@ -73,9 +74,12 @@ class SqlAlchemyUnitOfWork:
     everything at once, which is how a bootstrap document lands all or nothing.
     """
 
-    def __init__(self, session: AsyncSession, redis: Redis) -> None:
+    def __init__(
+        self, session: AsyncSession, redis: Redis, *, cipher: SecretCipher | None = None
+    ) -> None:
         self._session = session
         self._redis = redis
+        self._cipher = cipher  # encrypts static header values at rest; None on a keyless gateway
         self._pending: list[InvalidationEvent] = []
         self._atomic_depth = 0
 
@@ -86,7 +90,7 @@ class SqlAlchemyUnitOfWork:
 
     @cached_property
     def servers(self) -> SqlAlchemyServerRepository:
-        return SqlAlchemyServerRepository(self._session)
+        return SqlAlchemyServerRepository(self._session, self._cipher)
 
     @cached_property
     def tools(self) -> SqlAlchemyToolRepository:
@@ -220,16 +224,23 @@ class SqlAlchemyUnitOfWork:
 class SqlAlchemyUnitOfWorkFactory:
     """Opens a fresh unit of work per request, background task or bootstrap run."""
 
-    def __init__(self, sessions: async_sessionmaker[AsyncSession], redis: Redis) -> None:
+    def __init__(
+        self,
+        sessions: async_sessionmaker[AsyncSession],
+        redis: Redis,
+        *,
+        cipher: SecretCipher | None = None,
+    ) -> None:
         self._sessions = sessions
         self._redis = redis
+        self._cipher = cipher
 
     @asynccontextmanager
     async def open(self) -> AsyncIterator[SqlAlchemyUnitOfWork]:
         """A unit of work; a database that cannot be reached surfaces as ``StoreUnavailable``."""
         try:
             async with self._sessions() as session:
-                yield SqlAlchemyUnitOfWork(session, self._redis)
+                yield SqlAlchemyUnitOfWork(session, self._redis, cipher=self._cipher)
         except Exception as exc:
             if is_store_outage(exc):
                 raise StoreUnavailable(type(exc).__name__) from exc

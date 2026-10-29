@@ -28,6 +28,10 @@ an origin the endpoint does not [allow](/manage/endpoints#browser-origins) answe
 with the same JSON-RPC shape, before its credential is checked; on `/api/v1` the
 same `413` carries the usual `{"detail": …}` object.
 
+Every path under `/oauth/` has its own fixed body cap of 64 KiB, whatever `max_request_bytes` says, because those
+routes answer before anyone signs in. A larger body, declared or streamed, answers `413` in the OAuth shape before it is
+parsed: `{"error": "invalid_request", "error_description": "request body exceeds the 65536-byte limit"}`.
+
 ## Management API status codes
 
 | Status | Meaning |

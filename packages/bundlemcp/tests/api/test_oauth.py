@@ -1453,3 +1453,49 @@ async def test_auth34_default_on(engine, redis):
     ):
         meta = (await http.get("/.well-known/oauth-authorization-server")).json()
     assert meta["client_id_metadata_document_supported"] is True
+
+
+async def _client_count(app) -> int:
+    from bundlemcp.infrastructure.postgres.rows.oauth_client_row import OAuthClientRow
+    from sqlalchemy import func
+
+    async with app.state.container.session_factory() as db:
+        return (await db.execute(select(func.count()).select_from(OAuthClientRow))).scalar_one()
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("redirect_uris", [f"https://client.example/cb{i}" for i in range(11)]),
+        ("redirect_uris", ["https://client.example/" + "a" * (2049 - 23)]),
+        ("client_name", "n" * 201),
+        ("scope", "s" * 1001),
+        ("grant_types", ["authorization_code"] * 11),
+        ("response_types", ["code"] * 11),
+    ],
+)
+async def test_auth2_oversized_metadata_refused(oauth_env, field, value):
+    """AUTH-2: registration metadata over its bound is refused with invalid_client_metadata
+    naming the field, and no client is stored."""
+    http, app, _ = oauth_env
+    body = {"redirect_uris": ["https://client.example/cb"], field: value}
+    before = await _client_count(app)
+    resp = await http.post("/oauth/register", json=body)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"] == "invalid_client_metadata"
+    assert resp.json()["error_description"].startswith(field)
+    assert await _client_count(app) == before
+
+
+async def test_auth2_metadata_at_bounds_accepted(oauth_env):
+    """AUTH-2: 10 redirect URIs (one of 2048 characters), a 200-character client_name and a
+    1000-character scope are accepted."""
+    http, _, _ = oauth_env
+    long_uri = "https://client.example/" + "a" * (2048 - 23)
+    assert len(long_uri) == 2048
+    uris = [long_uri] + [f"https://client.example/cb{i}" for i in range(9)]
+    resp = await http.post(
+        "/oauth/register",
+        json={"redirect_uris": uris, "client_name": "n" * 200, "scope": "s" * 1000},
+    )
+    assert resp.status_code == 201, resp.text

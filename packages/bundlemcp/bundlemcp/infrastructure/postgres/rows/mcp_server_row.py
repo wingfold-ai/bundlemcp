@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, String, text
+from sqlalchemy import JSON, Column, String, Text, text
 from sqlmodel import Field, SQLModel
 
 from bundlemcp.domain.servers.connection_state import ConnectionState
@@ -29,7 +29,16 @@ class McpServerRow(SQLModel, table=True):
     static_headers: dict[str, str] = Field(
         default_factory=dict,
         sa_column=Column(JSON),
-        description="Headers sent on every upstream request, for credentials the server needs",
+        description="Headers sent on every upstream request, for credentials the server needs. "
+        "Empty while the values are held encrypted in static_headers_encrypted; holds them in "
+        "plaintext only on a gateway with no encryption key",
+    )
+    static_headers_encrypted: str | None = Field(
+        default=None,
+        sa_column=Column(Text, nullable=True),
+        description="The static headers as one ciphertext of their JSON object, under the "
+        "token encryption keys; absent when the server has no headers or they are still "
+        "stored in plaintext",
     )
     forward_headers: dict[str, str] = Field(
         default_factory=dict,

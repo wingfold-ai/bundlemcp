@@ -146,6 +146,11 @@ routes, the API's error object on `/api/v1`. A single upstream response message 
 (runtime-configurable, default 16 MiB) is abandoned and answered to the MCP client as a structured error, so one tool
 result cannot exhaust a replica's memory. Either limit accepts values from 64 KiB to 64 MiB.
 
+Every path under `/oauth/` is reachable before anyone signs in, so it MUST be held to a fixed, smaller limit of 64 KiB
+in the same way: a declared or streamed body over it is refused with `413` before it is parsed, and the 413 carries
+an OAuth error object (`error` `invalid_request` with an `error_description`). This limit is not configurable and does
+not follow the runtime request limit.
+
 #### Scenario: Oversized MCP request
 - **WHEN** a client POSTs to `/{endpoint}/mcp` with `Content-Length` above the request limit
 - **THEN** the gateway answers `413` with a JSON-RPC error body, without admitting the request to the database
@@ -168,6 +173,16 @@ result cannot exhaust a replica's memory. Either limit accepts values from 64 Ki
 - **WHEN** an upstream answers a `tools/call` with a single message larger than the upstream response cap
 - **THEN** the caller receives a structured MCP error saying the upstream response was too large, and the replica does
   not buffer the rest of the message
+
+#### Scenario: Oversized registration body
+- **WHEN** a client POSTs a 100 KiB body to `/oauth/register`, with or without `Content-Length`
+- **THEN** the gateway answers `413` with `error` `invalid_request`, without parsing the body and without registering
+  a client
+
+#### Scenario: OAuth limit ignores the runtime request limit
+- **GIVEN** an admin raises the runtime request limit to 16 MiB
+- **WHEN** a client POSTs a 100 KiB form body to `/oauth/token`
+- **THEN** the gateway still answers `413`
 
 ### Requirement: SEC-8 Dynamic client registration abuse limits
 Dynamic client registration ([AUTH-2](../auth/spec.md)) MUST be rate-limited per IP (Valkey, shares
@@ -204,8 +219,9 @@ failures and lockout events SHALL be counted in the exported metrics
 ### Requirement: SEC-10 Secrets stay secret
 Secret values (API keys, tokens, static/forwarded header values, client secrets) MUST NOT appear in logs, metric labels,
 audit records, API responses (beyond one-time display at creation), or error messages. Server reads return static
-header names only; upstream OAuth status never returns the client secret; stored upstream tokens and client secrets are
-ciphertext. A unit-test helper SHALL assert redaction on representative paths: logs, metrics output and error bodies.
+header names only; upstream OAuth status never returns the client secret; stored upstream tokens, client secrets and
+static header values are ciphertext whenever an encryption key is configured ([ARC-18](../architecture/spec.md)). A
+unit-test helper SHALL assert redaction on representative paths: logs, metrics output and error bodies.
 
 #### Scenario: Header values are withheld
 - **GIVEN** a server registered with a static `Authorization` header
@@ -231,6 +247,11 @@ ciphertext. A unit-test helper SHALL assert redaction on representative paths: l
 - **WHEN** a request with a bad API key is rejected and the captured log records and the error body are passed to the
   redaction helper together with the presented key
 - **THEN** the helper reports no occurrence of the key value
+
+#### Scenario: Static header values are ciphertext in the database
+- **GIVEN** a gateway with an encryption key, and a server registered with static header `Authorization: Bearer s3cret`
+- **WHEN** the `mcp_servers` row is read directly from Postgres
+- **THEN** neither `s3cret` nor `Bearer s3cret` appears in any of its columns
 
 ### Requirement: SEC-5 MCP endpoint CORS
 MCP endpoints (`/{endpoint}/mcp`) SHALL answer browser-based MCP clients with CORS according to the endpoint's allowed

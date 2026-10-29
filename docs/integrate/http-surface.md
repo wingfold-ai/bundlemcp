@@ -105,7 +105,7 @@ Every official SDK speaks one era or the other, so the practical advice is to us
 |---|---|---|
 | `GET` | `/.well-known/oauth-authorization-server` | RFC 8414 metadata. |
 | `GET` | `/.well-known/oauth-protected-resource/{endpoint}/mcp` | Protected-resource metadata for one endpoint. |
-| `POST` | `/oauth/register` | RFC 7591 dynamic client registration; public clients, redirect URIs must be https or localhost and on `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS` when it is set. Rate-limited per IP unless every redirect URI is allow-listed, and capped by a global quota of unused clients; either limit answers `429` with `too_many_requests`. |
+| `POST` | `/oauth/register` | RFC 7591 dynamic client registration; public clients, redirect URIs must be https or localhost and on `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS` when it is set. Rate-limited per IP unless every redirect URI is allow-listed, and capped by a global quota of unused clients; either limit answers `429` with `too_many_requests`. Metadata is bounded: at most 10 redirect URIs of at most 2048 characters each, a `client_name` of at most 200 characters, a `scope` of at most 1000, and at most 10 `grant_types` and 10 `response_types`; more is refused with `400` `invalid_client_metadata`. |
 | `GET` | `/oauth/authorize` | Authorization code with S256 PKCE. Accepts `resource` (RFC 8707) naming the endpoint. Redirects to the identity provider when no browser session exists. Client ids that are `https://` URLs are resolved as client ID metadata documents, fetched from public addresses only, at most 16 KiB within 5 seconds; a URL that failed is refused for a minute without a new fetch. |
 | `POST` | `/oauth/consent` | The consent form's submit. |
 | `POST` | `/oauth/token` | `authorization_code` and `refresh_token` grants. Refresh tokens rotate; reuse of a rotated token revokes the whole family. |
@@ -118,11 +118,18 @@ Every authorization response, including error redirects, carries `iss=<issuer>` 
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/login?next=` | Starts the OIDC login; returns to `next` afterwards. |
-| `GET` | `/login/callback` | The redirect URI to register with the identity provider. |
+| `GET` | `/login?next=` | Starts the OIDC login; returns to `next` afterwards. Sets the login binding cookie (below). |
+| `GET` | `/login/callback` | The redirect URI to register with the identity provider. Answers `400` unless the browser presents the binding cookie of the login it finishes; it always clears that cookie. |
 | `POST` | `/logout` | Ends the bundlemcp session. |
 | `GET` | `/oauth/upstream/{server}/connect` | Starts the upstream OAuth flow for a server. Admins establish the shared connection; `?as=me` connects the signed-in user's own account on a `per_user` server. |
 | `GET` | `/oauth/upstream/callback` | The redirect URI to register with upstream OAuth providers: `<public url>/oauth/upstream/callback`. |
+
+A login can be finished only by the browser that started it, so a callback link handed to someone else signs nobody
+in. `/login` sets a binding cookie holding a fresh random value, and the stored login state keeps only its hash. The
+cookie is `HttpOnly`, `SameSite=Lax`, host-only on `Path=/`, and lives 10 minutes, as long as the login state. On an
+https public URL it is named `__Host-bmcp_login` and is `Secure`; on plain http it is named `bmcp_login`. Starting a
+second login in the same browser replaces the cookie, so the earlier tab's callback answers `400` and that login must
+be started again. A login started before an upgrade to this behaviour fails the same way once.
 
 These pages, and the consent page `GET /oauth/authorize` renders, carry hardening headers: a CSP with
 `default-src 'none'`, `frame-ancestors 'none'` and `form-action 'self'`, plus `X-Frame-Options: DENY` and
@@ -159,6 +166,7 @@ Because endpoints are served at the root, these first path segments cannot be en
 | Limit | Default |
 |---|---|
 | Request body | 4 MiB (`max_request_bytes`), rejected with `413` before it is parsed, chunked bodies included |
+| Request body under `/oauth/` | 64 KiB, fixed; rejected with `413` and `invalid_request` before it is parsed, chunked bodies included |
 | One upstream message | 16 MiB (`max_upstream_response_bytes`); a larger tool result is answered with an error |
 | Single tool call | 60 s, raised to at most 1800 s by runtime configuration |
 | Access token lifetime | 1 hour |

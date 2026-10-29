@@ -11,3 +11,10 @@ class OidcLoginState(BaseModel):
         repr=False, description="PKCE verifier the code exchange must present"
     )
     next_url: str = Field(description="Where the browser goes once signed in")
+    browser_binding_hash: str = Field(
+        repr=False,
+        description=(
+            "Hash of the random value the starting browser holds in its login binding cookie; "
+            "the callback must present the value whose hash matches"
+        ),
+    )

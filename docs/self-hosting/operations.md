@@ -107,8 +107,8 @@ it, then delete or deactivate the old one. Deactivation propagates to every repl
 budget, not a cache TTL.
 
 **Token encryption keys.** `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` is an ordered list: the first key encrypts, all of them
-decrypt. The gateway encrypts two kinds of stored value with it, upstream OAuth tokens and upstream OAuth client
-secrets. To rotate:
+decrypt. The gateway encrypts three kinds of stored value with it: upstream OAuth tokens, upstream OAuth client
+secrets, and the values of servers' static headers. To rotate:
 
 1. Prepend the new key, keep the old one, and restart every replica:
 
@@ -116,17 +116,33 @@ secrets. To rotate:
    BUNDLEMCP_TOKEN_ENCRYPTION_KEYS=["<new>","<old>"]
    ```
 
-2. Wait. New writes use the new key, and a value still under the old key is re-encrypted the next time it is read.
-   Values nobody reads are moved by a background pass that one replica runs every
-   `BUNDLEMCP_TOKEN_REENCRYPTION_INTERVAL` seconds (an hour by default). Each pass logs `token_encryption.swept` with
-   `rewritten`, `remaining_on_old_key` and `undecryptable`.
+2. Wait. New writes use the new key, and a token or client secret still under the old key is re-encrypted the next
+   time it is read; static header values are re-encrypted when their server is next written. Values nobody reads are
+   moved by a background pass that one replica runs every `BUNDLEMCP_TOKEN_REENCRYPTION_INTERVAL` seconds (an hour by
+   default). Each pass logs `token_encryption.swept` with `rewritten`, `remaining_on_old_key`, `undecryptable` and
+   `sealed`.
 3. Once a pass reports `remaining_on_old_key=0`, nothing stored needs the old key. Wait one more `max_total_timeout`
    (30 minutes by default) as well: a tool call waiting on client input carries a state sealed with the key, and it
    would have to start over.
 4. Remove the old key and restart.
 
 `undecryptable` counts values that no configured key reads, for example because a key was dropped too early; they are
-left as they are. Each one is an upstream connection whose user or admin has to connect again.
+left as they are, so restoring the key recovers them. Each one is an upstream connection whose user or admin has to
+connect again, or a server whose static headers an admin has to enter again. Until then the server is called without
+its static headers, and editing anything else about it keeps the stored value.
+
+**Static header values stored in plaintext.** Before a key is configured, static header values are stored in
+plaintext. At every start the gateway logs `static_headers.plaintext` at warning level with `servers`, the number of
+servers that still hold plaintext values (never their names or values), and `reason`:
+
+- `no_encryption_key`: no key is configured. Set `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` to have them encrypted.
+- `awaiting_reencryption_pass`: a key is configured, but the background pass has not run since. The first pass, one
+  `BUNDLEMCP_TOKEN_REENCRYPTION_INTERVAL` after start, encrypts them and logs how many as `sealed`; the warning is gone
+  at the next restart. With the interval set to `0`, a server's values are encrypted only when it is next written.
+
+During a rolling upgrade, a server edited on an upgraded replica stores its headers encrypted only, so a replica of
+the previous release calls that upstream without them until it is replaced. Rolling back to the previous release
+hides headers stored encrypted; enter them again, or stay on the new release.
 
 **OIDC client secret.** Rotate at the provider, update `BUNDLEMCP_OIDC_CLIENT_SECRET`, restart. Existing admin sessions
 survive.

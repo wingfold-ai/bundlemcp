@@ -11,6 +11,7 @@ import socket
 from contextlib import AsyncExitStack
 from typing import Any
 
+import structlog
 from fastapi import FastAPI
 
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
@@ -21,6 +22,7 @@ from bundlemcp.api.jobs.session_sweep_job import SessionSweepJob
 from bundlemcp.api.jobs.token_purger import TokenPurger
 from bundlemcp.api.jobs.tool_refresher import ToolRefresher
 from bundlemcp.api.mcp.protocol.sse import KEEPALIVE_SECONDS
+from bundlemcp.api.oauth.browser_state.browser_state_ttl import BROWSER_STATE_TTL
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
 from bundlemcp.application.bootstrap import BootstrapRunner
@@ -112,6 +114,8 @@ from bundlemcp.main.composition_overrides import CompositionOverrides
 from bundlemcp.main.container import AppContainer
 from bundlemcp.main.mcp_gateway_assembly import McpGatewayAssembly
 
+log = structlog.get_logger(__name__)
+
 # Where the gateway publishes its own client metadata document for upstreams.
 UPSTREAM_CLIENT_DOCUMENT_PATH = "/oauth/upstream/client.json"
 
@@ -119,7 +123,6 @@ UPSTREAM_CLIENT_DOCUMENT_PATH = "/oauth/upstream/client.json"
 PENDING_CONSENT_PREFIX = "bmcp:pendingconsent"
 OIDC_STATE_PREFIX = "bmcp:oidcstate"
 CONNECT_STATE_PREFIX = "bmcp:upstream-connect"
-BROWSER_STATE_TTL = 600
 
 
 class CompositionRoot:
@@ -183,14 +186,14 @@ class CompositionRoot:
         redis = overrides.redis or create_redis(settings.redis_url)
         if overrides.redis is None:
             self._stack.push_async_callback(redis.aclose)
-        units = SqlAlchemyUnitOfWorkFactory(sessions, redis)
+        cipher = self._build_cipher()
+        units = SqlAlchemyUnitOfWorkFactory(sessions, redis, cipher=cipher)
 
         runtime_config = RuntimeConfig(units, cache_disabled=settings.config_cache_disabled)
         client_factory = overrides.client_factory or default_client_factory(
             settings, lambda: runtime_config.current("max_upstream_response_bytes")
         )
 
-        cipher = self._build_cipher()
         upstream_oauth = overrides.upstream_oidc_provider or HttpxUpstreamProvider(settings)
         upstream_tokens = (
             UpstreamTokenService(
@@ -329,6 +332,7 @@ class CompositionRoot:
             hasher=hasher,
             generator=generator,
         ).run(settings)
+        await self._warn_of_plaintext_static_headers(units, keyless=cipher is None)
 
         subscriber = InvalidationSubscriber(redis)  # one subscriber per replica
         await runtime_config.refresh()  # the snapshot holds stored values before serving
@@ -492,11 +496,24 @@ class CompositionRoot:
         return f"{self._settings.public_base}{UPSTREAM_CLIENT_DOCUMENT_PATH}"
 
     def _build_cipher(self) -> SecretCipher | None:
-        # without keys nothing is stored, so upstream_oauth
-        # servers error clearly rather than storing plaintext.
+        # without keys no upstream token is stored, so upstream_oauth servers error
+        # clearly rather than storing plaintext; static headers stay plaintext.
         if not self._settings.token_encryption_keys:
             return None
         return token_cipher(self._settings)
+
+    async def _warn_of_plaintext_static_headers(
+        self, units: SqlAlchemyUnitOfWorkFactory, *, keyless: bool
+    ) -> None:
+        """Say how many servers keep header values in plaintext; never which, nor the values."""
+        async with units.open() as uow:
+            servers = await uow.servers.count_plaintext_headers()
+        if servers:
+            log.warning(
+                "static_headers.plaintext",
+                servers=servers,
+                reason="no_encryption_key" if keyless else "awaiting_reencryption_pass",
+            )
 
     async def _ensure_initial_service_key(
         self,
