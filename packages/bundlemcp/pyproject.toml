@@ -1,6 +1,6 @@
 [project]
 name = "bundlemcp"
-version = "0.2.0"
+version = "0.1.19"
 description = "Self-hostable MCP bundling gateway"
 readme = "README.md"
 requires-python = ">=3.13"

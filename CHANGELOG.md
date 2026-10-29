@@ -6,12 +6,25 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
-## [0.2.0] - 2026-10-29
+## [0.1.19] - 2026-10-29
 
-### Fixed
+### Changed
 
-- **Breaking:** Grant admin by email only when the email is verified
-  ([#161](https://github.com/wingfold-ai/bundlemcp/pull/161))
+- An upstream connect has to be finished in the same browser, and under the same gateway account, that started it. A
+  connect started in one browser and finished in another, or after the gateway session ended, now fails and must be
+  started again. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
+
+### Security
+
+- The upstream connect callback now checks who is finishing the flow. A per-user connect must be finished by the
+  signed-in user it was started for, and the shared connection by an admin. This closes a hole where a forwarded
+  authorize link could store a victim's upstream token under an attacker's account, or let a non-admin overwrite the
+  shared connection. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
+- A refused connect callback answers 403 with a page asking the user to sign in and connect again. The upstream code is
+  not redeemed, no token is stored, and the single-use state is spent so the link cannot be retried.
+  ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
+- Refused connect callbacks are logged as an `upstream_oauth.connect_refused` warning with the reason (`no_session`,
+  `other_user` or `not_admin`) and no user ids. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
 
 ## [0.1.18] - 2026-10-29
 
