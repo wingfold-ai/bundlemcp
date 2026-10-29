@@ -34,7 +34,7 @@ async def env(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[tuple]:
 
 async def _login(http, provider) -> None:
     provider.claims_by_code["fake-code"] = OidcClaims(
-        issuer="http://idp", sub="a", email="admin@example.com"
+        issuer="http://idp", sub="a", email="admin@example.com", email_verified=True
     )
     resp = await http.get("/login", params={"next": "/"})
     q = parse_qs(urlparse(resp.headers["location"]).query)
@@ -85,7 +85,7 @@ async def test_login_next_redirect_clamped(env):
     """The post-login redirect only follows relative paths or allowlisted origins."""
     http, provider = env
     provider.claims_by_code["fake-code"] = OidcClaims(
-        issuer="http://idp", sub="a", email="admin@example.com"
+        issuer="http://idp", sub="a", email="admin@example.com", email_verified=True
     )
 
     async def final_redirect(next_value: str) -> str:

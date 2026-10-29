@@ -25,7 +25,8 @@ You can follow this page without knowing OAuth in detail. These are the terms it
 ## Administrators and users
 
 Everyone who reaches bundlemcp signs in at the same identity provider. What they can do afterwards depends on one thing:
-whether their email is listed in `BUNDLEMCP_ADMIN_EMAILS`, re-checked at every login.
+whether they are an administrator: their verified email is listed in `BUNDLEMCP_ADMIN_EMAILS`, or their ID token
+carries the admin claim. Both are re-checked at every login.
 
 | | Administrator | User |
 |---|---|---|
@@ -88,7 +89,8 @@ What to take from this:
   and creates a local user record the first time it sees that person.
 - A **session** is a cookie carrying an opaque random id in the browser plus a record in Valkey, so any gateway replica
   can serve it. It lasts `BUNDLEMCP_ADMIN_SESSION_LIFETIME` (12 hours by default), which forces a periodic re-login.
-- **Administrator or user** is decided at every login from `BUNDLEMCP_ADMIN_EMAILS` and the admin claim
+- **Administrator or user** is decided at every login from `BUNDLEMCP_ADMIN_EMAILS` (only for an email the identity
+  provider marks verified) and the admin claim
   (`BUNDLEMCP_ADMIN_CLAIM`, by default a `groups` claim containing `bundlemcp-admin`). A user can still log in, but only
   sees the catalogue: the management API answers 403 to them on every route except `/api/v1/me/…`, and 401 only to a
   caller with no valid session or key. See [status codes](/integrate/management-api#authentication).
