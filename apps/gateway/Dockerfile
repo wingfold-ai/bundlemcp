@@ -1,9 +1,13 @@
 # bundlemcp gateway; build from the repo root:
 #   docker build -f apps/gateway/Dockerfile .
-FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS builder
+FROM python:3.15.1-slim-bookworm AS builder
 
-# The uv in this image predates 0.13.4, which stopped trusting the distrusted eMudhra emSign CAs
+# The builder shares the runtime's base, so the .venv it builds runs there unchanged
+# (astral-sh/uv publishes no bookworm image for this Python). uv is pinned at or above
+# 0.13.4, which stopped trusting the distrusted eMudhra emSign CAs, and uses the image's
+# own interpreter, the one the runtime stage has at the same path.
 COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /uvx /usr/local/bin/
+ENV UV_PYTHON_DOWNLOADS=never
 # optional extras of the library, e.g. --build-arg LIBRARY_EXTRAS=otel for tracing
 ARG LIBRARY_EXTRAS=""
 WORKDIR /app
@@ -17,7 +21,7 @@ COPY packages/ packages/
 RUN uv sync --frozen --no-dev --all-packages --no-editable \
     ${LIBRARY_EXTRAS:+--extra $LIBRARY_EXTRAS}
 
-FROM python:3.14.9-slim-bookworm
+FROM python:3.15.1-slim-bookworm
 # names the build; a new value makes a new image from the cached layers, which is
 # how the integration suite rolls out "a newly built image"
 ARG BUNDLEMCP_BUILD=dev
