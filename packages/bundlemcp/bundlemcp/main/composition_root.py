@@ -33,6 +33,11 @@ from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.observability.call_tracer import CallTracer
 from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
+from bundlemcp.application.contracts.upstream.member_notification import (
+    MemberListChanged,
+    MemberLogMessage,
+    MemberResourceUpdated,
+)
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.contracts.upstream.upstream_notification_sink import (
     UpstreamNotificationSink,
@@ -56,11 +61,20 @@ from bundlemcp.application.oauth_server import (
     RegisteredClientSource,
 )
 from bundlemcp.application.serving.list_changed_notifier import ListChangedNotifier
+from bundlemcp.application.serving.member_notifications.member_list_change_handler import (
+    MemberListChangeHandler,
+)
+from bundlemcp.application.serving.member_notifications.member_log_message_handler import (
+    MemberLogMessageHandler,
+)
+from bundlemcp.application.serving.member_notifications.member_notification_router import (
+    MemberNotificationRouter,
+)
+from bundlemcp.application.serving.member_notifications.member_resource_update_handler import (
+    MemberResourceUpdateHandler,
+)
 from bundlemcp.application.serving.replica_drain import ReplicaDrain
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
-from bundlemcp.application.serving.upstream_notification_router import (
-    UpstreamNotificationRouter,
-)
 from bundlemcp.application.sessions.expired_session_release import ExpiredSessionRelease
 from bundlemcp.application.sessions.session_sweeper import SessionSweeper
 from bundlemcp.application.settings.settings import Settings
@@ -263,13 +277,16 @@ class CompositionRoot:
         upstream_sessions = self._upstream_sessions(
             client_factory,
             runtime_config,
-            UpstreamNotificationRouter(
-                units,
-                discovery,
-                ValkeyRefreshLock(redis),
-                resource_subscriptions,
-                session_store,
-                signals,
+            MemberNotificationRouter(
+                {
+                    MemberListChanged: MemberListChangeHandler(
+                        units, discovery, ValkeyRefreshLock(redis)
+                    ),
+                    MemberResourceUpdated: MemberResourceUpdateHandler(
+                        resource_subscriptions, signals
+                    ),
+                    MemberLogMessage: MemberLogMessageHandler(session_store, signals),
+                }
             ),
         )
 

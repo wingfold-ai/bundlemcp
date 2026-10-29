@@ -30,6 +30,7 @@ from bundlemcp.application.contracts.live_state.stream_registry import (
     STREAM_CLOSING,
     StreamRegistry,
 )
+from bundlemcp.application.contracts.upstream.member_notification import RESOURCE_UPDATED
 from bundlemcp.application.contracts.upstream.upstream_session_pool import UpstreamLease
 from bundlemcp.application.serving.list_changed_notifier import (
     PROMPTS_LIST_CHANGED,
@@ -37,7 +38,6 @@ from bundlemcp.application.serving.list_changed_notifier import (
     TOOLS_LIST_CHANGED,
 )
 from bundlemcp.application.serving.stream_key import StreamKey
-from bundlemcp.application.serving.upstream_notification_router import RESOURCE_UPDATED
 from bundlemcp.domain.bundles.bundle_resource_uri import is_bundle_uri
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.server_capability import ServerCapability

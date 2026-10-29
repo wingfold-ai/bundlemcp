@@ -78,11 +78,17 @@ Three load-bearing scenarios (normative details in the linked specs).
 
 1. Replica A holds a pooled upstream session to member `echo`: the SDK's GET stream for a handshake upstream, a
    standing `subscriptions/listen` for a modern one ([ADR-0054](../adr/0054-upstream-session-pooling.md)).
-2. `echo` sends `notifications/tools/list_changed` while no call is in flight. `UpstreamNotificationRouter` takes the
-   Valkey gate `bmcp:rediscover:echo:tools` (`SET NX EX`); a replica B hearing the same change on its own session
+2. `echo` sends `notifications/tools/list_changed` while no call is in flight. The pool translates it, once, into a
+   typed `MemberListChanged` ([ADR-0062](../adr/0062-member-notifications-typed-at-the-pool-boundary.md)) and hands
+   it to `MemberNotificationRouter`, a registry of one handler per notification type. `MemberListChangeHandler` takes
+   the Valkey gate `bmcp:rediscover:echo:tools` (`SET NX EX`); a replica B hearing the same change on its own session
    finds the gate taken and stands down ([PROT-10](../../openspec/specs/protocol/spec.md)).
 3. A re-discovers `echo` and invalidates its bundles; every replica's `ListChangedNotifier` tells the GET and listen
    streams it holds (BND-7).
-4. A `notifications/resources/updated` instead goes to the streams the Valkey subscription index lists for that URI,
-   and a log message on a session bound to a client's session to that client's GET stream, through the signal bus to
-   whichever replica holds the stream ([PROT-7/23](../../openspec/specs/protocol/spec.md)).
+4. A `MemberResourceUpdated` instead goes to the streams the Valkey subscription index lists for that URI, and a
+   `MemberLogMessage` on a session bound to a client's session to that client's GET stream, through the signal bus to
+   whichever replica holds the stream ([PROT-7/23](../../openspec/specs/protocol/spec.md)). Each is relayed as the
+   notification its model builds from its own fields, so the member's own `_meta` is not forwarded.
+5. If a modern member's listen stream ends, the pool re-opens it and, once acknowledged, reports every list it listens
+   for as changed and every URI it watches as updated, since the protocol replays nothing
+   ([PROT-30](../../openspec/specs/protocol/spec.md)).
