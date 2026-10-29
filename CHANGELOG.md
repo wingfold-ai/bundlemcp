@@ -8,35 +8,26 @@ protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) say
 
 ## [0.1.18] - 2026-10-29
 
-### Added
-
-- Add `BUNDLEMCP_CLIENT_METADATA_DOCUMENTS_ENABLED` (default `true`). When it is `false`, an `https://` client id is
-  refused as an unknown client without any outbound request, and the authorization server metadata reports
-  `client_id_metadata_document_supported: false`. ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
-
 ### Changed
 
-- A client whose metadata document is hosted on a private address is no longer fetched unless that address is allowed in
-  `BUNDLEMCP_EGRESS_ALLOW_CIDRS`. Public clients such as claude.ai and ChatGPT are unaffected.
-  ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
-
-### Fixed
-
-- A failed or invalid client metadata document is remembered for 60 seconds, so repeated authorize requests for the same
-  URL no longer cost a full fetch each time. A remembered failure is reported with the same error as a fresh one.
-  ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
-- A slow or endless client metadata document can no longer hold a worker. The fetch now has a 5-second deadline for the
-  whole request and refuses a body over 16 KiB, whether or not a length is declared.
-  ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+- The minimum supported `fastmcp` is now 4.1.2, and the example upstream images (`echo-mcp`, `conformance-mcp`) install
+  `fastmcp>=4.1.2`. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
 
 ### Security
 
-- Close an SSRF hole on `/oauth/authorize`. Fetching a client ID metadata document before sign-in now reaches only
-  globally routable addresses. Private, CGNAT, unique-local, documentation, 6to4 and NAT64 addresses that translate to
-  non-public IPv4 are refused. Anyone on the internet can no longer make the gateway send requests into its private
-  network or time the answers. ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
-- The public-only rule is enforced at connect time on the address actually dialled, so DNS rebinding cannot get around
-  it. ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+- Upgrade `fastmcp` to 4.1.4, closing GHSA-7xgj-8392-5q4r and GHSA-vqqp-x5qm-5qp4. bundlemcp does not use the affected
+  server transforms or OAuth client-credentials provider, so neither is known to be exploitable here.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade `authlib` (pulled in by `fastmcp`) to 1.9.1, closing CVE-2026-96760 and CVE-2026-114614 to CVE-2026-114620.
+  bundlemcp's own OIDC does not use `authlib`. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade `dnspython` to 2.9.0, closing CVE-2026-114605, a CPU exhaustion in name decompression.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade Nuxt to 4.6.3 and `@nuxt/ui` to 4.12 in the admin UI, and refresh its lockfile. This closes the high
+  advisories in `undici` (TLS validation bypass, cache poisoning, DoS) and `node-forge`, plus advisories in `seroval`,
+  `serialize-javascript` and a Nitro route-rule bypass. One low-severity build-time advisory in `deepmerge` remains
+  because it has no patched release. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Refresh the docs site's lockfile, closing the `vite`/`launch-editor` and `zod` advisories.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
 
 ## [0.1.17] - 2026-10-22
 
