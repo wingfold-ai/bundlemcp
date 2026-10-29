@@ -100,6 +100,10 @@ jobs:
         run: python3 tools/check_adr_graph.py
       - name: Requirement codes are well-formed, unique, cited correctly and dated
         run: python3 tools/check_spec_ids.py
+      - name: The development stack publishes host ports on loopback only (DEP-13)
+        run: python3 tools/check_compose_ports.py
+      - name: deploy/stack.sh generates the development secrets (DEP-13)
+        run: bash tests/deploy/test_stack_secrets.sh
       - name: The changelog's entries are well-formed (DEP-11)
         run: python3 tools/release_notes.py --check
       - name: Site stays within the hosting quota (DOC-6, 9 MiB of a 10 MB plan)

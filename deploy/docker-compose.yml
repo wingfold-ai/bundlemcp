@@ -60,7 +60,8 @@ services:
     command: ["start-dev", "--import-realm", "--http-port=8080"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # deploy/stack.sh generates it into deploy/.env; plain compose keeps the dev default
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       # Keycloak derives the URLs it advertises from the request's Host, so a
       # discovery fetch over the compose network would hand the browser
       # http://keycloak:8080/... — a name only the containers can resolve.
@@ -71,7 +72,7 @@ services:
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo ok >&3"]
       interval: 10s
@@ -150,7 +151,7 @@ services:
       # our introspection accepts the service key as the RFC 7662 client secret
       GSC_INTROSPECTION_CLIENT_SECRET: ${BUNDLEMCP_INITIAL_SERVICE_KEY:-bmcp_sk_devservicekey000000000000000000000000}
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
       - gscdata:/data
 
@@ -174,7 +175,7 @@ services:
     restart: unless-stopped
     command: "server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data"
     ports:
-      - "8333:8333" # presigned URLs (http://localhost:8333) resolve from the host
+      - "127.0.0.1:8333:8333" # presigned URLs (http://localhost:8333) resolve from the host
     volumes:
       - seaweed-data:/data
       - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
@@ -252,8 +253,8 @@ services:
       - ../deploy/seed.yaml:/app/deploy/seed.yaml:ro
       - ../deploy/seed.fleet.yaml:/app/deploy/seed.fleet.yaml:ro
     ports:
-      - "8000:8000"
-      - "9000:9000" # the oauth-demo sidecar (its login page, for the browser)
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:9000:9000" # the oauth-demo sidecar (its login page, for the browser)
 
   web:
     build:
@@ -272,7 +273,7 @@ services:
       gateway:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
   # --- tunnel profiles: reach the stack from claude.ai / ChatGPT / Claude Desktop ---
   # One public origin for the gateway and the admin UI keeps the admin session
