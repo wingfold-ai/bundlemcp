@@ -6,6 +6,7 @@ from bundlemcp.application.oauth_server.user_provisioning_service import (
     VerifiedClaims,
 )
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import InMemoryUnitOfWork
+from structlog.testing import capture_logs
 
 
 def provisioning(claim: str = "groups", value: str = "bundlemcp-admin") -> UserProvisioningService:
@@ -58,3 +59,45 @@ async def test_auth17_demotion_takes_effect_at_the_next_login():
     service = provisioning()
     assert (await service.provision(login({"groups": ["bundlemcp-admin"]}))).is_admin is True
     assert (await service.provision(login({"groups": []}))).is_admin is False
+
+
+def by_email(*, verified: bool, claims: dict | None = None) -> VerifiedClaims:
+    return VerifiedClaims(
+        issuer="https://idp",
+        sub="u",
+        email="admin@example.com",
+        email_verified=verified,
+        claims={"sub": "u", **(claims or {})},
+    )
+
+
+def email_provisioning() -> UserProvisioningService:
+    return UserProvisioningService(
+        InMemoryUnitOfWork(),
+        admin_emails=["admin@example.com"],
+        admin_claim="groups",
+        admin_claim_value="bundlemcp-admin",
+    )
+
+
+async def test_auth17_verified_admin_email_is_admin():
+    """AUTH-17: a listed email the issuer marks verified grants the role."""
+    user = await email_provisioning().provision(by_email(verified=True))
+    assert user.is_admin is True
+
+
+async def test_auth17_unverified_admin_email_is_not_admin():
+    """AUTH-17: a listed but unverified email does not grant the role, and is logged without
+    the address."""
+    with capture_logs() as logs:
+        user = await email_provisioning().provision(by_email(verified=False))
+    assert user.is_admin is False
+    (warning,) = [e for e in logs if e["event"] == "user.admin_email_unverified"]
+    assert "admin@example.com" not in str(warning)
+
+
+async def test_auth17_admin_claim_needs_no_verified_email():
+    """AUTH-17: the admin claim grants the role whether or not the email is verified."""
+    claims = {"groups": ["bundlemcp-admin"]}
+    user = await email_provisioning().provision(by_email(verified=False, claims=claims))
+    assert user.is_admin is True

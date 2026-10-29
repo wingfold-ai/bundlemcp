@@ -16,7 +16,7 @@ services:
       gateway:
         condition: service_healthy
     ports: !override
-      - "8002:8000"
+      - "127.0.0.1:8002:8000"
 
   lb:
     image: caddy:2.10.2-alpine
@@ -28,4 +28,4 @@ services:
     volumes:
       - ./Caddyfile.replicas:/etc/caddy/Caddyfile:ro
     ports:
-      - "8100:80"
+      - "127.0.0.1:8100:80"

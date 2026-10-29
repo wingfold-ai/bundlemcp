@@ -26,7 +26,7 @@ The vocabulary the rest of these pages assumes.
 
 | Term | Meaning |
 |---|---|
-| **Administrator** | A signed-in user whose email is in `BUNDLEMCP_ADMIN_EMAILS`, re-evaluated at every login. Configures everything. |
+| **Administrator** | A signed-in user whose verified email is in `BUNDLEMCP_ADMIN_EMAILS`, or whose ID token carries the admin claim, re-evaluated at every login. Configures everything. |
 | **User** | Any other signed-in person. Sees the catalogue, authorises connectors, connects their own upstream accounts. |
 | **Caller identity** | Who the gateway resolved a request to: a user id, `api_key:<id>`, or nothing on an open endpoint. It is what audit records, the metering hook and `X-MCP-User` all report. |
 | **Service key** | An API key that manages the gateway through `/api/v1`. |
