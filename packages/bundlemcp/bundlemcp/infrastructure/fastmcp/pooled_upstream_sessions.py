@@ -1,10 +1,8 @@
 """Upstream MCP sessions held open on this replica and handed out one request at a time."""
 
 import asyncio
-import hashlib
-import json
 import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Coroutine
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -18,7 +16,6 @@ from mcp.client.subscriptions import (
     ToolsListChanged,
     listen,
 )
-from mcp_types.version import MODERN_PROTOCOL_VERSIONS
 from pydantic import BaseModel, ConfigDict, Field
 
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
@@ -28,9 +25,9 @@ from bundlemcp.application.contracts.upstream.upstream_notification_sink import 
 from bundlemcp.application.contracts.upstream.upstream_session_pool import UpstreamLeaseRequest
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
-from bundlemcp.domain.sessions.upstream_session_key import UpstreamSessionKey
-from bundlemcp.infrastructure.fastmcp.client_factory import LeaseAwareClientFactory
-from bundlemcp.infrastructure.fastmcp.lease_slot import LeaseSlot, SlotResponseLog
+from bundlemcp.infrastructure.fastmcp.lease_slot import LeaseSlot
+from bundlemcp.infrastructure.fastmcp.lease_transport import lease_transport_for
+from bundlemcp.infrastructure.fastmcp.pooled_session import PooledSession, SessionState
 
 log = structlog.get_logger(__name__)
 
@@ -68,117 +65,40 @@ class PoolLimits(BaseModel):
     )
 
 
-class PooledSession(BaseModel):
-    """One upstream session this replica holds a transport to."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    server: McpServer = Field(description="The server the session is with, as configured")
-    key: UpstreamSessionKey = Field(description="Which requests the session may serve")
-    relay: frozenset[str] = Field(
-        description="The relay callbacks the session was opened with, which it advertised"
-    )
-    variant: str | None = Field(
-        description="Digest of the headers fixed into a transport that cannot take them per "
-        "request; None for a transport that takes them per request"
-    )
-    bound_to: str | None = Field(
-        description="The handshake session the upstream session is dedicated to; None for a "
-        "session shared between requests"
-    )
-    slot: LeaseSlot = Field(description="What the current lease puts on the wire")
-    client: Client | None = Field(
-        default=None, description="The SDK client, once the transport is built"
-    )
-    upstream_session_id: str | None = Field(
-        default=None, description="Session id the upstream issued; None for one without sessions"
-    )
-    protocol_version: str | None = Field(
-        default=None, description="MCP revision the upstream session negotiated"
-    )
-    pooled: bool = Field(
-        default=True,
-        description="Whether the session counts toward the caps and is kept after its lease; a "
-        "session opened past a cap serves one request and is closed",
-    )
-    in_use: bool = Field(default=True, description="Whether a lease holds the session now")
-    connected: bool = Field(default=False, description="Whether the transport has been opened")
-    stale: bool = Field(
-        default=False,
-        description="Whether the server's configuration changed since the session was opened, "
-        "so it is closed instead of reused",
-    )
-    last_used: float = Field(
-        default_factory=time.monotonic, description="When a lease last released the session"
-    )
-    subscriptions: set[str] = Field(
-        default_factory=set,
-        description="Resource URIs the session is subscribed to; while there are any it is "
-        "kept open, since their updates arrive on it",
-    )
-    listener: asyncio.Task[None] | None = Field(
-        default=None,
-        description="The standing subscriptions/listen of a session with a modern upstream, "
-        "which has no stream of its own between requests",
-    )
-
-    @property
-    def is_modern(self) -> bool:
-        client = self.client
-        return client is not None and client.protocol_version in MODERN_PROTOCOL_VERSIONS
-
-    @property
-    def evictable(self) -> bool:
-        return not self.in_use and not self.subscriptions
-
-    def serves(
-        self,
-        key: UpstreamSessionKey,
-        relay: frozenset[str],
-        variant: str | None,
-        bound_to: str | None,
-    ) -> bool:
-        return (
-            self.key == key
-            and self.relay == relay
-            and self.variant == variant
-            and self.bound_to == bound_to
-        )
-
-    def binding(self) -> UpstreamBinding:
-        return UpstreamBinding(
-            server_name=self.server.name,
-            upstream_session_id=self.upstream_session_id,
-            identity_key=self.key.identity_key,
-            protocol_version=self.protocol_version,
-            config_fingerprint=self.key.config_fingerprint,
-        )
-
-
 class PooledLease(BaseModel):
     """One request's use of a pooled session."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    client: Any = Field(description="The SDK client the request is sent through")
     binding: UpstreamBinding | None = Field(
         description="The binding that now names the session; None for an unbound request"
     )
     session: PooledSession = Field(exclude=True, description="The session the lease is on")
-    pool: Any = Field(exclude=True, description="The pool the session belongs to")
+    relisten: Callable[[PooledSession], None] = Field(
+        exclude=True,
+        description="Reopens the session's standing listen once what it should hear changed",
+    )
+
+    @property
+    def client(self) -> Client:
+        """The SDK client the request is sent through."""
+        client = self.session.client
+        if client is None:
+            raise RuntimeError("a lease is handed out only once its session's transport is open")
+        return client
 
     async def subscribe(self, uri: str) -> None:
         if not self.session.is_modern:
             await self.client.session.subscribe_resource(uri)
         self.session.subscriptions.add(uri)
-        self.pool.relisten(self.session)
+        self.relisten(self.session)
 
     async def unsubscribe(self, uri: str) -> None:
         # the subscription may have been made through another replica's transport
         self.session.subscriptions.discard(uri)
         if not self.session.is_modern:
             await self.client.session.unsubscribe_resource(uri)
-        self.pool.relisten(self.session)
+        self.relisten(self.session)
 
 
 class PooledUpstreamSessions:
@@ -202,7 +122,7 @@ class PooledUpstreamSessions:
         limits: Callable[[], PoolLimits],
         notifications: UpstreamNotificationSink,
     ) -> None:
-        self._factory = factory
+        self._transport = lease_transport_for(factory)
         self._limits = limits
         self._notifications = notifications
         self._sessions: list[PooledSession] = []
@@ -224,13 +144,12 @@ class PooledUpstreamSessions:
         caller_headers = {**request.headers, **request.credentials}
         session.slot.begin(caller_headers, request.handlers, request.responses)
         try:
-            if not session.connected:
+            if not session.is_open:
                 await self._connect(session)
             yield PooledLease(
-                client=session.client,
                 binding=session.binding() if session.bound_to is not None else None,
                 session=session,
-                pool=self,
+                relisten=self.relisten,
             )
         except BaseException:
             # the transport may be broken mid-message; never hand it out again
@@ -252,17 +171,14 @@ class PooledUpstreamSessions:
                 and session.key.server_name == server.name
             ]
             for session in held:
-                session.stale = True
-                if not session.in_use:
-                    self._sessions.remove(session)
-                    self._spawn(self._close(session))
-        if isinstance(self._factory, LeaseAwareClientFactory):
-            try:
-                await self._factory.end_session(
-                    server, binding.upstream_session_id, binding.protocol_version, headers
-                )
-            except Exception:
-                log.info("upstream_session.end_failed", server=server.name, exc_info=True)
+                # the upstream session is ended below, so closing the transport must not end it
+                self._retire(session, end=False)
+        try:
+            await self._transport.end_session(
+                server, binding.upstream_session_id, binding.protocol_version, headers
+            )
+        except Exception:
+            log.info("upstream_session.end_failed", server=server.name, exc_info=True)
 
     async def invalidate(self, server_name: str) -> None:
         await self._invalidate(lambda session: session.key.server_name == server_name)
@@ -284,48 +200,73 @@ class PooledUpstreamSessions:
     async def _invalidate(self, affected: Callable[[PooledSession], bool]) -> None:
         async with self._lock:
             for session in [session for session in self._sessions if affected(session)]:
-                session.stale = True
-                if not session.in_use:
-                    self._sessions.remove(session)
-                    self._spawn(self._close(session, end=True))
+                self._retire(session, end=True)
+
+    def _retire(self, session: PooledSession, *, end: bool) -> None:
+        """Close an idle session now, and a leased one when its lease ends."""
+        if session.state is SessionState.IDLE:
+            self._evict(session, end=end)
+        else:
+            session.retire()
 
     async def _checkout(self, request: UpstreamLeaseRequest) -> PooledSession:
         relay = frozenset(name for name in request.handlers if name in RELAY_KEYWORDS)
-        variant = self._variant(request)
+        variant = self._transport.variant(request)
         limits = self._limits()
         async with self._lock:
             wanted = self._continued_id(request)
-            for session in list(self._sessions):
-                if (
-                    session.in_use
-                    or session.stale
-                    or not session.serves(request.key, relay, variant, request.bound_to)
-                ):
-                    continue
-                if request.fresh:
-                    # the session a retry gave up on had expired; its idle siblings likely too
-                    self._sessions.remove(session)
-                    self._spawn(self._close(session))
-                elif wanted is None or session.upstream_session_id == wanted:
-                    session.in_use = True
-                    return session
-            pooled = self._make_room(request.server.name, limits)
-            session = PooledSession(
-                server=request.server,
-                key=request.key,
-                relay=relay,
-                variant=variant,
-                bound_to=request.bound_to,
-                slot=LeaseSlot(),
-                pooled=pooled,
-            )
-            if wanted is not None and variant is None:
-                session.upstream_session_id = wanted
-                session.protocol_version = request.binding.protocol_version  # type: ignore[union-attr]
-                session.slot.continue_session(wanted, session.protocol_version)
-            if pooled:
-                self._sessions.append(session)
-            return session
+            reused = self._reuse(request, relay, variant, wanted)
+            if reused is not None:
+                return reused
+            return self._open(request, relay, variant, wanted, limits)
+
+    def _reuse(
+        self,
+        request: UpstreamLeaseRequest,
+        relay: frozenset[str],
+        variant: str | None,
+        wanted: str | None,
+    ) -> PooledSession | None:
+        """Lease an idle session that may serve the request, if one is held."""
+        for session in list(self._sessions):
+            if session.state is not SessionState.IDLE or not session.serves(
+                request.key, relay, variant, request.bound_to
+            ):
+                continue
+            if request.fresh:
+                # the session a retry gave up on had expired; its idle siblings likely too
+                self._evict(session, end=False)
+            elif wanted is None or session.upstream_session_id == wanted:
+                session.checkout()
+                return session
+        return None
+
+    def _open(
+        self,
+        request: UpstreamLeaseRequest,
+        relay: frozenset[str],
+        variant: str | None,
+        wanted: str | None,
+        limits: PoolLimits,
+    ) -> PooledSession:
+        """A new leased session for the request, held when it fits under the caps."""
+        pooled = self._make_room(request.server.name, limits)
+        session = PooledSession(
+            server=request.server,
+            key=request.key,
+            relay=relay,
+            variant=variant,
+            bound_to=request.bound_to,
+            slot=LeaseSlot(),
+            pooled=pooled,
+        )
+        if wanted is not None and variant is None:
+            session.upstream_session_id = wanted
+            session.protocol_version = request.binding.protocol_version  # type: ignore[union-attr]
+            session.slot.continue_session(wanted, session.protocol_version)
+        if pooled:
+            self._sessions.append(session)
+        return session
 
     @staticmethod
     def _continued_id(request: UpstreamLeaseRequest) -> str | None:
@@ -335,25 +276,22 @@ class PooledUpstreamSessions:
             return None
         return binding.upstream_session_id if binding.continues(request.key) else None
 
-    def _variant(self, request: UpstreamLeaseRequest) -> str | None:
-        if isinstance(self._factory, LeaseAwareClientFactory):
-            return None
-        # this transport keeps the headers it was built with, so they are part of the key
-        material = sorted({**request.headers, **request.credentials}.items())
-        return hashlib.sha256(json.dumps(material).encode()).hexdigest()
-
     def _make_room(self, server_name: str, limits: PoolLimits) -> bool:
         """Evict idle sessions until one more fits under both caps; False when none can go."""
+        return self._trim_to(limits.total - 1, _everywhere) and self._trim_to(
+            limits.per_server - 1, _on_server(server_name)
+        )
+
+    def _trim_to(self, cap: int, within: Callable[[PooledSession], bool]) -> bool:
+        """Evict idle sessions ``within`` until at most ``cap`` remain; False when none can go."""
         while True:
-            on_server = [s for s in self._sessions if s.key.server_name == server_name]
-            if len(self._sessions) < limits.total and len(on_server) < limits.per_server:
+            scope = [session for session in self._sessions if within(session)]
+            if len(scope) <= cap:
                 return True
-            scope = self._sessions if len(self._sessions) >= limits.total else on_server
             victim = self._eviction_candidate(scope)
             if victim is None:
                 return False
-            self._sessions.remove(victim)
-            self._spawn(self._close(victim, end=victim.bound_to is None))
+            self._evict(victim, end=victim.ends_upstream_on_eviction)
 
     @staticmethod
     def _eviction_candidate(sessions: list[PooledSession]) -> PooledSession | None:
@@ -364,24 +302,14 @@ class PooledUpstreamSessions:
         return min(idle, key=lambda s: (not s.key.is_shared, s.last_used))
 
     async def _connect(self, session: PooledSession) -> None:
-        handlers = self._handlers(session)
-        if isinstance(self._factory, LeaseAwareClientFactory):
-            client = self._factory.for_lease(
-                session.server,
-                session.slot,
-                auto_initialize=session.upstream_session_id is None,
-                **handlers,
-            )
-        else:
-            client = self._factory(
-                session.server,
-                session.slot.headers,
-                observer=SlotResponseLog(session.slot),
-                **handlers,
-            )
-        session.client = client
+        client = self._transport.open(
+            session.server,
+            session.slot,
+            continues=session.upstream_session_id is not None,
+            handlers=self._handlers(session),
+        )
         await client.__aenter__()
-        session.connected = True
+        session.client = client
         if session.upstream_session_id is None:
             transport_session = getattr(client.transport, "get_session_id", None)
             session.upstream_session_id = transport_session() if transport_session else None
@@ -393,7 +321,7 @@ class PooledUpstreamSessions:
         if session.listener is not None:
             session.listener.cancel()
             session.listener = None
-        if session.connected and session.is_modern and self._listen_filter(session):
+        if session.is_open and session.is_modern and self._listen_filter(session):
             session.listener = asyncio.create_task(self._listen(session))
 
     @staticmethod
@@ -414,7 +342,7 @@ class PooledUpstreamSessions:
 
     async def _listen(self, session: PooledSession) -> None:
         assert session.client is not None
-        while session.connected:
+        while session.is_open:
             try:
                 async with listen(session.client.session, **self._listen_filter(session)) as events:
                     async for event in events:
@@ -485,26 +413,27 @@ class PooledUpstreamSessions:
     async def _release(self, session: PooledSession) -> None:
         session.slot.finish()
         async with self._lock:
-            session.in_use = False
+            session.release()
             session.last_used = time.monotonic()
-            if not session.pooled:
-                self._spawn(self._close(session, end=True))
-            elif session.stale:
-                if session in self._sessions:
-                    self._sessions.remove(session)
-                self._spawn(self._close(session, end=True))
+            if not session.pooled or session.state is SessionState.RETIRING:
+                self._evict(session, end=True)
 
     def _discard(self, session: PooledSession, *, end: bool) -> None:
         session.slot.finish()
+        self._evict(session, end=end)
+
+    def _evict(self, session: PooledSession, *, end: bool) -> None:
+        """Stop holding the session and close its transport; ``end`` ends it upstream too."""
         if session in self._sessions:
             self._sessions.remove(session)
         self._spawn(self._close(session, end=end))
 
     async def _close(self, session: PooledSession, *, end: bool = False) -> None:
         client = session.client
-        if client is None or not session.connected:
+        was_open = session.is_open
+        session.close()
+        if client is None or not was_open:
             return
-        session.connected = False
         if session.listener is not None:
             session.listener.cancel()
             session.listener = None
@@ -513,20 +442,17 @@ class PooledUpstreamSessions:
         except BaseException:
             log.debug("upstream_session.close_failed", server=session.server.name, exc_info=True)
         if end and session.upstream_session_id is not None:
-            if isinstance(self._factory, LeaseAwareClientFactory):
-                try:
-                    await self._factory.end_session(
-                        session.server,
-                        session.upstream_session_id,
-                        session.protocol_version,
-                        session.slot.headers,
-                    )
-                except Exception:
-                    log.info(
-                        "upstream_session.end_failed", server=session.server.name, exc_info=True
-                    )
+            try:
+                await self._transport.end_session(
+                    session.server,
+                    session.upstream_session_id,
+                    session.protocol_version,
+                    session.slot.headers,
+                )
+            except Exception:
+                log.info("upstream_session.end_failed", server=session.server.name, exc_info=True)
 
-    def _spawn(self, work: Any) -> None:
+    def _spawn(self, work: Coroutine[Any, Any, None]) -> None:
         task = asyncio.create_task(work)
         self._closing.add(task)
         task.add_done_callback(self._closing.discard)
@@ -546,21 +472,20 @@ class PooledUpstreamSessions:
         async with self._lock:
             for session in list(self._sessions):
                 if session.evictable and now - session.last_used > limits.idle_timeout:
-                    self._sessions.remove(session)
-                    self._spawn(self._close(session, end=session.bound_to is None))
+                    self._evict(session, end=session.ends_upstream_on_eviction)
             for server_name in {session.key.server_name for session in self._sessions}:
-                while True:
-                    on_server = [s for s in self._sessions if s.key.server_name == server_name]
-                    if len(on_server) <= limits.per_server:
-                        break
-                    victim = self._eviction_candidate(on_server)
-                    if victim is None:
-                        break
-                    self._sessions.remove(victim)
-                    self._spawn(self._close(victim, end=victim.bound_to is None))
-            while len(self._sessions) > limits.total:
-                victim = self._eviction_candidate(self._sessions)
-                if victim is None:
-                    break
-                self._sessions.remove(victim)
-                self._spawn(self._close(victim, end=victim.bound_to is None))
+                self._trim_to(limits.per_server, _on_server(server_name))
+            self._trim_to(limits.total, _everywhere)
+
+
+def _everywhere(session: PooledSession) -> bool:
+    return True
+
+
+def _on_server(server_name: str) -> Callable[[PooledSession], bool]:
+    """Selects the sessions with one server."""
+
+    def on_server(session: PooledSession) -> bool:
+        return session.key.server_name == server_name
+
+    return on_server
