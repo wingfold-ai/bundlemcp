@@ -17,7 +17,9 @@ TASK_NAME = "token_encryption_sweep"
 class SecretReencryptionJob:
     """Every replica runs the loop; a lease in Valkey lets one of them sweep per interval.
 
-    Each sweep logs ``token_encryption.swept`` with its counts; once
+    A sweep covers upstream tokens, upstream client secrets and servers' static
+    headers, and first encrypts static headers still stored in plaintext. Each
+    sweep logs ``token_encryption.swept`` with its counts, ``sealed`` among them; once
     ``remaining_on_old_key`` is zero, no stored value needs an older key and the
     operator may drop it. One failed sweep never ends the loop.
     """
@@ -43,6 +45,7 @@ class SecretReencryptionJob:
             rewritten=sweep.rewritten,
             remaining_on_old_key=sweep.remaining_on_old_key,
             undecryptable=sweep.undecryptable,
+            sealed=sweep.sealed,
         )
         return sweep
 

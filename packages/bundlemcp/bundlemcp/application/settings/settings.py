@@ -121,17 +121,21 @@ class Settings(BaseModel):
 
     token_encryption_keys: list[str] = Field(
         default=[],
-        description="Keys for encrypting stored upstream OAuth tokens. The first encrypts and "
-        "all of them decrypt, so rotation means prepending a key and keeping the old one. "
-        "Servers using upstream OAuth cannot be used while this is empty",
+        description="Keys for encrypting stored upstream OAuth tokens and client secrets, and "
+        "the values of servers' static headers. The first encrypts and all of them decrypt, so "
+        "rotation means prepending a key and keeping the old one. Servers using upstream OAuth "
+        "cannot be used while this is empty, and static header values are then stored in "
+        "plaintext, with a warning at startup",
     )
     token_reencryption_interval: int = Field(
         default=3600,
         ge=0,
-        description="Seconds between passes that re-encrypt stored upstream tokens and client "
-        "secrets under the first of BUNDLEMCP_TOKEN_ENCRYPTION_KEYS, so an older key can be "
-        "dropped once a pass logs remaining_on_old_key=0. One replica runs each pass. 0 "
-        "disables the passes; values are still re-encrypted when they are read",
+        description="Seconds between passes that re-encrypt stored upstream tokens, client "
+        "secrets and static header values under the first of BUNDLEMCP_TOKEN_ENCRYPTION_KEYS, "
+        "so an older key can be dropped once a pass logs remaining_on_old_key=0. Each pass "
+        "first encrypts static header values still stored in plaintext. One replica runs each "
+        "pass. 0 disables the passes, and with them that sealing; tokens and secrets are still "
+        "re-encrypted when they are read, static header values when their server is written",
     )
 
     metering_hook: str | None = Field(

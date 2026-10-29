@@ -6,6 +6,47 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.2.2] - 2026-10-29
+
+### Added
+
+- Encrypt servers' static header values (bearer tokens, API keys) at rest under `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` when
+  it is set, with the same key rotation as upstream tokens. API responses, export/import and upstream calls are
+  unchanged. ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+- Encrypt static header values that were stored in plaintext before a key was configured, in the background
+  re-encryption pass, and report how many as `sealed` in the `token_encryption.swept` log.
+  ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+- Log `static_headers.plaintext` at startup, with the server count and a `reason` (`no_encryption_key` or
+  `awaiting_reencryption_pass`), when servers still hold plaintext header values. It never logs names or values.
+  ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+
+### Changed
+
+- Admin login can be finished only in the browser that started it. A login in flight during the upgrade, or finished in
+  another browser, fails once with `400` and has to be started again.
+  ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+- Starting a second login in the same browser replaces the first, so only the latest login can finish.
+  ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+- Every path under `/oauth/` refuses a request body over a fixed 64 KiB with `413` and an `invalid_request` error.
+  Declared and streamed bodies are both checked, whatever the runtime request limit is.
+  ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+- Dynamic client registration refuses oversized metadata with `invalid_client_metadata`, naming the field: more than 10
+  redirect URIs, a redirect URI over 2048 characters, a `client_name` over 200, a `scope` over 1000, or more than 10
+  `grant_types` or `response_types`. ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+- Static headers that no configured key can decrypt are kept through unrelated edits of the server, so restoring the key
+  recovers them. Until then the server is called without them.
+  ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+
+### Security
+
+- Close a login CSRF hole: `/login` sets a short-lived binding cookie (`__Host-bmcp_login` and `Secure` on https,
+  `bmcp_login` on plain http). `/login/callback` signs nobody in without it, so a callback link handed to a victim no
+  longer signs them in as the attacker. ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+- Bound request bodies on the unauthenticated `/oauth/` routes, including `POST /oauth/register`, so an anonymous caller
+  cannot make the gateway read and store unbounded data. ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+- Stop leaking static header credentials through database dumps and backups: with an encryption key configured, their
+  values are no longer stored in plaintext. ([#167](https://github.com/wingfold-ai/bundlemcp/pull/167))
+
 ## [0.2.1] - 2026-10-29
 
 ### Added

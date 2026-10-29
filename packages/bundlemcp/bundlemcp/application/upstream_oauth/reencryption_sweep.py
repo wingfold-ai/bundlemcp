@@ -19,3 +19,9 @@ class ReencryptionSweep(BaseModel):
         description="Values no configured key decrypts; left unchanged and not counted as "
         "depending on an older key",
     )
+    sealed: int = Field(
+        default=0,
+        ge=0,
+        description="Servers whose static headers were still stored in plaintext and are now "
+        "encrypted under the primary key",
+    )

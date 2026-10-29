@@ -47,6 +47,12 @@ stay unsupported: OAuth 2.1 removed them, and MCP clients use the authorization 
 deprecates DCR in favour of Client ID Metadata Documents (AUTH-13); it stays supported for clients that have not moved
 (ChatGPT, Claude as of 2026-09).
 
+Registration metadata is bounded, because anyone can register and every accepted value is stored. A registration
+MUST be refused with `invalid_client_metadata` when it carries more than 10 redirect URIs, a redirect URI longer than
+2048 characters, a `client_name` longer than 200 characters, a `scope` longer than 1000 characters, or more than 10
+entries in `grant_types` or in `response_types`. The request body as a whole is bounded per
+[SEC-7](../security/spec.md).
+
 #### Scenario: Public client registers
 - **WHEN** a client posts metadata with an https redirect URI and no auth method
 - **THEN** the gateway answers 201 with a `client_id` and `token_endpoint_auth_method` `none`
@@ -66,6 +72,15 @@ deprecates DCR in favour of Client ID Metadata Documents (AUTH-13); it stays sup
 #### Scenario: Unsupported metadata is refused in RFC 7591 shape
 - **WHEN** a client registers the `implicit` or `password` grant, or posts a body that is not valid JSON
 - **THEN** the gateway answers 400 with `error` `invalid_client_metadata`
+
+#### Scenario: Oversized metadata is refused
+- **WHEN** a client registers 11 redirect URIs, a 2049-character redirect URI, a 201-character `client_name` or a
+  1001-character `scope`
+- **THEN** the gateway answers 400 with `error` `invalid_client_metadata` naming the field, and stores no client
+
+#### Scenario: Metadata at the bounds is accepted
+- **WHEN** a client registers 10 https redirect URIs, a 200-character `client_name` and a 1000-character `scope`
+- **THEN** the gateway answers 201
 
 ### Requirement: AUTH-3 Authorization code + PKCE
 `GET /oauth/authorize` SHALL require an authenticated browser session — if absent, redirect into the OIDC login and
@@ -346,6 +361,13 @@ Only an IdP whose discovery document lists `code_challenge_methods_supported` wi
 warning logged at startup. The cookie is host-only, `SameSite=Lax`, and `Secure` exactly when the public URL is https
 ([DEP-1](../deployment/spec.md), [SEC-4](../security/spec.md)).
 
+A login MUST be finished only by the browser that started it, so a callback link cannot be handed to someone else
+(login CSRF). Starting a login sets a binding cookie holding a fresh random value, and the login's stored state keeps
+only that value's hash. The callback establishes no session unless the binding cookie is present and its hash
+matches the state's; a callback without it, or with a different one, is answered `400` and signs nobody in. The
+binding cookie is host-only, `HttpOnly` and `SameSite=Lax`, lives as long as the login state (10 minutes), and is
+cleared by every callback. When the public URL is https it is also `Secure` and carries the `__Host-` name prefix.
+
 #### Scenario: Login carries PKCE
 - **WHEN** a browser starts `/login` against an IdP that supports `S256`
 - **THEN** the redirect to the IdP carries a `code_challenge` with method `S256`
@@ -367,6 +389,26 @@ warning logged at startup. The cookie is host-only, `SameSite=Lax`, and `Secure`
 #### Scenario: IdP without S256
 - **WHEN** the IdP's discovery document lists `code_challenge_methods_supported` without `S256`
 - **THEN** logins carry no PKCE parameters and a warning is logged
+
+#### Scenario: A callback link from another browser signs nobody in
+- **GIVEN** an attacker who started a login in their own browser and stopped at the callback URL
+- **WHEN** a victim's browser, which never started that login, opens the attacker's callback URL
+- **THEN** the gateway answers `400`, sets no session cookie and does not exchange the code
+
+#### Scenario: A binding that does not match is refused
+- **GIVEN** a browser that started two logins, so its binding cookie belongs to the second
+- **WHEN** the first login's callback arrives
+- **THEN** the gateway answers `400` and sets no session cookie
+
+#### Scenario: Binding cookie follows the public URL
+- **WHEN** a browser starts `/login` on a deployment whose public URL is https
+- **THEN** the binding cookie is named with the `__Host-` prefix and set `Secure`, `HttpOnly`, `SameSite=Lax`,
+  `Path=/`, without a `Domain` attribute and with a 600-second max age
+- **AND** on a deployment whose public URL is plain http, the cookie has no `__Host-` prefix and no `Secure` attribute
+
+#### Scenario: The callback clears the binding cookie
+- **WHEN** a login callback completes, whether it signs the browser in or is refused
+- **THEN** the response expires the binding cookie
 
 ### Requirement: AUTH-16 Auto-provisioning
 First login SHALL auto-provision a `User` from `(issuer, sub)` with email/display name from claims

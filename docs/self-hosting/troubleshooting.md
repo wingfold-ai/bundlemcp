@@ -79,6 +79,18 @@ OAuth URL derive from it, never from the `Host` header.
 and register `<public url>/login/callback` as the redirect URI at the identity
 provider.
 
+## The login callback answers `400` "login was not started in this browser"
+
+**Cause.** A login can be finished only in the browser that started it. `/login` sets a short-lived binding cookie
+(`__Host-bmcp_login` on https, `bmcp_login` on plain http), and the callback refuses a browser that does not present
+the one belonging to that login. This happens when a callback link is opened in another browser or profile, when a
+second login was started in another tab of the same browser (only the latest one can finish), when more than 10
+minutes passed at the identity provider, or once for a login that was in flight while the gateway was upgraded.
+
+**Fix.** Open `/login` again and finish it in the same browser. If it keeps failing, check that the browser accepts
+cookies for the gateway's host and that `BUNDLEMCP_PUBLIC_URL` matches the address in the address bar: on an https
+public URL the cookie is `Secure`, so a browser that reached the gateway over plain http never sends it back.
+
 ## Login sends me to `http://keycloak:8080`, which does not resolve
 
 **Cause.** Keycloak derives the URLs it advertises from the request's `Host`,

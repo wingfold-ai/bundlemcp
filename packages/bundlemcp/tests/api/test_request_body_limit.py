@@ -1,4 +1,4 @@
-"""The request body limit on the MCP endpoints and the management API (SEC-7, EP-9)."""
+"""The request body limit on the MCP endpoints, the management API and /oauth/ (SEC-7, EP-9)."""
 
 import asyncio
 import json
@@ -119,3 +119,86 @@ async def test_sec7_limit_changed_at_runtime(app_client):
         headers={"Content-Type": "application/json"},
     )
     assert resp.status_code == 413
+
+
+OAUTH_LIMIT = 64 * 1024
+
+
+def registration_body(size: int) -> bytes:
+    """A client registration padded to ``size`` bytes."""
+    head = b'{"redirect_uris":["https://c.example/cb"],"client_name":"'
+    tail = b'"}'
+    return head + b"x" * (size - len(head) - len(tail)) + tail
+
+
+async def _stored_clients(engine) -> int:
+    from bundlemcp.infrastructure.postgres.rows.oauth_client_row import OAuthClientRow
+    from sqlalchemy import func, select
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    async with AsyncSession(engine) as db:
+        return (await db.execute(select(func.count()).select_from(OAuthClientRow))).scalar_one()
+
+
+async def test_sec7_oauth_register_declared_length_over_limit(app_client, engine):
+    """SEC-7: a declared registration body over 64 KiB is a 413 in the OAuth error shape,
+    refused before it is parsed, and registers no client."""
+    http, _ = app_client
+    with statements(engine) as seen:
+        resp = await http.post(
+            "/oauth/register",
+            content=registration_body(100 * 1024),
+            headers={"Content-Type": "application/json"},
+        )
+    assert resp.status_code == 413
+    body = resp.json()
+    assert body["error"] == "invalid_request"
+    assert str(OAUTH_LIMIT) in body["error_description"]
+    assert seen == []
+    assert await _stored_clients(engine) == 0
+
+
+async def test_sec7_oauth_chunked_body_over_limit(app_client, engine):
+    """SEC-7: a streamed registration body without Content-Length is refused once it crosses
+    64 KiB, in the OAuth error shape, and registers no client."""
+    http, _ = app_client
+    resp = await http.post(
+        "/oauth/register",
+        content=chunks(registration_body(100 * 1024), size=16 * 1024),
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 413
+    assert resp.json()["error"] == "invalid_request"
+    assert await _stored_clients(engine) == 0
+
+
+async def test_sec7_oauth_limit_ignores_runtime_limit(app_client):
+    """SEC-7: raising the runtime request limit does not raise the fixed /oauth/ limit."""
+    http, app = app_client
+    resp = await http.put("/api/v1/config/max_request_bytes", json={"value": 16 * MIB})
+    assert resp.status_code == 200
+    config = app.state.container.runtime_config
+    for _ in range(100):
+        if config.current("max_request_bytes") == 16 * MIB:
+            break
+        await asyncio.sleep(0.01)
+    assert config.current("max_request_bytes") == 16 * MIB
+    form = b"grant_type=refresh_token&refresh_token=" + b"x" * (100 * 1024)
+    resp = await http.post(
+        "/oauth/token",
+        content=form,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert resp.status_code == 413
+    assert resp.json()["error"] == "invalid_request"
+
+
+async def test_sec7_oauth_body_under_limit_reaches_route(app_client):
+    """SEC-7: a registration body under 64 KiB is not refused for its size."""
+    http, _ = app_client
+    resp = await http.post(
+        "/oauth/register",
+        content=registration_body(OAUTH_LIMIT),
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code != 413

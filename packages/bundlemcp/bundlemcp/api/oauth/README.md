@@ -135,12 +135,17 @@ Files: `controllers/login_controller.py`, `infrastructure/oidc/jose_oidc_provide
 `infrastructure/valkey/admin_session_store.py`. The gateway is an OIDC *relying party* in front of an external IdP
 (Keycloak in dev); it does not manage passwords.
 
-- **`GET /login?next=`** generates a `nonce` and parks it with `next` as an `OidcLoginState` in a `SingleUseState`
-  (Redis `bmcp:oidcstate:{state}`, 600s, read-once), then redirects to the IdP. `next` is clamped by
+- **`GET /login?next=`** generates a `nonce` and a random browser binding, parks the nonce, `next` and the binding's
+  hash as an `OidcLoginState` in a `SingleUseState` (Redis `bmcp:oidcstate:{state}`, `BROWSER_STATE_TTL` = 600s,
+  read-once), sets the binding in the login binding cookie (`login_binding_cookie.py`: `__Host-bmcp_login` on https,
+  `bmcp_login` otherwise; HttpOnly, Lax, 600s), then redirects to the IdP. `next` is clamped by
   `clamp_post_login_redirect` — only a relative `/path` or a `public_url`/ `web_origins` URL is honored, everything else
   falls back to `/` (open-redirect guard).
-- **`GET /login/callback?code&state`** reads-and-deletes the state (CSRF), exchanges the code (the provider validates
-  the ID token against JWKS and checks the `nonce`), then `UserProvisioningService.provision`.
+- **`GET /login/callback?code&state`** refuses a browser without the binding cookie before touching Redis, then
+  reads-and-deletes the state (CSRF) and compares the cookie's hash with the stored one in constant time, so a callback
+  link handed to another browser signs nobody in (login CSRF). Only then does it exchange the code (the provider
+  validates the ID token against JWKS and checks the `nonce`) and call `UserProvisioningService.provision`. Every
+  callback response expires the binding cookie.
 - **`provision`** is create-or-update by `(oidc_issuer, oidc_sub)`. It refreshes `email`, `display_name`, and
   **`is_admin` on every login** (AUTH-17) — `is_admin` is true if the email is in `admin_emails` or the token carries a
   `bundlemcp-admin` group. So revoking someone's admin email demotes them at their next login, not at some cache expiry.
@@ -275,6 +280,7 @@ recoverable form, and those are encrypted with rotating keys and never logged or
 | `controllers/login_controller.py` | Admin OIDC login: `/login`, `/login/callback`, `/logout` |
 | `../../infrastructure/oidc/jose_oidc_provider.py` | The real IdP, built from its discovery document |
 | `session_cookie.py` | The `bmcp_session` cookie name and attributes |
+| `login_binding_cookie.py` | The cookie binding a login to the browser that started it: name and attributes |
 | `controllers/upstream_connect_controller.py` | Upstream OAuth connect flow (`/oauth/upstream/…`) |
 | `../../application/upstream_oauth/` | `UpstreamTokenService` and the storage, connect flow and refresher behind it |
 | `providers.py` | FastAPI providers for oauth-owned collaborators and the OAuth services |

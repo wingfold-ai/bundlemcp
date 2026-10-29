@@ -33,7 +33,7 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0014](0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB token validation | accepted (amended by 0028, 0031, 0036) |
 | [0015](0015-keycloak-dev-idp.md) | Keycloak as the bundled dev IdP | accepted |
 | [0016](0016-relay-design.md) | Protocol-relay: per-replica registries + Redis signaling | accepted (amended by 0027, 0029) |
-| [0017](0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption at rest | accepted (amended by 0028, 0037, 0040) |
+| [0017](0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption at rest | accepted (amended by 0028, 0037, 0040, 0061) |
 | [0018](0018-rate-limiting.md) | Redis fixed-window rate limiting + auth-failure lockout | accepted |
 | [0019](0019-api-service-layer.md) | Thin routers + service layer in the management API | accepted (amended by 0020, 0026) |
 | [0020](0020-library-level-service-layer.md) | Service + DTO layer at the library level; `apps/` for deployables | accepted (amended by 0023, 0025, 0033) |
@@ -77,3 +77,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0058](0058-inspector-proxied-by-the-management-api.md) | The inspector is proxied by the management API, and reaches endpoints in-process | accepted |
 | [0059](0059-member-lists-served-from-the-discovery-snapshot.md) | Members' prompt and resource lists are served from the discovery snapshot | accepted |
 | [0060](0060-unauthenticated-fetches-use-a-public-only-egress-scope.md) | Unauthenticated fetches use a public-only egress scope | accepted |
+| [0061](0061-static-upstream-headers-encrypted-in-the-repository.md) | Static upstream headers are encrypted in the repository | accepted |
