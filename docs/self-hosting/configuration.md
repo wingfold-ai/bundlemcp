@@ -53,6 +53,7 @@ How OAuth clients such as claude.ai and ChatGPT may register with the gateway's 
 
 | Variable | Default | Meaning |
 |---|---|---|
+| `BUNDLEMCP_CLIENT_METADATA_DOCUMENTS_ENABLED` | `true` | Accept an `https://` URL as an OAuth `client_id` and fetch the client's metadata document from it (how claude.ai identifies itself). The fetch reaches public addresses only (unless `BUNDLEMCP_EGRESS_ALLOW_CIDRS` allows one), reads at most 16 KiB within 5 seconds, and a failed URL is not fetched again for a minute. `false`: such client ids are refused as unknown clients without any outbound request, and the authorization server metadata reports `client_id_metadata_document_supported: false`; clients must register instead. |
 | `BUNDLEMCP_DCR_ALLOWED_REDIRECT_URIS` | `[]` | Redirect URIs clients may register, or declare in a client metadata document. Empty accepts any https URI (or http on localhost). Syntax below. |
 | `BUNDLEMCP_DCR_RATE_LIMIT` | `10` | Dynamic registrations one client IP may make per window. Registrations whose redirect URIs are all allow-listed are exempt. |
 | `BUNDLEMCP_DCR_RATE_WINDOW` | `3600` | Seconds in the per-IP registration window. |

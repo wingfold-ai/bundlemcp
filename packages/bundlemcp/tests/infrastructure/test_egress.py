@@ -10,6 +10,7 @@ from bundlemcp.infrastructure.egress.egress_policy import (
     check_url_allowed,
     judge_address,
 )
+from bundlemcp.infrastructure.egress.egress_scope import EgressScope
 
 
 def settings(**kwargs) -> Settings:
@@ -68,3 +69,44 @@ def test_sec2_mapped_address_meets_the_operators_ipv4_entries():
     judge_address(
         ipaddress.ip_address("::ffff:127.0.0.1"), "x", settings(egress_allow_cidrs=["127.0.0.0/8"])
     )
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "10.0.0.5",
+        "172.16.1.1",
+        "192.168.1.1",
+        "100.64.0.1",
+        "192.0.2.1",
+        "fc00::1",
+        "2001:db8::1",
+        "64:ff9b::a00:5",
+        "64:ff9b::a9fe:a9fe",
+        "2002:a00:5::1",
+        "::ffff:10.0.0.5",
+    ],
+)
+def test_auth13_public_scope_refuses_private_ranges(address):
+    """AUTH-13: the public scope refuses private, shared, unique-local, documentation and
+    translated addresses that the upstream scope would let through."""
+    addr = ipaddress.ip_address(address)
+    with pytest.raises(EgressDenied):
+        judge_address(addr, "client.example", settings(), EgressScope.PUBLIC)
+
+
+@pytest.mark.parametrize("address", ["8.8.8.8", "2606:4700::1111", "64:ff9b::808:808"])
+def test_auth13_public_scope_allows_public_addresses(address):
+    """AUTH-13: a globally routable address, or a NAT64 one that translates to it, passes."""
+    judge_address(ipaddress.ip_address(address), "client.example", settings(), EgressScope.PUBLIC)
+
+
+def test_auth13_public_scope_honours_allow_cidrs():
+    """AUTH-13: an explicit allow entry still wins in the public scope."""
+    allowing = settings(egress_allow_cidrs=["10.0.0.0/24"])
+    judge_address(ipaddress.ip_address("10.0.0.5"), "client.example", allowing, EgressScope.PUBLIC)
+
+
+def test_auth13_upstream_scope_still_allows_private_networks():
+    """AUTH-13: the scope the upstream path uses is unchanged."""
+    judge_address(ipaddress.ip_address("10.0.0.5"), "upstream", settings())
