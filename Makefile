@@ -7,8 +7,9 @@
 #   make logs      follow the logs
 #   make ps        what is running
 #   make url       the public URL the stack is currently published at
+#   make secrets   generate any secret deploy/.env lacks, without starting
 
-.PHONY: up down rebuild logs ps url
+.PHONY: up down rebuild logs ps url secrets
 
-up down rebuild logs ps url:
+up down rebuild logs ps url secrets:
 	@./deploy/stack.sh $@
