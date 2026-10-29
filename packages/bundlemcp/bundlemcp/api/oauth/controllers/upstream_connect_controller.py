@@ -2,8 +2,9 @@
 
 Mirrors the OIDC login flow: an authenticated admin (shared connection) or a
 signed-in user (per_user) is redirected to the upstream's authorize endpoint;
-the callback exchanges the code, stores the encrypted token, and has the
-server's tools discovered with it.
+the callback, finished only in a browser session entitled to start the flow,
+exchanges the code, stores the encrypted token, and has the server's tools
+discovered with it.
 """
 
 import secrets
@@ -137,6 +138,7 @@ class UpstreamConnectController(Controller):
         states: ConnectStatesProvider,
         store: UpstreamTokensProvider,
         discovery: DiscoveryProvider,
+        user: CurrentSessionUserProvider,
         code: str = "",
         state: str = "",
         iss: str = "",
@@ -148,6 +150,14 @@ class UpstreamConnectController(Controller):
         pending = await states.take(state)  # single-use (CSRF)
         if pending is None:
             raise HTTPException(400, "invalid or expired connect state")
+        # the browser finishing the flow must be entitled to start it, or a victim
+        # handed the authorize link would connect their account to someone else's;
+        # the state is spent either way, so the link cannot be retried
+        refusal = pending.refusal_for(user)
+        if refusal is not None:
+            log.warning("upstream_oauth.connect_refused", reason=refusal.value)
+            html = PAGE_TEMPLATES.get_template("connect_refused.html").render()
+            return HTMLResponse(html, status_code=403, headers=PAGE_HEADERS)
         # issuer identification (RFC 9207 section 2.4): checked before the code is redeemed and
         # before any error the response carries is acted on.
         if iss:
