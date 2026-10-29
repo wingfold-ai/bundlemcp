@@ -35,14 +35,14 @@ class PrometheusMetrics:
     two apps in one process (tests, or an embedding application) never share
     a counter. Gauges whose value lives elsewhere are read at scrape time:
     the open streams and the audit queue from callbacks, store health from a
-    check cached for five seconds.
+    check cached for five seconds. The audit queue is attached after
+    construction, since the writer that owns it records into these metrics.
     """
 
     def __init__(
         self,
         *,
         open_streams: Callable[[], int] = lambda: 0,
-        audit_queue_depth: Callable[[], int] = lambda: 0,
         store_health: StoreHealthCheck | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -121,11 +121,12 @@ class PrometheusMetrics:
             "Notification streams this replica holds",
             registry=self.registry,
         ).set_function(lambda: float(open_streams()))
-        Gauge(
+        self._audit_queue = Gauge(
             "bundlemcp_audit_queue_depth",
             "Audit records waiting to be written",
             registry=self.registry,
-        ).set_function(lambda: float(audit_queue_depth()))
+        )
+        self._audit_queue.set_function(lambda: 0.0)
         self._store_up = Gauge(
             "bundlemcp_store_up",
             "Whether the store answered its last check (1) or not (0)",
@@ -135,6 +136,10 @@ class PrometheusMetrics:
         self._store_health = store_health
         self._clock = clock
         self._checked_at: float | None = None
+
+    def observe_audit_queue(self, depth: Callable[[], int]) -> None:
+        """Read the audit queue's depth from ``depth`` at every scrape; it reads 0 until then."""
+        self._audit_queue.set_function(lambda: float(depth()))
 
     # --- GatewayMetrics -------------------------------------------------------------------
 
