@@ -1,0 +1,12 @@
+# Advisories accepted for now, read by tools/check_advisories.py.
+#
+# An entry is acceptable only when no release fixes the advisory yet, and its reason says why the
+# advisory does not reach bundlemcp (or what limits it). It expires at most 90 days ahead; an
+# expired entry fails the check, so the acceptance is re-decided instead of forgotten. Remove an
+# entry as soon as a fix is locked; the check prints entries that match nothing as removable.
+#
+# [[advisory]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# package = "example"
+# reason = "Build-time only, through the docs toolchain; no released version fixes it"
+# expires = 2027-01-15

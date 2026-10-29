@@ -17,7 +17,8 @@ async def store_conflict_handler(request: Request, exc: Exception) -> JSONRespon
     An MCP endpoint answers with a JSON-RPC error; the management API and the
     OAuth routes with a problem body. The broken rule is logged, never a value.
     """
-    assert isinstance(exc, StoreConflict)
+    if not isinstance(exc, StoreConflict):
+        raise TypeError(f"store_conflict_handler handles StoreConflict, not {type(exc).__name__}")
     log.warning("store.conflict", path=request.url.path, constraint=str(exc))
     if request.url.path.endswith("/mcp"):
         return JSONResponse(

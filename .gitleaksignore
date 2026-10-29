@@ -1,0 +1,10 @@
+# Findings gitleaks reports in the history that are examples, not secrets. Each line is a
+# fingerprint (commit:file:rule:line). A new example uses a `gitleaks:allow` comment on its
+# own line instead of an entry here.
+# placeholder client credentials in the curl examples of the introspection endpoint
+04f053bd669b3c97a7c35330d0a9e0f291518b71:docs/guide/authentication.md:curl-auth-user:200
+63fd1731014b68918ee290264cb1adb1d62baf3d:docs/integrate/upstream-identity.md:curl-auth-user:43
+# the development service key the compose stack ships with
+6582b4894e954813bd91ab2d89f305b57782ba66:tests/integration/test_key_rotation.py:generic-api-key:15
+# a fake token the structured-logging test checks is never logged
+07bdc88f622928d642bbb5b00877baf11388be3b:packages/bundlemcp/tests/infrastructure/test_structured_logging.py:generic-api-key:53

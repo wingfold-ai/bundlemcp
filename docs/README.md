@@ -9,11 +9,11 @@ The Markdown pages in `guide/`, `self-hosting/`, `manage/`, `connect/` and `inte
 
 ```bash
 # from the repository root
-pnpm docs:install
-pnpm docs:dev        # http://localhost:5173
-pnpm docs:build      # static output in docs/.vitepress/dist
+npm run docs:install
+npm run docs:dev    # http://localhost:5173
+npm run docs:build  # static output in docs/.vitepress/dist
 
-# or inside docs/ with npm, which is what CI uses
+# or inside docs/, as CI runs it
 cd docs && npm ci && npm run dev
 ```
 

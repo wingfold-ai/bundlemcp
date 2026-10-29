@@ -33,7 +33,10 @@ def api_key_value(
                 "bmcp_sk_ key value (MGMT-10)"
             )
         return value
-    assert entry.write_to is not None  # the model requires it with create_if_missing
+    if entry.write_to is None:
+        raise ApiKeyValueUnavailable(
+            f"api key {entry.name!r}: neither value_from_env nor write_to is set (MGMT-10)"
+        )
     path = Path(entry.write_to)
     if path.exists():
         kept = path.read_text().strip()

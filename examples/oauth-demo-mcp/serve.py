@@ -48,7 +48,7 @@ class SeededAuthProvider(auth_server.SimpleAuthProvider):
             client_id=CLIENT_ID,
             client_name="bundlemcp gateway",
             redirect_uris=[AnyUrl(u) for u in REDIRECT_URIS],
-            token_endpoint_auth_method="none",  # public client: PKCE, no secret
+            token_endpoint_auth_method="none",  # public client: PKCE, no secret  # noqa: S106
             grant_types=["authorization_code", "refresh_token"],
             scope=auth_settings.mcp_scope,
         )

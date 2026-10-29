@@ -50,7 +50,7 @@ Then:
    deployment or a tunnel.
 
 The user guides (deployment, connecting clients, the management API) live in [docs/](docs/README.md); run
-`pnpm docs:install && pnpm docs:dev` to browse them. The management API is documented at
+`npm run docs:install && npm run docs:dev` to browse them. The management API is documented at
 <http://localhost:8000/api/v1/docs>. The maintainers' fleet of upstreams (private images) starts with `--profile fleet`;
 see [deploy/TESTING.md](deploy/TESTING.md).
 
@@ -58,7 +58,7 @@ see [deploy/TESTING.md](deploy/TESTING.md).
 
 | | |
 |---|---|
-| [docs/](docs/README.md) | The user documentation site (VitePress): self-hosting, managing servers/bundles/endpoints, connecting claude.ai, ChatGPT and scripts, integrating an application layer — `pnpm docs:install && pnpm docs:dev` |
+| [docs/](docs/README.md) | The user documentation site (VitePress): self-hosting, managing servers/bundles/endpoints, connecting claude.ai, ChatGPT and scripts, integrating an application layer — `npm run docs:install && npm run docs:dev` |
 | [openspec/](openspec/README.md) | The source of truth, kept with OpenSpec: one spec per capability with testable requirement IDs, open change proposals, and the decision log of what was deliberately left out |
 | [docs/arc42/](docs/arc42/) | Architecture rationale, arc42 sections |
 | [docs/adr/](docs/adr/README.md) | Architecture decision records, append-only |

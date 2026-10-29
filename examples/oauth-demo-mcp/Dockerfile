@@ -2,9 +2,12 @@
 # an OAuth 2.1 authorization server with a demo login form and an MCP resource
 # server that accepts only its tokens. serve.py binds both to every interface
 # and pre-registers the gateway as a client; see README.md.
-FROM python:3.15.1-slim-bookworm
+FROM python:3.15.1-slim-bookworm@sha256:575f8bc12ec26542e0678bc6b60e385218248019d433157ec327264a78c3a853
 WORKDIR /app
 ARG SDK_REF=v2.2.0
+# git is needed only to fetch the SDK and is purged in the same layer; a pinned Debian
+# package version breaks the build as soon as the security archive drops that version
+# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && pip install --no-cache-dir \

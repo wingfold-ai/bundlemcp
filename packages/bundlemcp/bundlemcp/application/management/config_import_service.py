@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from bundlemcp.application.bootstrap.bootstrap_bundle import BootstrapBundle
 from bundlemcp.application.bootstrap.bootstrap_document import BootstrapDocument
+from bundlemcp.application.bootstrap.bootstrap_oauth_client import BootstrapOAuthClient
 from bundlemcp.application.bootstrap.bootstrap_server import BootstrapServer
 from bundlemcp.application.bootstrap.probes_after_commit import ProbesAfterCommit
 from bundlemcp.application.bootstrap.secret_ref import SecretRef
@@ -15,7 +16,7 @@ from bundlemcp.application.contracts.upstream.tool_discovery import ToolDiscover
 from bundlemcp.application.contracts.upstream.upstream_connection_registry import (
     UpstreamConnectionRegistry,
 )
-from bundlemcp.application.errors import InvalidInputError, ServiceError
+from bundlemcp.application.errors import InvalidInputError, NotFoundError, ServiceError
 from bundlemcp.application.management.bundle_prompt_service import BundlePromptService
 from bundlemcp.application.management.bundle_resource_service import BundleResourceService
 from bundlemcp.application.management.bundle_service import BundleService
@@ -190,7 +191,9 @@ class _Session:
         try:
             await self._servers.upsert(await self._server_upsert(entry))
             if entry.upstream_oauth is not None:
-                await self._clients.set_client(entry.name, await self._oauth_client(entry))
+                await self._clients.set_client(
+                    entry.name, await self._oauth_client(entry.name, entry.upstream_oauth)
+                )
         except (ServiceError, ValidationError) as error:
             self._fail("upstream", entry.name, error)
             return
@@ -214,12 +217,10 @@ class _Session:
         body = entry.model_dump(exclude={"upstream_oauth", "static_headers"})
         return ServerUpsert.model_validate({**body, "static_headers": headers})
 
-    async def _oauth_client(self, entry: BootstrapServer) -> UpstreamOAuthConfig:
-        client = entry.upstream_oauth
-        assert client is not None
+    async def _oauth_client(self, name: str, client: BootstrapOAuthClient) -> UpstreamOAuthConfig:
         secret = client.client_secret
         if isinstance(secret, SecretRef):
-            server = await self._uow.servers.by_name(entry.name)
+            server = await self._uow.servers.by_name(name)
             stored = await self._uow.upstream_clients.for_server(server.id) if server else None
             if stored is None or not stored.client_secret_encrypted:
                 raise InvalidInputError(
@@ -283,7 +284,8 @@ class _Session:
             if not member.tools:
                 continue
             server = await self._uow.servers.by_name(member.name)
-            assert server is not None  # set_member found it
+            if server is None:
+                raise NotFoundError(f"upstream {member.name!r} not found")
             by_name = {tool.name: tool for tool in await self._uow.tools.for_server(server.id)}
             for curation in member.tools:
                 tool = by_name.get(curation.tool)

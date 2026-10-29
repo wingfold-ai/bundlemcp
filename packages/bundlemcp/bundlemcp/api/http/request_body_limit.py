@@ -107,7 +107,8 @@ class RequestBodyLimit:
 
 async def body_too_large_handler(request: Request, exc: Exception) -> JSONResponse:
     """Render a body that crossed the limit while a route was reading it."""
-    assert isinstance(exc, BodyTooLarge)
+    if not isinstance(exc, BodyTooLarge):
+        raise TypeError(f"body_too_large_handler handles BodyTooLarge, not {type(exc).__name__}")
     return too_large(request.url.path, exc.limit)
 
 

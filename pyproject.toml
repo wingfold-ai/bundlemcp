@@ -22,6 +22,8 @@ dev-dependencies = [
     "httpx>=0.28",
     "import-linter>=2.14",
     "rumdl>=0.2.78",
+    # tools/check_advisories.py audits the locked Python dependencies with it
+    "pip-audit>=2.10",
     # the tests exercise tracing with an in-memory exporter
     "bundlemcp[otel]",
 ]
@@ -59,7 +61,19 @@ select = [
     "UP",  # pyupgrade
     "B",   # bugbear
     "T20", # no print statements (structured logging only)
+    "S",   # flake8-bandit security rules; a false positive in the library gets a line-level noqa
 ]
+
+# Never a pattern that matches packages/bundlemcp/bundlemcp/: the library answers to every S rule.
+[tool.ruff.lint.per-file-ignores]
+# tests assert, use fake credentials, bind test servers, run subprocesses and build fixture SQL
+"packages/bundlemcp/tests/**" = ["S101", "S104", "S105", "S106", "S107", "S603"]
+"tests/**" = ["S101", "S105", "S603", "S607", "S608"]
+# release and maintenance scripts call git, gh and docker with fixed argument lists
+"tools/**" = ["S310", "S603", "S607"]
+"deploy/*.py" = ["S603", "S607"]
+# the example servers bind every interface inside their container
+"examples/**" = ["S104"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
