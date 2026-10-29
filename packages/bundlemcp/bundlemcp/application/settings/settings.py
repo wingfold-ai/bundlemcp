@@ -188,6 +188,12 @@ class Settings(BaseModel):
     )
 
     # Client registration with the gateway's OAuth server
+    client_metadata_documents_enabled: bool = Field(
+        default=True,
+        description="Accept an https URL as an OAuth client_id and fetch the client's metadata "
+        "document from it. Off: such client ids are refused as unknown clients without any "
+        "outbound request, and the authorization server metadata says they are unsupported",
+    )
     dcr_allowed_redirect_uris: list[str] = Field(
         default_factory=list,
         description="Redirect URIs OAuth clients may register or declare in a client metadata "

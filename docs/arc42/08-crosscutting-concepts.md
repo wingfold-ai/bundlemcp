@@ -23,9 +23,11 @@ TS client. Validation at every boundary; no hand-written duplicate shapes
 
 ## Security
 Threat model + controls centralized in [security spec](../../openspec/specs/security/spec.md): one egress-policy layer
-for all admin-supplied URLs (SSRF), CORS/CSRF rules, size limits, DCR quotas, secret redaction (testable), tokens hashed
-/ upstream tokens and client secrets encrypted with rotatable keys, moved under the newest key on read and by a leased
-background pass that reports when an old key may be dropped ([DEP-9](../../openspec/specs/deployment/spec.md)).
+for all admin-supplied URLs (SSRF), with a public-only scope for the URLs an unauthenticated caller chooses
+([ADR-0060](../adr/0060-unauthenticated-fetches-use-a-public-only-egress-scope.md)), CORS/CSRF rules, size limits, DCR
+quotas, secret redaction (testable), tokens hashed / upstream tokens and client secrets encrypted with rotatable keys,
+moved under the newest key on read and by a leased background pass that reports when an old key may be dropped
+([DEP-9](../../openspec/specs/deployment/spec.md)).
 
 ## Error handling
 Structured MCP errors to clients; no silent degradation — partial `tools/list` responses increment a dedicated metric

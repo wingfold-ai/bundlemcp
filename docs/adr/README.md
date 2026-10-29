@@ -76,3 +76,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0057](0057-live-logs-through-a-capped-valkey-stream.md) | Live logs fan out through a capped Valkey stream | accepted |
 | [0058](0058-inspector-proxied-by-the-management-api.md) | The inspector is proxied by the management API, and reaches endpoints in-process | accepted |
 | [0059](0059-member-lists-served-from-the-discovery-snapshot.md) | Members' prompt and resource lists are served from the discovery snapshot | accepted |
+| [0060](0060-unauthenticated-fetches-use-a-public-only-egress-scope.md) | Unauthenticated fetches use a public-only egress scope | accepted |

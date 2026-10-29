@@ -282,6 +282,13 @@ implement (claude.ai lists `urn:ietf:params:oauth:grant-type:jwt-bearer`) are ig
 without `authorization_code` is refused at authorize per AUTH-4. A document that arrives but fails validation is
 reported as invalid, distinct from one that could not be fetched.
 
+Because anyone can trigger the fetch before signing in, it is narrower than other egress. It connects only to globally
+routable addresses: private, loopback, link-local, shared (CGNAT), unique-local, documentation and address-translation
+ranges are refused, judged at connect time like SEC-2, unless an explicit `BUNDLEMCP_EGRESS_ALLOW_CIDRS` entry allows
+the address. It is bounded: a body larger than 16 KiB is refused without being read further, and the whole fetch,
+from connect to the last byte, must finish within 5 seconds. A fetch that fails or yields an invalid document is
+remembered for 60 seconds, during which the same URL is refused without fetching again.
+
 #### Scenario: URL client authorizes without registration
 - **WHEN** a client whose `client_id` is the https URL of a valid metadata document starts an authorize request
 - **THEN** the gateway fetches the document, validates the redirect URI against it, and shows consent naming its
@@ -295,6 +302,29 @@ reported as invalid, distinct from one that could not be fetched.
 #### Scenario: Unknown grant types are ignored
 - **WHEN** the document lists `authorization_code` and the `jwt-bearer` grant
 - **THEN** the authorize request proceeds and only `authorization_code` and `refresh_token` are honoured
+
+#### Scenario: A document on a private address is not fetched
+- **WHEN** an unauthenticated caller starts an authorize request whose `client_id` URL resolves to `10.0.0.5`
+- **THEN** no connection to `10.0.0.5` is made and the request is refused as a client metadata document that could
+  not be fetched
+
+#### Scenario: An explicitly allowed address is fetched
+- **GIVEN** `BUNDLEMCP_EGRESS_ALLOW_CIDRS` contains `10.0.0.0/24`
+- **WHEN** a `client_id` URL resolves to `10.0.0.5` and serves a valid document
+- **THEN** the document is fetched and the authorize request proceeds
+
+#### Scenario: An oversized document is refused
+- **WHEN** the `client_id` URL answers with a body larger than 16 KiB
+- **THEN** the gateway stops reading and refuses the request as a document that could not be fetched
+
+#### Scenario: A slow document is cut off
+- **WHEN** the `client_id` URL sends its body a few bytes at a time and is not finished after 5 seconds
+- **THEN** the fetch is abandoned and the request is refused
+
+#### Scenario: A failed fetch is not repeated at once
+- **GIVEN** a fetch of a `client_id` URL failed less than 60 seconds ago
+- **WHEN** another authorize request names the same URL
+- **THEN** it is refused without a new request to that URL
 
 ### Requirement: AUTH-14 Issuer identification (RFC 9207)
 Every authorization response, including error redirects, SHALL carry `iss=<issuer>`, and AUTH-1 metadata sets
@@ -637,6 +667,26 @@ shows it as passthrough with `delegated_token` as the conformant alternative.
 - **WHEN** an admin reads a server whose `forward_headers` forwards `authorization`
 - **THEN** the server carries `forwards_caller_token: true`
 - **AND** the registration form warns that this is token passthrough and points to the delegated-token option
+
+### Requirement: AUTH-34 Metadata-document clients can be turned off
+`BUNDLEMCP_CLIENT_METADATA_DOCUMENTS_ENABLED` (default `true`) SHALL decide whether the gateway accepts `https://`
+client ids (AUTH-13). When it is `false`, AUTH-1 metadata advertises `client_id_metadata_document_supported: false`,
+and an authorize request with such a `client_id` is refused as an unknown client without any outbound request.
+Dynamically registered clients (AUTH-2) are unaffected.
+
+#### Scenario: Turned off, no fetch happens
+- **GIVEN** `BUNDLEMCP_CLIENT_METADATA_DOCUMENTS_ENABLED=false`
+- **WHEN** an authorize request names `client_id=https://client.example/meta.json`
+- **THEN** it is refused as an unknown client and no request is made to `client.example`
+
+#### Scenario: Turned off, metadata says so
+- **GIVEN** `BUNDLEMCP_CLIENT_METADATA_DOCUMENTS_ENABLED=false`
+- **WHEN** a client reads `/.well-known/oauth-authorization-server`
+- **THEN** `client_id_metadata_document_supported` is `false`
+
+#### Scenario: Default stays on
+- **WHEN** the setting is not configured and a client reads the authorization server metadata
+- **THEN** `client_id_metadata_document_supported` is `true`
 
 ## Out of scope
 

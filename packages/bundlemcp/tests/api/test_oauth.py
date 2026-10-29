@@ -32,6 +32,7 @@ from bundlemcp.infrastructure.postgres.rows.user_row import UserRow
 from fakeredis.aioredis import FakeRedis
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
+from structlog.testing import capture_logs
 
 from tests.conftest import SERVICE_KEY, hermetic_settings, seed_api_key, serving
 
@@ -1385,3 +1386,70 @@ async def test_auth11_another_users_consent_answers_404(oauth_env):
     http, app, user = oauth_env
     resp = await http.delete(f"/api/v1/me/consents/{uuid.uuid4()}", headers={"Origin": PUBLIC_URL})
     assert resp.status_code == 404
+
+
+def _cimd_authorize_params(client_id: str) -> dict[str, str]:
+    _, challenge = make_pkce()
+    return {
+        "client_id": client_id,
+        "redirect_uri": "https://client.example/cb",
+        "response_type": "code",
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "resource": f"{PUBLIC_URL}/ep1/mcp",
+    }
+
+
+async def test_auth13_authorize_refuses_private_metadata_url(engine, redis):
+    """AUTH-13: an unauthenticated authorize naming a document on a private address is refused
+    by the real fetcher before it connects anywhere."""
+    async with serving(
+        engine,
+        redis,
+        settings=hermetic_settings(public_url=PUBLIC_URL),
+        base_url=PUBLIC_URL,
+        follow_redirects=False,
+    ) as (http, _app):
+        with capture_logs() as logs:
+            resp = await http.get(
+                "/oauth/authorize", params=_cimd_authorize_params("https://10.0.0.5/client.json")
+            )
+    assert resp.status_code == 400
+    (failure,) = [e for e in logs if e["event"] == "cimd.fetch_failed"]
+    assert failure["reason"] == "EgressDenied"
+
+
+async def test_auth34_off_refuses_without_fetch(engine, redis):
+    """AUTH-34: with metadata-document clients off, an https client_id is unknown and unfetched."""
+    fetcher = FakeClientMetadataFetcher()
+    settings = hermetic_settings(public_url=PUBLIC_URL, client_metadata_documents_enabled=False)
+    async with serving(
+        engine,
+        redis,
+        settings=settings,
+        base_url=PUBLIC_URL,
+        follow_redirects=False,
+        client_metadata_fetcher=fetcher,
+    ) as (http, _app):
+        resp = await http.get("/oauth/authorize", params=_cimd_authorize_params(CIMD_CLIENT_ID))
+    assert resp.status_code == 400
+    assert fetcher.fetches == 0
+
+
+async def test_auth34_off_advertised_in_metadata(engine, redis):
+    """AUTH-34: turned off, the authorization server metadata says metadata documents are not
+    supported."""
+    settings = hermetic_settings(public_url=PUBLIC_URL, client_metadata_documents_enabled=False)
+    async with serving(engine, redis, settings=settings) as (http, _app):
+        meta = (await http.get("/.well-known/oauth-authorization-server")).json()
+    assert meta["client_id_metadata_document_supported"] is False
+
+
+async def test_auth34_default_on(engine, redis):
+    """AUTH-34: by default metadata-document clients are accepted and advertised."""
+    async with serving(engine, redis, settings=hermetic_settings(public_url=PUBLIC_URL)) as (
+        http,
+        _app,
+    ):
+        meta = (await http.get("/.well-known/oauth-authorization-server")).json()
+    assert meta["client_id_metadata_document_supported"] is True
