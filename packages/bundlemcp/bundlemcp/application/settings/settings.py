@@ -50,7 +50,8 @@ class Settings(BaseModel):
     )
     admin_emails: list[str] = Field(
         default=[],
-        description="Email addresses granted admin rights, re-evaluated at every login",
+        description="Email addresses granted admin rights, re-evaluated at every login; an "
+        "address counts only when the identity provider marks it verified (email_verified)",
     )
     admin_claim: str = Field(
         default="groups",
