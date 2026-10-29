@@ -36,6 +36,8 @@ from bundlemcp.application.management.audit_retention_service import AuditRetent
 from bundlemcp.application.metering.invocation_sweeper import InvocationSweeper
 from bundlemcp.application.oauth_server import (
     AuthorizationCodeGrant,
+    ClientMetadataFetcher,
+    ClientSourceFactory,
     MetadataDocumentClientSource,
     PendingAuthorization,
     RefreshTokenGrant,
@@ -446,16 +448,28 @@ class CompositionRoot:
             client_metadata=client_metadata,
             # the grants this server serves, and how clients identify
             token_grants=(AuthorizationCodeGrant, RefreshTokenGrant),
-            client_sources=(
-                lambda uow: RegisteredClientSource(uow.oauth_clients),
+            client_sources=self._client_sources(client_metadata, registration_policy),
+            registration_policy=registration_policy,
+        )
+
+    def _client_sources(
+        self, client_metadata: ClientMetadataFetcher, registration_policy: RegistrationPolicy
+    ) -> tuple[ClientSourceFactory, ...]:
+        """How clients identify: registered ids always, metadata-document URLs when enabled.
+
+        Leaving the metadata-document source out, rather than guarding inside it,
+        makes an https client id fall through to "unknown client" before any fetch.
+        """
+        sources: list[ClientSourceFactory] = [lambda uow: RegisteredClientSource(uow.oauth_clients)]
+        if self._settings.client_metadata_documents_enabled:
+            sources.append(
                 lambda uow: MetadataDocumentClientSource(
                     uow.oauth_clients,
                     client_metadata,
                     allowed_redirect_uris=registration_policy.allowed_redirect_uris,
-                ),
-            ),
-            registration_policy=registration_policy,
-        )
+                )
+            )
+        return tuple(sources)
 
     def _registration_policy(self) -> RegistrationPolicy:
         """The redirect URIs and registration limits the operator configured."""

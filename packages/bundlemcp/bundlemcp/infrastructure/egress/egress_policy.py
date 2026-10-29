@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 import structlog
 
 from bundlemcp.application.settings.settings import Settings
+from bundlemcp.infrastructure.egress.egress_scope import EgressScope
 
 log = structlog.get_logger(__name__)
 
@@ -31,6 +32,10 @@ _ALWAYS_BLOCKED = [
     ipaddress.ip_network("0.0.0.0/8"),  # Linux connects these to the local host
     ipaddress.ip_network("::/128"),
 ]
+
+# NAT64's well-known prefix is globally routable, but the IPv4 address in its
+# low 32 bits is where a translator actually connects
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
 
 
 class EgressDenied(Exception):
@@ -51,7 +56,9 @@ def normalised(addr: IpAddress) -> IpAddress:
     return addr
 
 
-def judge_address(addr: IpAddress, target: str, settings: Settings) -> None:
+def judge_address(
+    addr: IpAddress, target: str, settings: Settings, scope: EgressScope = EgressScope.UPSTREAM
+) -> None:
     """Raise EgressDenied when ``addr`` may not be connected to; ``target`` names it in errors."""
     addr = normalised(addr)
     if any(addr in ipaddress.ip_network(c) for c in settings.egress_allow_cidrs):
@@ -64,6 +71,18 @@ def judge_address(addr: IpAddress, target: str, settings: Settings) -> None:
         if addr in net:
             log.warning("egress.denied", target=target, blocked=str(net))
             raise EgressDenied(target, f"address {addr} is in operator deny range {net}")
+    if scope is EgressScope.PUBLIC:
+        _judge_public(addr, target)
+
+
+def _judge_public(addr: IpAddress, target: str) -> None:
+    """Refuse an address that is not globally routable, or that translates to one."""
+    reached = addr
+    if isinstance(addr, ipaddress.IPv6Address) and addr in _NAT64:
+        reached = ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
+    if not (addr.is_global and reached.is_global):
+        log.warning("egress.denied", target=target, blocked="non-public")
+        raise EgressDenied(target, f"address {addr} is not publicly routable")
 
 
 def resolve(host: str) -> list[IpAddress]:
@@ -75,10 +94,12 @@ def resolve(host: str) -> list[IpAddress]:
     return [ipaddress.ip_address(info[4][0]) for info in infos]
 
 
-def check_url_allowed(url: str, settings: Settings) -> None:
+def check_url_allowed(
+    url: str, settings: Settings, scope: EgressScope = EgressScope.UPSTREAM
+) -> None:
     """Raise EgressDenied if the URL's scheme or any resolved address violates the policy."""
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         raise EgressDenied(url, "only http(s) URLs with a host are allowed")
     for addr in resolve(parsed.hostname):
-        judge_address(addr, url, settings)
+        judge_address(addr, url, settings, scope)

@@ -27,6 +27,7 @@ from bundlemcp.infrastructure.egress.egress_policy import (
     IpAddress,
     judge_address,
 )
+from bundlemcp.infrastructure.egress.egress_scope import EgressScope
 
 type Resolver = Callable[[str, int], Awaitable[list[IpAddress]]]
 
@@ -48,10 +49,17 @@ async def resolve_for_connect(host: str, port: int) -> list[IpAddress]:
 class GuardedNetworkBackend:
     """A pool's network backend that only dials addresses the egress policy allows."""
 
-    def __init__(self, inner: Any, settings: Settings, resolver: Resolver = resolve_for_connect):
+    def __init__(
+        self,
+        inner: Any,
+        settings: Settings,
+        resolver: Resolver = resolve_for_connect,
+        scope: EgressScope = EgressScope.UPSTREAM,
+    ):
         self._inner = inner
         self._settings = settings
         self._resolver = resolver
+        self._scope = scope
 
     async def connect_tcp(
         self,
@@ -66,7 +74,7 @@ class GuardedNetworkBackend:
         if not addresses:
             raise HostUnresolvable(target, "the host resolved to no address")
         for addr in addresses:
-            judge_address(addr, target, self._settings)
+            judge_address(addr, target, self._settings, self._scope)
         failure: Exception | None = None
         for addr in addresses:
             try:
@@ -89,7 +97,12 @@ class GuardedNetworkBackend:
         await self._inner.sleep(seconds)
 
 
-def guard_pool(pool: Any, settings: Settings, resolver: Resolver = resolve_for_connect) -> None:
+def guard_pool(
+    pool: Any,
+    settings: Settings,
+    resolver: Resolver = resolve_for_connect,
+    scope: EgressScope = EgressScope.UPSTREAM,
+) -> None:
     """Put the guard in front of a connection pool's network backend.
 
     Neither ``httpx`` nor ``httpx2`` lets a transport be given a network
@@ -100,4 +113,4 @@ def guard_pool(pool: Any, settings: Settings, resolver: Resolver = resolve_for_c
     if inner is None:
         raise RuntimeError(f"cannot guard {type(pool).__name__}: no network backend to wrap")
     if not isinstance(inner, GuardedNetworkBackend):
-        pool._network_backend = GuardedNetworkBackend(inner, settings, resolver)
+        pool._network_backend = GuardedNetworkBackend(inner, settings, resolver, scope)

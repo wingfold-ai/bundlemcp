@@ -42,8 +42,11 @@ class AuthorizationServerMetadata(BaseModel):
     )
 
     @classmethod
-    def for_issuer(cls, issuer: str) -> "AuthorizationServerMetadata":
+    def for_issuer(
+        cls, issuer: str, *, metadata_documents: bool = True
+    ) -> "AuthorizationServerMetadata":
         return cls(
+            client_id_metadata_document_supported=metadata_documents,
             issuer=issuer,
             authorization_endpoint=f"{issuer}/oauth/authorize",
             token_endpoint=f"{issuer}/oauth/token",

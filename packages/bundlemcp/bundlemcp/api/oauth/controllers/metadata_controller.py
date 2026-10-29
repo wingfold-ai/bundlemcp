@@ -18,7 +18,10 @@ class OAuthMetadataController(Controller):
 
     @route.get("/oauth-authorization-server")
     async def authorization_server(self, settings: SettingsProvider) -> AuthorizationServerMetadata:
-        return AuthorizationServerMetadata.for_issuer(settings.public_base)
+        return AuthorizationServerMetadata.for_issuer(
+            settings.public_base,
+            metadata_documents=settings.client_metadata_documents_enabled,
+        )
 
     @route.get("/oauth-protected-resource/{endpoint_name}/mcp")
     async def protected_resource(
