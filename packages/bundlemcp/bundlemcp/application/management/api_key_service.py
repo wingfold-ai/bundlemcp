@@ -38,8 +38,8 @@ class ApiKeyService:
         )
 
     async def list(self, *, offset: int, limit: int) -> Page[ApiKeyRead]:
-        total, rows = await self._keys.page(offset=offset, limit=limit)
-        return Page.of(rows, total, offset=offset, limit=limit, read=ApiKeyRead.from_entity)
+        page_slice = await self._keys.page(offset=offset, limit=limit)
+        return Page.of(page_slice, offset=offset, limit=limit, read=ApiKeyRead.from_entity)
 
     async def create(self, body: ApiKeyCreate) -> ApiKeyCreated:
         """The key value is returned exactly once; only the hash is stored."""

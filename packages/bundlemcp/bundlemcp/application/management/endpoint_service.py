@@ -67,7 +67,7 @@ class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
     async def available(self, public_base: str) -> list[AvailableEndpointRead]:
         """The endpoints a signed-in person can connect a client to as themselves: every
         enabled endpoint that accepts OAuth, with the URL to paste into the client."""
-        _total, endpoints = await self._repo.page(offset=0, limit=500)
+        endpoints = (await self._repo.page(offset=0, limit=500)).items
         entries: list[AvailableEndpointRead] = []
         for endpoint in endpoints:
             if not endpoint.enabled or not endpoint.accepts(EndpointAuthMode.OAUTH):
@@ -96,7 +96,7 @@ class EndpointService(NamedResourceService[Endpoint, EndpointRead]):
         bundle = await self._uow.bundles.by_name(bundle_name)
         if bundle is None:
             raise NotFoundError("bundle not found")
-        _total, endpoints = await self._repo.page(offset=0, limit=500)
+        endpoints = (await self._repo.page(offset=0, limit=500)).items
         for endpoint in endpoints:
             if (
                 endpoint.bundle_id == bundle.id

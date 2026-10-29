@@ -44,7 +44,7 @@ class UpstreamHealth:
         except Exception:
             log.warning("health.streak_unavailable", server=server.name, exc_info=True)
             return 0
-        attempts = int(await self._runtime_config.get("server_error_attempts"))
+        attempts = (await self._runtime_config.settings()).server_error_attempts
         if count >= attempts and server.health_status != HealthStatus.ERROR:
             server.health_status = HealthStatus.ERROR
             server.last_error = error[:500]

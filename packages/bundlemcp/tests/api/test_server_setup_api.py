@@ -286,3 +286,24 @@ class StubProvider:
 
     async def client_credentials(self, meta, **kw):
         return UpstreamTokens(access_token="at")
+
+
+async def test_ups22_the_snapshot_is_returned_verbatim(engine, service_client):
+    """UPS-22: the stored capabilities snapshot, extension keys and all, reads back unchanged."""
+    snapshot = {
+        "experimental": {"acme/streaming": {"chunked": True}},
+        "logging": {},
+        "prompts": {"listChanged": False},
+        "resources": {"subscribe": True, "listChanged": True, "x-extra": 1},
+        "tools": {"listChanged": True},
+        "completions": {},
+    }
+    async with session_factory(engine)() as db:
+        db.add(McpServerRow(name="snap", url="http://snap:8000/mcp", capabilities=snapshot))
+        await db.commit()
+
+    resp = await service_client.get("/api/v1/upstreams/snap")
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["capabilities"] == snapshot
+    assert list(resp.json()["capabilities"]) == list(snapshot)

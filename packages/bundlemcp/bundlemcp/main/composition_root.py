@@ -208,7 +208,7 @@ class CompositionRoot:
 
         runtime_config = RuntimeConfig(units, cache_disabled=settings.config_cache_disabled)
         client_factory = overrides.client_factory or default_client_factory(
-            settings, lambda: runtime_config.current("max_upstream_response_bytes")
+            settings, lambda: runtime_config.snapshot.max_upstream_response_bytes
         )
 
         upstream_oauth = overrides.upstream_oidc_provider or HttpxUpstreamProvider(settings)
@@ -488,9 +488,9 @@ class CompositionRoot:
             upstream_sessions = PooledUpstreamSessions(
                 client_factory,
                 lambda: PoolLimits(
-                    total=runtime_config.current("upstream_sessions_max"),
-                    per_server=runtime_config.current("upstream_sessions_per_server_max"),
-                    idle_timeout=runtime_config.current("upstream_session_idle_timeout"),
+                    total=runtime_config.snapshot.upstream_sessions_max,
+                    per_server=runtime_config.snapshot.upstream_sessions_per_server_max,
+                    idle_timeout=runtime_config.snapshot.upstream_session_idle_timeout,
                 ),
                 notifications,
             )

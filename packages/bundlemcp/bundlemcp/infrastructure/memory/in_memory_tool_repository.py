@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Iterable
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.domain.servers.tool import Tool
 from bundlemcp.infrastructure.memory.in_memory_repository import InMemoryRepository
 
@@ -15,7 +16,7 @@ class InMemoryToolRepository(InMemoryRepository[Tool]):
 
     async def page_for_server(
         self, server_id: uuid.UUID, *, offset: int, limit: int
-    ) -> tuple[int, list[Tool]]:
+    ) -> PageSlice[Tool]:
         return self._page(
             self.where(lambda t: t.server_id == server_id),
             offset=offset,

@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.application.contracts.persistence.repository import Repository
 from bundlemcp.application.management.audit_cursor import AuditCursor
 from bundlemcp.application.management.audit_filter import AuditFilter
@@ -13,7 +14,7 @@ class AuditRepository(Repository[AuditRecord], Protocol):
 
     async def page(
         self, filter_: AuditFilter, *, offset: int, limit: int
-    ) -> tuple[int, list[AuditRecord]]:
+    ) -> PageSlice[AuditRecord]:
         """One page of matching records, newest first, plus the total."""
         ...
 

@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.domain.bundles.bundle_prompt import BundlePrompt
 from bundlemcp.domain.bundles.prompt_listing import PromptListing
 from bundlemcp.infrastructure.postgres.rows.bundle_prompt_row import BundlePromptRow
@@ -36,7 +37,7 @@ class SqlAlchemyBundlePromptRepository(SqlAlchemyRepository[BundlePrompt, Bundle
 
     async def page_for_bundle(
         self, bundle_id: uuid.UUID, *, offset: int, limit: int
-    ) -> tuple[int, list[BundlePrompt]]:
+    ) -> PageSlice[BundlePrompt]:
         return await self.page(
             BundlePromptRow.bundle_id == bundle_id,
             offset=offset,

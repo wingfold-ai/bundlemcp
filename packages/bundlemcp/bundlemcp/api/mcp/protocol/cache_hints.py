@@ -18,8 +18,8 @@ class CacheHints:
         self._runtime_config = runtime_config
 
     async def for_list(self) -> CacheHint:
-        ttl_ms = await self._runtime_config.get("list_cache_ttl_ms")
-        return CacheHint(ttl_ms=int(ttl_ms), scope="public")
+        ttl_ms = (await self._runtime_config.settings()).list_cache_ttl_ms
+        return CacheHint(ttl_ms=ttl_ms, scope="public")
 
     async def for_bundle_resource(self) -> CacheHint:
         """A bundle's own resource reads the same for every caller, so it caches like a list."""

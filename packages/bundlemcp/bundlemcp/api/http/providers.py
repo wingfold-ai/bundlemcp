@@ -16,7 +16,7 @@ from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork,
 from bundlemcp.application.contracts.readiness_probe import ReadinessProbe
 from bundlemcp.application.serving.replica_drain import ReplicaDrain
 from bundlemcp.application.settings.settings import Settings
-from bundlemcp.domain.config.config_registry import DEFAULTS
+from bundlemcp.domain.config.runtime_settings import RuntimeSettings
 
 
 async def get_unit_of_work(request: Request) -> AsyncIterator[UnitOfWork]:
@@ -53,8 +53,8 @@ def current_request_limit(app: FastAPI) -> int:
     """
     container = getattr(app.state, "container", None)
     if container is None:
-        return int(DEFAULTS["max_request_bytes"].default)
-    return int(container.runtime_config.current("max_request_bytes"))
+        return RuntimeSettings().max_request_bytes
+    return container.runtime_config.snapshot.max_request_bytes
 
 
 UnitOfWorkProvider = Annotated[UnitOfWork, Depends(get_unit_of_work)]

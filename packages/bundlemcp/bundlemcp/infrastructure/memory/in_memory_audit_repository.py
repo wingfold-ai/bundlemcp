@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.application.management.audit_cursor import AuditCursor
 from bundlemcp.application.management.audit_filter import AuditFilter
 from bundlemcp.domain.audit.audit_record import AuditRecord
@@ -9,9 +10,9 @@ from bundlemcp.infrastructure.memory.in_memory_repository import InMemoryReposit
 class InMemoryAuditRepository(InMemoryRepository[AuditRecord]):
     async def page(
         self, filter_: AuditFilter, *, offset: int, limit: int
-    ) -> tuple[int, list[AuditRecord]]:
+    ) -> PageSlice[AuditRecord]:
         ordered = self._newest_first(filter_)
-        return len(ordered), ordered[offset : offset + limit]
+        return PageSlice(items=ordered[offset : offset + limit], total=len(ordered))
 
     async def page_after(
         self, filter_: AuditFilter, *, cursor: AuditCursor | None, limit: int

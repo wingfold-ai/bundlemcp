@@ -1,6 +1,7 @@
 import uuid
 from typing import Protocol, runtime_checkable
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.application.contracts.persistence.repository import Repository
 from bundlemcp.domain.bundles.bundle_prompt import BundlePrompt
 from bundlemcp.domain.bundles.prompt_listing import PromptListing
@@ -20,6 +21,6 @@ class BundlePromptRepository(Repository[BundlePrompt], Protocol):
 
     async def page_for_bundle(
         self, bundle_id: uuid.UUID, *, offset: int, limit: int
-    ) -> tuple[int, list[BundlePrompt]]:
+    ) -> PageSlice[BundlePrompt]:
         """One page of the bundle's prompts in name order, plus the total."""
         ...

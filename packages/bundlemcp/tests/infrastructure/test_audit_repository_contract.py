@@ -125,7 +125,7 @@ async def opener(request, engine, redis) -> AsyncIterator[Opener]:
 
 async def _paged(opener: Opener, filter_: AuditFilter) -> list[uuid.UUID]:
     async with opener() as uow:
-        _total, rows = await uow.audit_records.page(filter_, offset=0, limit=100)
+        rows = (await uow.audit_records.page(filter_, offset=0, limit=100)).items
     return [row.id for row in rows]
 
 

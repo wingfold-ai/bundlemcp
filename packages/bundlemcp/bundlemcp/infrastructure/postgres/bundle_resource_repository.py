@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.domain.bundles.bundle_resource import BundleResource
 from bundlemcp.domain.bundles.resource_listing import ResourceListing
 from bundlemcp.infrastructure.postgres.rows.bundle_resource_row import BundleResourceRow
@@ -39,7 +40,7 @@ class SqlAlchemyBundleResourceRepository(SqlAlchemyRepository[BundleResource, Bu
 
     async def page_for_bundle(
         self, bundle_id: uuid.UUID, *, offset: int, limit: int
-    ) -> tuple[int, list[BundleResource]]:
+    ) -> PageSlice[BundleResource]:
         return await self.page(
             BundleResourceRow.bundle_id == bundle_id,
             offset=offset,

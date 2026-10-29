@@ -2,6 +2,8 @@
 
 from typing import Any, Protocol, runtime_checkable
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
+
 
 @runtime_checkable
 class Repository[T](Protocol):
@@ -33,6 +35,6 @@ class NamedRepository[T](Repository[T], Protocol):
         """The entity with this natural key, or None."""
         ...
 
-    async def page(self, *, offset: int, limit: int) -> tuple[int, list[T]]:
+    async def page(self, *, offset: int, limit: int) -> PageSlice[T]:
         """One page in creation order, plus the total the page was cut from."""
         ...

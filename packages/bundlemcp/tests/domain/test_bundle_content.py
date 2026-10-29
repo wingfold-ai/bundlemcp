@@ -202,7 +202,7 @@ def test_bundle_without_members_advertises_its_own_content():
             resources=[ResourceListing(name="r")],
         ),
         member_notifications=False,
-    )
+    ).model_dump()
     assert caps["prompts"] == {"listChanged": True}
     assert caps["resources"] == {"listChanged": True}
     assert caps["completions"] == {}
@@ -212,5 +212,5 @@ def test_completions_not_advertised_without_suggested_values():
     """BND-27"""
     caps = aggregate_capabilities(
         _view(prompts=[PromptListing(name="p")]), member_notifications=False
-    )
+    ).model_dump()
     assert "prompts" in caps and "completions" not in caps and "resources" not in caps

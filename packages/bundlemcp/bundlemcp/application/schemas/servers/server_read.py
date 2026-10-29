@@ -87,6 +87,7 @@ class ServerRead(EntityRead):
         if server is None:
             raise TypeError("ServerRead is built from an McpServer")
         data = {name: getattr(server, name) for name in McpServer.model_fields}
+        data["capabilities"] = server.capabilities.model_dump()
         data["static_header_names"] = sorted(server.static_headers)  # names only
         data["configuration_mismatch"] = server.configuration_mismatch
         data["forwards_caller_token"] = server.forwards_caller_token

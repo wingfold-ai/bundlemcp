@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.domain.config.config_entry import ConfigEntry
-from bundlemcp.domain.config.config_registry import MIB
+from bundlemcp.domain.config.runtime_settings import MIB
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
     InMemoryUnitOfWorkFactory,
@@ -29,14 +29,14 @@ async def test_sec7_the_snapshot_never_opens_a_unit_of_work():
     """SEC-7: reading the request limit costs no database work, before or after a load."""
     units = CountingUnits()
     config = RuntimeConfig(units)
-    assert config.current("max_request_bytes") == 4 * MIB
+    assert config.snapshot.max_request_bytes == 4 * MIB
     assert units.opened == 0
 
     units.uow.config_entries.add(ConfigEntry(key="max_request_bytes", value=1 * MIB))
     await config.refresh()
     opened = units.opened
     for _ in range(3):
-        assert config.current("max_request_bytes") == 1 * MIB
+        assert config.snapshot.max_request_bytes == 1 * MIB
     assert units.opened == opened
 
 
@@ -47,4 +47,4 @@ async def test_sec7_a_flush_keeps_the_last_loaded_value():
     config = RuntimeConfig(units)
     await config.refresh()
     await config.flush()
-    assert config.current("max_request_bytes") == 1 * MIB
+    assert config.snapshot.max_request_bytes == 1 * MIB

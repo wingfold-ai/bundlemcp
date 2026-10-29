@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
+
 
 class InMemoryRepository[T: BaseModel]:
     """Entities held in a dict by primary key; mutations to a stored object persist at once.
@@ -42,11 +44,11 @@ class InMemoryRepository[T: BaseModel]:
 
     def _page(
         self, rows: Iterable[T], *, offset: int, limit: int, order: Callable[[T], Any]
-    ) -> tuple[int, list[T]]:
+    ) -> PageSlice[T]:
         ordered = sorted(rows, key=order)
-        return len(ordered), ordered[offset : offset + limit]
+        return PageSlice(items=ordered[offset : offset + limit], total=len(ordered))
 
-    async def page(self, *, offset: int, limit: int) -> tuple[int, list[T]]:
+    async def page(self, *, offset: int, limit: int) -> PageSlice[T]:
         return self._page(
             self._rows.values(),
             offset=offset,

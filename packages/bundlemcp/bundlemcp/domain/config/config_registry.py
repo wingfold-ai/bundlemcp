@@ -2,8 +2,11 @@
 
 from typing import Any
 
+from annotated_types import Ge, Le
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic.fields import FieldInfo
 
+from bundlemcp.domain.config.runtime_settings import RuntimeSettings
 from bundlemcp.domain.config.unknown_config_key import UnknownConfigKey
 
 
@@ -39,39 +42,19 @@ class ConfigSetting(BaseModel):
         return coerced
 
 
-KIB = 1024
-MIB = 1024 * KIB
+def _setting(field: FieldInfo) -> ConfigSetting:
+    """The registry entry for one ``RuntimeSettings`` field: its type, default and bounds."""
+    return ConfigSetting(
+        default=field.default,
+        value_type=field.annotation,
+        minimum=next((item.ge for item in field.metadata if isinstance(item, Ge)), None),
+        maximum=next((item.le for item in field.metadata if isinstance(item, Le)), None),
+    )
 
-# The single registry of runtime-tunable settings.
+
+# The single registry of runtime-tunable settings, one entry per RuntimeSettings field.
 DEFAULTS: dict[str, ConfigSetting] = {
-    # per-call timeout model (seconds)
-    "call_timeout": ConfigSetting(default=60.0, value_type=float),
-    "reset_timeout_on_progress": ConfigSetting(default=True, value_type=bool),
-    "max_total_timeout": ConfigSetting(default=1800.0, value_type=float),
-    # idle session expiry (seconds; 0 = no idle expiry)
-    "session_lifetime": ConfigSetting(default=86400, value_type=int, minimum=0),
-    # milliseconds a client may keep a tools/prompts/resources list
-    "list_cache_ttl_ms": ConfigSetting(default=300000, value_type=int),
-    # consecutive connection failures before an upstream is marked error
-    "server_error_attempts": ConfigSetting(default=3, value_type=int, minimum=1),
-    # audit retention (days)
-    "audit_retention_days": ConfigSetting(default=90, value_type=int, minimum=0),
-    # lifetimes (seconds) of what the gateway's own OAuth server issues
-    "authorization_code_lifetime": ConfigSetting(default=600, value_type=int),
-    "access_token_lifetime": ConfigSetting(default=3600, value_type=int),
-    "refresh_token_lifetime": ConfigSetting(default=604800, value_type=int),
-    # bytes: a request body, and one upstream response message
-    "max_request_bytes": ConfigSetting(
-        default=4 * MIB, value_type=int, minimum=64 * KIB, maximum=64 * MIB
-    ),
-    "max_upstream_response_bytes": ConfigSetting(
-        default=16 * MIB, value_type=int, minimum=64 * KIB, maximum=64 * MIB
-    ),
-    # upstream sessions one replica holds open, in all and per server
-    "upstream_sessions_max": ConfigSetting(default=256, value_type=int, minimum=1),
-    "upstream_sessions_per_server_max": ConfigSetting(default=32, value_type=int, minimum=1),
-    # seconds an unused pooled upstream session is kept before it is closed
-    "upstream_session_idle_timeout": ConfigSetting(default=300, value_type=int, minimum=1),
+    key: _setting(field) for key, field in RuntimeSettings.model_fields.items()
 }
 
 

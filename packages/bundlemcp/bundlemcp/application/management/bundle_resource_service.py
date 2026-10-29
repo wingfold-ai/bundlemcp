@@ -32,8 +32,8 @@ class BundleResourceService(BundleContentService):
 
     async def list(self, bundle_name: str, *, offset: int, limit: int) -> Page[BundleResourceRead]:
         bundle = await self._bundle(bundle_name)
-        total, rows = await self._resources.page_for_bundle(bundle.id, offset=offset, limit=limit)
-        return Page.of(rows, total, offset=offset, limit=limit, read=BundleResourceRead.from_entity)
+        page_slice = await self._resources.page_for_bundle(bundle.id, offset=offset, limit=limit)
+        return Page.of(page_slice, offset=offset, limit=limit, read=BundleResourceRead.from_entity)
 
     async def get(self, bundle_name: str, name: str) -> BundleResourceRead:
         bundle = await self._bundle(bundle_name)
@@ -96,7 +96,9 @@ class BundleResourceService(BundleContentService):
         log.info("bundle_resource.deleted", bundle=bundle.name, resource=name)
 
     async def _embedding_prompts(self, bundle: Bundle, name: str) -> list[str]:
-        _, prompts = await self._uow.bundle_prompts.page_for_bundle(
-            bundle.id, offset=0, limit=self._limits.max_prompts
-        )
+        prompts = (
+            await self._uow.bundle_prompts.page_for_bundle(
+                bundle.id, offset=0, limit=self._limits.max_prompts
+            )
+        ).items
         return [prompt.name for prompt in prompts if name in prompt.resource_names]

@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.domain.endpoints.endpoint import Endpoint
 from bundlemcp.infrastructure.postgres.rows.endpoint_row import EndpointRow
 from bundlemcp.infrastructure.postgres.sqlalchemy_repository import SqlAlchemyRepository
@@ -14,7 +15,7 @@ class SqlAlchemyEndpointRepository(SqlAlchemyRepository[Endpoint, EndpointRow]):
     async def for_bundle(self, bundle_id: uuid.UUID) -> list[Endpoint]:
         return await self.all(EndpointRow.bundle_id == bundle_id)
 
-    async def page(self, *, offset: int, limit: int) -> tuple[int, list[Endpoint]]:
+    async def page(self, *, offset: int, limit: int) -> PageSlice[Endpoint]:
         return await super().page(
             offset=offset, limit=limit, order_by=(EndpointRow.created_at, EndpointRow.id)
         )
