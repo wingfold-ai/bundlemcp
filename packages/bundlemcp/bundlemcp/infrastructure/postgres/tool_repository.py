@@ -3,6 +3,7 @@ from collections.abc import Iterable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.domain.servers.tool import Tool
 from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
 from bundlemcp.infrastructure.postgres.sqlalchemy_repository import SqlAlchemyRepository
@@ -23,7 +24,7 @@ class SqlAlchemyToolRepository(SqlAlchemyRepository[Tool, ToolRow]):
 
     async def page_for_server(
         self, server_id: uuid.UUID, *, offset: int, limit: int
-    ) -> tuple[int, list[Tool]]:
+    ) -> PageSlice[Tool]:
         return await super().page(
             ToolRow.server_id == server_id, offset=offset, limit=limit, order_by=(ToolRow.name,)
         )

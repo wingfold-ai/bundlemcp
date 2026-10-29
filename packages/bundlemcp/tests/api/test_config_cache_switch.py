@@ -20,9 +20,9 @@ async def test_ses22_with_caching_off_a_change_needs_no_invalidation_event():
     """SES-22: the next read sees a stored change without any event announcing it."""
     units = InMemoryUnitOfWorkFactory()
     config = RuntimeConfig(units, cache_disabled=True)
-    assert await config.get("call_timeout") == 60.0
+    assert (await config.settings()).call_timeout == 60.0
     units.uow.config_entries.add(ConfigEntry(key="call_timeout", value=5.0))
-    assert await config.get("call_timeout") == 5.0
+    assert (await config.settings()).call_timeout == 5.0
 
 
 def test_ses22_the_runtime_config_tests_pass_with_caching_off():

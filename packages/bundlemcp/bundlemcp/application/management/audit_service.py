@@ -12,5 +12,5 @@ class AuditService:
         self._records = uow.audit_records
 
     async def list(self, filter_: AuditFilter, *, offset: int, limit: int) -> Page[AuditRecordRead]:
-        total, rows = await self._records.page(filter_, offset=offset, limit=limit)
-        return Page.of(rows, total, offset=offset, limit=limit, read=AuditRecordRead.from_entity)
+        page_slice = await self._records.page(filter_, offset=offset, limit=limit)
+        return Page.of(page_slice, offset=offset, limit=limit, read=AuditRecordRead.from_entity)

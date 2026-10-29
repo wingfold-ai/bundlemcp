@@ -232,9 +232,9 @@ class DiscoveryService:
         ids: list[uuid.UUID] = []
         async with self._units.open() as uow:
             while True:
-                total, page = await uow.servers.page(offset=len(ids), limit=SWEEP_PAGE_SIZE)
-                ids.extend(server.id for server in page)
-                if not page or len(ids) >= total:
+                page = await uow.servers.page(offset=len(ids), limit=SWEEP_PAGE_SIZE)
+                ids.extend(server.id for server in page.items)
+                if not page.items or len(ids) >= page.total:
                     return ids
 
     async def _headers(self, server: McpServer) -> dict[str, str]:

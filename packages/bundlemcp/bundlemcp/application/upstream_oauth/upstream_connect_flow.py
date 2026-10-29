@@ -45,11 +45,8 @@ class UpstreamConnectFlow:
     async def metadata(self, server: McpServer) -> UpstreamMetadata:
         """Configured or remembered endpoints win; otherwise discover them from the server."""
         config = await self._tokens.find_client_config(server.id)
-        cached = config.metadata if config is not None else {}
-        if cached.get("authorization_endpoint") and cached.get("token_endpoint"):
-            meta = UpstreamMetadata(**cached)
-        else:
-            meta = await self._provider.discover(server.url)
+        remembered = config.metadata.remembered_endpoints if config is not None else None
+        meta = remembered or await self._provider.discover(server.url)
         if not meta.resource:  # remembered before resources were recorded
             meta = meta.model_copy(update={"resource": canonical_resource(server.url)})
         return meta

@@ -31,8 +31,8 @@ class BundlePromptService(BundleContentService):
 
     async def list(self, bundle_name: str, *, offset: int, limit: int) -> Page[BundlePromptRead]:
         bundle = await self._bundle(bundle_name)
-        total, rows = await self._prompts.page_for_bundle(bundle.id, offset=offset, limit=limit)
-        return Page.of(rows, total, offset=offset, limit=limit, read=BundlePromptRead.from_entity)
+        page_slice = await self._prompts.page_for_bundle(bundle.id, offset=offset, limit=limit)
+        return Page.of(page_slice, offset=offset, limit=limit, read=BundlePromptRead.from_entity)
 
     async def get(self, bundle_name: str, name: str) -> BundlePromptRead:
         bundle = await self._bundle(bundle_name)

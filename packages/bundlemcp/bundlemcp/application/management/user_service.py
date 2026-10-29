@@ -17,8 +17,8 @@ class UserService:
         self._clock = clock
 
     async def list(self, *, offset: int, limit: int) -> Page[UserRead]:
-        total, rows = await self._uow.users.page(offset=offset, limit=limit)
-        return Page.of(rows, total, offset=offset, limit=limit, read=UserRead.from_entity)
+        page_slice = await self._uow.users.page(offset=offset, limit=limit)
+        return Page.of(page_slice, offset=offset, limit=limit, read=UserRead.from_entity)
 
     async def deactivate(self, user_id: uuid.UUID) -> UserRead:
         """Deactivation revokes tokens, consents, upstream connections and (implicitly) sessions.

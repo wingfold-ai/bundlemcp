@@ -37,7 +37,7 @@ async def _seeded(engine, redis, *ages: int) -> SqlAlchemyUnitOfWorkFactory:
 
 async def _ages(units) -> list[int]:
     async with units.open() as uow:
-        _total, rows = await uow.audit_records.page(AuditFilter(), offset=0, limit=100)
+        rows = (await uow.audit_records.page(AuditFilter(), offset=0, limit=100)).items
     return sorted((NOW - row.created_at).days for row in rows)
 
 

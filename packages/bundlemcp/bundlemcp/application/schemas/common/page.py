@@ -1,6 +1,8 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 
 from pydantic import BaseModel, Field
+
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 
 
 class Page[T](BaseModel):
@@ -14,12 +16,16 @@ class Page[T](BaseModel):
     @classmethod
     def of[E](
         cls,
-        rows: Sequence[E],
-        total: int,
+        page_slice: PageSlice[E],
         *,
         offset: int,
         limit: int,
         read: Callable[[E], T],
     ) -> "Page[T]":
-        """The page a repository query returned, each row rendered through ``read``."""
-        return cls(items=[read(row) for row in rows], total=total, offset=offset, limit=limit)
+        """The page a repository query returned, each entity rendered through ``read``."""
+        return cls(
+            items=[read(entity) for entity in page_slice.items],
+            total=page_slice.total,
+            offset=offset,
+            limit=limit,
+        )

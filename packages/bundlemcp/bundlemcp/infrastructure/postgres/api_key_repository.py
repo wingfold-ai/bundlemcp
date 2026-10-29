@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.domain.access.api_key import ApiKey
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
@@ -16,7 +17,7 @@ class SqlAlchemyApiKeyRepository(SqlAlchemyRepository[ApiKey, ApiKeyRow]):
     async def any_of_kind(self, kind: ApiKeyKind) -> ApiKey | None:
         return await self.one(ApiKeyRow.kind == kind)
 
-    async def page(self, *, offset: int, limit: int) -> tuple[int, list[ApiKey]]:
+    async def page(self, *, offset: int, limit: int) -> PageSlice[ApiKey]:
         return await super().page(
             offset=offset, limit=limit, order_by=(ApiKeyRow.created_at, ApiKeyRow.id)
         )

@@ -13,7 +13,6 @@ from bundlemcp.domain.servers.self_reference import (
     self_reference_refusal,
 )
 from bundlemcp.domain.shared.resource_names import server_name as server_name_type
-from bundlemcp.domain.upstream_oauth.upstream_client_config import GRANT_KEY
 from bundlemcp.domain.upstream_oauth.upstream_grant import UpstreamGrant
 
 
@@ -58,9 +57,7 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         if not (server.uses_upstream_oauth and server.is_per_user):
             return
         client = await self._uow.upstream_clients.for_server(server.id)
-        if client is not None and (client.metadata_ or {}).get(GRANT_KEY) == (
-            UpstreamGrant.CLIENT_CREDENTIALS
-        ):
+        if client is not None and client.metadata_.grant == UpstreamGrant.CLIENT_CREDENTIALS:
             raise PreconditionError(
                 "the server's upstream OAuth client uses client credentials, which cannot act "
                 "for individual users; store an authorization-code client first (UPS-35)"
@@ -80,9 +77,9 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
 
     async def list_tools(self, name: str, *, offset: int, limit: int) -> Page[ToolRead]:
         server = await self._get(name)
-        total, rows = await self._uow.tools.page_for_server(server.id, offset=offset, limit=limit)
+        page_slice = await self._uow.tools.page_for_server(server.id, offset=offset, limit=limit)
         return Page.of(
-            rows, total, offset=offset, limit=limit, read=lambda tool: ToolRead.of(tool, server)
+            page_slice, offset=offset, limit=limit, read=lambda tool: ToolRead.of(tool, server)
         )
 
     async def refresh_tools(self, name: str, *, prune: bool = False) -> DiscoveryResult:

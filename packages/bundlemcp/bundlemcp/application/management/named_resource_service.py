@@ -70,8 +70,8 @@ class NamedResourceService[TEntity, TRead: EntityRead]:
         return await self._save(entity, name=new_name, created=False)
 
     async def list(self, *, offset: int, limit: int) -> Page[TRead]:
-        total, rows = await self._repo.page(offset=offset, limit=limit)
-        return Page.of(rows, total, offset=offset, limit=limit, read=self._read)
+        page_slice = await self._repo.page(offset=offset, limit=limit)
+        return Page.of(page_slice, offset=offset, limit=limit, read=self._read)
 
     async def get(self, name: str) -> TRead:
         return self._read(await self._get(name))

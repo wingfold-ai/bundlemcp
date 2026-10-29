@@ -76,7 +76,7 @@ current implementation, so nobody documents it as done:
 - **There is no `Content-Type` check.** The size limit and the JSON parse are the
   whole of stages 1 and 2.
 
-The limit is read from the runtime-config snapshot (`RuntimeConfig.current`), never
+The limit is read from the runtime-config snapshot (`RuntimeConfig.snapshot`), never
 from Postgres, so stage 1 stays free of I/O even though operators can change it.
 
 ## 4. Honest Pattern Modeling Over Flat Conditionals

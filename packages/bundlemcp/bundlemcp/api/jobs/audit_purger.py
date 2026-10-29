@@ -44,7 +44,7 @@ class AuditPurger:
         """Purge, or return None when another replica holds this interval's lease."""
         if not await self._lease.acquire(LEASE_KEY, ttl_seconds=self._lease_seconds):
             return None
-        days = int(await self._runtime_config.get("audit_retention_days"))
+        days = (await self._runtime_config.settings()).audit_retention_days
         removed = await self._retention.purge_older_than(days)
         if removed:
             log.info("audit.purged", removed=removed, retention_days=days)

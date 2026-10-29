@@ -6,6 +6,7 @@ import structlog
 from sqlalchemy import ColumnElement, Text, and_, cast, not_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.application.contracts.persistence.stored_ciphertext import StoredCiphertext
 from bundlemcp.application.contracts.secret_cipher import DecryptionError, SecretCipher
 from bundlemcp.domain.servers.mcp_server import McpServer
@@ -80,7 +81,7 @@ class SqlAlchemyServerRepository(SqlAlchemyRepository[McpServer, McpServerRow]):
 
     # ---- queries --------------------------------------------------------------------------
 
-    async def page(self, *, offset: int, limit: int) -> tuple[int, list[McpServer]]:
+    async def page(self, *, offset: int, limit: int) -> PageSlice[McpServer]:
         return await super().page(
             offset=offset, limit=limit, order_by=(McpServerRow.created_at, McpServerRow.id)
         )

@@ -1,7 +1,8 @@
 import uuid
-from typing import Any
 
 from pydantic import BaseModel, Field
+
+from bundlemcp.domain.upstream_oauth.upstream_client_metadata import UpstreamClientMetadata
 
 
 class UpstreamOAuthClient(BaseModel):
@@ -17,7 +18,8 @@ class UpstreamOAuthClient(BaseModel):
         default=None,
         description="Client secret, encrypted at rest. Never returned by the API",
     )
-    metadata_: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Endpoints and scopes discovered from the upstream authorization server",
+    metadata_: UpstreamClientMetadata = Field(
+        default_factory=UpstreamClientMetadata,
+        description="Endpoints discovered from the upstream authorization server, and how the "
+        "client was obtained",
     )

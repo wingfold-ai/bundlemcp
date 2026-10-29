@@ -4,6 +4,8 @@ import asyncio
 
 import pytest
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
+from bundlemcp.domain.config.config_registry import coerce
+from bundlemcp.domain.config.runtime_settings import RuntimeSettings
 from bundlemcp.domain.config.unknown_config_key import UnknownConfigKey
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.sqlalchemy_unit_of_work import SqlAlchemyUnitOfWorkFactory
@@ -23,10 +25,12 @@ def _app(engine, redis):
 
 async def test_defaults_served(engine, redis):
     rc = RuntimeConfig(SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis))
-    assert await rc.get("call_timeout") == 60.0
-    assert await rc.get("reset_timeout_on_progress") is True
+    settings = await rc.settings()
+    assert settings.call_timeout == 60.0
+    assert settings.reset_timeout_on_progress is True
+    assert settings == RuntimeSettings()
     with pytest.raises(UnknownConfigKey):
-        await rc.get("nonsense")
+        coerce("nonsense", 1)
 
 
 async def test_put_validates_and_overrides(service_client):
@@ -62,14 +66,14 @@ async def test_cross_instance_invalidation(engine, redis: FakeRedis):
     ) as http_a:
         async with app_a.router.lifespan_context(app_a), app_b.router.lifespan_context(app_b):
             rc_b: RuntimeConfig = app_b.state.container.runtime_config
-            assert await rc_b.get("call_timeout") == 60.0  # cached on B
+            assert (await rc_b.settings()).call_timeout == 60.0  # cached on B
 
             resp = await http_a.put("/api/v1/config/call_timeout", json={"value": 90})
             assert resp.status_code == 200
 
             # B's cache must be flushed by the invalidation event (within the propagation budget)
             for _ in range(50):
-                if await rc_b.get("call_timeout") == 90.0:
+                if (await rc_b.settings()).call_timeout == 90.0:
                     break
                 await asyncio.sleep(0.05)
-            assert await rc_b.get("call_timeout") == 90.0
+            assert (await rc_b.settings()).call_timeout == 90.0

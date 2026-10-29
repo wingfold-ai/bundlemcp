@@ -1,14 +1,8 @@
-from typing import Any
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from bundlemcp.domain.upstream_oauth.client_identification import ClientIdentification
+from bundlemcp.domain.upstream_oauth.upstream_client_metadata import UpstreamClientMetadata
 from bundlemcp.domain.upstream_oauth.upstream_grant import UpstreamGrant
-
-# Keys the gateway keeps beside the authorization server's endpoints in a client's metadata.
-IDENTIFICATION_KEY = "identification"
-GRANT_KEY = "grant_type"
-STEP_UP_KEY = "step_up_scopes"
 
 
 class UpstreamClientConfig(BaseModel):
@@ -20,8 +14,8 @@ class UpstreamClientConfig(BaseModel):
     client_secret: str | None = Field(
         default=None, repr=False, description="Decrypted client secret; absent for public clients"
     )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict,
+    metadata: UpstreamClientMetadata = Field(
+        default_factory=UpstreamClientMetadata,
         description="Authorization server endpoints as configured or previously discovered, "
         "plus how the client came to be",
     )
@@ -29,24 +23,22 @@ class UpstreamClientConfig(BaseModel):
     @property
     def identification(self) -> ClientIdentification:
         """How this client was obtained; a record without one was stored by an admin."""
-        return ClientIdentification(
-            self.metadata.get(IDENTIFICATION_KEY, ClientIdentification.PREREGISTERED)
-        )
+        return self.metadata.identification
 
     @property
     def grant(self) -> UpstreamGrant:
-        return UpstreamGrant(self.metadata.get(GRANT_KEY, UpstreamGrant.AUTHORIZATION_CODE))
+        return self.metadata.grant
 
     @property
     def issuer(self) -> str | None:
         """The authorization server this client belongs to, when it is known."""
-        return self.metadata.get("issuer")
+        return self.metadata.endpoints.issuer if self.metadata.endpoints is not None else None
 
     @property
     def step_up_scopes(self) -> list[str]:
-        return list(self.metadata.get(STEP_UP_KEY) or [])
+        return list(self.metadata.step_up_scopes)
 
     @property
     def is_admin_stored(self) -> bool:
         """An admin entered it; the gateway never discards or replaces it on its own."""
-        return self.identification == ClientIdentification.PREREGISTERED
+        return self.metadata.is_admin_stored

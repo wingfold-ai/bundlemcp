@@ -1,4 +1,4 @@
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
@@ -8,15 +8,16 @@ from bundlemcp.domain.servers.probed_entry import ProbedEntry
 from bundlemcp.domain.servers.probed_listing import ProbedListing
 from bundlemcp.domain.servers.probed_server_info import ProbedServerInfo
 from bundlemcp.domain.servers.probed_tool import ProbedTool
+from bundlemcp.domain.servers.server_capabilities import ServerCapabilities
 
 
 class ProbeResult(BaseModel):
     """What one connection to an upstream server revealed."""
 
     tools: list[ProbedTool] = Field(description="The tools the server listed")
-    capabilities: dict[str, Any] | None = Field(
-        description="The capabilities the server advertised, as it serialises them; None when "
-        "the connection reported none"
+    capabilities: ServerCapabilities | None = Field(
+        description="The capabilities the server advertised; None when the connection "
+        "reported none"
     )
     protocol_version: str | None = Field(
         description="The MCP revision negotiated with the server; None when unknown"

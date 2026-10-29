@@ -8,6 +8,8 @@ from sqlalchemy import ColumnElement, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, func, select
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
+
 
 class SqlAlchemyRepository[TEntity: BaseModel, TRow: SQLModel]:
     """Reads rows and returns entities; stages entities and writes rows.
@@ -103,14 +105,14 @@ class SqlAlchemyRepository[TEntity: BaseModel, TRow: SQLModel]:
 
     async def page(
         self, *criteria: ColumnElement[bool], offset: int, limit: int, order_by: Sequence[Any]
-    ) -> tuple[int, list[TEntity]]:
+    ) -> PageSlice[TEntity]:
         """One page of results plus the total the page was cut from."""
         total = await self.count(*criteria)
         statement = (
             select(self._row).where(*criteria).order_by(*order_by).offset(offset).limit(limit)
         )
         rows = [self._to_entity(r) for r in (await self._session.execute(statement)).scalars()]
-        return total, rows
+        return PageSlice(items=rows, total=total)
 
     async def delete_where(self, *criteria: ColumnElement[bool]) -> int:
         """Delete every row the criteria match, in one statement; returns how many."""

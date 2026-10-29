@@ -1,5 +1,6 @@
 from typing import Protocol, runtime_checkable
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.application.contracts.persistence.repository import Repository
 from bundlemcp.domain.access.api_key import ApiKey
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
@@ -17,6 +18,6 @@ class ApiKeyRepository(Repository[ApiKey], Protocol):
         """Some key of this kind, or None when none exists."""
         ...
 
-    async def page(self, *, offset: int, limit: int) -> tuple[int, list[ApiKey]]:
+    async def page(self, *, offset: int, limit: int) -> PageSlice[ApiKey]:
         """One page in creation order, plus the total."""
         ...

@@ -239,12 +239,12 @@ class _Session:
             return None
         members = await self._uow.memberships.for_bundle(bundle.id)
         curations = await self._uow.curations.for_bundle(bundle.id)
-        _, prompts = await self._uow.bundle_prompts.page_for_bundle(
-            bundle.id, offset=0, limit=10_000
-        )
-        _, resources = await self._uow.bundle_resources.page_for_bundle(
-            bundle.id, offset=0, limit=10_000
-        )
+        prompts = (
+            await self._uow.bundle_prompts.page_for_bundle(bundle.id, offset=0, limit=10_000)
+        ).items
+        resources = (
+            await self._uow.bundle_resources.page_for_bundle(bundle.id, offset=0, limit=10_000)
+        ).items
         return (
             _plain(bundle),
             sorted(_plain(m, "id") for m in members),

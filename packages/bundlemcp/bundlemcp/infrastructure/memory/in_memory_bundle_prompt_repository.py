@@ -1,5 +1,6 @@
 import uuid
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.domain.bundles.bundle_prompt import BundlePrompt
 from bundlemcp.domain.bundles.prompt_listing import PromptListing
 from bundlemcp.infrastructure.memory.in_memory_repository import InMemoryRepository
@@ -18,7 +19,7 @@ class InMemoryBundlePromptRepository(InMemoryRepository[BundlePrompt]):
 
     async def page_for_bundle(
         self, bundle_id: uuid.UUID, *, offset: int, limit: int
-    ) -> tuple[int, list[BundlePrompt]]:
+    ) -> PageSlice[BundlePrompt]:
         return self._page(
             self.where(lambda p: p.bundle_id == bundle_id),
             offset=offset,
