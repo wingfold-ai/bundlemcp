@@ -6,40 +6,12 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
-## [0.1.21] - 2026-10-29
+## [0.2.0] - 2026-10-29
 
-### Added
+### Fixed
 
-- Add `deploy/stack.sh secrets` (`make secrets`), which generates any development secret `deploy/.env` lacks, or still
-  holds at its published value, without starting the stack. ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-
-### Changed
-
-- The development stack's host ports (gateway, web app, Keycloak, the demo upstream and the other side services) listen
-  on `127.0.0.1` only, so they are no longer reachable from the local network. To open them on purpose, pass your own
-  compose file after the stack's. ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- The quickstart now moves to a tunnel with `deploy/stack.sh rebuild`, and the setups page describes the generated
-  secrets, the refusal message and how to open the stack to a trusted LAN.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- Plain `docker compose up` without `deploy/.env` still starts with the development values, which are now reachable from
-  the local machine only. ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-
-### Security
-
-- `deploy/stack.sh` generates the initial service key, the token encryption key and the Keycloak admin console password
-  into `deploy/.env` (mode 0600) before every start, when they are missing or still hold the published development
-  values. The service key is printed once. Values you set yourself are never touched.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- The token encryption key is rotated rather than replaced: the new key goes first and the published one stays second,
-  so stored upstream tokens remain readable and are re-encrypted.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- In the `quick` and `ngrok` tunnel modes, the script checks the running gateway after startup. If it still accepts the
-  service key published in the repository, which an old data volume can keep, it stops the tunnel and proxy and exits
-  with status 3. It explains how to revoke the key or rebuild.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- Closes a hole where a default `make up` published a gateway through a public tunnel with a repository-known service
-  key, which gave full management access including secret export.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
+- **Breaking:** Grant admin by email only when the email is verified
+  ([#161](https://github.com/wingfold-ai/bundlemcp/pull/161))
 
 ## [0.1.20] - 2026-10-29
 

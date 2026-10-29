@@ -129,6 +129,8 @@ class JoseOidcProvider:
             issuer=claims["iss"],
             sub=claims["sub"],
             email=claims.get("email"),
+            # some providers (Amazon Cognito) send the boolean as the string "true"
+            email_verified=claims.get("email_verified") in (True, "true"),
             name=claims.get("name"),
             claims=claims,
         )
