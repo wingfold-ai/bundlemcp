@@ -1,7 +1,13 @@
-"""Every log line of a request carries who and what it is about (OPS-8, DEP-2)."""
+"""Every log line of a request carries who and what it is about (OPS-8, DEP-2), and a
+session-era request context always names its session."""
 
 import asyncio
 import json
+
+import pytest
+from bundlemcp.api.mcp.protocol.request_context import RequestContext
+from bundlemcp.api.mcp.protocol.session_request_context import SessionRequestContext
+from pydantic import ValidationError
 
 from tests.api.test_gateway import _initialize, _rpc, _running
 from tests.api.test_upstream_health_live_calls import SAY, SwitchableUpstreams
@@ -100,3 +106,18 @@ async def test_ops8_context_does_not_leak_between_concurrent_requests(engine, re
         assert mine
         assert {line["endpoint"] for line in mine} == {endpoint}
         assert {line["session_id"] for line in mine} == {session}
+
+
+def _session_errors(model: type[RequestContext], **fields) -> list[str]:
+    """The validation error types reported for ``session`` when building ``model``."""
+    with pytest.raises(ValidationError) as raised:
+        model(**fields)
+    return [error["type"] for error in raised.value.errors() if error["loc"] == ("session",)]
+
+
+def test_session_request_context_requires_a_session():
+    """A session-era request context cannot be built without a session record, where a
+    modern request's context may name none."""
+    assert _session_errors(SessionRequestContext) == ["missing"]
+    assert _session_errors(SessionRequestContext, session=None) == ["model_type"]
+    assert _session_errors(RequestContext, session=None) == []

@@ -11,6 +11,10 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
 
 from bundlemcp.application.contracts.secret_cipher import DecryptionError, SecretCipher
 
+RelayMode = Literal["parked", "passthrough"]
+"""How a call that asked the client for input continues: 'parked' waits on a replica for the
+answers; 'passthrough' re-issues the call with them, the upstream holding no state."""
+
 
 class StateRejected(Exception):
     """A requestState that is not ours, not this caller's, not this call's, or expired."""
@@ -30,7 +34,7 @@ class RequestState(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     correlation_id: str = Field(description="Key under which the parked call, if any, waits")
-    mode: Literal["parked", "passthrough"] = Field(
+    mode: RelayMode = Field(
         description="'parked': the upstream call waits on this replica set for the client's "
         "answers; 'passthrough': the upstream itself asked and holds no state, the retry "
         "re-issues the call with the answers"

@@ -13,6 +13,7 @@ from bundlemcp.api.mcp.relay.parking_channel import ParkingChannel
 from bundlemcp.api.mcp.relay.preanswered_channel import PreansweredChannel
 from bundlemcp.api.mcp.relay.relay_rejected import RelayRejected
 from bundlemcp.api.mcp.relay.request_state import (
+    RelayMode,
     RequestState,
     StateRejected,
     arguments_digest,
@@ -25,6 +26,7 @@ __all__ = [
     "InputChannel",
     "ParkingChannel",
     "PreansweredChannel",
+    "RelayMode",
     "RelayRejected",
     "RequestState",
     "ResumeInputs",
