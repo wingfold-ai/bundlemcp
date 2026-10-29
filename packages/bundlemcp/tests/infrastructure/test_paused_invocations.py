@@ -2,17 +2,22 @@
 
 import asyncio
 import time
+from datetime import UTC, datetime
 
 import pytest
 from bundlemcp.application.metering.meter_context import MeterContext
 from bundlemcp.application.metering.paused_invocation import PausedInvocation
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.endpoints.endpoint_profile import EndpointProfile
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.memory.in_memory_paused_invocations import (
     InMemoryPausedInvocations,
 )
+from bundlemcp.infrastructure.memory.manual_clock import ManualClock
 from bundlemcp.infrastructure.valkey.paused_invocations import (
     EXPIRY_INDEX,
+    INVOCATION_KEY,
+    SWEEP_GRACE_SECONDS,
     ValkeyPausedInvocations,
 )
 
@@ -42,7 +47,9 @@ def _paused(key: str, expires_at: float) -> PausedInvocation:
 @pytest.fixture(params=["valkey", "memory"])
 def invocations(request, redis):
     return (
-        ValkeyPausedInvocations(redis) if request.param == "valkey" else InMemoryPausedInvocations()
+        ValkeyPausedInvocations(redis, clock=SystemClock())
+        if request.param == "valkey"
+        else InMemoryPausedInvocations()
     )
 
 
@@ -66,8 +73,17 @@ async def test_prot26_only_overdue_records_are_found(invocations):
 
 
 async def test_prot26_a_claim_removes_the_record_from_the_expiry_index(redis):
-    store = ValkeyPausedInvocations(redis)
+    store = ValkeyPausedInvocations(redis, clock=SystemClock())
     await store.pause(_paused("k1", time.time() - 1))
     assert await store.claim("k1") is not None
     assert await redis.zcard(EXPIRY_INDEX) == 0
     assert await store.claim("k1") is None
+
+
+async def test_ses16_pause_ttl_follows_the_clock(redis):
+    """SES-16: the stored record lives for its expiry measured on the injected clock, plus the
+    sweep's grace, wherever the wall clock is."""
+    clock = ManualClock(datetime(2026, 10, 1, 9, tzinfo=UTC))
+    store = ValkeyPausedInvocations(redis, clock=clock)
+    await store.pause(_paused("k1", clock.now().timestamp() + 120))
+    assert await redis.ttl(INVOCATION_KEY.format(idempotency_key="k1")) == 120 + SWEEP_GRACE_SECONDS

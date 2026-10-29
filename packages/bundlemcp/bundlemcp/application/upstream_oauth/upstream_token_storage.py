@@ -235,6 +235,6 @@ class UpstreamTokenStorage:
         except DecryptionError:
             return None  # no held key reads it; the read itself reports that
         except Exception:
-            log.warning("token_encryption.reencrypt_failed", row_id=str(row_id))
+            log.warning("token_encryption.reencrypt_failed", row_id=str(row_id), exc_info=True)
             return None
         return rewritten if replaced else None

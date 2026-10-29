@@ -7,6 +7,7 @@ import pytest
 import structlog
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
+from bundlemcp.infrastructure.fastmcp.connect_mode import connect_mode
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.audit_record_row import AuditRecordRow
 from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
@@ -60,7 +61,7 @@ class RecordingFactory:
 
     def __call__(self, server, extra_headers, *, observer=None, **handlers):
         self.connections.append((server.name, {**server.static_headers, **extra_headers}))
-        return Client(weather, mode=server.protocol_mode)
+        return Client(weather, mode=connect_mode(server.protocol_mode))
 
 
 async def _seed(engine) -> None:

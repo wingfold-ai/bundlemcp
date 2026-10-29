@@ -7,7 +7,9 @@ from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.errors import PreconditionError
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.domain.endpoints.profiles import ProfileCatalog
+from bundlemcp.domain.servers.protocol_mode import NegotiationMode
 from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.crypto.token_cipher import TokenCipher
 from bundlemcp.infrastructure.memory.no_upstream_connections import NoUpstreamConnections
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
@@ -206,7 +208,7 @@ async def test_fresh_bootstrap_serves_discovered_tools(engine, redis):
     probe = FastMcpUpstreamProbe(factory_for(make_upstream(["ping"])))
     await BootstrapRunner(
         units,
-        InlineDiscovery(units, probe, health=_health(units, redis)),
+        InlineDiscovery(units, probe, health=_health(units, redis), clock=SystemClock()),
         cipher=None,
         connections=NoUpstreamConnections(),
         profiles=ProfileCatalog.builtin(),
@@ -232,7 +234,10 @@ async def test_failing_discovery_does_not_fail_a_strict_bootstrap(engine, redis)
     factory = session_factory(engine)
     units = SqlAlchemyUnitOfWorkFactory(factory, redis)
     discovery = InlineDiscovery(
-        units, FastMcpUpstreamProbe(failing_factory), health=_health(units, redis)
+        units,
+        FastMcpUpstreamProbe(failing_factory),
+        health=_health(units, redis),
+        clock=SystemClock(),
     )
     settings = EnvSettings(_env_file=None, bootstrap=json.dumps(DOC), bootstrap_strict=True)
     await BootstrapRunner(
@@ -338,3 +343,25 @@ async def test_mgmt10_an_unknown_scope_lands_nothing_of_the_document(engine, red
     async with session_factory(engine)() as db:
         assert (await db.execute(select(EndpointRow))).scalars().all() == []
         assert (await db.execute(select(McpServerRow))).scalars().all() == []
+
+
+async def test_ups10_bootstrap_document_may_use_the_legacy_alias(engine, redis):
+    """UPS-10: a bootstrap document naming the handshake-only mode 'legacy' creates the upstream
+    in 'session' mode."""
+    units = SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis)
+    runner = BootstrapRunner(
+        units,
+        NoopToolDiscovery(),
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
+    )
+    doc = {"upstreams": [{"name": "old", "url": "http://old/mcp", "protocol_mode": "legacy"}]}
+    await runner.apply(BootstrapDocument(**doc))
+    async with units.open() as uow:
+        server = await uow.servers.by_name("old")
+    assert server is not None
+    assert server.protocol_mode == NegotiationMode.SESSION

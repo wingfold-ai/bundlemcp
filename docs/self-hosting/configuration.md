@@ -129,6 +129,10 @@ claude.ai only.
 
 Secrets, tokens, header values and tool arguments are never written to the log at any level.
 
+A line logged with an exception carries its traceback in an `exception` field, in both formats: the exception's type,
+message and stack frames, but never a frame's local variables, the input a validation error rejected, or the
+parameters of a failed database statement.
+
 ### Tracing
 
 Tracing with OpenTelemetry is off by default and costs nothing while off. It needs the library's `otel` extra, which the

@@ -6,6 +6,7 @@ import pytest
 from bundlemcp.application.metering.meter_decision import MeterDecision
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
 from bundlemcp.domain.shared.secrets import display_prefix, hash_token
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
 from bundlemcp.infrastructure.postgres.rows.audit_record_row import AuditRecordRow
@@ -71,6 +72,11 @@ async def _seed(engine, url: str, static_headers: dict[str, str] | None = None) 
         await db.commit()
 
 
+def _sessions(redis) -> ValkeySessionStore:
+    """The session records the gateway under test wrote, read back directly."""
+    return ValkeySessionStore(redis, clock=SystemClock())
+
+
 def _settings():
     return hermetic_settings(
         egress_allow_cidrs=["127.0.0.1/32"],
@@ -124,7 +130,7 @@ async def test_ses5_ses6_two_replicas_continue_one_upstream_session(engine, redi
     assert upstream.initializes() == 1
     sent = {call.session_id for call in upstream.calls("tools/call")}
     assert len(sent) == 1
-    record = await ValkeySessionStore(redis).load(session_id)
+    record = await _sessions(redis).load(session_id)
     assert record is not None
     binding = record.bindings["echo"]
     assert binding.upstream_session_id == sent.pop()
@@ -139,14 +145,14 @@ async def test_ses7_an_upstream_restart_between_calls_is_invisible(engine, redis
         engine, redis, settings=settings, bearer=ENDPOINT_KEY, metering_hook=hook
     ) as (http, _):
         session_id = await _call_after_initialize(http)
-        before = (await ValkeySessionStore(redis).load(session_id)).bindings["echo"]
+        before = (await _sessions(redis).load(session_id)).bindings["echo"]
         upstream.forget()
         hook.pre_calls = hook.post_calls = 0
         result = await _call(http, session_id, id_=3)
     assert result["result"]["content"][0]["text"] == "said:hi"
     assert (hook.pre_calls, hook.post_calls) == (1, 1)
     assert upstream.initializes() == 2
-    after = (await ValkeySessionStore(redis).load(session_id)).bindings["echo"]
+    after = (await _sessions(redis).load(session_id)).bindings["echo"]
     assert after.upstream_session_id != before.upstream_session_id
 
 
@@ -186,7 +192,7 @@ async def test_ses4_ending_the_session_ends_its_upstream_sessions(engine, redis,
     """SES-4: DELETE on the endpoint sends DELETE for every bound upstream session."""
     async with serving(engine, redis, settings=_settings(), bearer=ENDPOINT_KEY) as (http, _):
         session_id = await _call_after_initialize(http)
-        bound = (await ValkeySessionStore(redis).load(session_id)).bindings["echo"]
+        bound = (await _sessions(redis).load(session_id)).bindings["echo"]
         resp = await http.request("DELETE", "/main/mcp", headers={"Mcp-Session-Id": session_id})
     assert resp.status_code == 204
     assert [call.session_id for call in upstream.deletes()] == [bound.upstream_session_id]
@@ -202,13 +208,13 @@ async def test_ses9_ses21_ups6_a_header_change_closes_another_replicas_transport
         async with serving(engine, redis, settings=settings, bearer=SERVICE_KEY) as (a, _):
             async with serving(engine, redis, settings=settings, bearer=ENDPOINT_KEY) as (b, _):
                 session_id = await _call_after_initialize(b)
-                first = (await ValkeySessionStore(redis).load(session_id)).bindings["echo"]
+                first = (await _sessions(redis).load(session_id)).bindings["echo"]
                 resp = await a.put(
                     "/api/v1/upstreams/echo",
                     json={
                         "name": "echo",
                         "url": url,
-                        "protocol_mode": "legacy",
+                        "protocol_mode": "session",
                         "static_headers": {"x-tenant": "b"},
                     },
                 )
@@ -219,7 +225,7 @@ async def test_ses9_ses21_ups6_a_header_change_closes_another_replicas_transport
                     await asyncio.sleep(0.05)
                 assert [d.session_id for d in recording.deletes()] == [first.upstream_session_id]
                 await _call(b, session_id, id_=3)
-        rebound = (await ValkeySessionStore(redis).load(session_id)).bindings["echo"]
+        rebound = (await _sessions(redis).load(session_id)).bindings["echo"]
     calls = recording.calls("tools/call")
     assert [call.headers.get("x-tenant") for call in calls] == ["a", "b"]
     assert rebound.upstream_session_id == calls[-1].session_id != first.upstream_session_id

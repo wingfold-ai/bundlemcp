@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
 from bundlemcp.domain.shared.secrets import display_prefix, hash_token
+from bundlemcp.infrastructure.fastmcp.connect_mode import connect_mode
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
 from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
@@ -70,7 +71,7 @@ def greeting_resource() -> str:
 
 
 def upstream_factory(server, extra_headers, *, observer=None, **handlers):
-    return Client(echo_server, mode=server.protocol_mode, **handlers)
+    return Client(echo_server, mode=connect_mode(server.protocol_mode), **handlers)
 
 
 async def _seed(engine: AsyncEngine) -> None:

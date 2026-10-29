@@ -10,6 +10,7 @@ from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.listing_snapshot_mode import ListingSnapshotMode
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.protocol_mode import ProtocolMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 
 
@@ -43,10 +44,10 @@ class ServerRead(EntityRead):
         description="What the server advertised at its last probe: which of tools, prompts, "
         "resources, completions and logging it supports, with its listChanged and subscribe flags",
     )
-    protocol_mode: str = Field(
+    protocol_mode: ProtocolMode = Field(
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
-        "(probe server/discover, fall back to initialize), 'legacy' (always initialize), "
-        "or a pinned revision date such as '2026-07-28'",
+        "(probe server/discover, fall back to initialize), 'session' (always initialize and "
+        "its session), or a pinned revision date such as '2026-07-28'",
     )
     listing_snapshot: ListingSnapshotMode = Field(
         description="How this server's prompt, resource and resource-template lists are "

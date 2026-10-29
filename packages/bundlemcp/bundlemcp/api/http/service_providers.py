@@ -110,8 +110,8 @@ def get_api_key_service(request: Request, uow: UnitOfWorkProvider) -> ApiKeyServ
     return ApiKeyService(uow, hasher=container.secret_hasher, generator=container.secret_generator)
 
 
-def get_user_service(uow: UnitOfWorkProvider) -> UserService:
-    return UserService(uow)
+def get_user_service(request: Request, uow: UnitOfWorkProvider) -> UserService:
+    return UserService(uow, clock=request.app.state.container.clock)
 
 
 def get_config_service(uow: UnitOfWorkProvider) -> ConfigService:

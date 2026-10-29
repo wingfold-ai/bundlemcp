@@ -114,7 +114,7 @@ def configure() -> None:
         # which only the handshake era carries
         api.put(
             f"/upstreams/{UPSTREAM}",
-            json={"name": UPSTREAM, "url": UPSTREAM_URL, "protocol_mode": "legacy"},
+            json={"name": UPSTREAM, "url": UPSTREAM_URL, "protocol_mode": "session"},
         ).raise_for_status()
         discovered = 0
         for _ in range(30):

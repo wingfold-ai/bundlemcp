@@ -79,7 +79,7 @@ server run directly with `transport="http"`.
   sidecar is FastMCP-based, pass `allowed_hosts=["fs-mcp", "fs-mcp:8080"]` to `run()`, or the gateway's probes fail with
   a 421.
 - **Protocol era.** A wrapped stdio server negotiates through the sidecar. If its tools rely on server-initiated
-  requests such as elicitation, set the registered server's `protocol_mode` to `legacy`.
+  requests such as elicitation, set the registered server's `protocol_mode` to `session`.
 - **Identity.** The sidecar receives `X-MCP-User` and any forwarded headers like any upstream, but a stdio server behind
   it usually cannot read them. Use `shared` semantics for such servers.
 - **One process per sidecar.** Run one sidecar per stdio server rather than multiplexing; it keeps health status per

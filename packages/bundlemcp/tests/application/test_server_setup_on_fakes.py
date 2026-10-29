@@ -359,9 +359,9 @@ async def test_ups13_identity_header_defaults_by_network_and_is_kept_on_update(u
 
 async def test_ups10_an_update_without_protocol_mode_keeps_the_pin(uow):
     servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
-    await servers.upsert(ServerUpsert(name="old", url="http://old/mcp", protocol_mode="legacy"))
+    await servers.upsert(ServerUpsert(name="old", url="http://old/mcp", protocol_mode="session"))
     kept = await servers.upsert(ServerUpsert(name="old", url="http://old/mcp", description="d"))
-    assert kept.protocol_mode == "legacy"
+    assert kept.protocol_mode == "session"
 
 
 async def test_ups1_auth_mode_follows_the_stored_headers(uow):
@@ -424,6 +424,7 @@ async def test_ups12_discovery_records_what_each_probe_found(uow):
         InMemoryUnitOfWorkFactory(uow),
         probe,
         health=health_on(uow),
+        clock=SystemClock(),
         diagnoser=ConnectionDiagnoser(Provider()),
     )
     result = await service.discover(server.id)
@@ -445,6 +446,7 @@ async def test_ups12_a_refused_key_is_not_mistaken_for_oauth(uow):
         InMemoryUnitOfWorkFactory(uow),
         probe,
         health=health_on(uow),
+        clock=SystemClock(),
         diagnoser=ConnectionDiagnoser(Provider()),
     )
     result = await service.discover(server.id)

@@ -287,3 +287,18 @@ async def test_mgmt21_an_import_never_creates_api_keys(gateway):
     assert report["applied"] is False
     assert [(r["kind"], r["outcome"]) for r in report["results"]] == [("api_key", "error")]
     assert (await http.get("/api/v1/upstreams/fresh")).status_code == 404
+
+
+async def test_ups10_export_says_session(gateway, engine):
+    """UPS-10: an import document may name the handshake-only mode by its deprecated alias
+    'legacy'; the upstream is created in 'session' mode, and an export of it says 'session'."""
+    http, _ = gateway
+    doc = {
+        "version": 1,
+        "upstreams": [{"name": "old", "url": "http://old/mcp", "protocol_mode": "legacy"}],
+    }
+    report = (await http.post("/api/v1/import", json=doc)).json()
+    assert report["applied"] is True
+    assert (await http.get("/api/v1/upstreams/old")).json()["protocol_mode"] == "session"
+    exported = (await http.get("/api/v1/export")).json()
+    assert [(u["name"], u["protocol_mode"]) for u in exported["upstreams"]] == [("old", "session")]

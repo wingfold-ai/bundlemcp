@@ -139,7 +139,9 @@ class FastMcpUpstreamProbe:
                     break
                 cursors.add(cursor)
         except Exception:
-            log.warning("discovery.listing_failed", server=server.name, kind=kind.value)
+            log.warning(
+                "discovery.listing_failed", server=server.name, kind=kind.value, exc_info=True
+            )
             return None
         complete = ended and len(entries) <= MEMBER_LISTING_LIMIT
         if not complete:

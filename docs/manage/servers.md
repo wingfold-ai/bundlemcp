@@ -96,7 +96,7 @@ repeatedly `PUT`ting desired state.
 | `forward_headers` | `{}` | Client headers to pass through, incoming name → upstream name. Denied headers are rejected with 422. |
 | `send_identity_header` | derived | Inject `X-MCP-User` with the caller's identity. Omitted on create: on for a host on the gateway's own network (dotless names, `.local`, `.internal`, `.svc`, private addresses), off for public hosts. Omitted on update: unchanged. |
 | `identity_mode` | `shared` | `shared` or `per_user`; only meaningful with upstream OAuth. |
-| `protocol_mode` | `auto` | `auto`, `legacy`, or a pinned revision such as `2026-07-28`. Omitted on update: unchanged. |
+| `protocol_mode` | `auto` | `auto`, `session`, or a pinned revision such as `2026-07-28`; `legacy` is a deprecated alias of `session`, read back as `session`. Omitted on update: unchanged. |
 | `listing_snapshot` | `auto` | `auto`, `shared` or `live`: whether prompt and resource lists are served from what discovery stored ([Prompt and resource lists](#prompt-and-resource-lists)). Omitted on update: unchanged. Changing it does not probe the server. |
 | `transport` | omitted | Accepted for compatibility; only `streamable-http` is valid. |
 | `force` | `false` | Acknowledge a rename that would otherwise be rejected. |
@@ -247,7 +247,7 @@ Details for the server side are in
 | Value | Behaviour |
 |---|---|
 | `auto` | Probe the modern `server/discover` first, fall back to the `initialize` handshake. |
-| `legacy` | Always use the handshake. Only for a server that speaks both eras but serves server-initiated requests (elicitation, sampling) on the handshake path only. |
+| `session` | Always use the handshake and its session (`legacy`, the former name, is accepted as a deprecated alias). Only for a server that speaks both eras but serves server-initiated requests (elicitation, sampling) on the handshake path only. |
 | `YYYY-MM-DD` | Pin one modern revision. |
 
 The negotiated revision is stored as `protocol_version` so you can see which servers still speak the handshake era.

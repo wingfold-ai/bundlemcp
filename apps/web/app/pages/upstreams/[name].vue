@@ -3,6 +3,7 @@ import type { components } from "~~/types/api";
 
 type UpstreamOAuthStatusRead = components["schemas"]["UpstreamOAuthStatusRead"];
 type ServerRead = components["schemas"]["ServerRead"];
+type ProtocolMode = components["schemas"]["ServerRead"]["protocol_mode"];
 type ToolRead = components["schemas"]["ToolRead"];
 
 const api = useApi();
@@ -59,7 +60,7 @@ const loadErrorMsg = computed(() =>
 const url = ref("");
 const description = ref("");
 const authMode = ref<"none" | "static_headers" | "upstream_oauth" | "delegated_token">("none");
-const protocolMode = ref("auto");
+const protocolMode = ref<ProtocolMode>("auto");
 const listingSnapshot = ref<"auto" | "shared" | "live">("auto");
 const identityMode = ref<"shared" | "per_user">("shared");
 const sendIdentityHeader = ref(true);
@@ -510,7 +511,7 @@ async function deleteServer() {
               data-testid="input-protocol-mode"
             >
               <option value="auto">auto — negotiate (recommended)</option>
-              <option value="legacy">legacy — always the initialize handshake</option>
+              <option value="session">session — always the initialize handshake</option>
               <option value="2026-07-28">pin 2026-07-28</option>
             </select>
           </div>

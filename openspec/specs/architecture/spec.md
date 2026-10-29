@@ -375,7 +375,7 @@ carry the same fields.
   prefix), `description`, `url` (Streamable HTTP endpoint), `static_headers` (json, write-only secrets),
   `forward_headers` (json, [auth](../auth/spec.md)), `auth_mode` (`none` |
   `static_headers` | `upstream_oauth` | `delegated_token`), `identity_mode`, `send_identity_header`, `capabilities`
-  (json snapshot captured at discovery, [UPS-22](../upstreams/spec.md)), `protocol_mode` (`auto` | `legacy` |
+  (json snapshot captured at discovery, [UPS-22](../upstreams/spec.md)), `protocol_mode` (`auto` | `session` |
   pinned revision) and `protocol_version` ([UPS-10](../upstreams/spec.md)), `listing_snapshot` (`auto` | `shared` |
   `live`, [UPS-38](../upstreams/spec.md)), `health_status` + `last_error`,
   `connection_state` ([UPS-12](../upstreams/spec.md)), `last_discovered_at` (last successful discovery),

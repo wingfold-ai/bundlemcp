@@ -1,11 +1,16 @@
-"""Row-level constraints the schema enforces: uniqueness and cascades (ARC-16, ARC-17)."""
+"""Row-level constraints the schema enforces: uniqueness and cascades (ARC-16, ARC-17), and the
+stored spelling of a server's protocol mode (UPS-10)."""
 
 import pytest
+from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.protocol_mode import NegotiationMode
+from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
 from bundlemcp.infrastructure.postgres.rows.bundle_server_row import BundleServerRow
 from bundlemcp.infrastructure.postgres.rows.bundle_tool_row import BundleToolRow
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
+from bundlemcp.infrastructure.postgres.sqlalchemy_unit_of_work import SqlAlchemyUnitOfWorkFactory
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
@@ -71,3 +76,25 @@ async def test_bundle_server_pair_unique(db):
     db.add(BundleServerRow(bundle_id=bundle.id, server_id=server.id))
     with pytest.raises(IntegrityError):
         await db.commit()
+
+
+async def test_ups10_stored_spelling_stays_readable_one_release_back(engine, redis):
+    """UPS-10, DEP-5: a server in 'session' mode is stored as 'legacy', the spelling the
+    previous release hands its MCP client, and a stored 'legacy' loads as 'session'; the other
+    modes are stored as they are."""
+    units = SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis)
+    async with units.open() as uow:
+        uow.servers.add(McpServer(name="pinned", url="http://p/mcp", protocol_mode="2026-07-28"))
+        uow.servers.add(McpServer(name="handshake", url="http://h/mcp", protocol_mode="session"))
+        uow.servers.add(McpServer(name="probing", url="http://a/mcp"))
+        await uow.commit()
+    async with session_factory(engine)() as db:
+        stored = {
+            row.name: row.protocol_mode
+            for row in (await db.execute(select(McpServerRow))).scalars()
+        }
+    assert stored == {"pinned": "2026-07-28", "handshake": "legacy", "probing": "auto"}
+    async with units.open() as uow:
+        loaded = await uow.servers.by_name("handshake")
+    assert loaded is not None
+    assert loaded.protocol_mode == NegotiationMode.SESSION

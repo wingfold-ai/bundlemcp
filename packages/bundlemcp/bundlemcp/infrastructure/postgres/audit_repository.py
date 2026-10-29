@@ -1,13 +1,31 @@
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import ColumnElement, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute
 
 from bundlemcp.application.management.audit_cursor import AuditCursor
 from bundlemcp.application.management.audit_filter import AuditFilter
 from bundlemcp.domain.audit.audit_record import AuditRecord
 from bundlemcp.infrastructure.postgres.rows.audit_record_row import AuditRecordRow
 from bundlemcp.infrastructure.postgres.sqlalchemy_repository import SqlAlchemyRepository
+
+_EQUALS: dict[str, InstrumentedAttribute[Any]] = {
+    "kind": AuditRecordRow.kind,  # type: ignore[dict-item]
+    "endpoint_name": AuditRecordRow.endpoint_name,  # type: ignore[dict-item]
+    "bundle_name": AuditRecordRow.bundle_name,  # type: ignore[dict-item]
+    "server_name": AuditRecordRow.server_name,  # type: ignore[dict-item]
+    "user_id": AuditRecordRow.user_id,  # type: ignore[dict-item]
+    "api_key_id": AuditRecordRow.api_key_id,  # type: ignore[dict-item]
+    "status": AuditRecordRow.status,  # type: ignore[dict-item]
+    "idempotency_key": AuditRecordRow.idempotency_key,  # type: ignore[dict-item]
+}
+"""The filter fields that must equal one column, keyed by filter field name.
+
+The time range and the tool narrowing, which matches either of two columns, are built
+beside this table in ``_criteria``.
+"""
 
 
 class SqlAlchemyAuditRepository(SqlAlchemyRepository[AuditRecord, AuditRecordRow]):
@@ -21,7 +39,7 @@ class SqlAlchemyAuditRepository(SqlAlchemyRepository[AuditRecord, AuditRecordRow
             *self._criteria(filter_),
             offset=offset,
             limit=limit,
-            order_by=(AuditRecordRow.created_at.desc(), AuditRecordRow.id),  # type: ignore[attr-defined]
+            order_by=(AuditRecordRow.created_at.desc(), AuditRecordRow.id.desc()),  # type: ignore[attr-defined]
         )
 
     async def page_after(
@@ -58,30 +76,18 @@ class SqlAlchemyAuditRepository(SqlAlchemyRepository[AuditRecord, AuditRecordRow
 
     @staticmethod
     def _criteria(filter_: AuditFilter) -> list[ColumnElement[bool]]:
-        clauses: list[ColumnElement[bool]] = []
+        clauses: list[ColumnElement[bool]] = [
+            column == getattr(filter_, field)
+            for field, column in _EQUALS.items()
+            if getattr(filter_, field) is not None
+        ]
         if filter_.created_from is not None:
             clauses.append(AuditRecordRow.created_at >= filter_.created_from)
         if filter_.created_to is not None:
             clauses.append(AuditRecordRow.created_at <= filter_.created_to)
-        if filter_.kind is not None:
-            clauses.append(AuditRecordRow.kind == filter_.kind)
-        if filter_.endpoint_name is not None:
-            clauses.append(AuditRecordRow.endpoint_name == filter_.endpoint_name)
-        if filter_.bundle_name is not None:
-            clauses.append(AuditRecordRow.bundle_name == filter_.bundle_name)
-        if filter_.server_name is not None:
-            clauses.append(AuditRecordRow.server_name == filter_.server_name)
         if filter_.tool_name is not None:
             clauses.append(
                 (AuditRecordRow.tool_name == filter_.tool_name)
                 | (AuditRecordRow.presented_tool_name == filter_.tool_name)
             )
-        if filter_.user_id is not None:
-            clauses.append(AuditRecordRow.user_id == filter_.user_id)
-        if filter_.api_key_id is not None:
-            clauses.append(AuditRecordRow.api_key_id == filter_.api_key_id)
-        if filter_.status is not None:
-            clauses.append(AuditRecordRow.status == filter_.status)
-        if filter_.idempotency_key is not None:
-            clauses.append(AuditRecordRow.idempotency_key == filter_.idempotency_key)
         return clauses
