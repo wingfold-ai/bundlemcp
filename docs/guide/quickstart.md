@@ -234,22 +234,29 @@ visible when you use `curl`. The full contract is in [Request envelope](/integra
 connect from their own servers on the internet, which cannot reach `localhost`. They need your gateway at a public
 HTTPS address.
 
-For a test, the quickest way there is a tunnel, which gives your local stack a temporary public URL. Stop the stack and
-start it again through `deploy/stack.sh`, which adds a Cloudflare tunnel and tells the gateway its new address:
+For a test, the quickest way there is a tunnel, which gives your local stack a temporary public URL. Start the stack
+again through `deploy/stack.sh`, which adds a Cloudflare tunnel and tells the gateway its new address:
 
 ```bash
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env down
-deploy/stack.sh up
+deploy/stack.sh rebuild
 ```
+
+`deploy/stack.sh` first generates a service key, a token encryption key and the identity provider's admin password into
+`deploy/.env` and prints the service key: from now on, use that key instead of `bmcp_sk_devservicekey…`. `rebuild`
+starts from empty volumes, because the database of the stack you just ran still holds the published development key,
+and the script refuses to open a tunnel while the gateway accepts it. To keep your data instead, revoke that key under
+**API keys** in the admin UI and run `deploy/stack.sh up`.
 
 It prints the URL to paste into each client, for example `https://<random-words>.trycloudflare.com/claude/mcp`. Then
 follow [Connect claude.ai](/connect/claude) or [Connect ChatGPT](/connect/chatgpt). The seeded `claude` and `chatgpt`
 endpoints are set up for them: OAuth sign-in, and the profile recommended for each client.
 
 ::: danger A tunnel publishes a development stack
-Everyone who learns the tunnel URL reaches a gateway with publicly known passwords and keys. Keep it up only while you
-test. [Local, tunnel or production](/self-hosting/setups) explains what a real deployment changes and lists every
-setting it needs.
+Everyone who learns the tunnel URL reaches your development gateway. Its keys are generated, but its identity provider
+and demo upstreams use development logins, its realm accepts any redirect URI, and it speaks plain HTTP behind the
+tunnel. Keep it up only while you test. [Local, tunnel or production](/self-hosting/setups) explains what a real
+deployment changes and lists every setting it needs.
 :::
 
 ## Tear down
