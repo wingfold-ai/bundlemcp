@@ -12,6 +12,7 @@ from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
 from bundlemcp.domain.sessions.upstream_session_key import UpstreamSessionKey
 from bundlemcp.infrastructure.fastmcp.lease_slot import LeaseSlot
+from bundlemcp.infrastructure.fastmcp.resource_watch import ResourceWatch
 
 
 class SessionState(StrEnum):
@@ -82,6 +83,11 @@ class PooledSession(BaseModel):
         default_factory=set,
         description="Resource URIs the session is subscribed to; while there are any it is "
         "kept open, since their updates arrive on it",
+    )
+    resource_watch: ResourceWatch | None = Field(
+        default=None,
+        description="How the session asks its upstream for resource updates, chosen by the "
+        "revision it negotiated; None until its transport is opened",
     )
     listener: asyncio.Task[None] | None = Field(
         default=None,

@@ -284,8 +284,9 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   fingerprint) is recorded in the session record, so another replica continues it without `initialize` (SES-5/6).
   Per-request credentials are injected by the `LeaseHeaders` auth flow, never fixed into the transport. Between calls a
   session's GET stream (handshake upstreams) or standing `subscriptions/listen` (modern upstreams) feeds
-  `UpstreamNotificationRouter`: list changes re-discover behind a Valkey gate, resource updates go to the streams in
-  the subscription index, log messages to the bound session's GET stream (PROT-7/10/23, ADR-0054).
+  `MemberNotificationRouter`, translated once at the pool into typed member notifications: list changes re-discover
+  behind a Valkey gate, resource updates go to the streams in the subscription index, log messages to the bound
+  session's GET stream; a re-opened listen stream refetches (PROT-7/10/23/30, ADR-0054, ADR-0062).
   `BUNDLEMCP_UPSTREAM_POOLING_ENABLED=false` swaps in `PerCallUpstreamSessions`.
 - **Identity forwarding (`protocol/header_forwarding.py`, `HeaderForwarding.headers_for`):** applies the server's
   `forward_headers` client→upstream map, skipping a deny-list (`host`, `content-length`, `cookie`, `x-api-key`,

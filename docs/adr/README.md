@@ -78,3 +78,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0059](0059-member-lists-served-from-the-discovery-snapshot.md) | Members' prompt and resource lists are served from the discovery snapshot | accepted |
 | [0060](0060-unauthenticated-fetches-use-a-public-only-egress-scope.md) | Unauthenticated fetches use a public-only egress scope | accepted |
 | [0061](0061-static-upstream-headers-encrypted-in-the-repository.md) | Static upstream headers are encrypted in the repository | accepted |
+| [0062](0062-member-notifications-typed-at-the-pool-boundary.md) | Member notifications are typed at the pool boundary | accepted |

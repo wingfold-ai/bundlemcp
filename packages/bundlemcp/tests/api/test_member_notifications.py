@@ -1,4 +1,4 @@
-"""What members say between calls reaches clients (PROT-7, PROT-10, PROT-17, PROT-23).
+"""What members say between calls reaches clients (PROT-7, PROT-10, PROT-17, PROT-23, PROT-30).
 
 The gateway and the upstream both run on loopback uvicorn: notifications
 travel on real event streams, which the in-process ASGI transport buffers.
@@ -29,7 +29,8 @@ from bundlemcp.main.composition_overrides import CompositionOverrides
 from fastmcp import Context, FastMCP
 from httpx import AsyncClient
 from mcp import types
-from mcp.shared.subscriptions import SUBSCRIPTION_ID_META_KEY
+from mcp.server.subscriptions import InMemorySubscriptionBus, ListenHandler
+from mcp.shared.subscriptions import SUBSCRIPTION_ID_META_KEY, ResourceUpdated
 from mcp.types import (
     CLIENT_CAPABILITIES_META_KEY,
     CLIENT_INFO_META_KEY,
@@ -41,6 +42,9 @@ from tests.conftest import ENDPOINT_KEY, hermetic_settings
 from tests.loopback_upstream import RecordingUpstream, serving_app, serving_upstream
 
 REPORT = "file:///report"
+OTHER = "file:///other"
+MODERN = "2026-07-28"
+MEMBER_META = {"io.example/trace": "member-hop"}
 CAPABILITIES = {
     "tools": {"listChanged": True},
     "resources": {"subscribe": True},
@@ -96,7 +100,45 @@ class Upstream:
         await asyncio.create_task(send(), context=contextvars.Context())
 
 
-async def _seed(engine, url: str) -> None:
+class ModernUpstream:
+    """A member pinned to the 2026-07-28 revision, which speaks only through listen streams.
+
+    Every ``subscriptions/listen`` it serves records the filter it was asked
+    for; ``drop_listens`` ends every open stream, as a restarting member would.
+    """
+
+    def __init__(self) -> None:
+        self.server = FastMCP("echo")
+        self.bus = InMemorySubscriptionBus()
+        self.listens: list[types.SubscriptionFilter] = []
+        listen = ListenHandler(self.bus)
+        self._listen = listen
+
+        @self.server.tool
+        def say(text: str) -> str:
+            return f"said:{text}"
+
+        @self.server.resource(REPORT)
+        def report() -> str:
+            return "the report"
+
+        async def serve_listen(ctx, params: types.SubscriptionsListenRequestParams):
+            self.listens.append(params.notifications)
+            return await listen(ctx, params)
+
+        self.server._mcp_server.add_request_handler(
+            "subscriptions/listen", types.SubscriptionsListenRequestParams, serve_listen
+        )
+        self.recording = RecordingUpstream(self.server)
+
+    def drop_listens(self) -> None:
+        self._listen.close()
+
+    async def publish(self, event) -> None:
+        await self.bus.publish(event)
+
+
+async def _seed(engine, url: str, protocol_mode: str = "legacy") -> None:
     async with session_factory(engine)() as db:
         db.add(
             ApiKeyRow(
@@ -107,7 +149,7 @@ async def _seed(engine, url: str) -> None:
             )
         )
         server = McpServerRow(
-            name="echo", url=url, protocol_mode="legacy", capabilities=CAPABILITIES
+            name="echo", url=url, protocol_mode=protocol_mode, capabilities=CAPABILITIES
         )
         bundle = BundleRow(name="main")
         db.add_all([server, bundle])
@@ -140,6 +182,14 @@ async def upstream(engine):
     member = Upstream()
     async with serving_upstream(member.recording) as url:
         await _seed(engine, url)
+        yield member
+
+
+@pytest.fixture
+async def modern(engine):
+    member = ModernUpstream()
+    async with serving_upstream(member.recording) as url:
+        await _seed(engine, url, protocol_mode=MODERN)
         yield member
 
 
@@ -409,3 +459,127 @@ async def test_prot10_prompt_list_change_refreshes_snapshot(engine, redis, upstr
     assert [p["name"] for p in listed["result"]["prompts"]] == ["echo__greet", "echo__farewell"]
     assert relisted >= 1
     assert len(upstream.recording.calls("prompts/list")) == relisted
+
+
+async def test_prot7_a_members_meta_is_not_relayed_with_its_log(engine, redis, upstream):
+    """PROT-7: a log relayed between calls carries level, logger and data, not the member's
+    own _meta."""
+    async with _gateway(engine, redis) as http:
+        session_id = await _initialize(http)
+        await _rpc(http, session_id, "logging/setLevel", {"level": "info"}, 3)
+        await _say(http, session_id)
+        stream = await _get_stream(http, session_id)
+        await upstream.announce(
+            types.LoggingMessageNotification(
+                params=types.LoggingMessageNotificationParams(
+                    level="error", logger="db", data="lost", _meta=MEMBER_META
+                )
+            )
+        )
+        event = await stream.wait_for("notifications/message")
+        await stream.close()
+    assert event["params"] == {"level": "error", "logger": "db", "data": "lost"}
+
+
+async def test_prot23_a_members_meta_is_not_relayed_with_an_update(engine, redis, upstream):
+    """PROT-23: a relayed resource update names the URI, without the member's own _meta."""
+    async with _gateway(engine, redis) as http:
+        session_id = await _initialize(http)
+        await _rpc(http, session_id, "resources/subscribe", {"uri": REPORT}, 3)
+        stream = await _get_stream(http, session_id)
+        await upstream.announce(
+            types.ResourceUpdatedNotification(
+                params=types.ResourceUpdatedNotificationParams(uri=REPORT, _meta=MEMBER_META)
+            )
+        )
+        event = await stream.wait_for("notifications/resources/updated")
+        await stream.close()
+    assert event["params"] == {"uri": REPORT}
+
+
+def _watching(member: ModernUpstream, uri: str) -> bool:
+    return any(uri in (listened.resource_subscriptions or ()) for listened in member.listens)
+
+
+async def test_prot23_a_modern_member_is_watched_through_its_listen_stream(engine, redis, modern):
+    """PROT-23: a modern member gets no resources/subscribe; its listen filter names the URI,
+    and an update it publishes reaches the client's GET stream."""
+    async with _gateway(engine, redis) as http:
+        session_id = await _initialize(http)
+        await _rpc(http, session_id, "resources/subscribe", {"uri": REPORT}, 3)
+        await _until(lambda: _watching(modern, REPORT))
+        stream = await _get_stream(http, session_id)
+        await modern.publish(ResourceUpdated(uri=REPORT))
+        event = await stream.wait_for("notifications/resources/updated")
+        await stream.close()
+    assert modern.recording.calls("resources/subscribe") == []
+    assert event["params"] == {"uri": REPORT}
+
+
+async def test_prot30_a_list_change_made_while_the_stream_was_down(engine, redis, modern):
+    """PROT-30: after a lost listen stream is re-opened, the member is re-discovered once and
+    the client is told its tools changed."""
+    async with _gateway(engine, redis) as http:
+        session_id = await _initialize(http)
+        await _say(http, session_id)
+        await _until(lambda: len(modern.listens) == 1)
+        stream = await _get_stream(http, session_id)
+        listed = len(modern.recording.calls("tools/list"))
+        modern.drop_listens()
+
+        @modern.server.tool
+        def shout(text: str) -> str:
+            return text.upper()
+
+        event = await stream.wait_for("notifications/tools/list_changed")
+        await asyncio.sleep(0.3)
+        await stream.close()
+    assert len(modern.listens) == 2
+    assert event["method"] == "notifications/tools/list_changed"
+    assert len(modern.recording.calls("tools/list")) == listed + 1
+
+
+async def test_prot30_a_watched_resource_after_a_reopen(engine, redis, modern):
+    """PROT-30: a re-opened listen stream announces an update of every URI it watches."""
+    async with _gateway(engine, redis) as http:
+        session_id = await _initialize(http)
+        await _rpc(http, session_id, "resources/subscribe", {"uri": REPORT}, 3)
+        await _until(lambda: _watching(modern, REPORT))
+        stream = await _get_stream(http, session_id)
+        watched = len(modern.listens)
+        modern.drop_listens()
+        await _until(lambda: len(modern.listens) > watched)
+        event = await stream.wait_for("notifications/resources/updated")
+        await stream.close()
+    assert event["params"] == {"uri": REPORT}
+
+
+async def test_prot30_the_first_open_refetches_nothing(engine, redis, modern):
+    """PROT-30: the first listen stream on a new upstream session relays nothing by itself."""
+    async with _gateway(engine, redis) as http:
+        session_id = await _initialize(http)
+        stream = await _get_stream(http, session_id)
+        await _say(http, session_id)
+        await _until(lambda: len(modern.listens) == 1)
+        listed = len(modern.recording.calls("tools/list"))
+        await asyncio.sleep(1.5)  # past the retry delay a re-open would wait
+        await stream.close()
+    assert stream.events == []
+    assert len(modern.recording.calls("tools/list")) == listed
+
+
+async def test_prot30_a_filter_change_is_not_a_loss(engine, redis, modern):
+    """PROT-30: re-opening the stream for a new subscription refetches nothing already
+    watched."""
+    async with _gateway(engine, redis) as http:
+        session_id = await _initialize(http)
+        await _rpc(http, session_id, "resources/subscribe", {"uri": REPORT}, 3)
+        await _until(lambda: _watching(modern, REPORT))
+        stream = await _get_stream(http, session_id)
+        listed = len(modern.recording.calls("tools/list"))
+        await _rpc(http, session_id, "resources/subscribe", {"uri": OTHER}, 4)
+        await _until(lambda: _watching(modern, OTHER))
+        await asyncio.sleep(1.5)  # past the retry delay a re-open would wait
+        await stream.close()
+    assert stream.events == []
+    assert len(modern.recording.calls("tools/list")) == listed

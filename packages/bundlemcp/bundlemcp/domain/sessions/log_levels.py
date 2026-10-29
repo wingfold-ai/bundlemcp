@@ -1,6 +1,10 @@
 """The MCP log levels, least to most severe."""
 
-LOG_LEVELS = ("debug", "info", "notice", "warning", "error", "critical", "alert", "emergency")
+from typing import Literal, get_args
+
+LogLevel = Literal["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"]
+
+LOG_LEVELS: tuple[LogLevel, ...] = get_args(LogLevel)
 
 
 def at_least(level: str, minimum: str) -> bool:
