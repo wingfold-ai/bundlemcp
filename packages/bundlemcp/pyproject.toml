@@ -1,13 +1,13 @@
 [project]
 name = "bundlemcp"
-version = "0.2.0"
+version = "0.1.18"
 description = "Self-hostable MCP bundling gateway"
 readme = "README.md"
 requires-python = ">=3.13"
 license = "Apache-2.0"
 dependencies = [
     "fastapi>=0.116",
-    "fastmcp>=4.0.3",
+    "fastmcp>=4.1.2",
     "mcp-types>=2.1",
     "sqlmodel>=0.0.39",
     "sqlalchemy[asyncio]>=2.0",

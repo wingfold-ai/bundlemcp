@@ -6,12 +6,28 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
-## [0.2.0] - 2026-10-29
+## [0.1.18] - 2026-10-29
 
-### Fixed
+### Changed
 
-- **Breaking:** Grant admin by email only when the email is verified
-  ([#161](https://github.com/wingfold-ai/bundlemcp/pull/161))
+- The minimum supported `fastmcp` is now 4.1.2, and the example upstream images (`echo-mcp`, `conformance-mcp`) install
+  `fastmcp>=4.1.2`. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+
+### Security
+
+- Upgrade `fastmcp` to 4.1.4, closing GHSA-7xgj-8392-5q4r and GHSA-vqqp-x5qm-5qp4. bundlemcp does not use the affected
+  server transforms or OAuth client-credentials provider, so neither is known to be exploitable here.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade `authlib` (pulled in by `fastmcp`) to 1.9.1, closing CVE-2026-96760 and CVE-2026-114614 to CVE-2026-114620.
+  bundlemcp's own OIDC does not use `authlib`. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade `dnspython` to 2.9.0, closing CVE-2026-114605, a CPU exhaustion in name decompression.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade Nuxt to 4.6.3 and `@nuxt/ui` to 4.12 in the admin UI, and refresh its lockfile. This closes the high
+  advisories in `undici` (TLS validation bypass, cache poisoning, DoS) and `node-forge`, plus advisories in `seroval`,
+  `serialize-javascript` and a Nitro route-rule bypass. One low-severity build-time advisory in `deepmerge` remains
+  because it has no patched release. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Refresh the docs site's lockfile, closing the `vite`/`launch-editor` and `zod` advisories.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
 
 ## [0.1.17] - 2026-10-22
 
