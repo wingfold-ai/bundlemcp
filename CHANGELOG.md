@@ -8,35 +8,23 @@ protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) say
 
 ## [0.1.19] - 2026-10-29
 
-### Added
-
-- Add `BUNDLEMCP_CLIENT_METADATA_DOCUMENTS_ENABLED` (default `true`). When it is `false`, an `https://` client id is
-  refused as an unknown client without any outbound request, and the authorization server metadata reports
-  `client_id_metadata_document_supported: false`. ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
-
 ### Changed
 
-- A client whose metadata document is hosted on a private address is no longer fetched unless that address is allowed in
-  `BUNDLEMCP_EGRESS_ALLOW_CIDRS`. Public clients such as claude.ai and ChatGPT are unaffected.
-  ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
-
-### Fixed
-
-- A failed or invalid client metadata document is remembered for 60 seconds, so repeated authorize requests for the same
-  URL no longer cost a full fetch each time. A remembered failure is reported with the same error as a fresh one.
-  ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
-- A slow or endless client metadata document can no longer hold a worker. The fetch now has a 5-second deadline for the
-  whole request and refuses a body over 16 KiB, whether or not a length is declared.
-  ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+- An upstream connect has to be finished in the same browser, and under the same gateway account, that started it. A
+  connect started in one browser and finished in another, or after the gateway session ended, now fails and must be
+  started again. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
 
 ### Security
 
-- Close an SSRF hole on `/oauth/authorize`. Fetching a client ID metadata document before sign-in now reaches only
-  globally routable addresses. Private, CGNAT, unique-local, documentation, 6to4 and NAT64 addresses that translate to
-  non-public IPv4 are refused. Anyone on the internet can no longer make the gateway send requests into its private
-  network or time the answers. ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
-- The public-only rule is enforced at connect time on the address actually dialled, so DNS rebinding cannot get around
-  it. ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+- The upstream connect callback now checks who is finishing the flow. A per-user connect must be finished by the
+  signed-in user it was started for, and the shared connection by an admin. This closes a hole where a forwarded
+  authorize link could store a victim's upstream token under an attacker's account, or let a non-admin overwrite the
+  shared connection. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
+- A refused connect callback answers 403 with a page asking the user to sign in and connect again. The upstream code is
+  not redeemed, no token is stored, and the single-use state is spent so the link cannot be retried.
+  ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
+- Refused connect callbacks are logged as an `upstream_oauth.connect_refused` warning with the reason (`no_session`,
+  `other_user` or `not_admin`) and no user ids. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
 
 ## [0.1.18] - 2026-10-29
 

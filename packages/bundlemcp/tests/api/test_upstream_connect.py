@@ -196,6 +196,117 @@ async def test_connect_requires_admin_for_shared(engine, redis):
     assert resp.status_code == 403
 
 
+class CountingProvider(FakeProvider):
+    """The fake upstream, counting how often a code is redeemed."""
+
+    def __init__(self) -> None:
+        self.exchanges = 0
+
+    async def exchange(self, meta, **kw):
+        self.exchanges += 1
+        return await super().exchange(meta, **kw)
+
+
+async def _user(engine, sub: str, *, is_admin: bool = False) -> UserRow:
+    async with session_factory(engine)() as db:
+        user = UserRow(oidc_issuer="i", oidc_sub=sub, email=f"{sub}@x", is_admin=is_admin)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user
+
+
+async def _sign_in(http, app, user: UserRow) -> None:
+    sid = await app.state.container.admin_sessions.create(
+        AdminSession(user_id=str(user.id), email=user.email, is_admin=user.is_admin)
+    )
+    http.cookies.set(SESSION_COOKIE, sid)
+
+
+async def _token_rows(engine) -> list:
+    async with session_factory(engine)() as db:
+        return list((await db.execute(select(UpstreamOAuthTokenRow))).scalars())
+
+
+async def test_ups27_another_user_cannot_finish_per_user_connect(engine, redis):
+    """UPS-27: a per-user connect handed to another signed-in user stores nothing for either."""
+    await _seed(engine, identity_mode=IdentityMode.PER_USER)
+    alice, bob = await _user(engine, "alice"), await _user(engine, "bob")
+    provider = CountingProvider()
+    async with _running(engine, redis, provider=provider) as (http, app):
+        await _sign_in(http, app, alice)
+        state = await _connect_state(http, "/oauth/upstream/up/connect?as=me")
+        await _sign_in(http, app, bob)
+        cb = await http.get(
+            "/oauth/upstream/callback",
+            params={"code": "xyz", "state": state, "iss": "https://idp"},
+        )
+        assert cb.status_code == 403 and "Connect not completed" in cb.text
+        assert provider.exchanges == 0
+        assert await _token_rows(engine) == []
+
+        # the state is spent: the initiator cannot replay the link either
+        await _sign_in(http, app, alice)
+        replay = await http.get(
+            "/oauth/upstream/callback",
+            params={"code": "xyz", "state": state, "iss": "https://idp"},
+        )
+        assert replay.status_code == 400
+        assert await _token_rows(engine) == []
+
+
+async def test_ups27_callback_without_session_is_refused(engine, redis):
+    """UPS-27: a callback in a browser without a gateway session is refused."""
+    await _seed(engine, identity_mode=IdentityMode.PER_USER)
+    alice = await _user(engine, "alice")
+    provider = CountingProvider()
+    async with _running(engine, redis, provider=provider) as (http, app):
+        await _sign_in(http, app, alice)
+        state = await _connect_state(http, "/oauth/upstream/up/connect?as=me")
+        http.cookies.clear()
+        cb = await http.get(
+            "/oauth/upstream/callback",
+            params={"code": "xyz", "state": state, "iss": "https://idp"},
+        )
+        assert cb.status_code == 403 and "start the connect again" in cb.text
+        assert provider.exchanges == 0
+        assert await _token_rows(engine) == []
+
+
+async def test_ups27_non_admin_cannot_finish_shared_connect(engine, redis):
+    """UPS-27: the shared connect started by an admin is not finished by a non-admin."""
+    await _seed(engine)
+    admin, user = await _user(engine, "admin", is_admin=True), await _user(engine, "user")
+    provider = CountingProvider()
+    async with _running(engine, redis, provider=provider) as (http, app):
+        await _sign_in(http, app, admin)
+        state = await _connect_state(http)
+        await _sign_in(http, app, user)
+        cb = await http.get(
+            "/oauth/upstream/callback",
+            params={"code": "xyz", "state": state, "iss": "https://idp"},
+        )
+        assert cb.status_code == 403
+        assert provider.exchanges == 0
+        assert await _token_rows(engine) == []
+
+
+async def test_ups27_initiator_finishes_per_user_connect(engine, redis):
+    """UPS-27: the user who started a per-user connect finishes it and owns the token."""
+    await _seed(engine, identity_mode=IdentityMode.PER_USER)
+    alice = await _user(engine, "alice")
+    async with _running(engine, redis) as (http, app):
+        await _sign_in(http, app, alice)
+        state = await _connect_state(http, "/oauth/upstream/up/connect?as=me")
+        cb = await http.get(
+            "/oauth/upstream/callback",
+            params={"code": "xyz", "state": state, "iss": "https://idp"},
+        )
+        assert cb.status_code == 200
+        (row,) = await _token_rows(engine)
+        assert row.user_id == alice.id
+
+
 async def test_set_client_config_and_status(engine, redis):
     await _seed(engine, with_client=False)
     async with _running(engine, redis, bearer=SERVICE_KEY) as (http, _app):
