@@ -215,7 +215,8 @@ async def test_connect_registers_the_gateway_once_when_no_client_is_stored(uow):
     assert "client_id=dynamic-client" in start.url
     stored = await uow.upstream_clients.for_server(server.id)
     assert stored is not None and stored.client_id == "dynamic-client"
-    assert stored.metadata_["registration_endpoint"] == "https://idp/register"
+    assert stored.metadata_.endpoints is not None
+    assert stored.metadata_.endpoints.registration_endpoint == "https://idp/register"
 
     await tokens.build_authorize(server, CALLBACK, "state-2")
     assert provider.registered == [CALLBACK]  # registered exactly once

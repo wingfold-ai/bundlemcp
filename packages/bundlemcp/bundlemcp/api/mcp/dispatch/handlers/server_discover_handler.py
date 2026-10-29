@@ -26,7 +26,7 @@ class ServerDiscoverHandler:
             "supportedVersions": self._dialects.modern_versions,
             "capabilities": aggregate_capabilities(
                 ctx.view, member_notifications=self._member_notifications
-            ),
+            ).model_dump(),
         }
         if ctx.view.bundle.description:
             result["instructions"] = ctx.view.bundle.description

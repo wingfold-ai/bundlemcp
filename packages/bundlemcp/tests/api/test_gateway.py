@@ -923,7 +923,7 @@ async def test_store_unreachable_answers_503_not_500(gateway, redis, monkeypatch
 async def test_sec7_oversized_upstream_response_is_a_structured_error(engine, redis):
     """SEC-7: one upstream message over the cap ends the call with an error, not a timeout."""
     import httpx2
-    from bundlemcp.domain.config.config_registry import KIB
+    from bundlemcp.domain.config.runtime_settings import KIB
     from bundlemcp.infrastructure.fastmcp.response_cap import CappedResponses
     from fastmcp.client.transports import StreamableHttpTransport
 

@@ -321,14 +321,10 @@ class PooledUpstreamSessions:
     def _listen_filter(session: PooledSession) -> dict[str, Any]:
         """The list changes the server advertised, and the resources the session subscribed to."""
         capabilities = session.server.capabilities
-
-        def changes(capability: str) -> bool:
-            return bool((capabilities.get(capability) or {}).get("listChanged"))
-
         wanted: dict[str, Any] = {
-            "tools_list_changed": changes("tools"),
-            "prompts_list_changed": changes("prompts"),
-            "resources_list_changed": changes("resources"),
+            "tools_list_changed": capabilities.tools_list_changed,
+            "prompts_list_changed": capabilities.prompts_list_changed,
+            "resources_list_changed": capabilities.resources_list_changed,
             "resource_subscriptions": sorted(session.subscriptions),
         }
         return {name: value for name, value in wanted.items() if value}

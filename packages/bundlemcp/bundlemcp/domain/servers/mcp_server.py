@@ -14,6 +14,7 @@ from bundlemcp.domain.servers.internal_host import is_internal_host
 from bundlemcp.domain.servers.listing_snapshot_mode import ListingSnapshotMode
 from bundlemcp.domain.servers.protocol_mode import NegotiationMode, ProtocolMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
+from bundlemcp.domain.servers.server_capabilities import ServerCapabilities
 from bundlemcp.domain.servers.server_capability import ServerCapability
 from bundlemcp.domain.servers.server_changes import ServerChanges
 from bundlemcp.domain.shared.clock import utcnow
@@ -46,8 +47,8 @@ class McpServer(BaseModel):
         default=True,
         description="Whether the calling user's identity is forwarded upstream",
     )
-    capabilities: dict = Field(  # source for capability aggregation
-        default_factory=dict,
+    capabilities: ServerCapabilities = Field(  # source for capability aggregation
+        default_factory=ServerCapabilities,
         description="What the server advertised at its last probe. A key is present exactly "
         "when that capability was advertised",
     )
@@ -150,12 +151,12 @@ class McpServer(BaseModel):
 
     def advertises(self, capability: ServerCapability) -> bool:
         """The upstream advertised this capability at its last successful probe."""
-        return capability.value in self.capabilities
+        return self.capabilities.advertises(capability)
 
     @property
     def accepts_resource_subscriptions(self) -> bool:
         """The upstream said at its last probe that it sends updates of subscribed resources."""
-        return bool((self.capabilities.get("resources") or {}).get("subscribe"))
+        return self.capabilities.accepts_resource_subscriptions
 
     @property
     def uses_upstream_oauth(self) -> bool:

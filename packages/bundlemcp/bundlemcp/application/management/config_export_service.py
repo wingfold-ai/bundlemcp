@@ -21,8 +21,6 @@ from bundlemcp.domain.bundles.bundle import Bundle
 from bundlemcp.domain.endpoints.endpoint import Endpoint
 from bundlemcp.domain.endpoints.endpoint_auth_mode import EndpointAuthMode
 from bundlemcp.domain.servers.mcp_server import McpServer
-from bundlemcp.domain.upstream_oauth.client_identification import ClientIdentification
-from bundlemcp.domain.upstream_oauth.upstream_client_config import GRANT_KEY, IDENTIFICATION_KEY
 
 CREDENTIALS_WARNING = (
     "This document contains credentials: upstream header values and OAuth client secrets. "
@@ -63,9 +61,9 @@ class ConfigExportService:
                 )
             )
             await self._uow.commit()
-        _, servers = await self._uow.servers.page(offset=0, limit=EVERYTHING)
-        _, bundles = await self._uow.bundles.page(offset=0, limit=EVERYTHING)
-        _, endpoints = await self._uow.endpoints.page(offset=0, limit=EVERYTHING)
+        servers = (await self._uow.servers.page(offset=0, limit=EVERYTHING)).items
+        bundles = (await self._uow.bundles.page(offset=0, limit=EVERYTHING)).items
+        endpoints = (await self._uow.endpoints.page(offset=0, limit=EVERYTHING)).items
         names = {server.id: server.name for server in servers}
         bundle_names = {bundle.id: bundle.name for bundle in bundles}
         return ExportDocument(
@@ -98,11 +96,9 @@ class ConfigExportService:
         self, server: McpServer, include_secrets: bool
     ) -> BootstrapOAuthClient | None:
         client = await self._uow.upstream_clients.for_server(server.id)
-        metadata = client.metadata_ if client is not None else {}
-        identification = metadata.get(IDENTIFICATION_KEY, ClientIdentification.PREREGISTERED)
         if client is None or client.client_id is None:
             return None
-        if identification != ClientIdentification.PREREGISTERED:
+        if not client.metadata_.is_admin_stored:
             return None
         secret: str | SecretRef | None = None
         if client.client_secret_encrypted:
@@ -111,13 +107,14 @@ class ConfigExportService:
                 if include_secrets and self._cipher is not None
                 else SecretRef(name=CLIENT_SECRET)
             )
+        endpoints = client.metadata_.endpoints
         return BootstrapOAuthClient.model_validate(
             {
                 "client_id": client.client_id,
                 "client_secret": secret,
-                "authorization_url": metadata.get("authorization_endpoint"),
-                "token_url": metadata.get("token_endpoint"),
-                **({"grant_type": metadata[GRANT_KEY]} if GRANT_KEY in metadata else {}),
+                "authorization_url": endpoints.authorization_endpoint if endpoints else None,
+                "token_url": endpoints.token_endpoint if endpoints else None,
+                "grant_type": client.metadata_.grant,
             }
         )
 
@@ -152,12 +149,12 @@ class ConfigExportService:
                     tools=sorted(curated, key=lambda c: c.tool),
                 )
             )
-        _, prompts = await self._uow.bundle_prompts.page_for_bundle(
-            bundle.id, offset=0, limit=EVERYTHING
-        )
-        _, resources = await self._uow.bundle_resources.page_for_bundle(
-            bundle.id, offset=0, limit=EVERYTHING
-        )
+        prompts = (
+            await self._uow.bundle_prompts.page_for_bundle(bundle.id, offset=0, limit=EVERYTHING)
+        ).items
+        resources = (
+            await self._uow.bundle_resources.page_for_bundle(bundle.id, offset=0, limit=EVERYTHING)
+        ).items
         return BootstrapBundle(
             name=bundle.name,
             description=bundle.description,

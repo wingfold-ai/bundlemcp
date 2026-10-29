@@ -1,5 +1,6 @@
 import uuid
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.domain.bundles.bundle_resource import BundleResource
 from bundlemcp.domain.bundles.resource_listing import ResourceListing
 from bundlemcp.infrastructure.memory.in_memory_repository import InMemoryRepository
@@ -18,7 +19,7 @@ class InMemoryBundleResourceRepository(InMemoryRepository[BundleResource]):
 
     async def page_for_bundle(
         self, bundle_id: uuid.UUID, *, offset: int, limit: int
-    ) -> tuple[int, list[BundleResource]]:
+    ) -> PageSlice[BundleResource]:
         return self._page(
             self.where(lambda r: r.bundle_id == bundle_id),
             offset=offset,

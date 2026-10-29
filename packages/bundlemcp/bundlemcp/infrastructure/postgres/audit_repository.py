@@ -5,6 +5,7 @@ from sqlalchemy import ColumnElement, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.application.management.audit_cursor import AuditCursor
 from bundlemcp.application.management.audit_filter import AuditFilter
 from bundlemcp.domain.audit.audit_record import AuditRecord
@@ -34,7 +35,7 @@ class SqlAlchemyAuditRepository(SqlAlchemyRepository[AuditRecord, AuditRecordRow
 
     async def page(
         self, filter_: AuditFilter, *, offset: int, limit: int
-    ) -> tuple[int, list[AuditRecord]]:
+    ) -> PageSlice[AuditRecord]:
         return await super().page(
             *self._criteria(filter_),
             offset=offset,

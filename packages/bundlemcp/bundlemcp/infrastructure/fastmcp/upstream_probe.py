@@ -14,6 +14,7 @@ from bundlemcp.domain.servers.probed_listing import ProbedListing
 from bundlemcp.domain.servers.probed_server_info import ProbedServerInfo
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.response_log import ResponseLog
+from bundlemcp.domain.servers.server_capabilities import ServerCapabilities
 from bundlemcp.infrastructure.fastmcp.connection_failure import connection_failure
 
 # the most entries of one kind cached per server; a longer listing is cut, and that is logged
@@ -79,7 +80,9 @@ class FastMcpUpstreamProbe:
                 for tool in listed
             ],
             capabilities=(
-                capabilities.model_dump(mode="json", by_alias=True, exclude_none=True)
+                ServerCapabilities.model_validate(
+                    capabilities.model_dump(mode="json", by_alias=True, exclude_none=True)
+                )
                 if capabilities is not None
                 else None
             ),

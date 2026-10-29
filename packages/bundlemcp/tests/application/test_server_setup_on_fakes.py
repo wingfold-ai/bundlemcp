@@ -59,6 +59,7 @@ from bundlemcp.infrastructure.memory.manual_clock import ManualClock
 from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
 from bundlemcp.infrastructure.memory.sequential_secret_generator import SequentialSecretGenerator
 from cryptography.fernet import Fernet
+from pydantic import ValidationError
 
 from tests.application.upstream_health_on_fakes import health_on
 
@@ -339,6 +340,122 @@ def test_ups15_a_local_only_or_sse_only_document_is_reported():
         {"name": "x", "remotes": [{"type": "sse", "url": "https://x/sse"}]}
     )
     assert sse_only.url is None and "sse" in sse_only.problems[0]
+
+
+
+def test_ups15_unknown_keys_and_non_object_entries_are_ignored():
+    """UPS-15: entries that are not objects, nameless headers and unknown keys are skipped."""
+    draft = ServerJsonImporter().draft(
+        {
+            "$schema": "https://static.modelcontextprotocol.io/schemas/server.schema.json",
+            "name": "io.github.acme/weather",
+            "version": "1.0.0",
+            "websiteUrl": "https://acme.example",
+            "remotes": [
+                "https://not-an-object.example/mcp",
+                {
+                    "type": "streamable-http",
+                    "url": "https://acme.example/mcp",
+                    "transport": "ignored",
+                    "headers": [
+                        "X-Not-An-Object",
+                        {"description": "no name"},
+                        {"name": "", "isRequired": True},
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {token}",
+                            "format": "string",
+                            "isSecret": True,
+                        },
+                    ],
+                },
+            ],
+        }
+    )
+    assert draft.name == "weather"
+    assert draft.url == "https://acme.example/mcp"
+    assert draft.website_url == "https://acme.example"
+    assert [h.model_dump() for h in draft.headers] == [
+        {
+            "name": "Authorization",
+            "description": None,
+            "is_required": False,
+            "is_secret": True,
+            "value": "Bearer {token}",
+        }
+    ]
+    assert draft.problems == []
+
+    as_string = ServerJsonImporter().draft({"name": "x", "remotes": "https://x.example/mcp"})
+    assert as_string.url is None
+    assert as_string.problems == ["The document lists no remote: the server only runs locally."]
+
+    headers_as_string = ServerJsonImporter().draft(
+        {"remotes": [{"type": "streamable-http", "url": "https://x.example/mcp", "headers": "h"}]}
+    )
+    assert headers_as_string.headers == []
+    assert headers_as_string.name == "x"
+
+
+def test_ups15_a_remote_without_a_type_is_reported_by_name():
+    """UPS-15: a remote that names no transport shows up as ``None`` in the problem."""
+    draft = ServerJsonImporter().draft(
+        {"name": "x", "remotes": [{"url": "https://x.example/mcp"}, {"type": "sse"}]}
+    )
+    assert draft.url is None
+    assert draft.problems == [
+        "No streamable-http remote (found: None, sse); the gateway only speaks Streamable HTTP."
+    ]
+
+
+def test_ups15_is_required_follows_truthiness():
+    """UPS-15: ``isRequired`` and ``isSecret`` read as Python truthiness, as published."""
+    draft = ServerJsonImporter().draft(
+        {
+            "remotes": [
+                {
+                    "type": "streamable-http",
+                    "url": "https://x.example/mcp",
+                    "headers": [
+                        {"name": "A", "isRequired": "yes", "isSecret": 1},
+                        {"name": "B", "isRequired": 1, "isSecret": ""},
+                        {"name": "C", "isRequired": 0, "isSecret": None},
+                        {"name": "D"},
+                    ],
+                }
+            ]
+        }
+    )
+    assert [(h.name, h.is_required, h.is_secret) for h in draft.headers] == [
+        ("A", True, True),
+        ("B", True, False),
+        ("C", False, False),
+        ("D", False, False),
+    ]
+
+
+
+def test_ups15_a_mistyped_entry_is_skipped_like_a_non_object():
+    """UPS-15: a remote or header whose keys break the schema's types is skipped, not fatal;
+    a mistyped top-level key still fails the import."""
+    draft = ServerJsonImporter().draft(
+        {
+            "name": "x",
+            "remotes": [
+                {"type": "streamable-http", "url": 5},
+                {
+                    "type": "streamable-http",
+                    "url": "https://x.example/mcp",
+                    "headers": [{"name": "A", "description": 7}, {"name": "B"}],
+                },
+            ],
+        }
+    )
+    assert draft.url == "https://x.example/mcp"
+    assert [h.name for h in draft.headers] == ["B"]
+
+    with pytest.raises(ValidationError):
+        ServerJsonImporter().draft({"name": 5})
 
 
 # --- registration rules ------------------------------------

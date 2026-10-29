@@ -17,11 +17,8 @@ from bundlemcp.application.contracts.secret_cipher import DecryptionError, Secre
 from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.upstream_oauth.client_identification import ClientIdentification
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
-from bundlemcp.domain.upstream_oauth.upstream_client_config import (
-    IDENTIFICATION_KEY,
-    STEP_UP_KEY,
-    UpstreamClientConfig,
-)
+from bundlemcp.domain.upstream_oauth.upstream_client_config import UpstreamClientConfig
+from bundlemcp.domain.upstream_oauth.upstream_client_metadata import UpstreamClientMetadata
 from bundlemcp.domain.upstream_oauth.upstream_client_registration import (
     UpstreamClientRegistration,
 )
@@ -156,10 +153,7 @@ class UpstreamTokenStorage:
                 if registration.client_secret
                 else None
             )
-            client.metadata_ = {
-                **meta.model_dump(exclude_none=True, exclude={"step_up_scopes"}),
-                IDENTIFICATION_KEY: identification.value,
-            }
+            client.metadata_ = UpstreamClientMetadata.obtained(meta, identification)
             uow.upstream_clients.add(client)
             await uow.commit()
             return self._config(client)
@@ -172,7 +166,7 @@ class UpstreamTokenStorage:
                 return
             client.client_id = None
             client.client_secret_encrypted = None
-            client.metadata_ = {}
+            client.metadata_ = UpstreamClientMetadata()
             uow.upstream_clients.add(client)
             for row in await uow.upstream_tokens.for_server(server_id):
                 await uow.upstream_tokens.delete(row)
@@ -187,13 +181,10 @@ class UpstreamTokenStorage:
             client = await uow.upstream_clients.for_server(server_id)
             if client is None:
                 return False
-            metadata = dict(client.metadata_ or {})
-            known = list(metadata.get(STEP_UP_KEY) or [])
-            merged = list(dict.fromkeys([*known, *scopes]))
-            if merged == known:
+            stepped_up = client.metadata_.with_step_up(scopes)
+            if stepped_up == client.metadata_:
                 return False
-            metadata[STEP_UP_KEY] = merged
-            client.metadata_ = metadata
+            client.metadata_ = stepped_up
             uow.upstream_clients.add(client)
             await uow.commit()
             return True
@@ -205,7 +196,7 @@ class UpstreamTokenStorage:
             else None
         )
         return UpstreamClientConfig(
-            client_id=client.client_id or "", client_secret=secret, metadata=client.metadata_ or {}
+            client_id=client.client_id or "", client_secret=secret, metadata=client.metadata_
         )
 
     async def _current_token(self, row: UpstreamOAuthToken | None) -> UpstreamOAuthToken | None:

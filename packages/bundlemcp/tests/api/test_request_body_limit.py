@@ -5,7 +5,7 @@ import json
 from contextlib import contextmanager
 
 import pytest
-from bundlemcp.domain.config.config_registry import MIB
+from bundlemcp.domain.config.runtime_settings import MIB
 from sqlalchemy import event
 
 from tests.conftest import SERVICE_KEY, seed_api_key, serving
@@ -110,7 +110,7 @@ async def test_sec7_limit_changed_at_runtime(app_client):
     assert resp.status_code == 200
     config = app.state.container.runtime_config
     for _ in range(100):
-        if config.current("max_request_bytes") == 1 * MIB:
+        if config.snapshot.max_request_bytes == 1 * MIB:
             break
         await asyncio.sleep(0.01)
     resp = await http.post(
@@ -179,10 +179,10 @@ async def test_sec7_oauth_limit_ignores_runtime_limit(app_client):
     assert resp.status_code == 200
     config = app.state.container.runtime_config
     for _ in range(100):
-        if config.current("max_request_bytes") == 16 * MIB:
+        if config.snapshot.max_request_bytes == 16 * MIB:
             break
         await asyncio.sleep(0.01)
-    assert config.current("max_request_bytes") == 16 * MIB
+    assert config.snapshot.max_request_bytes == 16 * MIB
     form = b"grant_type=refresh_token&refresh_token=" + b"x" * (100 * 1024)
     resp = await http.post(
         "/oauth/token",

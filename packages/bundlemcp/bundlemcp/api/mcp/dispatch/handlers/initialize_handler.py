@@ -50,7 +50,7 @@ class InitializeHandler:
             "protocolVersion": dialect.version,
             "capabilities": aggregate_capabilities(
                 ctx.view, member_notifications=self._member_notifications
-            ),
+            ).model_dump(),
             "serverInfo": server_info(ctx.view.bundle.name),
         }
         if ctx.view.bundle.description:

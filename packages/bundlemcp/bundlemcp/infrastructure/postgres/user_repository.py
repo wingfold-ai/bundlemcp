@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bundlemcp.application.contracts.persistence.page_slice import PageSlice
 from bundlemcp.domain.access.user import User
 from bundlemcp.infrastructure.postgres.rows.user_row import UserRow
 from bundlemcp.infrastructure.postgres.sqlalchemy_repository import SqlAlchemyRepository
@@ -12,7 +13,7 @@ class SqlAlchemyUserRepository(SqlAlchemyRepository[User, UserRow]):
     async def by_subject(self, issuer: str, sub: str) -> User | None:
         return await self.one(UserRow.oidc_issuer == issuer, UserRow.oidc_sub == sub)
 
-    async def page(self, *, offset: int, limit: int) -> tuple[int, list[User]]:
+    async def page(self, *, offset: int, limit: int) -> PageSlice[User]:
         return await super().page(
             offset=offset, limit=limit, order_by=(UserRow.created_at, UserRow.id)
         )
