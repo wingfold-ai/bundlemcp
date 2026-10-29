@@ -6,6 +6,30 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.18] - 2026-10-29
+
+### Changed
+
+- Require `fastmcp` 4.1.2 or later, and build the example echo and conformance upstream images with the same minimum, so
+  no install can resolve a vulnerable release. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+
+### Security
+
+- Upgrade `fastmcp` to 4.1.4, closing GHSA-7xgj-8392-5q4r and GHSA-vqqp-x5qm-5qp4. bundlemcp does not use the affected
+  features, so it is not known to be exploitable here. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade `authlib` to 1.9.1 (pulled in by `fastmcp`), closing CVE-2026-96760 and CVE-2026-114614 to CVE-2026-114620.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade `dnspython` to 2.9.0, closing CVE-2026-114605 (CPU exhaustion in name decompression).
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade the admin UI to Nuxt 4.6.3 and `@nuxt/ui` 4.12 and refresh its locked packages. This closes the high-severity
+  `undici` (TLS validation bypass, cache poisoning, DoS) and `node-forge` advisories, plus the `seroval`,
+  `serialize-javascript` and Nitro route-rule bypass advisories.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Refresh the docs site's locked packages, closing the `vite`/`launch-editor` and `zod` advisories. These affect the
+  build only. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- One low-severity advisory remains in the admin UI build: `deepmerge` (GHSA-gcqx-w48m-w2h4). It is reached only at
+  build time and has no patched release. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+
 ## [0.1.17] - 2026-10-22
 
 ### Changed
