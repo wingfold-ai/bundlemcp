@@ -19,13 +19,13 @@
       `BUNDLEMCP_ADMIN_CLAIM=roles`), `docs/guide/authentication.md`, `docs/guide/glossary.md` and
       `docs/manage/users.md`, and mark the change breaking in the pull request, from which CI writes the CHANGELOG entry
       (DEP-12); verify with `python3 tools/check_docs_links.py` and `python3 tools/check_docs_settings.py`
-- [ ] 2.2 Confirm `deploy/keycloak/bundlemcp-realm.json` sets `emailVerified: true` for every seeded user, so the
+- [x] 2.2 Confirm `deploy/keycloak/bundlemcp-realm.json` sets `emailVerified: true` for every seeded user, so the
   compose stack's admin login still works, and verify it by signing in to the compose stack as the seeded admin and
   reaching the management UI
 
 ## 3. Gates
 
-- [ ] 3.1 Run `uv run pytest -q`, `uv run ruff check .`, `uv run rumdl check .`, `uv run lint-imports`, the four
+- [x] 3.1 Run `uv run pytest -q`, `uv run ruff check .`, `uv run rumdl check .`, `uv run lint-imports`, the four
   `tools/check_*.py` scripts (`check_docs_links`, `check_docs_symbols`, `check_docs_settings`, `check_adr_graph`),
   `python3 tools/check_spec_ids.py` and `openspec validate --all --strict`; all pass (no DTO or route changes, so
   `npm run openapi` is not needed)
