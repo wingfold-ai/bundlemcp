@@ -8,7 +8,7 @@ to reach the admin UI or to authorise a connector such as claude.ai. One human i
 | Field | Meaning |
 |---|---|
 | `email`, `display_name` | Claims from the identity provider at the last login. |
-| `is_admin` | Whether the email matched `BUNDLEMCP_ADMIN_EMAILS` at the most recent login. |
+| `is_admin` | Whether a verified email matched `BUNDLEMCP_ADMIN_EMAILS`, or the admin claim carried the admin value, at the most recent login. |
 | `is_active` | Whether the user may authenticate at all. |
 
 The user's id is the `sub` that upstream servers see in `X-MCP-User`, that the metering hook receives, and that the

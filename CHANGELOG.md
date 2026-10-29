@@ -6,6 +6,13 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.2.0] - 2026-10-29
+
+### Fixed
+
+- **Breaking:** Grant admin by email only when the email is verified
+  ([#161](https://github.com/wingfold-ai/bundlemcp/pull/161))
+
 ## [0.1.20] - 2026-10-29
 
 ### Added
