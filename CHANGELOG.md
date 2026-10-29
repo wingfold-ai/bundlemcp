@@ -6,6 +6,32 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.1] - 2026-10-29
+
+### Added
+
+- After the gateway re-opens a lost `subscriptions/listen` stream to a modern member, it treats every list it listens
+  for as changed and reports an update for every watched resource. Changes made while the stream was down now reach
+  clients; the first open of a stream and a change of its filter refetch nothing.
+  ([#170](https://github.com/wingfold-ai/bundlemcp/pull/170))
+
+### Changed
+
+- A member's own `_meta` is no longer relayed to clients on log messages and resource updates that arrive between calls.
+  Clients receive the level, logger and data, or the resource URI, and nothing else.
+  ([#170](https://github.com/wingfold-ai/bundlemcp/pull/170))
+- After a modern member's listen stream is re-opened, clients may see a list change and a resource update that carry no
+  new content. Clients treat both as a signal to fetch again.
+  ([#170](https://github.com/wingfold-ai/bundlemcp/pull/170))
+- Resource subscriptions to members on the handshake era are sent as explicit `resources/subscribe` and
+  `resources/unsubscribe` requests. They no longer go through SDK helpers that the SDK marks deprecated, so a future SDK
+  that drops the helpers does not break them. ([#170](https://github.com/wingfold-ai/bundlemcp/pull/170))
+
+### Fixed
+
+- A list change or resource update that a modern member made while its listen stream was down is no longer lost when the
+  stream is re-opened. ([#170](https://github.com/wingfold-ai/bundlemcp/pull/170))
+
 ## [0.3.0] - 2026-10-29
 
 ### Changed
