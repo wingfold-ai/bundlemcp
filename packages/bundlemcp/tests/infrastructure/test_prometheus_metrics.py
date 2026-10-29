@@ -53,11 +53,14 @@ def test_ep21_the_two_limiters_fail_open_on_separate_alarms():
 
 
 def test_ops9_gauges_are_read_at_scrape_time():
+    """OPS-9: the stream and audit-queue gauges read their sources at scrape time."""
     streams = [3]
-    metrics = PrometheusMetrics(open_streams=lambda: streams[0], audit_queue_depth=lambda: 7)
+    metrics = PrometheusMetrics(open_streams=lambda: streams[0])
     assert _value(metrics, "bundlemcp_open_streams") == 3
     streams[0] = 5
     assert _value(metrics, "bundlemcp_open_streams") == 5
+    assert _value(metrics, "bundlemcp_audit_queue_depth") == 0
+    metrics.observe_audit_queue(lambda: 7)
     assert _value(metrics, "bundlemcp_audit_queue_depth") == 7
 
 

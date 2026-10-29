@@ -8,11 +8,14 @@ downstream receives what it needs rather than reaching for it.
 
 import logging
 import socket
+from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
 from typing import Any
 
 import structlog
 from fastapi import FastAPI
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
 from bundlemcp.api.jobs.audit_purger import AuditPurger
@@ -28,7 +31,13 @@ from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamCon
 from bundlemcp.application.bootstrap import BootstrapRunner
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.observability.call_tracer import CallTracer
+from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
+from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
+from bundlemcp.application.contracts.upstream.upstream_notification_sink import (
+    UpstreamNotificationSink,
+)
+from bundlemcp.application.contracts.upstream.upstream_session_pool import UpstreamSessionPool
 from bundlemcp.application.delegation.delegated_token_issuer import DelegatedTokenIssuer
 from bundlemcp.application.discovery.connection_diagnoser import ConnectionDiagnoser
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
@@ -36,6 +45,7 @@ from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.management.api_key_service import ApiKeyService
 from bundlemcp.application.management.audit_retention_service import AuditRetentionService
 from bundlemcp.application.metering.invocation_sweeper import InvocationSweeper
+from bundlemcp.application.metering.metering_hook import MeteringHook
 from bundlemcp.application.oauth_server import (
     AuthorizationCodeGrant,
     ClientMetadataFetcher,
@@ -110,6 +120,7 @@ from bundlemcp.infrastructure.valkey.session_store import ValkeySessionStore
 from bundlemcp.infrastructure.valkey.signal_bus import ValkeySignalBus
 from bundlemcp.infrastructure.valkey.stream_presence_store import ValkeyStreamPresence
 from bundlemcp.infrastructure.valkey.valkey_single_use_state import ValkeySingleUseState
+from bundlemcp.main.background_job import BackgroundJob
 from bundlemcp.main.composition_overrides import CompositionOverrides
 from bundlemcp.main.container import AppContainer
 from bundlemcp.main.mcp_gateway_assembly import McpGatewayAssembly
@@ -174,18 +185,10 @@ class CompositionRoot:
         hasher = Sha256SecretHasher()
         generator = overrides.secret_generator or OsSecretGenerator()
 
-        engine = overrides.engine or create_engine(settings.database_url)
-        if overrides.engine is None:
-            self._stack.push_async_callback(engine.dispose)
-        tracer: CallTracer = NoopCallTracer()
-        if self._tracing is not None:
-            self._tracing.instrument_stores(engine)
-            self._stack.callback(self._tracing.shutdown)
-            tracer = self._tracing.call_tracer
+        engine = self._open_engine()
+        tracer = self._call_tracer(engine)
         sessions = session_factory(engine)
-        redis = overrides.redis or create_redis(settings.redis_url)
-        if overrides.redis is None:
-            self._stack.push_async_callback(redis.aclose)
+        redis = self._open_redis()
         cipher = self._build_cipher()
         units = SqlAlchemyUnitOfWorkFactory(sessions, redis, cipher=cipher)
 
@@ -227,15 +230,17 @@ class CompositionRoot:
             diagnoser=diagnoser,
         )
 
+        registry = InProcessStreamRegistry()
         # the gauges read the stream registry and the audit queue at scrape time
         prometheus = PrometheusMetrics(
             open_streams=lambda: len(registry.broadcast_streams()),
-            audit_queue_depth=lambda: audit.queue_depth,
             store_health=StoreHealth(sessions, redis).check,
         )
         metrics = overrides.metrics or prometheus  # metric seam
 
         audit = QueuedAuditWriter(sessions, metrics)
+        # the writer records into the metrics, so its queue is attached once it exists
+        prometheus.observe_audit_queue(lambda: audit.queue_depth)
         await audit.start()
         self._stack.push_async_callback(audit.stop)
 
@@ -248,7 +253,6 @@ class CompositionRoot:
         live_log_publisher.start()
         self._stack.push_async_callback(live_log_publisher.stop)
 
-        registry = InProcessStreamRegistry()
         drain = ReplicaDrain(registry, settings.shutdown_drain_seconds)
         self._stack.callback(drain.stop)
         signals = ValkeySignalBus(redis, registry)
@@ -256,28 +260,18 @@ class CompositionRoot:
         self._stack.push_async_callback(signals.stop)
         session_store = ValkeySessionStore(redis, clock=clock)
         resource_subscriptions = ValkeyResourceSubscriptionIndex(redis)
-        upstream_sessions: PooledUpstreamSessions | PerCallUpstreamSessions
-        if settings.upstream_pooling_enabled:
-            upstream_sessions = PooledUpstreamSessions(
-                client_factory,
-                lambda: PoolLimits(
-                    total=runtime_config.current("upstream_sessions_max"),
-                    per_server=runtime_config.current("upstream_sessions_per_server_max"),
-                    idle_timeout=runtime_config.current("upstream_session_idle_timeout"),
-                ),
-                UpstreamNotificationRouter(
-                    units,
-                    discovery,
-                    ValkeyRefreshLock(redis),
-                    resource_subscriptions,
-                    session_store,
-                    signals,
-                ),
-            )
-            upstream_sessions.start()
-        else:
-            upstream_sessions = PerCallUpstreamSessions(client_factory)
-        self._stack.push_async_callback(upstream_sessions.close)
+        upstream_sessions = self._upstream_sessions(
+            client_factory,
+            runtime_config,
+            UpstreamNotificationRouter(
+                units,
+                discovery,
+                ValkeyRefreshLock(redis),
+                resource_subscriptions,
+                session_store,
+                signals,
+            ),
+        )
 
         profiles = overrides.profiles or ProfileCatalog.builtin()
         auth_failure_limiter = overrides.auth_failure_limiter or ValkeyAuthFailureLimiter(
@@ -290,9 +284,7 @@ class CompositionRoot:
         rate_limiter = overrides.rate_limiter or ValkeyRateLimiter(
             redis, on_fail_open=metrics.traffic_limiter_failed_open
         )
-        metering = overrides.metering_hook or load_metering_hook(settings)
-        if isinstance(metering, HttpMeteringHook):
-            self._stack.push_async_callback(metering.aclose)
+        metering = self._metering_hook()
         paused_invocations = ValkeyPausedInvocations(redis, clock=clock)
         mcp_router = McpGatewayAssembly(
             settings=settings,
@@ -349,53 +341,33 @@ class CompositionRoot:
         self._stack.push_async_callback(subscriber.stop)
         self._stack.callback(registry.close_streams)  # streams end with a result
 
-        purger = TokenPurger(units, clock)  # expired grants must not linger
-        purger.start()
-        self._stack.callback(purger.stop)
-
-        if settings.discovery_refresh_interval:  # 0 disables the periodic refresh
-            refresher = ToolRefresher(
-                discovery, ValkeyRefreshLock(redis), settings.discovery_refresh_interval
-            )
-            refresher.start()
-            self._stack.callback(refresher.stop)
-
-        # a rotated key is dropped once nothing stored needs it; no keys, nothing to move
-        if cipher is not None and settings.token_reencryption_interval:
-            reencryption = SecretReencryptionJob(
-                SecretReencryption(units, cipher),
-                ValkeyRefreshLock(redis),
-                settings.token_reencryption_interval,
-            )
-            reencryption.start()
-            self._stack.callback(reencryption.stop)
-
+        self._run(TokenPurger(units, clock))  # expired grants must not linger
+        self._start_tool_refresher(discovery, redis)
+        self._start_secret_reencryption(cipher, units, redis)
         # an invocation abandoned while waiting for client input still hears how it ended
-        invocation_sweep = InvocationSweepJob(
-            InvocationSweeper(paused_invocations, metering, clock), ValkeyRefreshLock(redis)
+        self._run(
+            InvocationSweepJob(
+                InvocationSweeper(paused_invocations, metering, clock), ValkeyRefreshLock(redis)
+            )
         )
-        invocation_sweep.start()
-        self._stack.callback(invocation_sweep.stop)
-
         # a session idle past session_lifetime is removed on one replica per interval
-        session_sweep = SessionSweepJob(
-            SessionSweeper(
-                session_store,
-                runtime_config,
-                clock,
-                ExpiredSessionRelease(units, upstream_sessions, resource_subscriptions),
-            ),
-            ValkeyRefreshLock(redis),
+        self._run(
+            SessionSweepJob(
+                SessionSweeper(
+                    session_store,
+                    runtime_config,
+                    clock,
+                    ExpiredSessionRelease(units, upstream_sessions, resource_subscriptions),
+                ),
+                ValkeyRefreshLock(redis),
+            )
         )
-        session_sweep.start()
-        self._stack.callback(session_sweep.stop)
-
         # audit records past audit_retention_days are deleted on one replica per interval
-        audit_purger = AuditPurger(
-            AuditRetentionService(units, clock), runtime_config, ValkeyRefreshLock(redis)
+        self._run(
+            AuditPurger(
+                AuditRetentionService(units, clock), runtime_config, ValkeyRefreshLock(redis)
+            )
         )
-        audit_purger.start()
-        self._stack.callback(audit_purger.stop)
 
         client_metadata = overrides.client_metadata_fetcher or HttpxClientMetadataFetcher(
             settings, redis
@@ -457,6 +429,91 @@ class CompositionRoot:
             client_sources=self._client_sources(client_metadata, registration_policy),
             registration_policy=registration_policy,
         )
+
+    def _run(self, job: BackgroundJob) -> None:
+        """Start a job, and stop it at exactly this point of the teardown."""
+        job.start()
+        self._stack.callback(job.stop)
+
+    def _open_engine(self) -> AsyncEngine:
+        """The database engine; one the overrides supply is disposed of by its owner."""
+        if self._overrides.engine is not None:
+            return self._overrides.engine
+        engine = create_engine(self._settings.database_url)
+        self._stack.push_async_callback(engine.dispose)
+        return engine
+
+    def _call_tracer(self, engine: AsyncEngine) -> CallTracer:
+        """The tracer of upstream calls, with the stores instrumented when tracing is on."""
+        if self._tracing is None:
+            return NoopCallTracer()
+        self._tracing.instrument_stores(engine)
+        self._stack.callback(self._tracing.shutdown)
+        return self._tracing.call_tracer
+
+    def _open_redis(self) -> Redis:
+        """The Valkey client; one the overrides supply is closed by its owner."""
+        if self._overrides.redis is not None:
+            return self._overrides.redis
+        redis = create_redis(self._settings.redis_url)
+        self._stack.push_async_callback(redis.aclose)
+        return redis
+
+    def _upstream_sessions(
+        self,
+        client_factory: UpstreamClientFactory,
+        runtime_config: RuntimeConfig,
+        notifications: UpstreamNotificationSink,
+    ) -> UpstreamSessionPool:
+        """Pooled upstream sessions, or one connection per call when pooling is off."""
+        upstream_sessions: PooledUpstreamSessions | PerCallUpstreamSessions
+        if self._settings.upstream_pooling_enabled:
+            upstream_sessions = PooledUpstreamSessions(
+                client_factory,
+                lambda: PoolLimits(
+                    total=runtime_config.current("upstream_sessions_max"),
+                    per_server=runtime_config.current("upstream_sessions_per_server_max"),
+                    idle_timeout=runtime_config.current("upstream_session_idle_timeout"),
+                ),
+                notifications,
+            )
+            upstream_sessions.start()
+        else:
+            upstream_sessions = PerCallUpstreamSessions(client_factory)
+        self._stack.push_async_callback(upstream_sessions.close)
+        return upstream_sessions
+
+    def _metering_hook(self) -> MeteringHook:
+        """The metering hook; the HTTP one holds a client that is closed at shutdown."""
+        metering = self._overrides.metering_hook or load_metering_hook(self._settings)
+        if isinstance(metering, HttpMeteringHook):
+            self._stack.push_async_callback(metering.aclose)
+        return metering
+
+    def _start_tool_refresher(self, discovery: DiscoveryService, redis: Redis) -> None:
+        """Refresh every server's tools periodically; an interval of 0 disables it."""
+        if self._settings.discovery_refresh_interval:
+            self._run(
+                ToolRefresher(
+                    discovery, ValkeyRefreshLock(redis), self._settings.discovery_refresh_interval
+                )
+            )
+
+    def _start_secret_reencryption(
+        self, cipher: SecretCipher | None, units: SqlAlchemyUnitOfWorkFactory, redis: Redis
+    ) -> None:
+        """Move stored secrets onto the current key, so a rotated key can be dropped.
+
+        Without keys there is nothing to move, and an interval of 0 disables it.
+        """
+        if cipher is not None and self._settings.token_reencryption_interval:
+            self._run(
+                SecretReencryptionJob(
+                    SecretReencryption(units, cipher),
+                    ValkeyRefreshLock(redis),
+                    self._settings.token_reencryption_interval,
+                )
+            )
 
     def _client_sources(
         self, client_metadata: ClientMetadataFetcher, registration_policy: RegistrationPolicy
@@ -540,21 +597,24 @@ class CompositionRoot:
             return self._overrides.oidc_provider
         provider = build_provider(self._settings)
         if provider is not None:
-            provider.start()
-            self._stack.callback(provider.stop)
+            self._run(provider)
         return provider
 
     @staticmethod
-    def _server_change(upstream_sessions: PooledUpstreamSessions | PerCallUpstreamSessions):
-        async def on_event(event) -> None:
+    def _server_change(
+        upstream_sessions: UpstreamSessionPool,
+    ) -> Callable[[InvalidationEvent], Awaitable[None]]:
+        async def on_event(event: InvalidationEvent) -> None:
             if event.entity_type == "server":
                 await upstream_sessions.invalidate(event.key)
 
         return on_event
 
     @staticmethod
-    def _config_refresh(runtime_config: RuntimeConfig):
-        async def on_event(event) -> None:
+    def _config_refresh(
+        runtime_config: RuntimeConfig,
+    ) -> Callable[[InvalidationEvent], Awaitable[None]]:
+        async def on_event(event: InvalidationEvent) -> None:
             if event.entity_type == "config":
                 await runtime_config.refresh()
 

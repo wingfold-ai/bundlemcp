@@ -60,6 +60,17 @@ async def test_ops9_metrics_requires_service_key(engine, redis):
     assert service.status_code == 200 and "bundlemcp_tool_calls" in service.text
 
 
+async def test_ops9_stream_and_audit_queue_gauges_are_exported(engine, redis):
+    """OPS-9: the open-stream and audit-queue gauges of the composed app reach /metrics."""
+    await seed_api_key(engine, SERVICE_KEY)
+    async with _running(engine, redis) as (http, _app):
+        text = await _scrape(http)
+    exported = {line.split(" ")[0] for line in text.splitlines() if not line.startswith("#")}
+    assert {"bundlemcp_open_streams", "bundlemcp_audit_queue_depth"} <= exported
+    assert _sample(text, "bundlemcp_open_streams") == 0
+    assert _sample(text, "bundlemcp_audit_queue_depth") >= 0
+
+
 async def test_ops9_metrics_disabled_is_404(engine, redis):
     await seed_api_key(engine, SERVICE_KEY)
     settings = hermetic_settings(metrics_enabled=False)
