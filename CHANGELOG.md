@@ -6,6 +6,38 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.1.20] - 2026-10-29
+
+### Added
+
+- Add `BUNDLEMCP_CLIENT_METADATA_DOCUMENTS_ENABLED` (default `true`). When it is `false`, an `https://` client id is
+  refused as an unknown client without any outbound request, and the authorization server metadata reports
+  `client_id_metadata_document_supported: false`. ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+
+### Changed
+
+- A client whose metadata document is hosted on a private address is no longer fetched unless that address is allowed in
+  `BUNDLEMCP_EGRESS_ALLOW_CIDRS`. Public clients such as claude.ai and ChatGPT are unaffected.
+  ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+
+### Fixed
+
+- A failed or invalid client metadata document is remembered for 60 seconds, so repeated authorize requests for the same
+  URL no longer cost a full fetch each time. A remembered failure is reported with the same error as a fresh one.
+  ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+- A slow or endless client metadata document can no longer hold a worker. The fetch now has a 5-second deadline for the
+  whole request and refuses a body over 16 KiB, whether or not a length is declared.
+  ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+
+### Security
+
+- Close an SSRF hole on `/oauth/authorize`. Fetching a client ID metadata document before sign-in now reaches only
+  globally routable addresses. Private, CGNAT, unique-local, documentation, 6to4 and NAT64 addresses that translate to
+  non-public IPv4 are refused. Anyone on the internet can no longer make the gateway send requests into its private
+  network or time the answers. ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+- The public-only rule is enforced at connect time on the address actually dialled, so DNS rebinding cannot get around
+  it. ([#162](https://github.com/wingfold-ai/bundlemcp/pull/162))
+
 ## [0.1.19] - 2026-10-29
 
 ### Changed
