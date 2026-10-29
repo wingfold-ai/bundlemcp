@@ -55,7 +55,7 @@ The corpora and what each is for:
 ```bash
 git clone https://github.com/wingfold-ai/bundlemcp.git
 cd bundlemcp
-uv sync --all-packages     # Python >= 3.13 workspace (gateway + library); CI and images use 3.14
+uv sync --all-packages     # Python >= 3.13 workspace (gateway + library); CI and images use 3.15
 ```
 
 The admin UI and the docs site need Node 24 or later; `apps/web` refuses an older one on `npm ci`.
