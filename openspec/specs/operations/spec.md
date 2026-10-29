@@ -194,7 +194,10 @@ rendered as one structured line per event to the process's standard error stream
 `BUNDLEMCP_LOG_FORMAT` (`json`, the default, or `text` for terminals), at the minimum level set by
 `BUNDLEMCP_LOG_LEVEL`. Every line written while serving a request SHALL carry the request id, the client IP, and — once
 resolved — the endpoint, the MCP session id and the caller (user id or API key id). Secrets, tokens, header values, and
-tool arguments MUST never be logged. No debug prints in hot paths — enforced by ruff config (`T20`) and review.
+tool arguments MUST never be logged. No debug prints in hot paths — enforced by ruff config (`T20`) and review. A record
+logged with an exception SHALL carry that exception's type, message and stack frames in an `exception` field, in both
+formats. It MUST NOT carry any frame's local variables, the input a validation error rejected, or the parameters of a
+failed database statement.
 
 #### Scenario: Library and application logs share the JSON format
 - **GIVEN** the log format is `json` and the level `INFO`
@@ -228,6 +231,22 @@ tool arguments MUST never be logged. No debug prints in hot paths — enforced b
 #### Scenario: Unresolved fields are omitted
 - **WHEN** a request is rejected before its credential is evaluated
 - **THEN** its log lines carry `request_id` and `client_ip` but no caller field
+
+#### Scenario: A logged exception carries its traceback
+- **GIVEN** the log format is `json`
+- **WHEN** code logs a warning with the exception it caught
+- **THEN** the line is one JSON object whose `exception` field names the exception type, its message and the frames
+  it passed through
+
+#### Scenario: A traceback never shows local variables
+- **GIVEN** the log format is `text` or `json`
+- **WHEN** an exception is logged from a frame whose local variable holds a token
+- **THEN** the token appears nowhere in the output
+
+#### Scenario: Rejected input and statement parameters stay out of the log
+- **WHEN** a validation error over a secret-bearing value, or a failed database statement whose parameters include a
+  ciphertext, is logged with its exception
+- **THEN** the line names the error and its location but contains neither the value nor the parameters
 
 ### Requirement: OPS-10 Probes
 The gateway SHALL serve `/healthz` (process live) and `/readyz` (Postgres and Valkey both reachable, and the database

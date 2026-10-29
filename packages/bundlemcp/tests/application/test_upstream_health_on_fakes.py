@@ -6,6 +6,7 @@ from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.probe_failure import ProbeFailure
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.memory.in_memory_failure_streak import InMemoryFailureStreak
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
@@ -79,8 +80,12 @@ async def test_ups4_failures_on_two_replicas_add_up():
     uow, server = _seeded()
     streak = InMemoryFailureStreak()
     units = InMemoryUnitOfWorkFactory(uow)
-    replica_a = DiscoveryService(units, DownProbe(), health=health_on(uow, streak))
-    replica_b = DiscoveryService(units, DownProbe(), health=health_on(uow, streak))
+    replica_a = DiscoveryService(
+        units, DownProbe(), health=health_on(uow, streak), clock=SystemClock()
+    )
+    replica_b = DiscoveryService(
+        units, DownProbe(), health=health_on(uow, streak), clock=SystemClock()
+    )
     await replica_a.discover(server.id)
     await replica_a.discover(server.id)
     assert await _status(uow, server) != HealthStatus.ERROR
@@ -94,7 +99,8 @@ async def test_ups23_unreachable_upstream_marked_error_across_replicas():
     streak = InMemoryFailureStreak()
     units = InMemoryUnitOfWorkFactory(uow)
     replicas = [
-        DiscoveryService(units, DownProbe(), health=health_on(uow, streak)) for _ in range(2)
+        DiscoveryService(units, DownProbe(), health=health_on(uow, streak), clock=SystemClock())
+        for _ in range(2)
     ]
     for sweep in range(3):
         result = await replicas[sweep % 2].discover_all()
@@ -111,7 +117,10 @@ async def test_ups4_a_streak_store_outage_never_fails_a_probe():
 
     uow, server = _seeded()
     discovery = DiscoveryService(
-        InMemoryUnitOfWorkFactory(uow), DownProbe(), health=health_on(uow, BrokenStreak())
+        InMemoryUnitOfWorkFactory(uow),
+        DownProbe(),
+        health=health_on(uow, BrokenStreak()),
+        clock=SystemClock(),
     )
     result = await discovery.discover(server.id)
     assert result.connection_state == ConnectionState.UNREACHABLE

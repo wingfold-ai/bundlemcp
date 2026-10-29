@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from bundlemcp.domain.servers.identity_mode import IdentityMode
+from bundlemcp.domain.servers.protocol_mode import ProtocolMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 
 
@@ -25,4 +26,7 @@ class DiscoveryInputs(BaseModel):
     send_identity_header: bool = Field(
         description="Whether the calling user's identity is forwarded upstream"
     )
-    protocol_mode: str = Field(description="How the MCP revision is negotiated with the upstream")
+    protocol_mode: ProtocolMode = Field(
+        description="How the MCP revision is negotiated with the upstream: 'auto', 'session' "
+        "or a pinned revision date"
+    )

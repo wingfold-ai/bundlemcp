@@ -9,6 +9,7 @@ from bundlemcp.domain.access.caller_identity import CallerIdentity
 from bundlemcp.domain.sessions.session_lifetime import SessionLifetime
 from bundlemcp.domain.sessions.session_record import SessionRecord
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.valkey.publish_invalidation import (
     INVALIDATION_CHANNEL,
     publish_invalidation,
@@ -29,7 +30,7 @@ def _record(session_id: str = "s1") -> SessionRecord:
 
 
 async def test_session_roundtrip_and_delete(redis):
-    store = ValkeySessionStore(redis)
+    store = ValkeySessionStore(redis, clock=SystemClock())
     await store.create(_record(), DAY)
 
     loaded = await store.load("s1")
@@ -42,13 +43,13 @@ async def test_session_roundtrip_and_delete(redis):
 
 async def test_unknown_session_returns_none(redis):
     """SES-3: only genuinely unknown sessions read as missing."""
-    store = ValkeySessionStore(redis)
+    store = ValkeySessionStore(redis, clock=SystemClock())
     assert await store.load("nope") is None
 
 
 async def test_version_mismatch_treated_as_expired(redis):
     """DEP-6: record with an incompatible version reads as expired."""
-    store = ValkeySessionStore(redis)
+    store = ValkeySessionStore(redis, clock=SystemClock())
     rec = _record()
     raw = json.loads(rec.model_dump_json())
     raw["version"] = 999
@@ -58,7 +59,7 @@ async def test_version_mismatch_treated_as_expired(redis):
 
 async def test_concurrent_binding_updates_do_not_lose_writes(redis):
     """SES-1a: two lazy bindings racing on one record both land."""
-    store = ValkeySessionStore(redis)
+    store = ValkeySessionStore(redis, clock=SystemClock())
     await store.create(_record(), DAY)
 
     async def bind(server: str):
@@ -94,13 +95,13 @@ async def test_ses1_dep6_a_record_without_timestamps_still_loads_at_version_2(re
     raw = json.loads(_record().model_dump_json())
     del raw["created_at"], raw["last_active_at"]
     await redis.set("bmcp:session:s1", json.dumps(raw))
-    loaded = await ValkeySessionStore(redis).load("s1")
+    loaded = await ValkeySessionStore(redis, clock=SystemClock()).load("s1")
     assert loaded is not None and loaded.version == 2
 
 
 async def test_ses1_ses10_ttl_follows_the_lifetime(redis):
     """SES-1, SES-10: the TTL is the lifetime plus the sweeper's margin; 0 stores no TTL."""
-    store = ValkeySessionStore(redis)
+    store = ValkeySessionStore(redis, clock=SystemClock())
     hour = SessionLifetime(seconds=3600)
     await store.create(_record(), hour)
     assert await redis.ttl("bmcp:session:s1") == hour.store_ttl
@@ -113,7 +114,7 @@ async def test_ses1_ses10_ttl_follows_the_lifetime(redis):
 
 async def test_ses10_a_changed_lifetime_applies_at_the_next_touch(redis):
     """SES-10: touch records the activity and sets the TTL from the lifetime it is given."""
-    store = ValkeySessionStore(redis)
+    store = ValkeySessionStore(redis, clock=SystemClock())
     await store.create(_record(), DAY)
     before = await store.load("s1")
     assert before is not None
@@ -128,7 +129,7 @@ async def test_ses10_a_changed_lifetime_applies_at_the_next_touch(redis):
 
 async def test_ses1_a_binding_update_keeps_the_ttl(redis):
     """SES-1: an update that is not activity leaves the record's TTL alone."""
-    store = ValkeySessionStore(redis)
+    store = ValkeySessionStore(redis, clock=SystemClock())
     hour = SessionLifetime(seconds=3600)
     await store.create(_record(), hour)
     await redis.expire("bmcp:session:s1", 500)
@@ -137,7 +138,7 @@ async def test_ses1_a_binding_update_keeps_the_ttl(redis):
 
 
 async def test_ses10_delete_leaves_the_activity_index(redis):
-    store = ValkeySessionStore(redis)
+    store = ValkeySessionStore(redis, clock=SystemClock())
     await store.create(_record(), DAY)
     await store.delete("s1")
     assert await redis.zscore("bmcp:sessions:active", "s1") is None

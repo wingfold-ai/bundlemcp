@@ -1596,9 +1596,9 @@ export interface components {
             name: string;
             /**
              * Protocol Mode
-             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. Omitted on create it is 'auto'; omitted on update, the stored value is kept
+             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'session' (always the handshake and its session, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. 'legacy' is accepted as a deprecated alias of 'session' and read back as 'session'. Omitted on create it is 'auto'; omitted on update, the stored value is kept
              */
-            protocol_mode?: string | null;
+            protocol_mode?: components["schemas"]["NegotiationMode"] | string | null;
             /**
              * Send Identity Header
              * @description Whether the calling user's identity is sent to the server as X-MCP-User. Omitted on create, it is on for a server on the gateway's own network and off for any public host; omitted on update, the stored value is kept
@@ -2885,6 +2885,14 @@ export interface components {
          */
         MemberEntryKind: "prompt" | "resource";
         /**
+         * NegotiationMode
+         * @description How the MCP revision is chosen when the gateway connects, rather than pinned: 'auto'
+         *     probes server/discover and falls back to the initialize handshake; 'session' always uses
+         *     the handshake and the session it opens.
+         * @enum {string}
+         */
+        NegotiationMode: "auto" | "session";
+        /**
          * OAuthInspection
          * @description What an OAuth-protected upstream's authorization chain revealed.
          */
@@ -3501,9 +3509,9 @@ export interface components {
             name: string;
             /**
              * Protocol Mode
-             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to initialize), 'legacy' (always initialize), or a pinned revision date such as '2026-07-28'
+             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to initialize), 'session' (always initialize and its session), or a pinned revision date such as '2026-07-28'
              */
-            protocol_mode: string;
+            protocol_mode: components["schemas"]["NegotiationMode"] | string;
             /**
              * Protocol Version
              * @description MCP revision negotiated at the last successful probe; null until the server has been reached once
@@ -3574,9 +3582,9 @@ export interface components {
             name: string;
             /**
              * Protocol Mode
-             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. Omitted on create it is 'auto'; omitted on update, the stored value is kept
+             * @description How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'session' (always the handshake and its session, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. 'legacy' is accepted as a deprecated alias of 'session' and read back as 'session'. Omitted on create it is 'auto'; omitted on update, the stored value is kept
              */
-            protocol_mode?: string | null;
+            protocol_mode?: components["schemas"]["NegotiationMode"] | string | null;
             /**
              * Send Identity Header
              * @description Whether the calling user's identity is sent to the server as X-MCP-User. Omitted on create, it is on for a server on the gateway's own network and off for any public host; omitted on update, the stored value is kept

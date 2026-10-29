@@ -935,14 +935,18 @@
           "protocol_mode": {
             "anyOf": [
               {
-                "pattern": "^(auto|legacy|\\d{4}-\\d{2}-\\d{2})$",
+                "$ref": "#/components/schemas/NegotiationMode"
+              },
+              {
+                "description": "An MCP revision date, such as '2026-07-28', spoken without negotiation",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. Omitted on create it is 'auto'; omitted on update, the stored value is kept",
+            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'session' (always the handshake and its session, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. 'legacy' is accepted as a deprecated alias of 'session' and read back as 'session'. Omitted on create it is 'auto'; omitted on update, the stored value is kept",
             "title": "Protocol Mode"
           },
           "send_identity_header": {
@@ -3094,6 +3098,15 @@
         "title": "MemberEntryKind",
         "type": "string"
       },
+      "NegotiationMode": {
+        "description": "How the MCP revision is chosen when the gateway connects, rather than pinned: 'auto'\nprobes server/discover and falls back to the initialize handshake; 'session' always uses\nthe handshake and the session it opens.",
+        "enum": [
+          "auto",
+          "session"
+        ],
+        "title": "NegotiationMode",
+        "type": "string"
+      },
       "OAuthInspection": {
         "description": "What an OAuth-protected upstream's authorization chain revealed.",
         "properties": {
@@ -4110,9 +4123,18 @@
             "type": "string"
           },
           "protocol_mode": {
-            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to initialize), 'legacy' (always initialize), or a pinned revision date such as '2026-07-28'",
-            "title": "Protocol Mode",
-            "type": "string"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NegotiationMode"
+              },
+              {
+                "description": "An MCP revision date, such as '2026-07-28', spoken without negotiation",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              }
+            ],
+            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to initialize), 'session' (always initialize and its session), or a pinned revision date such as '2026-07-28'",
+            "title": "Protocol Mode"
           },
           "protocol_version": {
             "anyOf": [
@@ -4235,14 +4257,18 @@
           "protocol_mode": {
             "anyOf": [
               {
-                "pattern": "^(auto|legacy|\\d{4}-\\d{2}-\\d{2})$",
+                "$ref": "#/components/schemas/NegotiationMode"
+              },
+              {
+                "description": "An MCP revision date, such as '2026-07-28', spoken without negotiation",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'legacy' (always the handshake, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. Omitted on create it is 'auto'; omitted on update, the stored value is kept",
+            "description": "How the gateway negotiates the MCP revision with this server: 'auto' (probe server/discover, fall back to the initialize handshake), 'session' (always the handshake and its session, for servers whose tools need server-initiated requests), or a revision date such as '2026-07-28' to pin that revision. 'legacy' is accepted as a deprecated alias of 'session' and read back as 'session'. Omitted on create it is 'auto'; omitted on update, the stored value is kept",
             "title": "Protocol Mode"
           },
           "send_identity_header": {
@@ -4823,7 +4849,7 @@
   },
   "info": {
     "title": "bundlemcp",
-    "version": "0.2.2"
+    "version": "0.3.0"
   },
   "openapi": "3.1.0",
   "paths": {

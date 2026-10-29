@@ -10,9 +10,12 @@ from bundlemcp.domain.servers.discovery_inputs import DiscoveryInputs
 from bundlemcp.domain.servers.forward_header_rules import CALLER_TOKEN_HEADER
 from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.servers.identity_mode import IdentityMode
+from bundlemcp.domain.servers.internal_host import is_internal_host
 from bundlemcp.domain.servers.listing_snapshot_mode import ListingSnapshotMode
+from bundlemcp.domain.servers.protocol_mode import NegotiationMode, ProtocolMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.domain.servers.server_capability import ServerCapability
+from bundlemcp.domain.servers.server_changes import ServerChanges
 from bundlemcp.domain.shared.clock import utcnow
 
 
@@ -48,11 +51,11 @@ class McpServer(BaseModel):
         description="What the server advertised at its last probe. A key is present exactly "
         "when that capability was advertised",
     )
-    protocol_mode: str = Field(
-        default="auto",
+    protocol_mode: ProtocolMode = Field(
+        default=NegotiationMode.AUTO,
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
-        "probes server/discover and falls back to the initialize handshake, 'legacy' always "
-        "uses the handshake, and a revision date pins that revision",
+        "probes server/discover and falls back to the initialize handshake, 'session' always "
+        "uses the handshake and its session, and a revision date pins that revision",
     )
     listing_snapshot: ListingSnapshotMode = Field(
         default=ListingSnapshotMode.AUTO,
@@ -86,6 +89,46 @@ class McpServer(BaseModel):
         default_factory=utcnow,
         description="When the record was last changed",
     )
+
+    @classmethod
+    def register(cls, name: str, changes: ServerChanges) -> "McpServer":
+        """A new server configured by its first write.
+
+        Settings the write leaves out take their defaults; whether the caller's identity is
+        forwarded defaults to whether the server is on the gateway's own network.
+        """
+        server = cls(
+            name=name,
+            url=changes.url,
+            send_identity_header=(
+                is_internal_host(changes.url)
+                if changes.send_identity_header is None
+                else changes.send_identity_header
+            ),
+        )
+        server.reconfigure(changes)
+        return server
+
+    def reconfigure(self, changes: ServerChanges) -> None:
+        """Apply a write of the server's configuration.
+
+        Static header values are write-only, so an empty map keeps the stored headers rather
+        than clearing them; the auth mode is then settled by whether headers are stored. A
+        setting the write leaves out (``None``) keeps its stored value.
+        """
+        self.description = changes.description
+        self.url = changes.url
+        if changes.static_headers:
+            self.static_headers = dict(changes.static_headers)
+        self.forward_headers = dict(changes.forward_headers)
+        self.auth_mode = changes.auth_mode.settled(has_static_headers=bool(self.static_headers))
+        self.identity_mode = changes.identity_mode
+        if changes.send_identity_header is not None:
+            self.send_identity_header = changes.send_identity_header
+        if changes.protocol_mode is not None:
+            self.protocol_mode = changes.protocol_mode
+        if changes.listing_snapshot is not None:
+            self.listing_snapshot = changes.listing_snapshot
 
     @property
     def discovery_inputs(self) -> DiscoveryInputs:

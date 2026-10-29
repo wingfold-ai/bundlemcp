@@ -53,7 +53,7 @@ class CompletionHandler:
                     ctx, server, lambda client: client.complete_mcp(member_ref, argument, context)
                 )
             except Exception:
-                log.warning("completion.member_failed", server=server.name)
+                log.warning("completion.member_failed", server=server.name, exc_info=True)
                 continue
             return rpc_result(message.id, ctx.shape(dump(result)))
         return rpc_result(message.id, ctx.shape(dict(EMPTY_COMPLETION)))

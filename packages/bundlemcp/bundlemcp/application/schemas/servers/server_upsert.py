@@ -5,8 +5,13 @@ from pydantic import BaseModel, Field, field_validator
 from bundlemcp.domain.servers.forward_header_rules import is_forwardable
 from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.listing_snapshot_mode import ListingSnapshotMode
+from bundlemcp.domain.servers.protocol_mode import NegotiationMode, ProtocolMode
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
+from bundlemcp.domain.servers.server_changes import ServerChanges
 from bundlemcp.domain.shared.resource_names import ServerName
+
+DEPRECATED_SESSION_ALIAS = "legacy"
+"""Accepted in place of ``session`` on every write, and never returned."""
 
 
 class ServerUpsert(BaseModel):
@@ -52,14 +57,14 @@ class ServerUpsert(BaseModel):
         "Omitted on create, it is on for a server on the gateway's own network and off for "
         "any public host; omitted on update, the stored value is kept",
     )
-    protocol_mode: str | None = Field(
+    protocol_mode: ProtocolMode | None = Field(
         default=None,
-        pattern=r"^(auto|legacy|\d{4}-\d{2}-\d{2})$",
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
-        "(probe server/discover, fall back to the initialize handshake), 'legacy' (always "
-        "the handshake, for servers whose tools need server-initiated requests), or a "
-        "revision date such as '2026-07-28' to pin that revision. Omitted on create it is "
-        "'auto'; omitted on update, the stored value is kept",
+        "(probe server/discover, fall back to the initialize handshake), 'session' (always "
+        "the handshake and its session, for servers whose tools need server-initiated "
+        "requests), or a revision date such as '2026-07-28' to pin that revision. 'legacy' is "
+        "accepted as a deprecated alias of 'session' and read back as 'session'. Omitted on "
+        "create it is 'auto'; omitted on update, the stored value is kept",
     )
     listing_snapshot: ListingSnapshotMode | None = Field(
         default=None,
@@ -82,6 +87,12 @@ class ServerUpsert(BaseModel):
         description="Confirm a rename that would otherwise be rejected, accepting that bundles "
         "and tool names derived from the old name change with it",
     )
+
+    @field_validator("protocol_mode", mode="before")
+    @classmethod
+    def _session_alias(cls, value: object) -> object:
+        # the handshake-only mode's pre-rename spelling, still sent by older clients and documents
+        return NegotiationMode.SESSION if value == DEPRECATED_SESSION_ALIAS else value
 
     @field_validator("transport", mode="before")
     @classmethod
@@ -109,3 +120,17 @@ class ServerUpsert(BaseModel):
         if not v.startswith(("http://", "https://")):
             raise ValueError("url must be http(s)")
         return v
+
+    def changes(self) -> ServerChanges:
+        """The configuration this body writes, without the name and the request-only flags."""
+        return ServerChanges(
+            description=self.description,
+            url=self.url,
+            static_headers=self.static_headers,
+            forward_headers=self.forward_headers,
+            auth_mode=self.auth_mode,
+            identity_mode=self.identity_mode,
+            send_identity_header=self.send_identity_header,
+            protocol_mode=self.protocol_mode,
+            listing_snapshot=self.listing_snapshot,
+        )

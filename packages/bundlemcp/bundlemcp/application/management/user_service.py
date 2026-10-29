@@ -8,12 +8,13 @@ from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.application.errors import NotFoundError
 from bundlemcp.application.schemas import ConsentRead, Page, UserRead
 from bundlemcp.domain.oauth.oauth_consent import OAuthConsent
-from bundlemcp.domain.shared.clock import utcnow
+from bundlemcp.domain.shared.clock import Clock
 
 
 class UserService:
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, *, clock: Clock) -> None:
         self._uow = uow
+        self._clock = clock
 
     async def list(self, *, offset: int, limit: int) -> Page[UserRead]:
         total, rows = await self._uow.users.page(offset=offset, limit=limit)
@@ -33,7 +34,7 @@ class UserService:
         user.is_active = False
         self._uow.users.add(user)
         await self._uow.oauth_tokens.revoke_for_user(user_id)
-        await self._uow.consents.revoke_for_user(user_id, at=utcnow())
+        await self._uow.consents.revoke_for_user(user_id, at=self._clock.now())
         await self._uow.upstream_tokens.delete_for_user(user_id)
         await self._uow.commit()
         await self._uow.refresh(user)
@@ -73,7 +74,7 @@ class UserService:
         await self._revoke(user_id, consent)
 
     async def _revoke(self, user_id: uuid.UUID, consent: OAuthConsent) -> None:
-        consent.revoked_at = utcnow()
+        consent.revoked_at = self._clock.now()
         self._uow.consents.add(consent)
         await self._uow.oauth_tokens.revoke_for_consent(
             user_id, consent.client_id, consent.endpoint_id

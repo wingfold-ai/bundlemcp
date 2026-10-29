@@ -8,6 +8,7 @@ import type { components } from "~~/types/api";
 
 type ServerInspection = components["schemas"]["ServerInspection"];
 type ServerJsonDraft = components["schemas"]["ServerJsonDraft"];
+type ProtocolMode = components["schemas"]["ServerRead"]["protocol_mode"];
 
 const emit = defineEmits<{ created: [name: string] }>();
 
@@ -41,7 +42,7 @@ const clientId = ref("");
 const clientSecret = ref("");
 const sendIdentityHeader = ref(false);
 const identityHeaderTouched = ref(false); // an explicit choice outlives any default
-const protocolMode = ref("auto");
+const protocolMode = ref<ProtocolMode>("auto");
 const listingSnapshot = ref("auto");
 const fwdRows = ref<{ key: string; val: string }[]>([]);
 const creating = ref(false);
@@ -563,7 +564,7 @@ watch(url, (value) => {
               data-testid="create-protocol-mode"
             >
               <option value="auto">auto — negotiate (recommended)</option>
-              <option value="legacy">legacy — always the initialize handshake</option>
+              <option value="session">session — always the initialize handshake</option>
               <option value="2026-07-28">pin 2026-07-28</option>
             </select>
           </div>

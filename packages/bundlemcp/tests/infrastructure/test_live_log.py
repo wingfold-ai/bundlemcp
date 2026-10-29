@@ -162,3 +162,21 @@ async def test_ops15_the_service_filters_and_resumes_without_duplicates():
     follow = service.follow(LiveLogFilter(), after=paused_at, wait_seconds=0.1)
     batch = await anext(follow)
     assert [e.event for e in batch] == ["fine", "other"]
+
+
+async def test_ops8_live_log_entry_carries_the_same_traceback(capsys):
+    """OPS-8, OPS-17: an event logged with its exception reaches the live log with the same
+    ``exception`` field the process log line carries."""
+    handler = LiveLogHandler("INFO", replica="r1")
+    log = _logger_with(handler)
+    try:
+        try:
+            raise ConnectionError("upstream down")
+        except ConnectionError:
+            log.warning("discovery.listing_failed", exc_info=True)
+    finally:
+        logging.getLogger().removeHandler(handler)
+    (entry,) = handler.drain(10)
+    line = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
+    assert "ConnectionError: upstream down" in line["exception"]
+    assert entry.fields["exception"] == line["exception"]

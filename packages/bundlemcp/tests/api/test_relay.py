@@ -27,6 +27,7 @@ from bundlemcp.domain.shared.secrets import (
     hash_token,
 )
 from bundlemcp.infrastructure.config.settings import EnvSettings
+from bundlemcp.infrastructure.fastmcp.connect_mode import connect_mode
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
 from bundlemcp.infrastructure.postgres.rows.audit_record_row import AuditRecordRow
@@ -139,7 +140,7 @@ UPSTREAMS = {"relay": relay_server, "modern": modern_server}
 def upstream_factory(server, extra_headers, *, observer=None, **handlers):
     # `relay` is pinned to the handshake era by its protocol_mode;
     # `modern` negotiates 2026-07-28 through server/discover.
-    return Client(UPSTREAMS[server.name], mode=server.protocol_mode, **handlers)
+    return Client(UPSTREAMS[server.name], mode=connect_mode(server.protocol_mode), **handlers)
 
 
 async def seed(engine: AsyncEngine) -> None:

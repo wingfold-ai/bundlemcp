@@ -38,7 +38,7 @@ def _run_migrations(connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    engine = create_async_engine(_database_url())
+    engine = create_async_engine(_database_url(), hide_parameters=True)
     async with engine.connect() as connection:
         if engine.dialect.name == "postgresql":
             from sqlalchemy import text

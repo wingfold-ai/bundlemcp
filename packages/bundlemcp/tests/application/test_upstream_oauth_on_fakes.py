@@ -135,6 +135,7 @@ def discovery(uow, tokens, probe) -> DiscoveryService:
         InMemoryUnitOfWorkFactory(uow),
         probe,
         health=health_on(uow),
+        clock=SystemClock(),
         credentials=UpstreamCredentialResolver(tokens, PUBLIC_BASE),
     )
 
@@ -328,7 +329,7 @@ async def test_auth20_deactivation_removes_the_users_upstream_connections(uow):
     await tokens.save(server.id, None, UpstreamTokens(access_token="shared", expires_in=3600))
     assert await uow.upstream_tokens.any_valid_user_connection(server.id) is not None
 
-    await UserService(uow).deactivate(user.id)
+    await UserService(uow, clock=SystemClock()).deactivate(user.id)
 
     assert await uow.upstream_tokens.any_valid_user_connection(server.id) is None
     assert await uow.upstream_tokens.find(server.id, None) is not None  # shared one kept

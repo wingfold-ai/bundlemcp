@@ -25,7 +25,7 @@ from bundlemcp.domain.servers.member_listing_sync import sync_member_listing
 from bundlemcp.domain.servers.probe_failure import ProbeFailure
 from bundlemcp.domain.servers.probed_listing import ProbedListing
 from bundlemcp.domain.servers.tool_sync import sync_tools
-from bundlemcp.domain.shared.clock import utcnow
+from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import UpstreamOAuthNotConfigured
 
@@ -92,12 +92,14 @@ class DiscoveryService:
         probe: UpstreamProbe,
         *,
         health: UpstreamHealth,
+        clock: Clock,
         credentials: UpstreamCredentialResolver | None = None,
         diagnoser: ConnectionDiagnoser | None = None,
     ) -> None:
         self._units = units
         self._probe = probe
         self._health = health
+        self._clock = clock
         self._credentials = credentials
         self._diagnoser = diagnoser or ConnectionDiagnoser(None)
         self._tasks: set[asyncio.Task] = set()
@@ -171,7 +173,7 @@ class DiscoveryService:
                 server.capabilities = seen.capabilities
             server.protocol_version = seen.protocol_version
             server.connection_state = ConnectionState.READY
-            now = utcnow()
+            now = self._clock.now()
             server.last_discovered_at = now
             uow.servers.add(server)
 

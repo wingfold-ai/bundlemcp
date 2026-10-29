@@ -28,7 +28,7 @@ async def test_arc18_encrypted_header_reaches_upstream(engine, redis):
                 json={
                     "name": "echo",
                     "url": url,
-                    "protocol_mode": "legacy",
+                    "protocol_mode": "session",
                     "static_headers": {"Authorization": "Bearer s3cret"},
                 },
             )

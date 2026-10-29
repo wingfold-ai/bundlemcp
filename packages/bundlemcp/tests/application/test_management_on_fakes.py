@@ -25,6 +25,7 @@ from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
     InMemoryUnitOfWorkFactory,
@@ -191,7 +192,7 @@ async def test_unchanged_upsert_of_a_working_server_does_not_probe(uow):
         {"url": "http://echo-2/mcp"},
         {"static_headers": {"Authorization": "Bearer new"}},
         {"forward_headers": {"x-b": "x-b"}},
-        {"protocol_mode": "legacy"},
+        {"protocol_mode": "session"},
         {"send_identity_header": False},
         {"identity_mode": IdentityMode.PER_USER},
     ],
@@ -284,7 +285,9 @@ async def _discovered_member(uow) -> tuple[DiscoveryService, ScriptedProbe, uuid
     await bundles.upsert(BundleUpsert(name="demo"))
     await bundles.set_member("demo", "echo", BundleServerUpdate())
     probe = ScriptedProbe("alpha", "beta")
-    discovery = DiscoveryService(InMemoryUnitOfWorkFactory(uow), probe, health=health_on(uow))
+    discovery = DiscoveryService(
+        InMemoryUnitOfWorkFactory(uow), probe, health=health_on(uow), clock=SystemClock()
+    )
     server = await uow.servers.by_name("echo")
     await discovery.discover(server.id)
     return discovery, probe, server.id
