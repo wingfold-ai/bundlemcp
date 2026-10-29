@@ -12,6 +12,7 @@ from bundlemcp.api.mcp.protocol.sse import SSE_HEADERS, sse_data
 from bundlemcp.api.mcp.relay import CallEvents
 
 if TYPE_CHECKING:
+    from bundlemcp.api.mcp.tool_call.admitted_call import AdmittedCall
     from bundlemcp.api.mcp.tool_call.tool_call import ToolCall
 
 TERMINAL_PHASES = ("input_required", "result")
@@ -43,24 +44,26 @@ class BufferedCallResponse:
     """Wait for the upstream, then answer with the whole JSON-RPC message.
 
     A client that disconnects while it waits cancels the call, as closing a
-    streamed response does.
+    streamed response does. Only a handshake client is answered this way, so
+    an upstream's request for input travels over its GET stream and the call
+    needs no input channel.
     """
 
-    async def render(self, call: "ToolCall") -> Response:
+    async def render(self, call: "ToolCall", admitted: "AdmittedCall") -> Response:
         started = time.monotonic()
-        watcher = asyncio.create_task(self._watch(call))
+        watcher = asyncio.create_task(self._watch(call, admitted))
         try:
-            outcome = await call.execute(None, None)
+            outcome = await call.execute(admitted, None, None, None)
         finally:
             watcher.cancel()
-        await call.finish(outcome, started)
+        await call.finish(admitted, outcome, started)
         return JSONResponse(outcome.jsonrpc(call.rpc_id, call.shape))
 
     @staticmethod
-    async def _watch(call: "ToolCall") -> None:
+    async def _watch(call: "ToolCall", admitted: "AdmittedCall") -> None:
         while not await call.client_disconnected():
             await asyncio.sleep(DISCONNECT_POLL_SECONDS)
-        call.disconnected()
+        call.disconnected(admitted)
 
 
 class StreamedCallResponse:
@@ -87,10 +90,9 @@ class StreamedCallResponse:
             params["message"] = message
         return {"jsonrpc": "2.0", "method": "notifications/progress", "params": params}
 
-    async def render(self, call: "ToolCall") -> Response:
+    async def render(self, call: "ToolCall", admitted: "AdmittedCall") -> Response:
         queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         events = CallEvents(call.correlation_id, queue, call.signals)
-        call.attach(events)
 
         async def on_progress(progress: float, total: float | None, message: str | None) -> None:
             await events.emit("event", self._progress_event(progress, total, message))
@@ -101,6 +103,9 @@ class StreamedCallResponse:
         started = time.monotonic()
         task = call.detach(
             call.conclude(
+                admitted,
+                events,
+                call.input_channel(admitted, events),
                 on_progress if self._progress_token is not None else None,
                 on_notification,
                 started,
@@ -113,6 +118,6 @@ class StreamedCallResponse:
                     yield chunk
             finally:
                 if not task.done() and not events.parked:
-                    call.disconnected()
+                    call.disconnected(admitted)
 
         return StreamingResponse(body(), media_type="text/event-stream", headers=SSE_HEADERS)

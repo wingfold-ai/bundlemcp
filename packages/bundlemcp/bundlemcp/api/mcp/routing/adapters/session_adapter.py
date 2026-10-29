@@ -13,9 +13,9 @@ from bundlemcp.api.mcp.protocol.dialect import DialectRegistry
 from bundlemcp.api.mcp.protocol.endpoint_context import EndpointContext
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
 from bundlemcp.api.mcp.protocol.jsonrpc_message import JsonRpcMessage
-from bundlemcp.api.mcp.protocol.request_context import RequestContext
 from bundlemcp.api.mcp.protocol.request_rejected import RequestRejected
 from bundlemcp.api.mcp.protocol.session_header import SESSION_HEADER
+from bundlemcp.api.mcp.protocol.session_request_context import SessionRequestContext
 from bundlemcp.api.mcp.routing.session_stream import SessionStream
 from bundlemcp.api.mcp.upstream.upstream_leases import UpstreamLeases
 from bundlemcp.application.contracts.live_state.session_store import SessionStore
@@ -59,7 +59,6 @@ class SessionMcpAdapter:
         except RequestRejected as rejected:
             return rejected.response
 
-        assert request_ctx.session is not None
         await self._sessions.touch(
             request_ctx.session.session_id, await self._runtime_config.session_lifetime()
         )
@@ -82,12 +81,13 @@ class SessionMcpAdapter:
             request_ctx = await self._admit_session(ctx, endpoint_name)
         except RequestRejected as rejected:
             return rejected.response
-        assert request_ctx.session is not None
         await self._sessions.delete(request_ctx.session.session_id)
         await self._leases.end_session(request_ctx)  # its upstream sessions end with it
         return Response(status_code=204)
 
-    async def _admit_session(self, ctx: EndpointContext, endpoint_name: str) -> RequestContext:
+    async def _admit_session(
+        self, ctx: EndpointContext, endpoint_name: str
+    ) -> SessionRequestContext:
         """Load the handshake session the request names, or reject the request."""
         session_id = ctx.request.headers.get(SESSION_HEADER, "")
         if not session_id:
@@ -120,8 +120,8 @@ class SessionMcpAdapter:
     @staticmethod
     def _session_context(
         ctx: EndpointContext, record: SessionRecord, dialect: Any
-    ) -> RequestContext:
-        return RequestContext(
+    ) -> SessionRequestContext:
+        return SessionRequestContext(
             request=ctx.request,
             view=ctx.view,
             identity=ctx.identity,

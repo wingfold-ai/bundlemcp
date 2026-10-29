@@ -8,6 +8,7 @@ import structlog
 
 from bundlemcp.api.mcp.protocol.header_forwarding import HeaderForwarding
 from bundlemcp.api.mcp.protocol.request_context import RequestContext
+from bundlemcp.api.mcp.protocol.session_request_context import SessionRequestContext
 from bundlemcp.application.contracts.live_state.resource_subscriptions import (
     ResourceSubscriptions,
 )
@@ -133,9 +134,11 @@ class UpstreamLeases:
     ) -> AsyncIterator[UpstreamLease]:
         """A lease for ``request``; a binding it makes or changes is recorded on ``session``."""
         async with self._pool.lease(request) as lease:
-            changed = lease.binding is not None and lease.binding != request.binding
-            if session is not None and changed:
-                assert lease.binding is not None
+            if (
+                session is not None
+                and lease.binding is not None
+                and lease.binding != request.binding
+            ):
                 updated = await self._sessions.set_binding(session.session_id, lease.binding)
                 if updated is not None:
                     session.bindings[request.server.name] = lease.binding
@@ -153,13 +156,12 @@ class UpstreamLeases:
             except Exception:
                 log.warning("resources.resubscribe_failed", server=server.name, exc_info=True)
 
-    async def end_session(self, ctx: RequestContext) -> None:
+    async def end_session(self, ctx: SessionRequestContext) -> None:
         """End the upstream sessions bound to the handshake session ``ctx`` names.
 
         Each is ended with the caller's own headers, as its requests were; an
         upstream that cannot be told is left to expire its session.
         """
-        assert ctx.session is not None
         await self._subscriptions.drop_stream(ctx.session.session_id)
         for binding in ctx.session.bindings.values():
             server = ctx.view.servers.get(binding.server_name)

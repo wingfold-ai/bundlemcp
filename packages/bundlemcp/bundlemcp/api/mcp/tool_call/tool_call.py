@@ -19,6 +19,7 @@ from bundlemcp.api.mcp.relay import (
     InputChannel,
     ParkingChannel,
     PreansweredChannel,
+    RelayMode,
     RelayRejected,
     RequestState,
     ResumeInputs,
@@ -26,6 +27,7 @@ from bundlemcp.api.mcp.relay import (
     input_required_result,
 )
 from bundlemcp.api.mcp.relay.client_relay import ClientRelay, NotificationSink
+from bundlemcp.api.mcp.tool_call.admitted_call import AdmittedCall
 from bundlemcp.api.mcp.tool_call.call_outcome import (
     UPSTREAM_FAILURE,
     CallOutcome,
@@ -42,7 +44,6 @@ from bundlemcp.application.contracts.live_state.signal_bus import SignalBus
 from bundlemcp.application.contracts.observability.gateway_metrics import ToolCallStatus
 from bundlemcp.application.metering.idempotency_key import new_idempotency_key
 from bundlemcp.application.metering.meter_context import MeterContext
-from bundlemcp.application.serving.call_handle import CallHandle
 from bundlemcp.application.serving.call_refusal import CallRefusal
 from bundlemcp.application.serving.call_settlement import CallSettlement
 from bundlemcp.application.serving.chain_call import ChainCall
@@ -50,7 +51,6 @@ from bundlemcp.application.serving.tool_chain import ToolChain
 from bundlemcp.domain.access.credential_headers import CredentialHeaders
 from bundlemcp.domain.audit.audit_status import AuditStatus
 from bundlemcp.domain.bundles.presented_tool import PresentedTool
-from bundlemcp.domain.config.call_timeouts import CallTimeouts
 from bundlemcp.domain.servers.upstream_reach import UpstreamReach
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import UpstreamOAuthNotConfigured
@@ -63,10 +63,11 @@ NO_CIPHER = "input_required is unavailable on this gateway: no token encryption 
 class ToolCall:
     """The state of one tools/call as it moves through the endpoint's chain.
 
-    ``run`` decides the response shape and drives the steps in order; the two
-    response renderers call back into ``execute`` and ``finish`` (or
-    ``conclude``, which does both and tells the client) so the buffered and
-    streamed paths share every step except how bytes leave.
+    ``run`` admits the call, settles what the later steps need into an
+    ``AdmittedCall`` and decides the response shape; the two response renderers
+    call back into ``execute`` and ``finish`` (or ``conclude``, which does both
+    and tells the client), handing each step that admitted call, so the
+    buffered and streamed paths share every step except how bytes leave.
     """
 
     def __init__(
@@ -116,11 +117,6 @@ class ToolCall:
             audit=request_audit(ctx, message.param("name", "")).resolved(tool),
             resumed=idempotency_key is not None,
         )
-        self._forwarded: dict[str, str] = {}
-        self._credentials: dict[str, str] = {}
-        self._timeouts: CallTimeouts | None = None
-        self._handle: CallHandle | None = None
-        self._events: CallEvents | None = None
 
     @property
     def rpc_id(self) -> Any:
@@ -139,10 +135,6 @@ class ToolCall:
         """How a result payload is decorated for this client's revision."""
         return self._ctx.shape
 
-    def attach(self, events: CallEvents) -> None:
-        """Where this call's events go once it is streamed."""
-        self._events = events
-
     def detach(self, work: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
         """Run ``work`` past the end of the response, keeping the task referenced."""
         task = asyncio.create_task(work)
@@ -151,11 +143,11 @@ class ToolCall:
         return task
 
     async def run(self) -> Response:
-        self._admitted_at = time.monotonic()
+        received = time.monotonic()
         # the upstreams spec: resolve the upstream bearer BEFORE metering, so an unconnected
         # upstream is never debited.
         try:
-            self._forwarded, self._credentials = await self._resolve_headers()
+            forwarded, credentials = await self._resolve_headers()
         except UpstreamOAuthNotConfigured:
             await self._chain.settle(
                 self._call, CallSettlement.failed("upstream OAuth not configured")
@@ -173,26 +165,29 @@ class ToolCall:
 
         refusal = await self._chain.admit(self._call)
         if refusal is not None:
-            return await self._refuse(refusal)
+            return await self._refuse(refusal, received)
 
-        self._timeouts = await self._support.runtime_config.call_timeouts()
-        if self.rpc_id is not None:
-            self._handle = self._support.registry.register_call(
-                self._ctx.call_key, str(self.rpc_id)
-            )
+        admitted = AdmittedCall(
+            forwarded=forwarded,
+            credentials=credentials,
+            timeouts=await self._support.runtime_config.call_timeouts(),
+            handle=self._support.registry.register_call(self._ctx.call_key, str(self.rpc_id))
+            if self.rpc_id is not None
+            else None,
+        )
         # with a progressToken, stream progress as SSE and deliver the
         # result as the final event. A modern client is always streamed,
         # so closing the stream is its cancellation signal. Otherwise the
-        # buffered JSON path.
+        # buffered JSON path, which only a handshake client reaches.
         if self._message.progress_token is not None or self._ctx.era is ProtocolEra.STATELESS:
-            return await StreamedCallResponse(self._message.progress_token).render(self)
-        return await BufferedCallResponse().render(self)
+            return await StreamedCallResponse(self._message.progress_token).render(self, admitted)
+        return await BufferedCallResponse().render(self, admitted)
 
     async def _resolve_headers(self) -> tuple[dict[str, str], dict[str, str]]:
         # the upstreams spec: the upstream OAuth bearer wins over a forwarded header
         return await self._support.leases.headers(self._ctx, self._tool.server)
 
-    async def _refuse(self, refusal: CallRefusal) -> Response:
+    async def _refuse(self, refusal: CallRefusal, received: float) -> Response:
         """End the call a stage refused, in words the person behind the client can read."""
         await self._chain.settle(self._call, CallSettlement.refused(refusal.reason))
         endpoint = self._ctx.view.endpoint.name
@@ -202,7 +197,7 @@ class ToolCall:
             endpoint=endpoint,
             server=self._tool.server.name,
             status=ToolCallStatus.DENIED,
-            seconds=time.monotonic() - self._admitted_at,
+            seconds=time.monotonic() - received,
         )
         if refusal.user_message:
             # a tool error result, so the model relays the text verbatim
@@ -211,11 +206,17 @@ class ToolCall:
         return rpc_error(self.rpc_id, UPSTREAM_FAILURE, refusal.reason)
 
     async def execute(
-        self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
+        self,
+        admitted: AdmittedCall,
+        channel: InputChannel | None,
+        on_progress: ProgressCallback | None,
+        on_notification: NotificationSink | None,
     ) -> CallOutcome:
         """Drive the upstream inside one span, counted as in flight on its server until it ends.
 
-        The span names the endpoint, server, tool and outcome.
+        The span names the endpoint, server, tool and outcome. ``channel`` is
+        how an upstream's request for input reaches the client; None sends it
+        over a handshake client's GET stream.
         """
         metrics = self._support.metrics
         attributes = {
@@ -227,7 +228,7 @@ class ToolCall:
         reached = False
         try:
             with self._support.tracer.span("mcp.upstream_call", attributes) as span:
-                outcome = await self._execute(on_progress, on_notification)
+                outcome = await self._execute(admitted, channel, on_progress, on_notification)
                 span.set_attribute("bundlemcp.status", outcome.status.value)
             reached = outcome.reached_upstream
         finally:
@@ -235,7 +236,11 @@ class ToolCall:
         return outcome
 
     async def _execute(
-        self, on_progress: ProgressCallback | None, on_notification: NotificationSink | None
+        self,
+        admitted: AdmittedCall,
+        channel: InputChannel | None,
+        on_progress: ProgressCallback | None,
+        on_notification: NotificationSink | None,
     ) -> CallOutcome:
         """Drive the upstream once; act on what an upstream refusal says.
 
@@ -245,7 +250,9 @@ class ToolCall:
         same chain call is reused, so an internal retry does not ask the
         metering hook again.
         """
-        attempt = self._upstream_call(self._credentials, on_progress, on_notification)
+        attempt = self._upstream_call(
+            admitted, admitted.credentials, channel, on_progress, on_notification
+        )
         outcome = await attempt.run()
         if outcome.reached_upstream:
             return outcome
@@ -267,7 +274,9 @@ class ToolCall:
             return outcome.model_copy(
                 update={"error_message": self._support.credentials.connect_hint(server)}
             )
-        return await self._upstream_call(refreshed, on_progress, on_notification).run()
+        return await self._upstream_call(
+            admitted, refreshed, channel, on_progress, on_notification
+        ).run()
 
     async def _step_up(self, outcome: CallOutcome, scopes: list[str]) -> CallOutcome:
         """Remember the demanded scopes and tell the caller to reconnect."""
@@ -283,6 +292,9 @@ class ToolCall:
 
     async def conclude(
         self,
+        admitted: AdmittedCall,
+        events: CallEvents,
+        channel: InputChannel | None,
         on_progress: ProgressCallback | None,
         on_notification: NotificationSink | None,
         started: float,
@@ -293,12 +305,11 @@ class ToolCall:
         Runs detached from the response so that a call which asked the client
         for input keeps going after that response has been sent.
         """
-        assert self._events is not None  # attached by the streamed renderer
-        outcome = await self.execute(on_progress, on_notification)
+        outcome = await self.execute(admitted, channel, on_progress, on_notification)
         if outcome.status is CallStatus.INPUT_REQUIRED:
             try:
                 state = await self._pause(
-                    mode="passthrough", upstream_state=outcome.input_required.request_state
+                    admitted, "passthrough", upstream_state=outcome.input_required.request_state
                 )
             except RelayRejected as exc:
                 outcome = CallOutcome(
@@ -306,7 +317,7 @@ class ToolCall:
                 )
             else:
                 # the invocation continues on the client's retry
-                self._release()
+                self._release(admitted)
                 await self._chain.settle(
                     self._call,
                     CallSettlement(
@@ -318,53 +329,64 @@ class ToolCall:
                 requests = outcome.input_required.model_dump(
                     by_alias=True, mode="json", exclude_none=True
                 )["inputRequests"]
-                await self._events.emit(
+                await events.emit(
                     "input_required",
                     {"result": self.shape(input_required_result(requests, state))},
                 )
                 return
-        await self.finish(outcome, started)
-        await self._events.emit("result", outcome.body(self.shape))
+        await self.finish(admitted, outcome, started)
+        await events.emit("result", outcome.body(self.shape))
 
     async def client_disconnected(self) -> bool:
         """Whether the client has gone away while this call's response is pending."""
         return await self._ctx.request.is_disconnected()
 
-    def disconnected(self) -> None:
+    def disconnected(self, admitted: AdmittedCall) -> None:
         # a disconnect is accounted for as a cancellation
         """The client went away mid-call: end the upstream call.
 
-        The call is then accounted for as cancelled.
+        The call is then accounted for as cancelled. After the upstream call
+        has returned nothing waits on the cancellation, so a late disconnect
+        changes nothing.
         """
-        if self._handle is not None:
-            self._handle.cancel_event.set()
+        if admitted.handle is not None:
+            admitted.handle.cancel_event.set()
 
-    def _channel(self) -> InputChannel | None:
+    def input_channel(self, admitted: AdmittedCall, events: CallEvents) -> InputChannel | None:
         # which relay strategy serves a mid-request tool response
-        """How an upstream's request for input reaches this client."""
+        """How an upstream's request for input reaches this streamed client.
+
+        None for a handshake client, whose GET stream carries the request; a
+        re-run answers from the retry it carries; otherwise the call parks
+        until the client retries with its answers.
+        """
         if self._ctx.era is ProtocolEra.SESSION:
             return None  # the GET stream relay
         if self._preanswered is not None:
             return PreansweredChannel(self._preanswered)
-        assert self._events is not None and self._timeouts is not None
+
+        async def seal_parked() -> str:
+            return await self._pause(admitted, "parked")
+
         return ParkingChannel(
             self._support.registry,
-            self._events,
-            self._pause,
+            events,
+            seal_parked,
             self.shape,
-            self._timeouts.max_total,
+            admitted.timeouts.max_total,
         )
 
-    async def _pause(self, mode: str = "parked", upstream_state: str | None = None) -> str:
+    async def _pause(
+        self, admitted: AdmittedCall, mode: RelayMode, upstream_state: str | None = None
+    ) -> str:
         """Seal the state the client's retry must echo, and tell the chain the leg waits."""
         cipher = self._support.state_cipher
         if cipher is None:
             raise RelayRejected(NO_CIPHER)
-        assert self._timeouts is not None
-        expires_at = time.time() + self._timeouts.max_total
+        expires_at = time.time() + admitted.timeouts.max_total
         state = RequestState(
             correlation_id=self._correlation_id,
-            mode=mode,  # type: ignore[arg-type]
+            mode=mode,
             target=self._message.param("name", ""),
             arguments_digest=arguments_digest(self._arguments),
             sub=self._ctx.identity.sub,
@@ -377,31 +399,32 @@ class ToolCall:
 
     def _upstream_call(
         self,
+        admitted: AdmittedCall,
         credentials: dict[str, str],
+        channel: InputChannel | None,
         on_progress: ProgressCallback | None,
         on_notification: NotificationSink | None,
     ) -> UpstreamCall:
-        assert self._timeouts is not None  # set by run() before execute() is reachable
         relay = ClientRelay(
             self._support.registry,
             self._support.signals,
             self._support.presence,
             self._ctx.routing_key,
-            self._timeouts.max_total,
+            admitted.timeouts.max_total,
             log_level=self._ctx.log_level,
             on_notification=on_notification,
-            channel=self._channel(),
+            channel=channel,
         )
         return UpstreamCall(
             leases=self._support.leases,
             ctx=self._ctx,
             tool=self._tool,
             arguments=self._arguments,
-            forwarded=self._forwarded,
+            forwarded=admitted.forwarded,
             credentials=credentials,
             relay=relay,
-            handle=self._handle,
-            timeouts=self._timeouts,
+            handle=admitted.handle,
+            timeouts=admitted.timeouts,
             on_progress=on_progress,
             raw_input_required=self._ctx.era is ProtocolEra.STATELESS,
             resume=self._resume,
@@ -420,14 +443,14 @@ class ToolCall:
         except Exception:
             log.warning("health.report_failed", server=server.name, exc_info=True)
 
-    def _release(self) -> None:
-        if self._handle is not None:
-            self._support.registry.unregister_call(self._handle)
-            self._handle = None
+    def _release(self, admitted: AdmittedCall) -> None:
+        """Stop addressing cancellations to this call; releasing twice is harmless."""
+        if admitted.handle is not None:
+            self._support.registry.unregister_call(admitted.handle)
 
-    async def finish(self, outcome: CallOutcome, started: float) -> None:
+    async def finish(self, admitted: AdmittedCall, outcome: CallOutcome, started: float) -> None:
         """Account for the call: release the handle and tell every stage how it ended."""
-        self._release()
+        self._release(admitted)
         self._support.metrics.tool_call_finished(
             endpoint=self._ctx.view.endpoint.name,
             server=self._tool.server.name,

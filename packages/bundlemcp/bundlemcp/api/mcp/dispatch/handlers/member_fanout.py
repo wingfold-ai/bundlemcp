@@ -1,5 +1,6 @@
 """Reaching a bundle's member servers for the read-only passthrough methods."""
 
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
@@ -157,15 +158,6 @@ class MemberFanout:
         # a member without the capability is not contacted (ADR-0043)
         return [server for server in ctx.view.servers.values() if server.advertises(capability)]
 
-    async def each(
-        self, ctx: RequestContext, call: MemberCall, *, capability: ServerCapability
-    ) -> list[tuple[McpServer, Any | None]]:
-        """Every capable member's answer, with None where a member could not be asked."""
-        return [
-            (server, await self._ask(ctx, server, call))
-            for server in self.members(ctx, capability)
-        ]
-
     async def _ask(self, ctx: RequestContext, server: McpServer, call: MemberCall) -> Any | None:
         """One member's answer, or None when it could not be asked."""
         try:
@@ -186,14 +178,13 @@ class MemberFanout:
     ) -> Any | None:
         """The first capable member that answers, or None when none does.
 
-        ``among`` narrows the members asked, in member order.
+        Members are asked one at a time in member order, so no member after the
+        one that answers is contacted. ``among`` narrows the members asked.
         """
         for server in among if among is not None else self.members(ctx, capability):
-            try:
-                return await self.call(ctx, server, call)
-            except Exception:
-                log.warning("passthrough.member_failed", server=server.name)
-                continue
+            answer = await self._ask(ctx, server, call)
+            if answer is not None:
+                return answer
         return None
 
     async def merged(
@@ -210,9 +201,16 @@ class MemberFanout:
         asks the others live. ``present`` shapes each entry for the client, or
         returns None to leave it out. A left-out entry still claims its key, so
         a later member's entry under the same key does not take its place.
+
+        The members asked live are asked concurrently, and their answers are
+        folded in member order, so which entry wins a key does not depend on
+        which member answered first.
         """
         members = self.members(ctx, listing.capability)
         stored = await self._listings.shareable(members, listing)
+        live = [server for server in members if server.id not in stored]
+        answered = await asyncio.gather(*(self._ask(ctx, server, call) for server in live))
+        answers = {server.id: answer for server, answer in zip(live, answered, strict=True)}
         items: list[dict[str, Any]] = []
         seen: set[Any] = set()
         for server in members:
@@ -220,7 +218,7 @@ class MemberFanout:
                 # copied, because presenting an entry rewrites its fields
                 entries = [dict(entry) for entry in stored[server.id]]
             else:
-                answer = await self._ask(ctx, server, call)
+                answer = answers[server.id]
                 if answer is None:
                     continue
                 entries = [dump(obj) for obj in answer]

@@ -6,6 +6,23 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.2] - 2026-10-29
+
+### Changed
+
+- `prompts/list`, `resources/list` and `resources/templates/list` now ask their live members at the same time, so a list
+  takes as long as its slowest member instead of the sum of all of them. Each member still receives one request, and the
+  merged result keeps member order and first-wins de-duplication.
+  ([#171](https://github.com/wingfold-ai/bundlemcp/pull/171))
+- The order of steps in a tool call no longer depends on `assert` statements, which Python strips under `-O`. Running
+  the gateway with optimisations enabled can no longer fail partway through a request because of a missing step.
+  ([#171](https://github.com/wingfold-ai/bundlemcp/pull/171))
+
+### Fixed
+
+- A member whose `resources/read` fails is now logged with its cause, so the failure can be diagnosed from the logs.
+  ([#171](https://github.com/wingfold-ai/bundlemcp/pull/171))
+
 ## [0.3.1] - 2026-10-29
 
 ### Added
