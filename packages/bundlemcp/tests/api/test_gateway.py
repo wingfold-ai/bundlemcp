@@ -366,6 +366,33 @@ async def test_resources_read_fans_out_to_owner(gateway):
     assert "hello resource" in str(contents)
 
 
+broken_server = FastMCP("broken")
+
+
+@broken_server.resource("res://greeting")
+def broken_greeting() -> str:
+    """A resource whose read always fails."""
+    raise RuntimeError("member down")
+
+
+async def test_bnd8_resources_read_logs_a_failing_member_and_reads_the_next(engine, redis):
+    """BND-8: the first resource member raises on the read, so the next member that owns the
+    URI answers it."""
+    swapped = {"echo": broken_server, "notes": echo_server}
+    contacted: list[str] = []
+
+    def failing_first_factory(server, extra_headers, *, observer=None, **handlers):
+        contacted.append(server.name)
+        return Client(swapped[server.name])
+
+    async with _running(engine, redis, client_factory=failing_first_factory) as (http, app):
+        await _set_capabilities(app, "notes", ECHO_CAPABILITIES)
+        session = await _initialize(http)
+        resp = await _rpc(http, "main", session, "resources/read", {"uri": "res://greeting"})
+    assert "hello resource" in str(resp.json()["result"]["contents"])
+    assert contacted.index("echo") < contacted.index("notes")
+
+
 @pytest.mark.parametrize(
     ("method", "params"),
     [

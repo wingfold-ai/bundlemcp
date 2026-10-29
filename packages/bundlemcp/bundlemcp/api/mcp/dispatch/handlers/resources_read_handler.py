@@ -56,8 +56,8 @@ class ResourcesReadHandler:
         if ctx.era is ProtocolEra.STATELESS:
             return await self._bridge.serve(
                 BridgedRead(
-                    ctx,
-                    message,
+                    ctx=ctx,
+                    message=message,
                     target=uri,
                     arguments={},
                     members=members,

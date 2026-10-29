@@ -297,6 +297,26 @@ async def test_passthrough_forwards_the_upstreams_input_required(env):
     assert await _audit_statuses(app) == ["input_required", "success"]
 
 
+async def test_prot3_disconnect_after_passthrough_input_required_is_harmless(env):
+    """PROT-3, PROT-18: a client that closes its stream once it has the input_required result
+    cancels nothing; its retry under the same request id is served and charged once."""
+    http, app, hook, subs, base_url = env
+    status, first = await _call(http, "modernup__ask_name", id_=7)
+    assert first["result"]["resultType"] == "input_required"
+    # the stream is closed; give the response's teardown time to run
+    await asyncio.sleep(0.1)
+    status, final = await _call(
+        http,
+        "modernup__ask_name",
+        id_=7,
+        inputResponses={"name": _accept("Ada")},
+        requestState=first["result"]["requestState"],
+    )
+    assert final["result"]["content"][0]["text"] == "hi Ada"
+    assert len(hook.pre) == 1 and hook.post == ["result"]
+    assert await _audit_statuses(app) == ["input_required", "success"]
+
+
 async def test_prot24_prot26_a_paused_invocation_keeps_its_context_across_legs(env):
     """PROT-24, PROT-26: a modern request has no session, and the post_call of the retry
     carries the scratch the first leg's pre_call left."""

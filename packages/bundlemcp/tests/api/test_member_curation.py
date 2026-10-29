@@ -1,9 +1,12 @@
 """Members' prompts and resources: discovered, stored, served and curated per bundle (UPS-24,
-UPS-38, BND-37, BND-8, BND-7)."""
+UPS-38, BND-37, BND-8, BND-7, BND-38)."""
 
 import asyncio
 
 import pytest
+from bundlemcp.infrastructure.postgres.engine import session_factory
+from bundlemcp.infrastructure.postgres.rows.bundle_row import BundleRow
+from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from fastmcp import Client, FastMCP
 from structlog.testing import capture_logs
 
@@ -412,3 +415,137 @@ async def test_bnd7_member_prompt_curation_notifies(gateway, redis):
     await pubsub.aclose()
     assert message is not None
     assert '"entity_type":"bundle_prompt"' in message["data"] and '"key":"b1"' in message["data"]
+
+
+# --- concurrent live fan-out ---------------------------------------------------------------
+
+LIVE_LISTS = {"prompts": {"listChanged": False}, "resources": {"listChanged": False}}
+
+
+class Rendezvous:
+    """Members whose live list call waits, with a short timeout, until every member was asked.
+
+    Asked one after another, the first member would wait for a request that is never sent.
+    """
+
+    def __init__(self, *names: str) -> None:
+        self.asked = {name: asyncio.Event() for name in names}
+        self.calls: list[str] = []
+
+    async def arrive(self, name: str) -> None:
+        self.calls.append(name)
+        self.asked[name].set()
+        async with asyncio.timeout(1):
+            for event in self.asked.values():
+                await event.wait()
+
+
+async def _seed_live_members(engine, *names: str) -> None:
+    """Members advertising prompts and resources with no stored listing, so lists ask live."""
+    await seed_api_key(engine, SERVICE_KEY)
+    async with session_factory(engine)() as db:
+        db.add_all(
+            [
+                McpServerRow(name=name, url=f"http://{name}/mcp", capabilities=LIVE_LISTS)
+                for name in names
+            ]
+        )
+        db.add(BundleRow(name="b1"))
+        await db.commit()
+
+
+async def _live_bundle(http, *names: str) -> None:
+    for name in names:
+        await http.put(f"/api/v1/bundles/b1/upstreams/{name}", json={})
+    endpoint = {"name": "b1", "bundle_name": "b1", "auth_modes": ["api_key"]}
+    await http.put("/api/v1/endpoints/b1", json=endpoint)
+
+
+async def test_bnd38_live_members_are_asked_concurrently(engine, redis):
+    """BND-38: two members that each answer prompts/list only once the other was asked are both
+    listed, and each is asked once."""
+    await _seed_live_members(engine, "alpha", "beta")
+    members = {"alpha": _member(["morning"], []), "beta": _member(["evening"], [])}
+    rendezvous = Rendezvous("alpha", "beta")
+
+    class Gated(Client):
+        member: str
+
+        async def list_prompts(self, *args, **kwargs):
+            await rendezvous.arrive(self.member)
+            return await super().list_prompts(*args, **kwargs)
+
+    def factory(server, extra_headers, *, observer=None, **handlers):
+        client = Gated(members[server.name])
+        client.member = server.name
+        return client
+
+    async with serving(engine, redis, bearer=SERVICE_KEY, client_factory=factory) as (http, _):
+        await _live_bundle(http, "alpha", "beta")
+        listed = (await _rpc(http, "b1", "prompts/list"))["result"]["prompts"]
+    assert [p["name"] for p in listed] == ["alpha__morning", "beta__evening"]
+    assert sorted(rendezvous.calls) == ["alpha", "beta"]
+
+
+async def test_bnd38_order_holds_when_a_later_member_answers_first(engine, redis):
+    """BND-38, BND-8: with zeta before alpha and alpha answering first, a URI both list is
+    listed once, from zeta, and the collision is logged against alpha."""
+    await _seed_live_members(engine, "zeta", "alpha")
+    members = {name: FastMCP(name) for name in ("zeta", "alpha")}
+    for name, member in members.items():
+        member.resource("file:///a.txt", description=f"From {name}")(_content(name))
+    alpha_answered = asyncio.Event()
+
+    class Racing(Client):
+        member: str
+
+        async def list_resources(self, *args, **kwargs):
+            if self.member == "zeta":
+                async with asyncio.timeout(1):
+                    await alpha_answered.wait()
+                return await super().list_resources(*args, **kwargs)
+            try:
+                return await super().list_resources(*args, **kwargs)
+            finally:
+                alpha_answered.set()
+
+    def factory(server, extra_headers, *, observer=None, **handlers):
+        client = Racing(members[server.name])
+        client.member = server.name
+        return client
+
+    async with serving(engine, redis, bearer=SERVICE_KEY, client_factory=factory) as (http, _):
+        await _live_bundle(http, "zeta", "alpha")
+        with capture_logs() as logs:
+            listed = (await _rpc(http, "b1", "resources/list"))["result"]["resources"]
+    assert [(r["uri"], r["description"]) for r in listed] == [("file:///a.txt", "From zeta")]
+    collisions = [entry for entry in logs if entry["event"] == "passthrough.collision"]
+    assert [(c["key"], c["server"]) for c in collisions] == [("file:///a.txt", "alpha")]
+
+
+async def test_bnd38_a_failing_member_does_not_hold_back_the_others(engine, redis):
+    """BND-38: one member's failing prompts/list leaves the other's prompts listed, and the
+    failure is logged with its traceback."""
+    await _seed_live_members(engine, "alpha", "beta")
+    members = {"alpha": _member(["morning"], []), "beta": _member(["evening"], [])}
+
+    class Failing(Client):
+        member: str
+
+        async def list_prompts(self, *args, **kwargs):
+            if self.member == "alpha":
+                raise RuntimeError("alpha is down")
+            return await super().list_prompts(*args, **kwargs)
+
+    def factory(server, extra_headers, *, observer=None, **handlers):
+        client = Failing(members[server.name])
+        client.member = server.name
+        return client
+
+    async with serving(engine, redis, bearer=SERVICE_KEY, client_factory=factory) as (http, _):
+        await _live_bundle(http, "alpha", "beta")
+        with capture_logs() as logs:
+            listed = (await _rpc(http, "b1", "prompts/list"))["result"]["prompts"]
+    assert [p["name"] for p in listed] == ["beta__evening"]
+    failed = [entry for entry in logs if entry["event"] == "passthrough.member_failed"]
+    assert [(f["server"], f.get("exc_info")) for f in failed] == [("alpha", True)]

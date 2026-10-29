@@ -11,7 +11,7 @@ from fastapi import Response
 from fastapi.responses import JSONResponse
 from fastmcp import Client
 from mcp.types import INVALID_PARAMS, InputRequiredResult, InputResponses
-from pydantic import TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from bundlemcp.api.mcp.dispatch.handlers.member_fanout import MemberFanout
 from bundlemcp.api.mcp.protocol.jsonrpc import rpc_error
@@ -22,6 +22,7 @@ from bundlemcp.api.mcp.relay import (
     InputChannel,
     ParkingChannel,
     PreansweredChannel,
+    RelayMode,
     RelayRejected,
     RequestState,
     StateRejected,
@@ -50,30 +51,38 @@ MemberRead = Callable[[Client, InputResponses | None, str | None], Awaitable[Any
 ReadFailure = Callable[[McpServer | None, Exception | None], dict[str, Any]]
 
 
-class BridgedRead:
+class BridgedRead(BaseModel):
     """One read as the bridge drives it: what it names, who may answer, how it renders."""
 
-    def __init__(
-        self,
-        ctx: RequestContext,
-        message: JsonRpcMessage,
-        *,
-        target: str,
-        arguments: dict[str, Any],
-        members: list[McpServer],
-        read: MemberRead,
-        render: Callable[[Any], dict[str, Any]],
-        failed: ReadFailure,
-    ) -> None:
-        self.ctx = ctx
-        self.message = message
-        self.method = message.method or ""
-        self.target = target
-        self.arguments = arguments
-        self.members = members
-        self.read = read
-        self.render = render
-        self.failed = failed
+    model_config = ConfigDict(frozen=True)
+
+    ctx: RequestContext = Field(description="The admitted request the read belongs to")
+    message: JsonRpcMessage = Field(
+        description="The client's request, whose id the answer carries and whose params hold a "
+        "retry's requestState and inputResponses"
+    )
+    target: str = Field(
+        description="What the read names: the presented prompt name, or the resource URI"
+    )
+    arguments: dict[str, Any] = Field(
+        description="The read's arguments, which a sealed state is bound to; empty for a "
+        "resource read"
+    )
+    members: list[McpServer] = Field(
+        description="The members that may answer, asked in this order until one does"
+    )
+    read: MemberRead = Field(description="Sends the read to one member")
+    render: Callable[[Any], dict[str, Any]] = Field(
+        description="Turns a member's result into the result payload the client receives"
+    )
+    failed: ReadFailure = Field(
+        description="The error the client receives when no member gave a result"
+    )
+
+    @property
+    def method(self) -> str:
+        """The method being read, as the client's request names it."""
+        return self.message.method or ""
 
 
 class InputRequiredBridge:
@@ -147,12 +156,12 @@ class InputRequiredBridge:
         queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         events = CallEvents(correlation_id, queue, self._signals)
 
-        def seal(mode: str, member: str | None, upstream_state: str | None) -> str:
+        def seal(mode: RelayMode, member: str | None, upstream_state: str | None) -> str:
             if self._cipher is None:
                 raise RelayRejected(NO_CIPHER)
             return RequestState(
                 correlation_id=correlation_id,
-                mode=mode,  # type: ignore[arg-type]
+                mode=mode,
                 method=read.method,
                 target=read.target,
                 arguments_digest=arguments_digest(read.arguments),
@@ -197,7 +206,7 @@ class InputRequiredBridge:
         channel: InputChannel | None,
         responses: dict[str, Any] | None,
         state: RequestState | None,
-        seal: Callable[[str, str | None, str | None], str],
+        seal: Callable[[RelayMode, str | None, str | None], str],
     ) -> None:
         answers = (
             input_responses_adapter.validate_python(responses)
