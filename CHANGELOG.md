@@ -6,6 +6,41 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.0] - 2026-10-29
+
+### Changed
+
+- **Breaking:** ["Reads and exports now return `protocol_mode: \"session\"` where they returned `\"legacy\"`, so update
+  any client or script that compares against `\"legacy\"`. Writes that send `\"legacy\"` keep working. An export taken
+  from this release that contains a session-mode upstream cannot be imported into the previous release, which rejects
+  `session`. Do not move export documents backwards."]. ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+- The handshake-only `protocol_mode` is now called `session`. Reads, exports, the OpenAPI schema and the admin UI use
+  `session`, and the schema lists `auto` and `session` as an enum beside the pinned revision date pattern.
+  ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+- Every write (API, bootstrap and import) still accepts `legacy` as a deprecated alias of `session`.
+  ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+- A logged exception now carries its traceback in an `exception` field in both `json` and `text` formats. Before, `json`
+  logged only `"exc_info": true`. ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+- Audit pages now break timestamp ties by id descending in every repository, so the order of records stamped in the same
+  microsecond is consistent. ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+
+### Fixed
+
+- Logged tracebacks in `text` format no longer print each frame's local variables, which could expose a token or
+  decrypted secret on stderr. ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+- A logged validation error no longer includes the input it rejected, and database errors no longer include the bound
+  statement parameters. ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+- Failed discovery listings, completion lookups, secret re-encryption and live-log publishing now log the exception that
+  caused the failure. ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+- Session records, paused invocations, discovery timestamps and user consent revocation now read the gateway's injected
+  clock instead of the wall clock. ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+
+### Security
+
+- Logged exceptions can no longer leak frame local variables, rejected validation input or SQL statement parameters, in
+  either log format. This also covers the Alembic migration engine.
+  ([#168](https://github.com/wingfold-ai/bundlemcp/pull/168))
+
 ## [0.2.2] - 2026-10-29
 
 ### Added
