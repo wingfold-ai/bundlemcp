@@ -55,7 +55,7 @@ class LiveLogPublisher:
             await self._buffer.append(batch)
         except Exception:
             if not self._failing:
-                log.warning("live_log.publish_failed", dropped=len(batch))
+                log.warning("live_log.publish_failed", dropped=len(batch), exc_info=True)
             self._failing = True
             return
         if self._failing:

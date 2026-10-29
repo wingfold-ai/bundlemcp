@@ -9,7 +9,7 @@ from redis.asyncio.client import Pipeline
 from bundlemcp.domain.sessions.session_lifetime import SessionLifetime
 from bundlemcp.domain.sessions.session_record import SESSION_RECORD_VERSION, SessionRecord
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
-from bundlemcp.domain.shared.clock import utcnow
+from bundlemcp.domain.shared.clock import Clock
 
 log = structlog.get_logger(__name__)
 
@@ -26,8 +26,9 @@ class ValkeySessionStore:
     out of the index. Updates that are not activity keep the TTL they find.
     """
 
-    def __init__(self, redis: Redis) -> None:
+    def __init__(self, redis: Redis, *, clock: Clock) -> None:
         self._redis = redis
+        self._clock = clock
 
     def _key(self, session_id: str) -> str:
         return SESSION_KEY.format(session_id=session_id)
@@ -59,7 +60,7 @@ class ValkeySessionStore:
             record = self._parse(raw) if raw is not None else None
             if record is None:
                 return
-            record.last_active_at = utcnow()
+            record.last_active_at = self._clock.now()
             pipe.multi()
             self._set_live(pipe, key, record, lifetime)
 

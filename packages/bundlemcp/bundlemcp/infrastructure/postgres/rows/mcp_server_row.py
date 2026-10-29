@@ -69,8 +69,9 @@ class McpServerRow(SQLModel, table=True):
         default="auto",
         sa_type=String,
         description="How the gateway negotiates the MCP revision with this server: 'auto' "
-        "probes server/discover and falls back to the initialize handshake, 'legacy' always "
-        "uses the handshake, and a revision date pins that revision",
+        "probes server/discover and falls back to the initialize handshake, a revision date "
+        "pins that revision, and 'legacy' is the session mode (always the handshake), stored "
+        "under its pre-rename spelling until a later migration rewrites it to 'session'",
     )
     listing_snapshot: ListingSnapshotMode = Field(
         default=ListingSnapshotMode.AUTO,

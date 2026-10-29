@@ -55,7 +55,7 @@ def _pool(limits: PoolLimits | None = None, sink: Sink | None = None) -> PooledU
 
 
 def _server(url: str, **fields) -> McpServer:
-    return McpServer(name="echo", url=url, protocol_mode="legacy", **fields)
+    return McpServer(name="echo", url=url, protocol_mode="session", **fields)
 
 
 def _request(server: McpServer, sub: str = "alice", **fields) -> UpstreamLeaseRequest:

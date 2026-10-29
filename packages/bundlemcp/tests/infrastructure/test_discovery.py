@@ -1,10 +1,16 @@
 """Discovery tests (UPS-17/18/19, UPS-4) against in-process FastMCP servers."""
 
+from datetime import UTC, datetime, timedelta
+
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
 from bundlemcp.domain.servers.health_status import HealthStatus
+from bundlemcp.domain.shared.clock import Clock
+from bundlemcp.domain.shared.system_clock import SystemClock
+from bundlemcp.infrastructure.fastmcp.connect_mode import connect_mode
 from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
+from bundlemcp.infrastructure.memory.manual_clock import ManualClock
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
@@ -31,16 +37,16 @@ def _units(engine, redis) -> SqlAlchemyUnitOfWorkFactory:
     return SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis)
 
 
-def _discovery(engine, redis, probe) -> DiscoveryService:
+def _discovery(engine, redis, probe, clock: Clock | None = None) -> DiscoveryService:
     """A discovery service whose failure streak lives in Valkey, as in production."""
     units = _units(engine, redis)
     health = UpstreamHealth(units, ValkeyFailureStreak(redis), RuntimeConfig(units))
-    return DiscoveryService(units, probe, health=health)
+    return DiscoveryService(units, probe, health=health, clock=clock or SystemClock())
 
 
 def factory_for(upstream: FastMCP):
     def factory(server, extra_headers, *, observer=None):
-        return Client(upstream, mode=server.protocol_mode)
+        return Client(upstream, mode=connect_mode(server.protocol_mode))
 
     return factory
 
@@ -149,6 +155,28 @@ async def test_vanished_tool_kept_stale(engine, redis):
         assert tools["beta"].stale_since is not None
 
 
+async def test_ups19_stale_since_is_the_injected_instant(engine, redis):
+    """UPS-19: a vanished tool's ``stale_since`` and the server's ``last_discovered_at`` are the
+    instant the injected clock reads, not the wall clock's."""
+    server = await seed_server(engine)
+    first = datetime(2026, 10, 1, 9, tzinfo=UTC)
+    clock = ManualClock(first)
+    full = FastMcpUpstreamProbe(factory_for(make_upstream(["alpha", "beta"])))
+    await _discovery(engine, redis, full, clock).discover(server.id)
+
+    clock.advance(timedelta(hours=1))
+    shrunk = FastMcpUpstreamProbe(factory_for(make_upstream(["alpha"])))
+    await _discovery(engine, redis, shrunk, clock).discover(server.id)
+
+    async with _units(engine, redis).open() as uow:
+        stored = await uow.servers.get(server.id)
+        tools = {t.name: t for t in await uow.tools.for_server(server.id)}
+    assert stored is not None
+    assert stored.last_discovered_at == first + timedelta(hours=1)
+    assert tools["beta"].stale_since == first + timedelta(hours=1)
+    assert tools["alpha"].stale_since is None
+
+
 async def test_ups19_failed_probe_makes_nothing_stale(engine, redis):
     """UPS-19: a probe that fails leaves every cached tool as it was."""
     server = await seed_server(engine)
@@ -198,7 +226,7 @@ def factory_by_name(upstreams: dict[str, FastMCP]):
         upstream = upstreams.get(server.name)
         if upstream is None:
             raise ConnectionError(f"{server.name} unreachable")
-        return Client(upstream, mode=server.protocol_mode)
+        return Client(upstream, mode=connect_mode(server.protocol_mode))
 
     return factory
 

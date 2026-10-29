@@ -12,7 +12,9 @@ import bundlemcp.infrastructure.postgres.rows  # noqa: F401  (register every tab
 
 
 def create_engine(database_url: str, *, echo: bool = False) -> AsyncEngine:
-    return create_async_engine(database_url, echo=echo, pool_pre_ping=True)
+    """An engine whose errors and echo name the statement but never its bound parameters,
+    which can hold ciphertexts, token hashes and other values that must stay out of logs."""
+    return create_async_engine(database_url, echo=echo, pool_pre_ping=True, hide_parameters=True)
 
 
 def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

@@ -23,8 +23,10 @@ from bundlemcp.domain.shared.secrets import (
     generate_token,
     hash_token,
 )
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.config.settings import EnvSettings
 from bundlemcp.infrastructure.crypto.token_cipher import TokenCipher
+from bundlemcp.infrastructure.fastmcp.connect_mode import connect_mode
 from bundlemcp.infrastructure.memory.manual_clock import ManualClock
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.api_key_row import ApiKeyRow
@@ -141,7 +143,7 @@ UPSTREAMS = {"legacyup": legacy_up, "modernup": modern_up}
 
 
 def upstream_factory(server, extra_headers, *, observer=None, **handlers):
-    return Client(UPSTREAMS[server.name], mode=server.protocol_mode, **handlers)
+    return Client(UPSTREAMS[server.name], mode=connect_mode(server.protocol_mode), **handlers)
 
 
 class RecordingHook:
@@ -317,7 +319,9 @@ async def test_prot24_prot26_a_paused_invocation_keeps_its_context_across_legs(e
 def _sweeper(redis, hook, *, after: float) -> InvocationSweeper:
     """A sweeper whose clock reads ``after`` seconds from now."""
     later = datetime.now(UTC) + timedelta(seconds=after)
-    return InvocationSweeper(ValkeyPausedInvocations(redis), hook, ManualClock(later))
+    return InvocationSweeper(
+        ValkeyPausedInvocations(redis, clock=SystemClock()), hook, ManualClock(later)
+    )
 
 
 async def test_prot26_an_abandoned_invocation_is_closed_once(env, redis):

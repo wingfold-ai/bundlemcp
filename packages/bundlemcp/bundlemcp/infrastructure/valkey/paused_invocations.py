@@ -1,12 +1,11 @@
 """Metered invocations waiting for client input, kept in Valkey until they end or expire."""
 
-import time
-
 import structlog
 from pydantic import ValidationError
 from redis.asyncio import Redis
 
 from bundlemcp.application.metering.paused_invocation import PausedInvocation
+from bundlemcp.domain.shared.clock import Clock
 
 log = structlog.get_logger(__name__)
 
@@ -20,13 +19,15 @@ SWEEP_GRACE_SECONDS = 600
 class ValkeyPausedInvocations:
     """One record per paused invocation; GETDEL makes every claim atomic across replicas."""
 
-    def __init__(self, redis: Redis) -> None:
+    def __init__(self, redis: Redis, *, clock: Clock) -> None:
         self._redis = redis
+        self._clock = clock
 
     async def pause(self, invocation: PausedInvocation) -> None:
         key = invocation.context.idempotency_key
-        # expires_at is this gateway's wall-clock time, like the requestState's
-        ttl = max(1, int(invocation.expires_at - time.time()) + SWEEP_GRACE_SECONDS)
+        # expires_at is epoch seconds on this gateway's clock, like the requestState's
+        remaining = invocation.expires_at - self._clock.now().timestamp()
+        ttl = max(1, int(remaining) + SWEEP_GRACE_SECONDS)
         async with self._redis.pipeline(transaction=True) as tx:
             tx.set(INVOCATION_KEY.format(idempotency_key=key), invocation.model_dump_json(), ex=ttl)
             tx.zadd(EXPIRY_INDEX, {key: invocation.expires_at})

@@ -222,6 +222,7 @@ class CompositionRoot:
             units,
             upstream_probe,
             health=upstream_health,
+            clock=clock,
             credentials=credentials,
             diagnoser=diagnoser,
         )
@@ -253,7 +254,7 @@ class CompositionRoot:
         signals = ValkeySignalBus(redis, registry)
         await signals.start()
         self._stack.push_async_callback(signals.stop)
-        session_store = ValkeySessionStore(redis)
+        session_store = ValkeySessionStore(redis, clock=clock)
         resource_subscriptions = ValkeyResourceSubscriptionIndex(redis)
         upstream_sessions: PooledUpstreamSessions | PerCallUpstreamSessions
         if settings.upstream_pooling_enabled:
@@ -292,7 +293,7 @@ class CompositionRoot:
         metering = overrides.metering_hook or load_metering_hook(settings)
         if isinstance(metering, HttpMeteringHook):
             self._stack.push_async_callback(metering.aclose)
-        paused_invocations = ValkeyPausedInvocations(redis)
+        paused_invocations = ValkeyPausedInvocations(redis, clock=clock)
         mcp_router = McpGatewayAssembly(
             settings=settings,
             unit_of_work_factory=units,

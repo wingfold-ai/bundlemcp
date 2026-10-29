@@ -216,10 +216,10 @@ case it gets it wrong.
 | Value | UI label | Meaning |
 |---|---|---|
 | `auto` | auto — negotiate (recommended) | Try the newest revision first, fall back to the older `initialize` handshake. |
-| `legacy` | legacy — always the initialize handshake | Always use the older handshake. |
+| `session` | session — always the initialize handshake | Always use the older handshake and its session. `legacy`, its former name, is still accepted as a deprecated alias. |
 | a date, e.g. `2026-07-28` | pin 2026-07-28 | Always use exactly that revision. |
 
-**When to change it.** Almost never. Use `legacy` only for a server that speaks both revisions but asks the user
+**When to change it.** Almost never. Use `session` only for a server that speaks both revisions but asks the user
 questions mid-call (elicitation, sampling) only over the older one. The revision the gateway actually negotiated is
 shown as the server's *Protocol* in the server list.
 

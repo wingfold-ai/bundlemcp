@@ -1,5 +1,6 @@
 """Stored secrets move to the primary key when they are read (DEP-9)."""
 
+import json
 import uuid
 
 import pytest
@@ -7,12 +8,15 @@ from bundlemcp.application.upstream_oauth.upstream_token_storage import Upstream
 from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.domain.upstream_oauth.upstream_oauth_client import UpstreamOAuthClient
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
+from bundlemcp.infrastructure.config.structured_logging import configure_logging
 from bundlemcp.infrastructure.crypto.token_cipher import TokenCipher
 from bundlemcp.infrastructure.memory.in_memory_unit_of_work import (
     InMemoryUnitOfWork,
     InMemoryUnitOfWorkFactory,
 )
 from cryptography.fernet import Fernet
+
+from tests.redaction import assert_redacted
 
 SERVER = uuid.uuid4()
 
@@ -155,3 +159,31 @@ async def test_dep9_a_failing_write_is_counted_as_still_on_the_old_key(uow, keys
         InMemoryUnitOfWorkFactory(uow), TokenCipher([new, old])
     ).sweep()
     assert sweep.remaining_on_old_key == 1 and sweep.rewritten == 0
+
+
+@pytest.mark.parametrize("log_format", ["json", "text"])
+async def test_dep9_failed_reencryption_logs_its_cause(uow, keys, monkeypatch, capsys, log_format):
+    """DEP-9, OPS-8: a failed rewrite is logged with the exception that caused it, and the line
+    carries neither the old nor the new ciphertext, though both were in the failing frame."""
+    old, new = keys
+    await stored_under(uow, TokenCipher([old]))
+    seen: list[str] = []
+
+    async def broken(row_id, stored, rewritten):
+        seen.extend([stored, rewritten])
+        raise ConnectionError("database went away")
+
+    monkeypatch.setattr(uow.upstream_tokens, "replace_ciphertext", broken)
+    storage = UpstreamTokenStorage(
+        InMemoryUnitOfWorkFactory(uow), TokenCipher([new, old]), clock=SystemClock()
+    )
+    configure_logging("INFO", log_format)
+    await storage.load(SERVER, None)
+    out = capsys.readouterr().err
+    assert "token_encryption.reencrypt_failed" in out
+    assert "ConnectionError: database went away" in out
+    if log_format == "json":
+        (line,) = [json.loads(raw) for raw in out.splitlines() if "reencrypt_failed" in raw]
+        assert "Traceback (most recent call last):" in line["exception"]
+    assert len(seen) == 2
+    assert_redacted(out, seen)

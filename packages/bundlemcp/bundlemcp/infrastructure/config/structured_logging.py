@@ -10,6 +10,8 @@ import logging
 
 import structlog
 
+from bundlemcp.infrastructure.config.traceback_renderer import TracebackRenderer
+
 FOREIGN_LOGGERS = ("uvicorn", "uvicorn.access", "uvicorn.error")
 # replaced by the gateway's own http.request line, which names the client rather than the proxy
 SILENCED_LOGGERS = ("uvicorn.access",)
@@ -22,6 +24,7 @@ def _shared_processors() -> list[structlog.typing.Processor]:
         structlog.stdlib.add_logger_name,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
+        TracebackRenderer(),
     ]
 
 
@@ -49,7 +52,8 @@ def configure_logging(level: str, log_format: str = "json") -> None:
     renderer: structlog.typing.Processor = (
         structlog.processors.JSONRenderer()
         if log_format == "json"
-        else structlog.dev.ConsoleRenderer()
+        # an exc_info that reaches the renderer unprocessed is formatted without locals
+        else structlog.dev.ConsoleRenderer(exception_formatter=structlog.dev.plain_traceback)
     )
     structlog.configure(
         processors=[

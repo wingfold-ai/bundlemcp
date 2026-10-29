@@ -86,7 +86,7 @@ class SecretReencryption:
         try:
             replaced = await secrets.replace_ciphertext(row_id, value, rewritten)
         except Exception:
-            log.warning("token_encryption.reencrypt_failed", row_id=str(row_id))
+            log.warning("token_encryption.reencrypt_failed", row_id=str(row_id), exc_info=True)
             result.remaining_on_old_key += 1
             return
         if replaced:

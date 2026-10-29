@@ -7,7 +7,6 @@ from bundlemcp.application.management.named_resource_service import NamedResourc
 from bundlemcp.application.management.per_user_upstream_check import PerUserUpstreamCheck
 from bundlemcp.application.management.presented_name_check import PresentedNameCheck
 from bundlemcp.application.schemas import DiscoveryResult, Page, ServerRead, ServerUpsert, ToolRead
-from bundlemcp.domain.servers.internal_host import is_internal_host
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.self_reference import (
     addresses_gateway_endpoint,
@@ -39,33 +38,12 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         server = await self._by_name(body.name)
         created = server is None
         previous_inputs = None if server is None else server.discovery_inputs
-        if server is not None and server.url != body.url:
-            await self._ensure_not_a_member_pointing_at_the_gateway(server, body.url)
         if server is None:
-            server = McpServer(
-                name=body.name,
-                url=body.url,
-                send_identity_header=(
-                    body.send_identity_header
-                    if body.send_identity_header is not None
-                    else is_internal_host(body.url)
-                ),
-            )
-        server.description = body.description
-        server.url = body.url
-        if body.static_headers:  # write-only merge: empty dict keeps existing secrets
-            server.static_headers = body.static_headers
-        server.forward_headers = body.forward_headers
-        # none vs static_headers is whatever the stored headers say
-        server.auth_mode = body.auth_mode.settled(has_static_headers=bool(server.static_headers))
-        server.identity_mode = body.identity_mode
-        if body.send_identity_header is not None:
-            server.send_identity_header = body.send_identity_header
-        if body.protocol_mode is not None:
-            server.protocol_mode = body.protocol_mode
-        if body.listing_snapshot is not None:
-            server.listing_snapshot = body.listing_snapshot
-        if not created:
+            server = McpServer.register(body.name, body.changes())
+        else:
+            if server.url != body.url:
+                await self._ensure_not_a_member_pointing_at_the_gateway(server, body.url)
+            server.reconfigure(body.changes())
             await self._policy.ensure_identity_switch_allowed(server)
             await self._ensure_grant_allows_identity(server)
         read = await self._save(server, name=body.name, created=created)

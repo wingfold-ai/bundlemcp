@@ -9,10 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bundlemcp.application.contracts.persistence.stored_ciphertext import StoredCiphertext
 from bundlemcp.application.contracts.secret_cipher import DecryptionError, SecretCipher
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.protocol_mode import NegotiationMode
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from bundlemcp.infrastructure.postgres.sqlalchemy_repository import SqlAlchemyRepository
 
 log = structlog.get_logger(__name__)
+
+# The column keeps the handshake-only mode's pre-rename spelling until every replica reads
+# the new one; the release before the rename hands the stored value straight to the client.
+STORED_SESSION_MODE = "legacy"
 
 
 class SqlAlchemyServerRepository(SqlAlchemyRepository[McpServer, McpServerRow]):
@@ -36,13 +41,24 @@ class SqlAlchemyServerRepository(SqlAlchemyRepository[McpServer, McpServerRow]):
     # ---- mapping --------------------------------------------------------------------------
 
     def _to_entity(self, row: McpServerRow) -> McpServer:
-        server = super()._to_entity(row)
+        if row.protocol_mode == STORED_SESSION_MODE:
+            # validated from a copy: assigning to the row would write the new spelling back
+            server = McpServer.model_validate(
+                {**row.model_dump(), "protocol_mode": NegotiationMode.SESSION}
+            )
+        else:
+            server = super()._to_entity(row)
         if row.static_headers_encrypted is not None:
             server.static_headers = self._decrypt_headers(row.id, row.static_headers_encrypted)
         return server
 
     def _to_row(self, entity: McpServer) -> McpServerRow:
         row = super()._to_row(entity)
+        row.protocol_mode = (
+            STORED_SESSION_MODE
+            if entity.protocol_mode == NegotiationMode.SESSION
+            else str(entity.protocol_mode)
+        )
         kept = self._undecryptable.get(entity.id)
         if kept is not None and not entity.static_headers:
             row.static_headers = {}

@@ -14,6 +14,7 @@ from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.response_log import ResponseLog
 from bundlemcp.infrastructure.egress.egress_policy import check_url_allowed
+from bundlemcp.infrastructure.fastmcp.connect_mode import connect_mode
 from bundlemcp.infrastructure.fastmcp.guarded_mcp_http_client import guarded_mcp_http_client
 from bundlemcp.infrastructure.fastmcp.lease_headers import LeaseHeaders
 from bundlemcp.infrastructure.fastmcp.lease_slot import (
@@ -30,7 +31,7 @@ from bundlemcp.infrastructure.fastmcp.session_end_guard import SessionEndGuard
 # server's requests for client input; it is empty unless the
 # downstream client advertised the capability. `observer` receives every HTTP
 # response the MCP client could not use. The client negotiates the MCP
-# revision per server from `server.protocol_mode`.
+# revision per server from `server.protocol_mode`, through `connect_mode`.
 ClientFactory = Callable[..., Client]
 
 
@@ -83,7 +84,7 @@ class GuardedClientFactory:
                     self._settings, response_cap=self._response_cap, log=observer
                 ),
             ),
-            mode=server.protocol_mode,
+            mode=connect_mode(server.protocol_mode),
             **handlers,
         )
 
@@ -102,7 +103,7 @@ class GuardedClientFactory:
                     self._settings, response_cap=self._response_cap, log=log, wrap=SessionEndGuard
                 ),
             ),
-            mode=server.protocol_mode,
+            mode=connect_mode(server.protocol_mode),
             auto_initialize=auto_initialize,
             **handlers,
         )
