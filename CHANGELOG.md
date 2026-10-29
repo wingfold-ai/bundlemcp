@@ -8,38 +8,23 @@ protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) say
 
 ## [0.1.19] - 2026-10-29
 
-### Added
-
-- Add `deploy/stack.sh secrets` (`make secrets`), which generates any development secret `deploy/.env` lacks, or still
-  holds at its published value, without starting the stack. ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-
 ### Changed
 
-- The development stack's host ports (gateway, web app, Keycloak, the demo upstream and the other side services) listen
-  on `127.0.0.1` only, so they are no longer reachable from the local network. To open them on purpose, pass your own
-  compose file after the stack's. ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- The quickstart now moves to a tunnel with `deploy/stack.sh rebuild`, and the setups page describes the generated
-  secrets, the refusal message and how to open the stack to a trusted LAN.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- Plain `docker compose up` without `deploy/.env` still starts with the development values, which are now reachable from
-  the local machine only. ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
+- An upstream connect has to be finished in the same browser, and under the same gateway account, that started it. A
+  connect started in one browser and finished in another, or after the gateway session ended, now fails and must be
+  started again. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
 
 ### Security
 
-- `deploy/stack.sh` generates the initial service key, the token encryption key and the Keycloak admin console password
-  into `deploy/.env` (mode 0600) before every start, when they are missing or still hold the published development
-  values. The service key is printed once. Values you set yourself are never touched.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- The token encryption key is rotated rather than replaced: the new key goes first and the published one stays second,
-  so stored upstream tokens remain readable and are re-encrypted.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- In the `quick` and `ngrok` tunnel modes, the script checks the running gateway after startup. If it still accepts the
-  service key published in the repository, which an old data volume can keep, it stops the tunnel and proxy and exits
-  with status 3. It explains how to revoke the key or rebuild.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
-- Closes a hole where a default `make up` published a gateway through a public tunnel with a repository-known service
-  key, which gave full management access including secret export.
-  ([#163](https://github.com/wingfold-ai/bundlemcp/pull/163))
+- The upstream connect callback now checks who is finishing the flow. A per-user connect must be finished by the
+  signed-in user it was started for, and the shared connection by an admin. This closes a hole where a forwarded
+  authorize link could store a victim's upstream token under an attacker's account, or let a non-admin overwrite the
+  shared connection. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
+- A refused connect callback answers 403 with a page asking the user to sign in and connect again. The upstream code is
+  not redeemed, no token is stored, and the single-use state is spent so the link cannot be retried.
+  ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
+- Refused connect callbacks are logged as an `upstream_oauth.connect_refused` warning with the reason (`no_session`,
+  `other_user` or `not_admin`) and no user ids. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
 
 ## [0.1.18] - 2026-10-29
 

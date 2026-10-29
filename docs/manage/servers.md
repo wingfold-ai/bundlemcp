@@ -162,7 +162,9 @@ This needs `BUNDLEMCP_TOKEN_ENCRYPTION_KEYS` to be set; until it is, the server'
 
 3. Connect an account. From the server's page in the UI click **Connect**, or open
    `<public url>/oauth/upstream/crm/connect` in a browser while signed in as an admin. The gateway sends you through the
-   upstream's consent and stores the resulting tokens.
+   upstream's consent and stores the resulting tokens. Finish the connect in the same browser, still signed in as an
+   admin: the gateway refuses a return from the upstream that arrives in a browser without that session, and nothing
+   is connected.
 4. Check `GET /api/v1/upstreams/crm/upstream-oauth`: `shared.connected` is `true`, and `account_hint` shows a masked
    account identifier.
 
@@ -203,7 +205,9 @@ clients re-list them.
   to the gateway if needed, completes the upstream consent, and re-lists tools: the connect tool is gone and the
   server's tools are there. Calling one of the server's tools without a stored token fails with a structured MCP error
   carrying the same URL. API-key callers are not offered the connect tool, because a per-user connection belongs to a
-  user.
+  user. The connect must be finished in the browser and under the gateway account that opened the link. A link
+  forwarded to someone else stores nothing for either of them, so a user's upstream account cannot end up connected to
+  another person's gateway account.
 
 One account per person per server: the stored token is used for every MCP client that person connects with. A `per_user`
 server can only be served by endpoints that identify callers: the gateway refuses to put such a server in a bundle
