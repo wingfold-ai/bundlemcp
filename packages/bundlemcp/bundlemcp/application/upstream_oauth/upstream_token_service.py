@@ -12,6 +12,7 @@ from bundlemcp.application.upstream_oauth.upstream_connect_flow import UpstreamC
 from bundlemcp.application.upstream_oauth.upstream_token_refresher import UpstreamTokenRefresher
 from bundlemcp.application.upstream_oauth.upstream_token_storage import UpstreamTokenStorage
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 
@@ -30,15 +31,19 @@ class UpstreamTokenService:
         lock: RefreshLock,
         provider: UpstreamOAuthProvider,
         *,
+        clock: Clock,
         metadata_document_url: str | None = None,
     ) -> None:
         # metadata_document_url: the gateway's client metadata document, when an
         # authorization server can fetch it (the gateway is served over https)
-        self._tokens = UpstreamTokenStorage(units, cipher)
+        self._clock = clock
+        self._tokens = UpstreamTokenStorage(units, cipher, clock=clock)
         self._flow = UpstreamConnectFlow(
             self._tokens, provider, metadata_document_url=metadata_document_url
         )
-        self._refresher = UpstreamTokenRefresher(self._tokens, self._flow, provider, lock)
+        self._refresher = UpstreamTokenRefresher(
+            self._tokens, self._flow, provider, lock, clock=clock
+        )
 
     @property
     def configured(self) -> bool:
@@ -57,7 +62,7 @@ class UpstreamTokenService:
         if row is None:
             return UpstreamConnectionStatus()
         return UpstreamConnectionStatus(
-            connected=row.is_connected,
+            connected=row.is_connected_at(self._clock.now()),
             valid=row.is_valid,
             expires_at=row.expires_at,
             account_hint=row.account_hint,
