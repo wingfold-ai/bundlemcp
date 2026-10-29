@@ -10,21 +10,24 @@ protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) say
 
 ### Changed
 
-- An upstream connect has to be finished in the same browser, and under the same gateway account, that started it. A
-  connect started in one browser and finished in another, or after the gateway session ended, now fails and must be
-  started again. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
+- The minimum supported `fastmcp` is now 4.1.2, and the example upstream images (`echo-mcp`, `conformance-mcp`) install
+  `fastmcp>=4.1.2`. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
 
 ### Security
 
-- The upstream connect callback now checks who is finishing the flow. A per-user connect must be finished by the
-  signed-in user it was started for, and the shared connection by an admin. This closes a hole where a forwarded
-  authorize link could store a victim's upstream token under an attacker's account, or let a non-admin overwrite the
-  shared connection. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
-- A refused connect callback answers 403 with a page asking the user to sign in and connect again. The upstream code is
-  not redeemed, no token is stored, and the single-use state is spent so the link cannot be retried.
-  ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
-- Refused connect callbacks are logged as an `upstream_oauth.connect_refused` warning with the reason (`no_session`,
-  `other_user` or `not_admin`) and no user ids. ([#160](https://github.com/wingfold-ai/bundlemcp/pull/160))
+- Upgrade `fastmcp` to 4.1.4, closing GHSA-7xgj-8392-5q4r and GHSA-vqqp-x5qm-5qp4. bundlemcp does not use the affected
+  server transforms or OAuth client-credentials provider, so neither is known to be exploitable here.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade `authlib` (pulled in by `fastmcp`) to 1.9.1, closing CVE-2026-96760 and CVE-2026-114614 to CVE-2026-114620.
+  bundlemcp's own OIDC does not use `authlib`. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade `dnspython` to 2.9.0, closing CVE-2026-114605, a CPU exhaustion in name decompression.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Upgrade Nuxt to 4.6.3 and `@nuxt/ui` to 4.12 in the admin UI, and refresh its lockfile. This closes the high
+  advisories in `undici` (TLS validation bypass, cache poisoning, DoS) and `node-forge`, plus advisories in `seroval`,
+  `serialize-javascript` and a Nitro route-rule bypass. One low-severity build-time advisory in `deepmerge` remains
+  because it has no patched release. ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
+- Refresh the docs site's lockfile, closing the `vite`/`launch-editor` and `zod` advisories.
+  ([#159](https://github.com/wingfold-ai/bundlemcp/pull/159))
 
 ## [0.1.17] - 2026-10-22
 
