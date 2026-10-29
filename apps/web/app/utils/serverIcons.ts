@@ -1,4 +1,5 @@
 /** Icons and labels that make a server's kind recognisable at a glance. */
+import type { components } from "~~/types/api";
 
 /** How the gateway authenticates to the server. */
 export const AUTH_MODE_ICON: Record<string, string> = {
@@ -152,8 +153,8 @@ export const CREDENTIAL_SOURCES: { value: CredentialSource; label: string; help:
 
 /** The auth and identity settings a credential source maps to. */
 export function credentialSettings(source: CredentialSource): {
-  auth_mode: "none" | "static_headers" | "upstream_oauth" | "delegated_token";
-  identity_mode: "shared" | "per_user";
+  auth_mode: components["schemas"]["ServerAuthMode"];
+  identity_mode: components["schemas"]["IdentityMode"];
 } {
   switch (source) {
     case "key":

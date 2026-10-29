@@ -174,3 +174,99 @@ test(testTitle("E2E-21"), async ({ page, steps }) => {
     await api.dispose();
   }
 });
+
+test(testTitle("E2E-39"), async ({ page, steps }) => {
+  const bundle = "e2e-curation-error";
+  const api = await adminApi();
+  try {
+    await api.put(`bundles/${bundle}`, { data: { name: bundle, description: "e2e" } });
+    await api.put(`bundles/${bundle}/upstreams/echo`, { data: { enabled: true } });
+    const listed: Tool[] = await (await api.get(`bundles/${bundle}/tools`)).json();
+    const echo = listed.find((t) => t.name === "echo")!.tool_id;
+
+    await steps.play([
+      given("a bundle with a member tool", { req: "UI-12" }, async () => {
+        await page.goto(`/bundles/${bundle}`);
+      }),
+      when("the admin saves an annotation override that is not a JSON object", { req: "UI-12" }, async () => {
+        await page.getByTestId(`override-annotations-${echo}`).fill("[1, 2]");
+        await page.getByTestId(`curation-save-${echo}`).click();
+      }),
+      then("the tool curation card shows the error, and nothing else does", { req: "UI-12" }, async () => {
+        await expect(page.getByTestId("card-curation").getByTestId("error")).toContainText(
+          "must be a JSON object",
+        );
+        await expect(page.getByTestId("error")).toHaveCount(1);
+      }),
+    ]);
+  } finally {
+    await api.delete(`bundles/${bundle}`);
+    await api.dispose();
+  }
+});
+
+test(testTitle("E2E-40"), async ({ page, steps }) => {
+  const bundle = "e2e-card-errors";
+  const api = await adminApi();
+  try {
+    await api.put(`bundles/${bundle}`, { data: { name: bundle, description: "e2e" } });
+    await api.put(`bundles/${bundle}/upstreams/echo`, { data: { enabled: true } });
+    // the gateway would accept the toggle; answering 409 stands in for a concurrent change
+    await page.route(`**/api/v1/bundles/${bundle}/upstreams/echo`, (route) =>
+      route.request().method() === "PUT"
+        ? route.fulfill({ status: 409, json: { detail: "the member changed meanwhile" } })
+        : route.continue(),
+    );
+
+    await steps.play([
+      given("the members card of a bundle shows an error from a refused member change", { req: "UI-12" }, async () => {
+        await page.goto(`/bundles/${bundle}`);
+        await page.getByTestId("member-toggle-echo").click();
+        await expect(page.getByTestId("card-members").getByTestId("error")).toHaveText(
+          "the member changed meanwhile",
+        );
+      }),
+      when("the admin saves the bundle's description successfully", { req: "UI-12" }, async () => {
+        await page.getByTestId("input-description").fill("e2e, edited");
+        await page.getByTestId("save-bundle").click();
+        await expect.poll(async () => (await (await api.get(`bundles/${bundle}`)).json()).description).toBe(
+          "e2e, edited",
+        );
+      }),
+      then("the members card still shows its error, and the meta card shows none", { req: "UI-12" }, async () => {
+        await expect(page.getByTestId("card-members").getByTestId("error")).toHaveText(
+          "the member changed meanwhile",
+        );
+        await expect(page.getByTestId("card-meta").getByTestId("error")).toHaveCount(0);
+      }),
+    ]);
+  } finally {
+    await api.delete(`bundles/${bundle}`);
+    await api.dispose();
+  }
+});
+
+test(testTitle("E2E-41"), async ({ page, steps }) => {
+  const bundle = "e2e-load-error";
+  const api = await adminApi();
+  try {
+    await api.put(`bundles/${bundle}`, { data: { name: bundle, description: "e2e" } });
+    await page.route(`**/api/v1/bundles/${bundle}/tools`, (route) =>
+      route.fulfill({ status: 500, json: { detail: "the tools could not be read" } }),
+    );
+
+    await steps.play([
+      given("the gateway fails to return a bundle's tools", { req: "UI-12" }),
+      when("the admin opens the bundle's detail page", { req: "UI-12" }, async () => {
+        await page.goto(`/bundles/${bundle}`);
+      }),
+      then("the load error shows at the top of the page, on no card", { req: "UI-12" }, async () => {
+        await expect(page.getByTestId("error")).toHaveText("the tools could not be read");
+        await expect(page.locator('[data-testid^="card-"] [data-testid="error"]')).toHaveCount(0);
+      }),
+    ]);
+  } finally {
+    await api.delete(`bundles/${bundle}`);
+    await api.dispose();
+  }
+});

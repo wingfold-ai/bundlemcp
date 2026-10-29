@@ -43,6 +43,11 @@ Playwright test title, the recording filename, and this table.
 | E2E-35 | A bundle over upstreams that list no prompts or resources shows both member curation cards empty **(new)** | `tests/bundle-flow.spec.ts` | [`bundles`](../../../openspec/specs/bundles/spec.md) | BND-37 | `E2E-35__bundles__member-entry-curation-cards.webm` |
 | E2E-36 | The live log pauses, and resuming shows the entries logged meanwhile in order without duplicates **(new)** | `tests/live-logs.spec.ts` | [`operations`](../../../openspec/specs/operations/spec.md) | OPS-15 | `E2E-36__operations__live-logs-pause-resume.webm` |
 | E2E-37 | The inspector connects to an upstream, builds a call from the tool's schema, streams its progress and result, and reaches an endpoint through its public path **(new)** | `tests/inspector.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-9, UI-8 | `E2E-37__admin-ui__inspector-call-tool.webm` |
+| E2E-38 | Renaming an upstream to a name another upstream has shows the taken-name hint and sends nothing **(new)** | `tests/server-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-4 | `E2E-38__admin-ui__upstream-rename-taken-name.webm` |
+| E2E-39 | An annotation override that is not a JSON object shows its error on the tool curation card only **(new)** | `tests/curation.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-12 | `E2E-39__admin-ui__curation-error-on-its-card.webm` |
+| E2E-40 | A refused member toggle keeps its error on the members card while a successful meta save shows none **(new)** | `tests/curation.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-12 | `E2E-40__admin-ui__card-errors-independent.webm` |
+| E2E-41 | A bundle whose tools fail to load shows the load error at the top of the page **(new)** | `tests/curation.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-12 | `E2E-41__admin-ui__load-error-at-page-top.webm` |
+| E2E-42 | Renaming a bundle member without the acknowledgement shows the API's refusal on the danger zone card **(new)** | `tests/server-flow.spec.ts` | [`admin-ui`](../../../openspec/specs/admin-ui/spec.md) | UI-12, UPS-5 | `E2E-42__admin-ui__upstream-rename-refusal-on-danger-card.webm` |
 
 ## Requirements referenced
 
@@ -50,7 +55,7 @@ Playwright test title, the recording filename, and this table.
 |-------------|------|-----------|
 | UI-2 | `admin-ui` | Every route of the admin UI MUST require a signed-in user: an anonymous visitor is redirected to the gateway's OIDC login (auth) and returned to the page the… |
 | UI-1 | `admin-ui` | The admin UI SHALL provide these pages: - Upstream servers — list with health and connection-state badges and the MCP revision negotiated at the last success… |
-| UPS-10 | `upstreams` | Protocol era per upstream (PROT-21): a server MUST have a protocol_mode — auto (default: probe server/discover, fall back to initialize), legacy (always the … |
+| UPS-10 | `upstreams` | Protocol era per upstream (PROT-21): a server MUST have a protocol_mode. It is auto (default: probe server/discover, fall back to initialize), session (alway… |
 | UPS-11 | `upstreams` | POST /api/v1/upstreams:inspect MUST take a url and optional candidate headers, store nothing, and report what the upstream is: its connection_state (UPS-12),… |
 | UI-6 | `admin-ui` | Registering a server SHALL start from its URL (or a pasted registry server.json, UPS-15): the UI runs inspection (UPS-11), shows what was detected, and asks … |
 | UPS-2 | `upstreams` | Create/update/delete/list/get MUST be available in the management API (management) and the UI. Create and update MUST validate the config by connecting to th… |
@@ -98,3 +103,5 @@ Playwright test title, the recording filename, and this table.
 | OPS-15 | `operations` | The admin UI SHALL show a page that streams new buffer entries from the management API (a server-push stream, admin-authenticated) with pause and resume, a l… |
 | UI-9 | `admin-ui` | The inspector SHALL support initialize with the target's capabilities shown, ping, tools/list with each tool's schema, and tools/call with a form generated f… |
 | UI-8 | `admin-ui` | The inspector SHALL connect to three kinds of target: (a) any registered upstream server, using its stored configuration — static headers and upstream OAuth … |
+| UI-12 | `admin-ui` | On a detail page made of several cards, an action that fails SHALL show its error on the card whose action failed, whether the client-side validation or the … |
+| UPS-5 | `upstreams` | Renaming a server MUST be rejected while it is a member of any bundle (the name is baked into prefixed tool names), unless the rename request carries an expl… |

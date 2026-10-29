@@ -5,6 +5,7 @@ type ServerRead = components["schemas"]["ServerRead"];
 type EndpointRead = components["schemas"]["EndpointRead"];
 type BundleMemberRead = components["schemas"]["BundleMemberRead"];
 type ApiKeyRead = components["schemas"]["ApiKeyRead"];
+type EndpointProfileRead = components["schemas"]["EndpointProfileRead"];
 
 // The management lists every page reads, each under one key so a page that
 // shows the same list shares its cache entry and its invalidation.
@@ -33,6 +34,16 @@ export function useEndpoints() {
   return useQuery<EndpointRead[]>(
     queryKeys.endpoints,
     async () => unwrap(await api.GET("/api/v1/endpoints", { params: { query: PAGE } })).items,
+    { default: () => [] },
+  );
+}
+
+/** The endpoint profiles a form offers, with what each changes and any caveat. */
+export function useProfiles() {
+  const api = useApi();
+  return useQuery<EndpointProfileRead[]>(
+    queryKeys.profiles,
+    async () => unwrap(await api.GET("/api/v1/endpoints/profiles")),
     { default: () => [] },
   );
 }

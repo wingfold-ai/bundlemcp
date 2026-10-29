@@ -47,7 +47,13 @@ BUNDLEMCP_INTEGRATION=1 uv run pytest tests/integration -q
 
 # browser UI tests (needs the stack; logs in via Keycloak admin/admin)
 cd apps/web && npx playwright test
+
+# UI unit tests (no stack needed)
+cd apps/web && npm test
 ```
+
+CI runs the browser suite against the core stack with `npx playwright test --grep-invert @fleet`: every scenario except
+those tagged `@fleet` in their title, which need the private fleet images. Run those locally with the fleet profile up.
 
 ## Connecting Google Search Console (one-time, interactive)
 

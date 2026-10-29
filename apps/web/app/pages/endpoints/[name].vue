@@ -6,13 +6,6 @@ type EndpointProfile = components["schemas"]["EndpointProfile"];
 type EndpointAuthMode = components["schemas"]["EndpointAuthMode"];
 type RateLimitConfig = components["schemas"]["RateLimitConfig"];
 
-interface ProfileInfo {
-  name?: string;
-  description?: string;
-  warning?: string;
-  [key: string]: unknown;
-}
-
 definePageMeta({ key: (route) => route.fullPath });
 
 const api = useApi();
@@ -27,12 +20,7 @@ const { data: endpoint, error: loadError } = await useQuery<EndpointRead | null>
 );
 const { data: bundles } = await useBundles();
 const { data: endpoints } = await useEndpoints();
-const { data: profiles } = await useQuery<ProfileInfo[]>(
-  queryKeys.profiles,
-  async () => unwrap(await api.GET("/api/v1/endpoints/profiles")) as ProfileInfo[],
-  { default: () => [] },
-);
-const errorMsg = ref("");
+const { data: profiles } = await useProfiles();
 
 // --- config form state ---
 const profile = ref<EndpointProfile>("default");
@@ -49,14 +37,12 @@ const rlClientWindow = ref<string | number>("");
 
 function seed(ep: EndpointRead | null) {
   if (!ep) return;
-  profile.value = ep.profile as EndpointProfile;
-  authModes.value = ep.auth_modes as EndpointAuthMode[];
+  profile.value = ep.profile;
+  authModes.value = ep.auth_modes;
   enabled.value = ep.enabled;
   allowedOrigins.value = ep.allowed_origins.join("\n");
-  const rl = ep.rate_limit as {
-    endpoint?: { limit?: number; window_seconds?: number } | null;
-    per_client?: { limit?: number; window_seconds?: number } | null;
-  } | null;
+  // the read model leaves the stored rate limit untyped; it is what was saved as this shape
+  const rl = ep.rate_limit as RateLimitConfig | null;
   rlEndpointLimit.value = rl?.endpoint?.limit != null ? String(rl.endpoint.limit) : "";
   rlEndpointWindow.value =
     rl?.endpoint?.window_seconds != null ? String(rl.endpoint.window_seconds) : "";
@@ -67,14 +53,8 @@ function seed(ep: EndpointRead | null) {
 watch(endpoint, seed, { immediate: true });
 
 /** Every resource whose cached reads show this endpoint. */
-function invalidateEndpoint(...extra: string[]) {
-  return invalidate(
-    queryKeys.endpoint(name.value),
-    queryKeys.endpoints,
-    queryKeys.bundles,
-    queryKeys.catalogue,
-    ...extra,
-  );
+function endpointDependents(): string[] {
+  return [queryKeys.endpoint(name.value), queryKeys.endpoints, queryKeys.bundles, queryKeys.catalogue];
 }
 
 const connectionUrl = computed(() => `${apiBase()}/${name.value}/mcp`);
@@ -122,96 +102,54 @@ function buildRateLimit(): RateLimitConfig | undefined {
   } as RateLimitConfig;
 }
 
-async function saveEndpoint() {
-  errorMsg.value = "";
-  if (!bundleName.value) {
-    errorMsg.value = "Could not resolve bundle name for this endpoint";
-    return;
-  }
-  if (authModes.value.length === 0) {
-    errorMsg.value = "Select at least one auth mode";
-    return;
-  }
-  if (authModes.value.includes("none") && authModes.value.length > 1) {
-    errorMsg.value = 'Auth mode "none" cannot be combined with other modes';
-    return;
-  }
-  const rateLimit = buildRateLimit();
-  const { error } = await api.PUT("/api/v1/endpoints/{name}", {
-    params: { path: { name: name.value } },
-    body: {
-      name: name.value,
-      bundle_name: bundleName.value,
-      profile: profile.value,
-      auth_modes: authModes.value,
-      allow_unauthenticated: authModes.value.includes("none"),
-      enabled: enabled.value,
-      allowed_origins: allowedOrigins.value
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line !== ""),
-      ...(rateLimit !== undefined ? { rate_limit: rateLimit } : {}),
-    },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  await invalidateEndpoint();
-}
+const {
+  run: saveEndpoint,
+  busy: saving,
+  error: configError,
+} = useAction(
+  async () => {
+    if (!bundleName.value) {
+      throw new ValidationProblem("Could not resolve bundle name for this endpoint");
+    }
+    if (authModes.value.length === 0) throw new ValidationProblem("Select at least one auth mode");
+    if (authModes.value.includes("none") && authModes.value.length > 1) {
+      throw new ValidationProblem('Auth mode "none" cannot be combined with other modes');
+    }
+    const rateLimit = buildRateLimit();
+    return await api.PUT("/api/v1/endpoints/{name}", {
+      params: { path: { name: name.value } },
+      body: {
+        name: name.value,
+        bundle_name: bundleName.value,
+        profile: profile.value,
+        auth_modes: authModes.value,
+        allow_unauthenticated: authModes.value.includes("none"),
+        enabled: enabled.value,
+        allowed_origins: allowedOrigins.value
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line !== ""),
+        ...(rateLimit !== undefined ? { rate_limit: rateLimit } : {}),
+      },
+    });
+  },
+  { invalidates: () => endpointDependents() },
+);
 
 // --- danger zone ---
-const renameInput = ref("");
-// the admin's acknowledgement that connected clients break; it is what sends force
-const renameAcknowledged = ref(false);
-const renaming = computed(() => renameInput.value !== "" && renameInput.value !== name.value);
-const renamedUrl = computed(() => `${apiBase()}/${renameInput.value}/mcp`);
 // the names a rename would collide with: every endpoint but this one
 const otherEndpointNames = computed(() =>
   endpoints.value.map((e) => e.name).filter((n) => n !== name.value),
 );
-// shown while typing, so a bad or taken name is seen before anything is sent
-const renameHint = computed(() =>
-  renaming.value ? nameProblem("endpoint", renameInput.value, otherEndpointNames.value) : null,
-);
-// a different new name is a different consequence, so it needs its own acknowledgement
-watch(renameInput, () => {
-  renameAcknowledged.value = false;
-});
 
-async function renameEndpoint() {
-  errorMsg.value = "";
-  const newName = renameInput.value;
-  const problem = nameProblem("endpoint", newName, otherEndpointNames.value);
-  if (problem) {
-    errorMsg.value = problem;
-    return;
-  }
-  const { error } = await api.POST("/api/v1/endpoints/{name}:rename", {
-    params: {
-      path: { name: name.value },
-      query: { new_name: newName, force: renameAcknowledged.value },
-    },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
-  await invalidateEndpoint(queryKeys.endpoint(newName));
+async function renamed(newName: string) {
+  await invalidate(...endpointDependents(), queryKeys.endpoint(newName));
   await navigateTo(`/endpoints/${newName}`);
 }
 
-async function deleteEndpoint() {
-  if (!confirm(`Delete endpoint "${name.value}"?`)) return;
-  const { error } = await api.DELETE("/api/v1/endpoints/{name}", {
-    params: { path: { name: name.value } },
-  });
-  if (error) {
-    errorMsg.value = apiErrorMessage(error);
-    return;
-  }
+async function deleted() {
   // an API key scoped to this endpoint loses it from its scope
-  await invalidateEndpoint(queryKeys.apiKeys);
+  await invalidate(...endpointDependents(), queryKeys.apiKeys);
   await navigateTo("/endpoints");
 }
 </script>
@@ -220,8 +158,8 @@ async function deleteEndpoint() {
   <div class="space-y-6">
     <h1 class="text-lg font-semibold">Endpoint: {{ name }}</h1>
 
-    <p v-if="errorMsg || loadError" class="text-red-600 text-sm" data-testid="error">
-      {{ errorMsg || loadError?.message }}
+    <p v-if="loadError" class="text-red-600 text-sm" data-testid="error">
+      {{ loadError.message }}
     </p>
 
     <!-- connection instructions -->
@@ -263,12 +201,12 @@ async function deleteEndpoint() {
     </div>
 
     <!-- config -->
-    <div class="wf-card space-y-3">
+    <div class="wf-card space-y-3" data-testid="card-config">
       <h2 class="font-medium">Configuration</h2>
       <div>
         <label class="wf-label">Profile</label>
         <select v-model="profile" class="wf-input" data-testid="input-profile">
-          <option v-for="p in profiles" :key="String(p.name)" :value="p.name">
+          <option v-for="p in profiles" :key="p.name" :value="p.name">
             {{ p.name }}<template v-if="p.description"> — {{ p.description }}</template>
           </option>
         </select>
@@ -374,49 +312,36 @@ async function deleteEndpoint() {
           />
         </div>
       </div>
-      <UButton data-testid="save-endpoint" @click="saveEndpoint">Save</UButton>
+      <p v-if="configError" class="text-red-600 text-sm" data-testid="error">{{ configError }}</p>
+      <UButton :loading="saving" data-testid="save-endpoint" @click="saveEndpoint()">Save</UButton>
     </div>
 
-    <!-- danger zone -->
-    <div class="wf-card space-y-3 border-red-300">
-      <h2 class="font-medium text-red-600">Danger zone</h2>
-      <div>
-        <label class="wf-label">Rename endpoint</label>
-        <input v-model="renameInput" class="wf-input" placeholder="new name" data-testid="rename-input" />
-        <p v-if="renameHint" class="text-red-600 text-xs mt-1" data-testid="rename-hint">
-          {{ renameHint }}
-        </p>
-        <div v-if="renaming" class="mt-2 space-y-2 text-sm" data-testid="rename-consequence">
+    <DangerZoneCard
+      kind="endpoint"
+      class="border-red-300"
+      :current="name"
+      :taken="otherEndpointNames"
+      rename-label="Rename endpoint"
+      acknowledgement="I understand that connected clients break"
+      require-acknowledgement
+      delete-label="Delete endpoint"
+      delete-test-id="delete-endpoint"
+      @renamed="renamed"
+      @deleted="deleted"
+    >
+      <template #consequence="{ newName }">
+        <div class="space-y-2" data-testid="rename-consequence">
           <p>
             The endpoint moves from
             <code data-testid="rename-current-url">{{ connectionUrl }}</code>
             to
-            <code data-testid="rename-new-url">{{ renamedUrl }}</code>.
+            <code data-testid="rename-new-url">{{ `${apiBase()}/${newName}/mcp` }}</code>.
           </p>
           <p class="text-red-600">
             Every MCP client connected to this endpoint stops working until it is reconfigured with the new URL.
           </p>
-          <label class="flex items-center gap-2">
-            <input v-model="renameAcknowledged" type="checkbox" data-testid="rename-ack" />
-            I understand that connected clients break
-          </label>
         </div>
-        <UButton
-          class="mt-2"
-          variant="outline"
-          color="error"
-          :disabled="!renaming || !renameAcknowledged"
-          data-testid="rename-submit"
-          @click="renameEndpoint"
-        >
-          Rename
-        </UButton>
-      </div>
-      <div>
-        <UButton color="error" variant="outline" data-testid="delete-endpoint" @click="deleteEndpoint">
-          Delete endpoint
-        </UButton>
-      </div>
-    </div>
+      </template>
+    </DangerZoneCard>
   </div>
 </template>

@@ -69,6 +69,11 @@ jobs:
       - name: Build
         run: npm run build
         working-directory: apps/web
+      - name: UI unit tests (UI-13)
+        # the UI's pure logic and the query cache, in Vitest; the pages
+        # themselves are covered by the browser suite in the integration job
+        run: npm test
+        working-directory: apps/web
 
   docs:
     runs-on: ubuntu-latest
@@ -204,14 +209,24 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - name: Browser-driven OAuth consent (Chromium)
-        # HTTP clients ignore CSP, so only a browser proves that Approve and Deny
-        # reach a client redirect URI on another origin.
+      - name: Admin UI browser suite (UI-13)
+        # Every Playwright scenario, against the core stack started above. A
+        # scenario that needs the private fleet images carries @fleet in its
+        # title and is left out here; anything else a contributor adds runs
+        # without a change to this step. The OAuth consent scenarios are among
+        # them: HTTP clients ignore CSP, so only a browser proves that Approve
+        # and Deny reach a client redirect URI on another origin.
         working-directory: apps/web
         run: |
           npm ci
           npx playwright install --with-deps chromium
-          npx playwright test oauth-consent.spec.ts
+          npx playwright test --grep-invert @fleet
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          if-no-files-found: ignore
       - name: Logs on failure
         if: failure()
         run: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.replicas.yml logs --tail=200
