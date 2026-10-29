@@ -25,7 +25,7 @@ one-time choice.
 
 ### Requirement: ARC-2 Runtime versions
 The gateway SHALL require Python ≥ 3.13 (`requires-python = ">=3.13"`) and SHALL be built, tested and shipped on the
-latest stable Python release, 3.14 at the time of writing. The repository declares that version in one place, and
+latest stable Python release, 3.15 at the time of writing. The repository declares that version in one place, and
 every image that runs Python (the gateway and the example upstreams) and every CI job that sets up Python uses exactly
 the declared version. The web app SHALL be built and run on Node ≥ 24: `apps/web/package.json` declares it in
 `engines`, every CI and publishing job that runs Node uses 24 or later, and the web image runs Node 26.
@@ -39,7 +39,7 @@ the declared version. The web app SHALL be built and run on Node ≥ 24: `apps/w
 - **THEN** the Node version used is 24 or later
 
 #### Scenario: Images and CI use the declared Python
-- **GIVEN** the repository declares Python 3.14 as the shipped version
+- **GIVEN** the repository declares Python 3.15 as the shipped version
 - **WHEN** an image's base or build stage, or a CI job, names a different Python version
 - **THEN** the hermetic test suite fails and names the file and the version it found
 
