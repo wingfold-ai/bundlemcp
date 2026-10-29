@@ -8,16 +8,16 @@ from typing import Any
 
 import structlog
 from fastmcp import Client
-from mcp import types as mcp_types
-from mcp.client.subscriptions import (
-    PromptsListChanged,
-    ResourcesListChanged,
-    ResourceUpdated,
-    ToolsListChanged,
-    listen,
-)
+from mcp.client.subscriptions import listen
+from mcp_types import SubscriptionFilter
 from pydantic import BaseModel, ConfigDict, Field
 
+from bundlemcp.application.contracts.upstream.member_notification import (
+    ListedKind,
+    MemberListChanged,
+    MemberNotification,
+    MemberResourceUpdated,
+)
 from bundlemcp.application.contracts.upstream.upstream_client_factory import UpstreamClientFactory
 from bundlemcp.application.contracts.upstream.upstream_notification_sink import (
     UpstreamNotificationSink,
@@ -27,29 +27,23 @@ from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.sessions.upstream_binding import UpstreamBinding
 from bundlemcp.infrastructure.fastmcp.lease_slot import LeaseSlot
 from bundlemcp.infrastructure.fastmcp.lease_transport import lease_transport_for
+from bundlemcp.infrastructure.fastmcp.member_notification_translation import (
+    from_listen_event,
+    from_log_message,
+    from_server_notification,
+)
 from bundlemcp.infrastructure.fastmcp.pooled_session import PooledSession, SessionState
+from bundlemcp.infrastructure.fastmcp.resource_watch import (
+    ListenResourceWatch,
+    ResourceWatch,
+    SubscribeResourceWatch,
+)
 
 log = structlog.get_logger(__name__)
 
 # the client keywords whose presence changes what a session advertises at initialize
 RELAY_KEYWORDS = frozenset({"elicitation_handler", "sampling_handler", "roots"})
 LOG_HANDLER = "log_handler"
-
-# notifications an upstream sends that are about the server, not about a request
-SERVER_NOTIFICATIONS = (
-    mcp_types.ToolListChangedNotification,
-    mcp_types.PromptListChangedNotification,
-    mcp_types.ResourceListChangedNotification,
-    mcp_types.ResourceUpdatedNotification,
-)
-
-
-# what a modern upstream's listen stream reports, as the notification a handshake one would send
-_LISTEN_EVENTS = {
-    ToolsListChanged: "notifications/tools/list_changed",
-    PromptsListChanged: "notifications/prompts/list_changed",
-    ResourcesListChanged: "notifications/resources/list_changed",
-}
 LISTEN_RETRY_SECONDS = 1.0
 
 
@@ -74,10 +68,6 @@ class PooledLease(BaseModel):
         description="The binding that now names the session; None for an unbound request"
     )
     session: PooledSession = Field(exclude=True, description="The session the lease is on")
-    relisten: Callable[[PooledSession], None] = Field(
-        exclude=True,
-        description="Reopens the session's standing listen once what it should hear changed",
-    )
 
     @property
     def client(self) -> Client:
@@ -88,17 +78,17 @@ class PooledLease(BaseModel):
         return client
 
     async def subscribe(self, uri: str) -> None:
-        if not self.session.is_modern:
-            await self.client.session.subscribe_resource(uri)
-        self.session.subscriptions.add(uri)
-        self.relisten(self.session)
+        await self._resource_watch.subscribe(self.session, uri)
 
     async def unsubscribe(self, uri: str) -> None:
-        # the subscription may have been made through another replica's transport
-        self.session.subscriptions.discard(uri)
-        if not self.session.is_modern:
-            await self.client.session.unsubscribe_resource(uri)
-        self.relisten(self.session)
+        await self._resource_watch.unsubscribe(self.session, uri)
+
+    @property
+    def _resource_watch(self) -> ResourceWatch:
+        watch = self.session.resource_watch
+        if watch is None:
+            raise RuntimeError("a lease is handed out only once its session's transport is open")
+        return watch
 
 
 class PooledUpstreamSessions:
@@ -123,6 +113,8 @@ class PooledUpstreamSessions:
         notifications: UpstreamNotificationSink,
     ) -> None:
         self._transport = lease_transport_for(factory)
+        self._subscribe_watch = SubscribeResourceWatch()
+        self._listen_watch = ListenResourceWatch(self.relisten)
         self._limits = limits
         self._notifications = notifications
         self._sessions: list[PooledSession] = []
@@ -149,7 +141,6 @@ class PooledUpstreamSessions:
             yield PooledLease(
                 binding=session.binding() if session.bound_to is not None else None,
                 session=session,
-                relisten=self.relisten,
             )
         except BaseException:
             # the transport may be broken mid-message; never hand it out again
@@ -314,6 +305,8 @@ class PooledUpstreamSessions:
             transport_session = getattr(client.transport, "get_session_id", None)
             session.upstream_session_id = transport_session() if transport_session else None
             session.protocol_version = client.protocol_version
+        # the negotiated revision decides, once, how resource updates are asked for
+        session.resource_watch = self._listen_watch if session.is_modern else self._subscribe_watch
         self.relisten(session)
 
     def relisten(self, session: PooledSession) -> None:
@@ -341,23 +334,43 @@ class PooledUpstreamSessions:
         return {name: value for name, value in wanted.items() if value}
 
     async def _listen(self, session: PooledSession) -> None:
+        """Hold the session's listen stream open, re-opening it whenever it ends.
+
+        The protocol replays nothing on a re-opened stream, so after every
+        re-open but the task's first, whatever it listens for is reported as
+        changed: clients then fetch again what they may have missed. A task
+        is started anew when the filter changes, which loses nothing.
+        """
         assert session.client is not None
+        acknowledged_before = False
         while session.is_open:
             try:
                 async with listen(session.client.session, **self._listen_filter(session)) as events:
+                    if acknowledged_before:
+                        await self._refetch(session, events.honored)
+                    acknowledged_before = True
                     async for event in events:
-                        await self._notify(session, self._listened(event))
+                        notification = from_listen_event(event)
+                        if notification is not None:
+                            await self._notify(session, notification)
             except asyncio.CancelledError:
                 raise
             except Exception:
                 log.debug("upstream_session.listen_lost", server=session.server.name, exc_info=True)
             await asyncio.sleep(LISTEN_RETRY_SECONDS)
 
-    @staticmethod
-    def _listened(event: Any) -> dict[str, Any]:
-        if isinstance(event, ResourceUpdated):
-            return {"method": "notifications/resources/updated", "params": {"uri": event.uri}}
-        return {"method": _LISTEN_EVENTS[type(event)]}
+    async def _refetch(self, session: PooledSession, honored: SubscriptionFilter) -> None:
+        """Report every list and resource a re-opened listen stream watches as changed."""
+        listened = {
+            ListedKind.TOOLS: honored.tools_list_changed,
+            ListedKind.PROMPTS: honored.prompts_list_changed,
+            ListedKind.RESOURCES: honored.resources_list_changed,
+        }
+        for listed, wanted in listened.items():
+            if wanted:
+                await self._notify(session, MemberListChanged(listed=listed))
+        for uri in honored.resource_subscriptions or ():
+            await self._notify(session, MemberResourceUpdated(uri=uri))
 
     def _handlers(self, session: PooledSession) -> dict[str, Any]:
         """Callbacks that forward to the current lease's, so one transport serves many leases."""
@@ -377,27 +390,20 @@ class PooledUpstreamSessions:
                 await current(message)
             elif slot.responses is None and session.bound_to is not None:
                 # between requests the message belongs to the session the upstream one serves
-                await self._notify(
-                    session,
-                    {
-                        "jsonrpc": "2.0",
-                        "method": "notifications/message",
-                        "params": message.model_dump(by_alias=True, mode="json", exclude_none=True),
-                    },
-                )
+                notification = from_log_message(message)
+                if notification is not None:
+                    await self._notify(session, notification)
 
         async def message_handler(message: Any) -> None:
-            if isinstance(message, SERVER_NOTIFICATIONS):
-                await self._notify(
-                    session, message.model_dump(by_alias=True, mode="json", exclude_none=True)
-                )
+            notification = from_server_notification(message)
+            if notification is not None:
+                await self._notify(session, notification)
 
         handlers[LOG_HANDLER] = log_handler
         handlers["message_handler"] = message_handler
         return handlers
 
-    async def _notify(self, session: PooledSession, notification: dict[str, Any]) -> None:
-        notification.setdefault("jsonrpc", "2.0")
+    async def _notify(self, session: PooledSession, notification: MemberNotification) -> None:
         try:
             await self._notifications.received(
                 session.server, notification, bound_to=session.bound_to
@@ -406,7 +412,7 @@ class PooledUpstreamSessions:
             log.warning(
                 "upstream_session.notification_failed",
                 server=session.server.name,
-                method=notification.get("method"),
+                kind=notification.kind,
                 exc_info=True,
             )
 
