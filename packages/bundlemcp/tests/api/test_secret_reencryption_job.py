@@ -18,7 +18,7 @@ class CountingSweep:
 
     async def sweep(self) -> ReencryptionSweep:
         self.sweeps += 1
-        return ReencryptionSweep(rewritten=2, remaining_on_old_key=0, undecryptable=1)
+        return ReencryptionSweep(rewritten=2, remaining_on_old_key=0, undecryptable=1, sealed=3)
 
 
 async def test_dep9_only_one_replica_sweeps_per_interval(redis):
@@ -32,12 +32,14 @@ async def test_dep9_only_one_replica_sweeps_per_interval(redis):
 
 
 async def test_dep9_the_swept_event_carries_the_counts(redis):
-    """DEP-9: the log says how many values still need an older key."""
+    """DEP-9: the log says how many values still need an older key, and how many plaintext
+    static header sets were sealed."""
     job = SecretReencryptionJob(CountingSweep(), ValkeyRefreshLock(redis), interval_seconds=3600)
     with capture_logs() as logs:
         await job.sweep_once()
     [event] = [e for e in logs if e["event"] == "token_encryption.swept"]
     assert (event["rewritten"], event["remaining_on_old_key"], event["undecryptable"]) == (2, 0, 1)
+    assert event["sealed"] == 3
 
 
 def _job_running() -> bool:

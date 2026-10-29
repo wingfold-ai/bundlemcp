@@ -1,11 +1,13 @@
 """The request body limit, enforced before a request body is parsed or admitted.
 
-Runs as ASGI middleware, ahead of routing, on the MCP endpoints and the
-management API. A declared ``Content-Length`` over the limit is refused before
-anything is read; a body without one (chunked) is counted as it streams in and
-refused as soon as it crosses the limit, so at most the limit plus one chunk is
-held in memory. The limit is read from the runtime-config snapshot, so the check
-costs no I/O.
+Runs as ASGI middleware, ahead of routing, on the MCP endpoints, the
+management API and the OAuth server. A declared ``Content-Length`` over the
+limit is refused before anything is read; a body without one (chunked) is
+counted as it streams in and refused as soon as it crosses the limit, so at most
+the limit plus one chunk is held in memory. The MCP and management limit is read
+from the runtime-config snapshot, so the check costs no I/O. Paths under
+``/oauth/`` answer before anyone signs in and carry only small forms and JSON, so
+they get a fixed, smaller limit that no runtime setting raises.
 """
 
 import re
@@ -19,6 +21,9 @@ from bundlemcp.api.http.mcp_route_path import MCP_PATH
 from bundlemcp.api.http.providers import current_request_limit
 
 API_PATH = re.compile(r"^/api/v1(/|$)")
+OAUTH_PATH = re.compile(r"^/oauth(/|$)")
+# Real OAuth requests are under 4 KiB; this is also the smallest configurable request limit.
+OAUTH_BODY_LIMIT = 64 * 1024
 INVALID_REQUEST = -32600  # JSON-RPC: the request is not a valid request object
 
 
@@ -43,11 +48,15 @@ def too_large(path: str, limit: int) -> JSONResponse:
             {"jsonrpc": "2.0", "id": None, "error": {"code": INVALID_REQUEST, "message": message}},
             status_code=413,
         )
+    if OAUTH_PATH.match(path):  # the RFC 6749 error object OAuth clients parse
+        return JSONResponse(
+            {"error": "invalid_request", "error_description": message}, status_code=413
+        )
     return JSONResponse({"detail": message}, status_code=413)
 
 
 class RequestBodyLimit:
-    """ASGI middleware bounding request bodies on ``/{endpoint}/mcp`` and ``/api/v1``."""
+    """ASGI middleware bounding request bodies on ``/{endpoint}/mcp``, ``/api/v1``, ``/oauth/``."""
 
     def __init__(self, app: ASGIApp, *, limit: Callable[[Scope], int] | None = None) -> None:
         self._app = app
@@ -55,10 +64,10 @@ class RequestBodyLimit:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
-        if scope["type"] != "http" or not (API_PATH.match(path) or MCP_PATH.match(path)):
+        limit = self._limit_for(path, scope) if scope["type"] == "http" else None
+        if limit is None:
             await self._app(scope, receive, send)
             return
-        limit = self._limit(scope)
         if _declared_length(scope) > limit:
             await too_large(path, limit)(scope, receive, send)
             return
@@ -86,6 +95,14 @@ class RequestBodyLimit:
             if started:  # a handler answered before reading the whole body; nothing to add
                 return
             await too_large(path, limit)(scope, receive, send)
+
+    def _limit_for(self, path: str, scope: Scope) -> int | None:
+        """The byte limit for this path, or None for a path this middleware leaves alone."""
+        if OAUTH_PATH.match(path):
+            return OAUTH_BODY_LIMIT
+        if API_PATH.match(path) or MCP_PATH.match(path):
+            return self._limit(scope)
+        return None
 
 
 async def body_too_large_handler(request: Request, exc: Exception) -> JSONResponse:

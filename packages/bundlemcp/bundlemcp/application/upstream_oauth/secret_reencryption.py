@@ -2,10 +2,11 @@
 
 import uuid
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Any
 
 import structlog
 
+from bundlemcp.application.contracts.persistence.stored_secrets import StoredSecrets
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from bundlemcp.application.contracts.secret_cipher import DecryptionError, SecretCipher
 from bundlemcp.application.upstream_oauth.reencryption_sweep import ReencryptionSweep
@@ -15,20 +16,13 @@ log = structlog.get_logger(__name__)
 BATCH_SIZE = 100
 
 
-class StoredSecrets(Protocol):
-    """A table of encrypted values the sweep can page through and rewrite in place."""
-
-    async def page_after(self, after: uuid.UUID | None, limit: int) -> list[Any]: ...
-
-    async def replace_ciphertext(self, id: uuid.UUID, expected: str, new: str) -> bool: ...
-
-
 class SecretReencryption:
-    """Re-encrypts upstream tokens and client secrets still under an older key.
+    """Re-encrypts upstream tokens, client secrets and static headers still under an older key.
 
-    Pages through each table, one short unit of work per batch. Every write is
-    a compare-and-set, so a value a request rewrote meanwhile is left as that
-    request wrote it, which is already under the primary key.
+    First seals the static headers of servers still storing them in plaintext,
+    then pages through each table, one short unit of work per batch. Every
+    write is a compare-and-set, so a value a request rewrote meanwhile is left
+    as that request wrote it, which is already under the primary key.
     """
 
     def __init__(self, units: UnitOfWorkFactory, cipher: SecretCipher) -> None:
@@ -37,11 +31,25 @@ class SecretReencryption:
 
     async def sweep(self) -> ReencryptionSweep:
         result = ReencryptionSweep()
+        await self._seal(result)
         await self._sweep(result, lambda uow: uow.upstream_tokens, lambda t: t.tokens_encrypted)
         await self._sweep(
             result, lambda uow: uow.upstream_clients, lambda c: c.client_secret_encrypted
         )
+        await self._sweep(
+            result, lambda uow: uow.servers.header_ciphertexts(), lambda h: h.ciphertext
+        )
         return result
+
+    async def _seal(self, result: ReencryptionSweep) -> None:
+        """Encrypt plaintext static headers in batches, until a batch finds fewer to seal."""
+        while True:
+            async with self._units.open() as uow:
+                sealed = await uow.servers.seal_plaintext_headers(BATCH_SIZE)
+                await uow.commit()
+            result.sealed += sealed
+            if sealed < BATCH_SIZE:
+                return
 
     async def _sweep(
         self,

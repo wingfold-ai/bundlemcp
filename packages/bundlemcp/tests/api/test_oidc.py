@@ -346,3 +346,126 @@ def test_auth15_out_of_range_lifetime_is_refused(seconds):
 
     with pytest.raises(ValidationError, match="admin_session_lifetime"):
         hermetic_settings(admin_session_lifetime=seconds)
+
+
+def _binding_set_cookies(resp) -> list[str]:
+    return [c for c in resp.headers.get_list("set-cookie") if "bmcp_login" in c]
+
+
+class _CountingStates:
+    """Wraps the login state store to count `take` calls."""
+
+    def __init__(self, inner) -> None:
+        self.inner = inner
+        self.takes = 0
+
+    async def put(self, value):
+        return await self.inner.put(value)
+
+    async def take(self, token):
+        self.takes += 1
+        return await self.inner.take(token)
+
+
+class _NoExchangeProvider(FakeOidcProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.exchanges = 0
+
+    async def exchange(self, **kwargs) -> OidcClaims:
+        self.exchanges += 1
+        return await super().exchange(**kwargs)
+
+
+async def test_auth15_callback_from_another_browser_is_refused(engine, redis):
+    """AUTH-15: a callback link opened in a browser that never started the login is answered
+    400 before the live store is touched, signs nobody in and never exchanges the code."""
+    settings = hermetic_settings(public_url=PUBLIC_URL, admin_emails=["admin@example.com"])
+    provider = _NoExchangeProvider()
+    provider.claims_by_code["fake-code"] = OidcClaims(
+        issuer="http://idp", sub="a", email="admin@example.com", email_verified=True
+    )
+    async with serving(
+        engine,
+        redis,
+        settings=settings,
+        base_url=PUBLIC_URL,
+        follow_redirects=False,
+        oidc_provider=provider,
+    ) as (http, app):
+        states = _CountingStates(app.state.container.oidc_login_states)
+        app.state.container.oidc_login_states = states
+        location = (await http.get("/login", params={"next": "/"})).headers["location"]
+        q = parse_qs(urlparse(location).query)
+        http.cookies.clear()  # the victim's browser holds no binding
+        resp = await http.get(
+            "/login/callback", params={"code": q["code"][0], "state": q["state"][0]}
+        )
+    assert resp.status_code == 400
+    assert not any(SESSION_COOKIE in c for c in resp.headers.get_list("set-cookie"))
+    assert provider.exchanges == 0
+    assert states.takes == 0
+
+
+async def test_auth15_mismatched_binding_is_refused(env):
+    """AUTH-15: with two logins started in one browser, the first login's callback no longer
+    matches the binding cookie and is refused."""
+    http, _, provider = env
+    provider.claims_by_code["fake-code"] = OidcClaims(
+        issuer="http://idp", sub="a", email="admin@example.com", email_verified=True
+    )
+    first = parse_qs(urlparse((await http.get("/login")).headers["location"]).query)
+    await http.get("/login")  # the second login replaces the binding cookie
+    resp = await http.get(
+        "/login/callback", params={"code": first["code"][0], "state": first["state"][0]}
+    )
+    assert resp.status_code == 400
+    assert not any(SESSION_COOKIE in c for c in resp.headers.get_list("set-cookie"))
+    assert http.cookies.get(SESSION_COOKIE) is None
+
+
+async def test_auth15_https_binding_cookie_uses_host_prefix(engine, redis):
+    """AUTH-15: on an https public URL the binding cookie is __Host- prefixed, Secure, HttpOnly,
+    Lax, Path=/, host-only and lives 600 seconds; on plain http it is neither."""
+    settings = hermetic_settings(public_url="https://gw.example.com")
+    async with serving(
+        engine,
+        redis,
+        settings=settings,
+        base_url="https://gw.example.com",
+        follow_redirects=False,
+        oidc_provider=FakeOidcProvider(),
+    ) as (http, _app):
+        [cookie] = _binding_set_cookies(await http.get("/login"))
+    lowered = cookie.lower()
+    assert cookie.startswith("__Host-bmcp_login=")
+    assert "; secure" in lowered and "; httponly" in lowered and "samesite=lax" in lowered
+    assert "path=/" in lowered and "max-age=600" in lowered and "domain=" not in lowered
+
+
+async def test_auth15_http_binding_cookie_has_no_host_prefix(env):
+    """AUTH-15: on a plain-http public URL the binding cookie has no __Host- prefix and no
+    Secure attribute."""
+    http, _, _ = env
+    [cookie] = _binding_set_cookies(await http.get("/login"))
+    assert cookie.startswith("bmcp_login=")
+    assert "; secure" not in cookie.lower()
+
+
+async def test_auth15_callback_expires_binding_cookie(env):
+    """AUTH-15: the callback expires the binding cookie when it signs the browser in and when it
+    refuses it."""
+    http, _, provider = env
+    provider.claims_by_code["fake-code"] = OidcClaims(
+        issuer="http://idp", sub="a", email="admin@example.com", email_verified=True
+    )
+    q = parse_qs(urlparse((await http.get("/login")).headers["location"]).query)
+    ok = await http.get("/login/callback", params={"code": q["code"][0], "state": q["state"][0]})
+    assert ok.status_code == 302
+    [expired] = _binding_set_cookies(ok)
+    assert "max-age=0" in expired.lower()
+
+    refused = await http.get("/login/callback", params={"code": "x", "state": "bogus"})
+    assert refused.status_code == 400
+    [expired] = _binding_set_cookies(refused)
+    assert "max-age=0" in expired.lower()

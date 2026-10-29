@@ -25,9 +25,13 @@ TS client. Validation at every boundary; no hand-written duplicate shapes
 Threat model + controls centralized in [security spec](../../openspec/specs/security/spec.md): one egress-policy layer
 for all admin-supplied URLs (SSRF), with a public-only scope for the URLs an unauthenticated caller chooses
 ([ADR-0060](../adr/0060-unauthenticated-fetches-use-a-public-only-egress-scope.md)), CORS/CSRF rules, size limits, DCR
-quotas, secret redaction (testable), tokens hashed / upstream tokens and client secrets encrypted with rotatable keys,
-moved under the newest key on read and by a leased background pass that reports when an old key may be dropped
-([DEP-9](../../openspec/specs/deployment/spec.md)).
+quotas, secret redaction (testable), tokens hashed / upstream tokens, client secrets and static header values encrypted
+with rotatable keys, moved under the newest key on read or write and by a leased background pass that also seals static
+headers stored before a key was configured and reports when an old key may be dropped
+([DEP-9](../../openspec/specs/deployment/spec.md),
+[ADR-0061](../adr/0061-static-upstream-headers-encrypted-in-the-repository.md)). Static header values stay plaintext
+only on a gateway with no key, which warns about them at startup. A login is bound to the browser that started it by a
+short-lived cookie, and every `/oauth/` body is capped at 64 KiB.
 
 ## Error handling
 Structured MCP errors to clients; no silent degradation — partial `tools/list` responses increment a dedicated metric
