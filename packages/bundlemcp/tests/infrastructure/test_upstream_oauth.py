@@ -2,14 +2,19 @@
 
 import asyncio
 import json
+from datetime import timedelta
 
 import pytest
+from bundlemcp.application.upstream_oauth.upstream_token_refresher import REFRESH_SKEW
 from bundlemcp.application.upstream_oauth.upstream_token_service import UpstreamTokenService
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
+from bundlemcp.domain.shared.clock import utcnow
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_metadata import UpstreamMetadata
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 from bundlemcp.infrastructure.crypto.token_cipher import TokenCipher
+from bundlemcp.infrastructure.memory.manual_clock import ManualClock
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from bundlemcp.infrastructure.postgres.rows.upstream_oauth_client_row import UpstreamOAuthClientRow
@@ -78,9 +83,11 @@ async def _seed_server(engine, c, *, with_client=True) -> McpServerRow:
         return srv
 
 
-def _store(engine, redis, provider, c) -> UpstreamTokenService:
+def _store(engine, redis, provider, c, *, clock=None) -> UpstreamTokenService:
     units = SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis)
-    return UpstreamTokenService(units, c, ValkeyRefreshLock(redis), provider)
+    return UpstreamTokenService(
+        units, c, ValkeyRefreshLock(redis), provider, clock=clock or SystemClock()
+    )
 
 
 async def test_token_encrypted_at_rest(engine: AsyncEngine, redis):
@@ -120,6 +127,25 @@ async def test_near_expiry_triggers_refresh(engine, redis):
         srv.id, None, UpstreamTokens(access_token="old", refresh_token="rt", expires_in=10)
     )
 
+    assert await store.ensure_access_token(srv, None) == "at-refreshed"
+    assert provider.refresh_calls == 1
+
+
+async def test_ups28_refresh_happens_inside_the_skew_window(engine, redis):
+    """UPS-28: with the time pinned, a token is kept just outside the refresh window and
+    refreshed just inside it."""
+    c = cipher()
+    srv = await _seed_server(engine, c)
+    provider = FakeProvider()
+    clock = ManualClock(utcnow())
+    store = _store(engine, redis, provider, c, clock=clock)
+    await store.save(
+        srv.id, None, UpstreamTokens(access_token="at", refresh_token="rt", expires_in=3600)
+    )
+
+    clock.advance(timedelta(seconds=3600) - REFRESH_SKEW - timedelta(seconds=1))
+    assert await store.ensure_access_token(srv, None) == "at"
+    clock.advance(timedelta(seconds=2))
     assert await store.ensure_access_token(srv, None) == "at-refreshed"
     assert provider.refresh_calls == 1
 

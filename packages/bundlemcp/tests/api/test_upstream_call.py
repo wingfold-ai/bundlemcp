@@ -12,6 +12,7 @@ from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.observed_response import ObservedResponse
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.domain.shared.secrets import display_prefix, hash_token
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.domain.upstream_oauth.upstream_metadata import UpstreamMetadata
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 from bundlemcp.infrastructure.config.settings import EnvSettings
@@ -165,7 +166,7 @@ async def _init(http):
 async def _save_token(engine, redis, provider, server_id, user_id, tokens):
     c = token_cipher(EnvSettings(_env_file=None, token_encryption_keys=[KEY]))
     units = SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis)
-    store = UpstreamTokenService(units, c, ValkeyRefreshLock(redis), provider)
+    store = UpstreamTokenService(units, c, ValkeyRefreshLock(redis), provider, clock=SystemClock())
     await store.save(server_id, user_id, tokens)
 
 

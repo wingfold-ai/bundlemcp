@@ -21,6 +21,7 @@ from bundlemcp.domain.servers.identity_mode import IdentityMode
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_client_registration import (
     UpstreamClientRegistration,
@@ -107,7 +108,11 @@ def uow() -> InMemoryUnitOfWork:
 def token_service(uow, provider=None) -> UpstreamTokenService:
     cipher = TokenCipher([Fernet.generate_key().decode()])
     return UpstreamTokenService(
-        InMemoryUnitOfWorkFactory(uow), cipher, NoLock(), provider or FakeProvider()
+        InMemoryUnitOfWorkFactory(uow),
+        cipher,
+        NoLock(),
+        provider or FakeProvider(),
+        clock=SystemClock(),
     )
 
 

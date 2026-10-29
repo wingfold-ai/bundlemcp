@@ -10,6 +10,7 @@ from bundlemcp.application.upstream_oauth.upstream_token_service import Upstream
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
 from bundlemcp.domain.servers.observed_response import ObservedResponse
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_challenge import UpstreamChallenge
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
@@ -237,7 +238,9 @@ async def test_ups34_insufficient_scope_asks_the_caller_to_reconnect(engine, red
         server = (await db.execute(select(McpServerRow))).scalars().one()
     cipher = token_cipher(EnvSettings(_env_file=None, token_encryption_keys=[KEY]))
     units = SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis)
-    storage = UpstreamTokenService(units, cipher, ValkeyRefreshLock(redis), StubProvider())
+    storage = UpstreamTokenService(
+        units, cipher, ValkeyRefreshLock(redis), StubProvider(), clock=SystemClock()
+    )
     await storage.save(server.id, None, UpstreamTokens(access_token="at", expires_in=3600))
     async with session_factory(engine)() as db:
         db.add(UpstreamOAuthClientRow(server_id=server.id, client_id="c", metadata_={}))

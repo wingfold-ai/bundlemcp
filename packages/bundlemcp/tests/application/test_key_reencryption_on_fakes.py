@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 from bundlemcp.application.upstream_oauth.upstream_token_storage import UpstreamTokenStorage
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.domain.upstream_oauth.upstream_oauth_client import UpstreamOAuthClient
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
 from bundlemcp.infrastructure.crypto.token_cipher import TokenCipher
@@ -31,7 +32,7 @@ def uow() -> InMemoryUnitOfWork:
 
 
 async def stored_under(uow, cipher: TokenCipher, access_token: str = "at") -> None:
-    storage = UpstreamTokenStorage(InMemoryUnitOfWorkFactory(uow), cipher)
+    storage = UpstreamTokenStorage(InMemoryUnitOfWorkFactory(uow), cipher, clock=SystemClock())
     await storage.save(SERVER, None, UpstreamTokens(access_token=access_token, expires_in=3600))
 
 
@@ -40,7 +41,7 @@ async def test_dep9_reading_an_old_token_leaves_it_under_the_new_key(uow, keys):
     old, new = keys
     await stored_under(uow, TokenCipher([old]))
     rotated = TokenCipher([new, old])
-    storage = UpstreamTokenStorage(InMemoryUnitOfWorkFactory(uow), rotated)
+    storage = UpstreamTokenStorage(InMemoryUnitOfWorkFactory(uow), rotated, clock=SystemClock())
 
     row = await storage.load(SERVER, None)
     assert storage.decode(row).access_token == "at"
@@ -59,9 +60,9 @@ async def test_dep9_reading_an_old_client_secret_moves_it_too(uow, keys):
         )
     )
     rotated = TokenCipher([new, old])
-    config = await UpstreamTokenStorage(InMemoryUnitOfWorkFactory(uow), rotated).client_config(
-        SERVER
-    )
+    config = await UpstreamTokenStorage(
+        InMemoryUnitOfWorkFactory(uow), rotated, clock=SystemClock()
+    ).client_config(SERVER)
     assert config.client_secret == "secret"
     stored = (await uow.upstream_clients.for_server(SERVER)).client_secret_encrypted
     assert rotated.is_current(stored)
@@ -76,7 +77,9 @@ async def test_dep9_a_failing_write_does_not_fail_the_read(uow, keys, monkeypatc
         raise ConnectionError("database went away")
 
     monkeypatch.setattr(uow.upstream_tokens, "replace_ciphertext", broken)
-    storage = UpstreamTokenStorage(InMemoryUnitOfWorkFactory(uow), TokenCipher([new, old]))
+    storage = UpstreamTokenStorage(
+        InMemoryUnitOfWorkFactory(uow), TokenCipher([new, old]), clock=SystemClock()
+    )
     row = await storage.load(SERVER, None)
     assert storage.decode(row).access_token == "at"
 
@@ -86,7 +89,7 @@ async def test_dep9_a_refresh_that_lands_first_is_never_overwritten(uow, keys, m
     old, new = keys
     await stored_under(uow, TokenCipher([old]), access_token="before")
     rotated = TokenCipher([new, old])
-    storage = UpstreamTokenStorage(InMemoryUnitOfWorkFactory(uow), rotated)
+    storage = UpstreamTokenStorage(InMemoryUnitOfWorkFactory(uow), rotated, clock=SystemClock())
     original = uow.upstream_tokens.replace_ciphertext
 
     async def refresh_first(row_id, expected, new_value):
@@ -110,9 +113,9 @@ async def test_dep9_the_sweep_moves_what_nobody_reads_and_counts_the_rest(uow, k
     old, new = keys
     old_cipher, rotated = TokenCipher([old]), TokenCipher([new, old])
     for _ in range(BATCH_SIZE + 3):  # more than one batch
-        await UpstreamTokenStorage(InMemoryUnitOfWorkFactory(uow), old_cipher).save(
-            uuid.uuid4(), None, UpstreamTokens(access_token="at", expires_in=60)
-        )
+        await UpstreamTokenStorage(
+            InMemoryUnitOfWorkFactory(uow), old_cipher, clock=SystemClock()
+        ).save(uuid.uuid4(), None, UpstreamTokens(access_token="at", expires_in=60))
     uow.upstream_clients.add(
         UpstreamOAuthClient(server_id=SERVER, client_secret_encrypted=old_cipher.encrypt("s"))
     )
