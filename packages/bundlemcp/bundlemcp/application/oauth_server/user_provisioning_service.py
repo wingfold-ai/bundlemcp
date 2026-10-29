@@ -3,11 +3,14 @@
 from collections.abc import Sequence
 from typing import Any
 
+import structlog
 from pydantic import BaseModel, Field
 
 from bundlemcp.application.contracts.persistence.unit_of_work import UnitOfWork
 from bundlemcp.domain.access.admin_claim import carries_admin_value
 from bundlemcp.domain.access.user import User
+
+log = structlog.get_logger(__name__)
 
 
 class VerifiedClaims(BaseModel):
@@ -16,6 +19,9 @@ class VerifiedClaims(BaseModel):
     issuer: str = Field(description="Issuer that authenticated the user")
     sub: str = Field(description="Subject identifier at that issuer")
     email: str | None = Field(default=None, description="Email claim, when sent")
+    email_verified: bool = Field(
+        default=False, description="Whether the issuer vouches for the email; false when unsaid"
+    )
     name: str | None = Field(default=None, description="Display name claim, when sent")
     claims: dict[str, Any] = Field(
         default_factory=dict, description="Every claim of the verified token"
@@ -38,10 +44,20 @@ class UserProvisioningService:
         self._users = uow.users
 
     def is_admin(self, claims: VerifiedClaims) -> bool:
-        """An admin email, or the admin claim carrying the admin value; re-evaluated every login."""
-        if claims.email and claims.email in self._admin_emails:
+        """A verified admin email, or the admin claim carrying the admin value.
+
+        Re-evaluated every login. An email counts only when the issuer vouches
+        for it: with self-signup or unverified email changes at the identity
+        provider, anyone could otherwise claim a listed address.
+        """
+        listed = claims.email is not None and claims.email in self._admin_emails
+        if listed and claims.email_verified:
             return True
-        return carries_admin_value(claims.claims, self._admin_claim, self._admin_claim_value)
+        if carries_admin_value(claims.claims, self._admin_claim, self._admin_claim_value):
+            return True
+        if listed:
+            log.warning("user.admin_email_unverified", issuer=claims.issuer)
+        return False
 
     async def provision(self, claims: VerifiedClaims) -> User:
         """Create-or-update by (issuer, sub); refresh is_admin on every login.

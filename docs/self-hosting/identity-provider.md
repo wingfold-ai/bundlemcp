@@ -49,12 +49,18 @@ up without a restart (`oidc.discovered`). The document is refreshed hourly; sign
 
 ## Who is an admin
 
-A user is an admin when their email appears in `BUNDLEMCP_ADMIN_EMAILS`, or when their ID token's admin claim carries
-the admin value: by default a `groups` claim containing `bundlemcp-admin`. Set `BUNDLEMCP_ADMIN_CLAIM` to another claim
-name, or a dotted path into nested claims, and `BUNDLEMCP_ADMIN_CLAIM_VALUE` to the group or role your provider issues;
-for Keycloak realm roles that is `BUNDLEMCP_ADMIN_CLAIM=realm_access.roles`. The claim may be a single value or a list.
-Both are re-evaluated **on every login**, so removing an address or a group demotes that person at their next login and
-adding one promotes them the same way.
+A user is an admin when their email appears in `BUNDLEMCP_ADMIN_EMAILS` and the provider marks it verified, or when
+their ID token's admin claim carries the admin value: by default a `groups` claim containing `bundlemcp-admin`. Set
+`BUNDLEMCP_ADMIN_CLAIM` to another claim name, or a dotted path into nested claims, and `BUNDLEMCP_ADMIN_CLAIM_VALUE` to
+the group or role your provider issues; for Keycloak realm roles that is `BUNDLEMCP_ADMIN_CLAIM=realm_access.roles`. The
+claim may be a single value or a list. Both are re-evaluated **on every login**, so removing an address or a group
+demotes that person at their next login and adding one promotes them the same way.
+
+A listed email counts only when the ID token's `email_verified` claim is true (the boolean, or the string `"true"`).
+Otherwise anyone could register the address at a provider that allows self-signup or unverified email changes and
+become an admin. A login whose email is listed but unverified is logged as `user.admin_email_unverified`, without the
+address, and the person signs in as a user. If your provider does not send `email_verified`, grant admin through the
+admin claim instead.
 
 Everyone else can still log in, as a **user**: they see the catalogue of bundles and endpoints, authorise MCP clients
 for those endpoints, and connect their own accounts on per-user upstream servers. They see no management pages, and the
@@ -108,5 +114,9 @@ Replace it before exposing the gateway to anyone: the realm has `sslRequired: no
 - **Keycloak**: create a client with *Client authentication* on and *Standard flow* enabled. The discovery URL is
   `https://<host>/realms/<realm>/.well-known/openid-configuration`.
 - **Google, Microsoft Entra, Okta, Auth0**: any of them works with the standard discovery URL. Make sure the `email`
-  claim is released; without it the user is created but can never match `BUNDLEMCP_ADMIN_EMAILS`.
+  and `email_verified` claims are released; without them the user is created but can never match
+  `BUNDLEMCP_ADMIN_EMAILS`.
+- **Microsoft Entra ID** does not send `email_verified`, so `BUNDLEMCP_ADMIN_EMAILS` grants nobody admin there. Define
+  an app role (for example `bundlemcp-admin`) on the app registration, assign it to the administrators, and set
+  `BUNDLEMCP_ADMIN_CLAIM=roles`.
 - **One issuer per deployment**: multi-provider federation is out of scope. If you need it, federate at the provider.

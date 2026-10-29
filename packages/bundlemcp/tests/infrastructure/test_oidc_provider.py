@@ -111,6 +111,22 @@ async def test_id_token_decoded_and_claims_validated():
     assert sent["redirect_uri"] == REDIRECT_URI
 
 
+@pytest.mark.parametrize(
+    ("sent", "expected"),
+    [(True, True), ("true", True), (False, False), ("false", False), (None, False)],
+    ids=["bool-true", "string-true", "bool-false", "string-false", "absent"],
+)
+async def test_auth17_email_verified_parsed_from_bool_and_string(sent, expected):
+    """AUTH-17: email_verified is true only for the boolean or the string "true"."""
+    idp = FakeIdp()
+    idp.id_token = idp.sign() if sent is None else idp.sign(email_verified=sent)
+    provider = await _provider(idp)
+
+    claims = await _exchange(provider)
+
+    assert claims.email_verified is expected
+
+
 async def test_authorize_url_carries_state_and_nonce():
     idp = FakeIdp()
     provider = await _provider(idp)

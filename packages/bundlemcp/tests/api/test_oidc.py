@@ -88,7 +88,13 @@ async def test_login_provisions_user_and_sets_admin(env):
     await _login(
         http,
         provider,
-        OidcClaims(issuer="http://idp", sub="admin1", email="admin@example.com", name="Admin"),
+        OidcClaims(
+            issuer="http://idp",
+            sub="admin1",
+            email="admin@example.com",
+            email_verified=True,
+            name="Admin",
+        ),
     )
     async with app.state.container.session_factory() as db:
         user = (await db.execute(select(UserRow))).scalar_one()
@@ -101,7 +107,9 @@ async def test_admin_role_reevaluated_on_each_login(env):
     """AUTH-17: dropping the admin email demotes on next login."""
     http, app, provider = env
     await _login(
-        http, provider, OidcClaims(issuer="http://idp", sub="u1", email="admin@example.com")
+        http,
+        provider,
+        OidcClaims(issuer="http://idp", sub="u1", email="admin@example.com", email_verified=True),
     )
     async with app.state.container.session_factory() as db:
         assert (await db.execute(select(UserRow))).scalar_one().is_admin is True
@@ -120,7 +128,9 @@ async def test_management_api_accepts_admin_session(env):
     """MGMT-2: admin cookie session authorizes management calls."""
     http, app, provider = env
     await _login(
-        http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+        http,
+        provider,
+        OidcClaims(issuer="http://idp", sub="a", email="admin@example.com", email_verified=True),
     )
     resp = await http.get("/api/v1/upstreams")
     assert resp.status_code == 200
@@ -135,6 +145,16 @@ async def test_auth17_non_admin_session_answers_403(env):
     assert (await http.get("/api/v1/me")).status_code == 200  # the catalogue still works
 
 
+async def test_auth17_unverified_admin_email_answers_403(env):
+    """AUTH-17: a listed admin email the issuer did not verify signs in as a plain user."""
+    http, app, provider = env
+    await _login(
+        http, provider, OidcClaims(issuer="http://idp", sub="x", email="admin@example.com")
+    )
+    resp = await http.get("/api/v1/upstreams")
+    assert resp.status_code == 403
+
+
 async def test_auth17_no_session_is_still_401(env):
     """AUTH-17: a caller with no session or key at all gets 401."""
     http, _, _ = env
@@ -145,7 +165,9 @@ async def test_auth17_demotion_turns_an_admin_session_into_403(env):
     """AUTH-17: losing the admin email takes effect at the next login, as a 403."""
     http, app, provider = env
     await _login(
-        http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+        http,
+        provider,
+        OidcClaims(issuer="http://idp", sub="a", email="admin@example.com", email_verified=True),
     )
     assert (await http.get("/api/v1/upstreams")).status_code == 200
     await _login(http, provider, OidcClaims(issuer="http://idp", sub="a", email="user@example.com"))
@@ -156,7 +178,9 @@ async def test_csrf_origin_check_on_mutation(env):
     """SEC-4: cookie-authenticated mutations need a same-origin Origin/Referer."""
     http, app, provider = env
     await _login(
-        http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+        http,
+        provider,
+        OidcClaims(issuer="http://idp", sub="a", email="admin@example.com", email_verified=True),
     )
     body = {"name": "s1", "url": "http://s1/mcp"}
 
@@ -178,7 +202,9 @@ async def test_csrf_origin_check_on_mutation(env):
 async def test_logout_clears_session(env):
     http, app, provider = env
     await _login(
-        http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+        http,
+        provider,
+        OidcClaims(issuer="http://idp", sub="a", email="admin@example.com", email_verified=True),
     )
     await http.post("/logout", headers={"Origin": PUBLIC_URL})
     resp = await http.get("/api/v1/upstreams")
@@ -189,7 +215,9 @@ async def test_deactivation_logs_out_and_revokes(env):
     """AUTH-20: deactivating a user invalidates their admin session."""
     http, app, provider = env
     await _login(
-        http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+        http,
+        provider,
+        OidcClaims(issuer="http://idp", sub="a", email="admin@example.com", email_verified=True),
     )
     async with app.state.container.session_factory() as db:
         user = (await db.execute(select(UserRow))).scalar_one()
@@ -238,7 +266,7 @@ async def _callback(http, provider, claims: OidcClaims):
 async def test_auth20_relogin_does_not_reactivate(env):
     """AUTH-20: a deactivated user who signs in at the IdP again gets no session and stays off."""
     http, app, provider = env
-    admin = OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+    admin = OidcClaims(issuer="http://idp", sub="a", email="admin@example.com", email_verified=True)
     member = OidcClaims(issuer="http://idp", sub="m", email="member@example.com")
     await _login(http, provider, member)
     await _login(http, provider, admin)
@@ -262,7 +290,9 @@ async def test_auth20_reactivation_lets_the_user_sign_in_with_nothing_restored(e
     member = OidcClaims(issuer="http://idp", sub="m", email="member@example.com")
     await _login(http, provider, member)
     await _login(
-        http, provider, OidcClaims(issuer="http://idp", sub="a", email="admin@example.com")
+        http,
+        provider,
+        OidcClaims(issuer="http://idp", sub="a", email="admin@example.com", email_verified=True),
     )
     async with app.state.container.session_factory() as db:
         user = (await db.execute(select(UserRow).where(UserRow.oidc_sub == "m"))).scalar_one()
@@ -294,7 +324,7 @@ async def test_auth15_session_lifetime_follows_the_setting(engine, redis):
         oidc_provider=provider,
     ) as (http, _app):
         provider.claims_by_code["fake-code"] = OidcClaims(
-            issuer="http://idp", sub="a", email="admin@example.com"
+            issuer="http://idp", sub="a", email="admin@example.com", email_verified=True
         )
         location = (await http.get("/login", params={"next": "/"})).headers["location"]
         q = parse_qs(urlparse(location).query)

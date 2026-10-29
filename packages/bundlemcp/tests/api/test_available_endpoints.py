@@ -33,7 +33,9 @@ async def env(engine: AsyncEngine, redis: FakeRedis) -> AsyncIterator[tuple]:
 
 
 async def _login(http, provider, *, sub: str, email: str) -> None:
-    provider.claims_by_code["fake-code"] = OidcClaims(issuer="http://idp", sub=sub, email=email)
+    provider.claims_by_code["fake-code"] = OidcClaims(
+        issuer="http://idp", sub=sub, email=email, email_verified=True
+    )
     resp = await http.get("/login", params={"next": "/"})
     q = parse_qs(urlparse(resp.headers["location"]).query)
     await http.get("/login/callback", params={"code": q["code"][0], "state": q["state"][0]})
