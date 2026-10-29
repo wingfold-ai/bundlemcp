@@ -17,7 +17,7 @@ COPY packages/ packages/
 RUN uv sync --frozen --no-dev --all-packages --no-editable \
     ${LIBRARY_EXTRAS:+--extra $LIBRARY_EXTRAS}
 
-FROM python:3.14.9-slim-bookworm
+FROM python:3.15.0-slim-bookworm
 # names the build; a new value makes a new image from the cached layers, which is
 # how the integration suite rolls out "a newly built image"
 ARG BUNDLEMCP_BUILD=dev
