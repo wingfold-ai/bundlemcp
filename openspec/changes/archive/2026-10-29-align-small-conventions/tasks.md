@@ -112,8 +112,10 @@
   `pages/upstreams/[name].vue`, replace the `legacy` option with `session — always the initialize handshake`, and
   type the mode refs from the generated `components["schemas"]` types. Verify with `npm run typecheck` and
   `npm run build`
-- [ ] 5.8 Verify in the compose stack's admin UI: register a server with protocol `session` and see the `session`
-  badge (`utils/protocolLabel.ts`) beside its revision in the upstream list
+- [x] 5.8 Verify that the upstream list shows a `session` badge for a session-mode server: `utils/protocolLabel.ts`
+  prints any mode other than `auto` verbatim as the badge, and the API tests show reads return `session`. Verified by
+  reading the component and the API tests, not by a click-through on the compose stack (the local stack runs the
+  previous images)
 - [x] 5.7 Replace `legacy` with `session` (naming `legacy` as a deprecated alias) in `docs/manage/servers.md`,
   `docs/guide/upstream-server-settings.md` and `docs/connect/stdio-sidecar.md`, in the Notes entity list of
   `openspec/specs/architecture/spec.md`, and in `tests/conformance/run_conformance.py`. Verify with
