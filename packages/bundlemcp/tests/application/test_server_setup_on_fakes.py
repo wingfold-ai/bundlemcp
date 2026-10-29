@@ -38,6 +38,7 @@ from bundlemcp.domain.servers.probed_server_info import ProbedServerInfo
 from bundlemcp.domain.servers.probed_tool import ProbedTool
 from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.domain.shared.sha256_secret_hasher import Sha256SecretHasher
+from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.domain.upstream_oauth.client_identification import ClientIdentification
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_challenge import UpstreamChallenge
@@ -168,6 +169,7 @@ def tokens(uow, provider, *, document=True, cipher=None) -> UpstreamTokenService
         cipher or _cipher(),
         NoLock(),
         provider,
+        clock=SystemClock(),
         metadata_document_url=DOCUMENT_URL if document else None,
     )
 

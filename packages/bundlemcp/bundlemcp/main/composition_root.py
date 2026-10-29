@@ -196,6 +196,7 @@ class CompositionRoot:
                 cipher,
                 ValkeyRefreshLock(redis),
                 upstream_oauth,
+                clock=clock,
                 metadata_document_url=self._client_document_url(),
             )
             if cipher is not None

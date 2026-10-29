@@ -11,6 +11,7 @@ from bundlemcp.application.contracts.upstream.upstream_oauth_provider import Ups
 from bundlemcp.application.upstream_oauth.upstream_connect_flow import UpstreamConnectFlow
 from bundlemcp.application.upstream_oauth.upstream_token_storage import UpstreamTokenStorage
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_grant import UpstreamGrant
 from bundlemcp.domain.upstream_oauth.upstream_tokens import UpstreamTokens
@@ -31,11 +32,14 @@ class UpstreamTokenRefresher:
         flow: UpstreamConnectFlow,
         provider: UpstreamOAuthProvider,
         lock: RefreshLock,
+        *,
+        clock: Clock,
     ) -> None:
         self._tokens = tokens
         self._flow = flow
         self._provider = provider
         self._lock = lock
+        self._clock = clock
 
     async def access_token(
         self, server: McpServer, user_id: uuid.UUID | None, *, force: bool = False
@@ -51,7 +55,7 @@ class UpstreamTokenRefresher:
                 return await self._grant_single_flight(server)
             raise NeedsConnect(server.name)
         tokens = self._tokens.decode(row)
-        if not force and not row.expires_within(REFRESH_SKEW):
+        if not force and not row.expires_within(REFRESH_SKEW, self._clock.now()):
             return tokens.access_token  # still fresh
         return await self._refresh_single_flight(server, user_id, tokens)
 
@@ -98,7 +102,7 @@ class UpstreamTokenRefresher:
                 continue
             if not row.is_valid:
                 raise NeedsConnect(server.name, "refresh_failed")
-            if not row.expires_within(REFRESH_SKEW):
+            if not row.expires_within(REFRESH_SKEW, self._clock.now()):
                 return self._tokens.decode(row).access_token
         raise NeedsConnect(server.name, "refresh_timeout")
 
