@@ -75,6 +75,19 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         await PresentedNameCheck(self._uow).ensure_rename_allowed(server, new_name)
         return await self._rename(server, new_name, server_name_type)
 
+    async def delete(self, name: str) -> None:
+        """Idempotent; waits for a discovery of the server already running, on any replica.
+
+        The discovery commits first and the delete then removes everything it stored, so the
+        server cannot reappear; a discovery that starts meanwhile waits and finds no server.
+        The server is looked up again once the wait is over, in case it was renamed.
+        """
+        server = await self._by_name(name)
+        if server is None:
+            return
+        await self._uow.lock_server(server.id)
+        await super().delete(name)
+
     async def list_tools(self, name: str, *, offset: int, limit: int) -> Page[ToolRead]:
         server = await self._get(name)
         page_slice = await self._uow.tools.page_for_server(server.id, offset=offset, limit=limit)

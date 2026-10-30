@@ -278,7 +278,9 @@ request instead.
 tools were discovered and how many changed: new, redefined, gone stale or back again. A discovery that finds exactly
 what is cached writes no tool and tells no client to re-list. Discoveries of one server never overlap, on any replica: a
 refresh that arrives while another discovery of that server is running (the background probe a save started, say)
-waits for it to finish, then probes and reports against what it stored.
+waits for it to finish, then probes and reports against what it stored. A discovery stores only what it found out —
+capabilities, negotiated revision, health and connection state — onto the server as it is stored when the probe
+answers, so a rename or a configuration change you save while it runs is kept.
 
 When the upstream advertises prompts or resources, the same discovery also lists its prompts, resources and resource
 templates, to the last page. Their names, URIs, titles and descriptions are cached for per-bundle curation
@@ -372,7 +374,9 @@ curl -s -X POST "$API/upstreams/weather:rename?new_name=forecast&force=true" -H 
 ## Deleting
 
 `DELETE /api/v1/upstreams/{name}` removes the server, its cached tools and its bundle memberships. Endpoints of those
-bundles keep serving the remaining members.
+bundles keep serving the remaining members. A delete sent while a discovery of the server is running, on any replica,
+waits for that discovery to finish (at most one probe timeout, 60 seconds), then removes the server with everything the
+discovery cached. A deleted server never comes back from a discovery that started before the delete.
 
 ## Reaching the server
 

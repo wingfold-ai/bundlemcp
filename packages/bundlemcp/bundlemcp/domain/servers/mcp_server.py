@@ -17,6 +17,7 @@ from bundlemcp.domain.servers.server_auth_mode import ServerAuthMode
 from bundlemcp.domain.servers.server_capabilities import ServerCapabilities
 from bundlemcp.domain.servers.server_capability import ServerCapability
 from bundlemcp.domain.servers.server_changes import ServerChanges
+from bundlemcp.domain.servers.server_observations import ServerObservations
 from bundlemcp.domain.shared.clock import utcnow
 
 
@@ -142,6 +143,18 @@ class McpServer(BaseModel):
             identity_mode=self.identity_mode,
             send_identity_header=self.send_identity_header,
             protocol_mode=self.protocol_mode,
+        )
+
+    @property
+    def observations(self) -> ServerObservations:
+        """What probes and live calls found out about this server, without its configuration."""
+        return ServerObservations(
+            capabilities=self.capabilities,
+            protocol_version=self.protocol_version,
+            health_status=self.health_status,
+            last_error=self.last_error,
+            connection_state=self.connection_state,
+            last_discovered_at=self.last_discovered_at,
         )
 
     @property

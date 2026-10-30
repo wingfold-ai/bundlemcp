@@ -71,8 +71,9 @@ class UpstreamHealth:
                 return
             before = server.health_status
             await self.apply_failure(server, error)
-            if server.health_status != before:
-                uow.servers.add(server)
+            if server.health_status != before and await uow.servers.record_observations(
+                server.id, server.observations
+            ):
                 await uow.commit()
 
     async def succeeded(self, server_id: uuid.UUID, known: HealthStatus) -> None:
@@ -89,6 +90,9 @@ class UpstreamHealth:
             return
         async with self._units.open() as uow:
             server = await uow.servers.get(server_id)
-            if server is not None and await self.apply_success(server):
-                uow.servers.add(server)
+            if (
+                server is not None
+                and await self.apply_success(server)
+                and await uow.servers.record_observations(server.id, server.observations)
+            ):
                 await uow.commit()

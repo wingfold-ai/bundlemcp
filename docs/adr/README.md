@@ -79,4 +79,5 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0060](0060-unauthenticated-fetches-use-a-public-only-egress-scope.md) | Unauthenticated fetches use a public-only egress scope | accepted |
 | [0061](0061-static-upstream-headers-encrypted-in-the-repository.md) | Static upstream headers are encrypted in the repository | accepted |
 | [0062](0062-member-notifications-typed-at-the-pool-boundary.md) | Member notifications are typed at the pool boundary | accepted |
-| [0063](0063-discovery-serialized-per-server-by-a-transaction-lock.md) | Discovery is serialized per server by a transaction-scoped lock | accepted |
+| [0063](0063-discovery-serialized-per-server-by-a-transaction-lock.md) | Discovery is serialized per server by a transaction-scoped lock | accepted (amended by 0064) |
+| [0064](0064-discovery-writes-only-what-it-observed.md) | Discovery writes only what it observed, and a delete waits for it | accepted |

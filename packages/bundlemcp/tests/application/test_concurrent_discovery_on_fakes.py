@@ -118,3 +118,66 @@ async def test_ups39_a_stalled_discovery_does_not_hold_up_another_server(uow):
 
     assert result.error is None
     assert [t.name for t in await uow.tools.for_server(other)] == ["alpha"]
+
+
+class HeldProbe:
+    """Holds every probe until released, then lists one tool."""
+
+    def __init__(self) -> None:
+        self.probing = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def probe(self, server, headers) -> ProbeResult:
+        self.probing.set()
+        await self.release.wait()
+        return ProbeResult(
+            tools=[ProbedTool(name="alpha")], capabilities=None, protocol_version=None
+        )
+
+
+async def _delete(units: InMemoryUnitOfWorkFactory, name: str) -> None:
+    async with units.open() as uow:
+        await ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw").delete(
+            name
+        )
+
+
+async def test_ups40_a_delete_waits_for_a_running_discovery_and_the_server_stays_deleted(uow):
+    """UPS-40: a delete that arrives while a discovery of the server probes waits for it to
+    finish, and the server is gone afterwards instead of being stored again by the discovery."""
+    server_id = await _registered(uow, "echo")
+    probe = HeldProbe()
+    units = InMemoryUnitOfWorkFactory(uow)
+    discovery = DiscoveryService(units, probe, health=health_on(uow), clock=SystemClock())
+
+    discovering = asyncio.create_task(discovery.discover(server_id))
+    await probe.probing.wait()
+    deleting = asyncio.create_task(_delete(units, "echo"))
+    await asyncio.sleep(0.05)
+    waited = not deleting.done()
+    probe.release.set()
+    result = await discovering
+    await deleting
+
+    assert waited
+    assert result.error is None
+    assert await uow.servers.get(server_id) is None
+    assert await uow.servers.by_name("echo") is None
+
+
+async def test_ups40_a_server_removed_under_a_running_discovery_stays_removed(uow):
+    """UPS-40: a server removed without waiting for the lock while its discovery probes is
+    not stored again, and the discovery stores no tool for it."""
+    server_id = await _registered(uow, "echo")
+    probe = HeldProbe()
+    discovery = _discovery(uow, probe)
+
+    discovering = asyncio.create_task(discovery.discover(server_id))
+    await probe.probing.wait()
+    await uow.servers.delete(await uow.servers.get(server_id))
+    probe.release.set()
+    result = await discovering
+
+    assert result.error == "server not found"
+    assert await uow.servers.get(server_id) is None
+    assert await uow.tools.for_server(server_id) == []

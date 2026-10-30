@@ -6,13 +6,16 @@ from datetime import UTC, datetime, timedelta
 from bundlemcp.application.contracts.upstream.upstream_probe import ProbeResult
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.discovery.upstream_health import UpstreamHealth
+from bundlemcp.application.management.server_service import ServerService
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
+from bundlemcp.domain.servers.connection_state import ConnectionState
 from bundlemcp.domain.servers.health_status import HealthStatus
 from bundlemcp.domain.shared.clock import Clock
 from bundlemcp.domain.shared.system_clock import SystemClock
 from bundlemcp.infrastructure.fastmcp.connect_mode import connect_mode
 from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
 from bundlemcp.infrastructure.memory.manual_clock import ManualClock
+from bundlemcp.infrastructure.memory.noop_tool_discovery import NoopToolDiscovery
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
@@ -120,6 +123,105 @@ async def test_ups39_concurrent_discoveries_store_each_tool_once(engine, redis):
     async with session_factory(engine)() as db:
         names = [t.name for t in (await db.execute(select(ToolRow))).scalars()]
     assert sorted(names) == ["alpha", "beta"]
+
+
+class HeldProbe:
+    """Probes for real, then holds the answer until released."""
+
+    def __init__(self, inner: FastMcpUpstreamProbe) -> None:
+        self._inner = inner
+        self.probing = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def probe(self, server, headers) -> ProbeResult:
+        self.probing.set()
+        result = await self._inner.probe(server, headers)
+        await self.release.wait()
+        return result
+
+
+def _servers(uow) -> ServerService:
+    return ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
+
+
+async def _stored_servers(engine) -> list[McpServerRow]:
+    async with session_factory(engine)() as db:
+        return list((await db.execute(select(McpServerRow))).scalars())
+
+
+async def _stored_tools(engine) -> list[ToolRow]:
+    async with session_factory(engine)() as db:
+        return list((await db.execute(select(ToolRow))).scalars())
+
+
+async def test_ups40_a_delete_during_a_discovery_waits_and_the_server_stays_deleted(engine, redis):
+    """UPS-40: a delete sent while a discovery of the server probes waits for it to commit,
+    then removes the server with everything the discovery stored."""
+    server = await seed_server(engine)
+    probe = HeldProbe(FastMcpUpstreamProbe(factory_for(make_upstream(["alpha"]))))
+    # one factory for both, as the gateway has: it holds the process-local locks sqlite uses
+    units = _units(engine, redis)
+    health = UpstreamHealth(units, ValkeyFailureStreak(redis), RuntimeConfig(units))
+    svc = DiscoveryService(units, probe, health=health, clock=SystemClock())
+
+    async def delete() -> None:
+        async with units.open() as uow:
+            await _servers(uow).delete("srv")
+
+    discovering = asyncio.create_task(svc.discover(server.id))
+    await probe.probing.wait()
+    deleting = asyncio.create_task(delete())
+    await asyncio.sleep(0.05)
+    waited = not deleting.done()
+    probe.release.set()
+    result = await discovering
+    await deleting
+
+    assert waited
+    assert result.error is None
+    assert await _stored_servers(engine) == []
+    assert await _stored_tools(engine) == []
+
+
+async def test_ups40_a_server_removed_under_a_discovery_is_not_stored_again(engine, redis):
+    """UPS-40: a server removed without the lock while its discovery probes stays removed;
+    the discovery reports it not found and stores no tool for it."""
+    server = await seed_server(engine)
+    probe = HeldProbe(FastMcpUpstreamProbe(factory_for(make_upstream(["alpha"]))))
+    svc = _discovery(engine, redis, probe)
+
+    discovering = asyncio.create_task(svc.discover(server.id))
+    await probe.probing.wait()
+    async with session_factory(engine)() as db:
+        await db.delete(await db.get(McpServerRow, server.id))
+        await db.commit()
+    probe.release.set()
+    result = await discovering
+
+    assert result.error == "server not found"
+    assert await _stored_servers(engine) == []
+    assert await _stored_tools(engine) == []
+
+
+async def test_ups40_a_rename_during_a_discovery_is_kept(engine, redis):
+    """UPS-40: a rename saved while a discovery probes is kept; the discovery stores only
+    what it found out about the server."""
+    server = await seed_server(engine)
+    probe = HeldProbe(FastMcpUpstreamProbe(factory_for(make_upstream(["alpha"]))))
+    svc = _discovery(engine, redis, probe)
+
+    discovering = asyncio.create_task(svc.discover(server.id))
+    await probe.probing.wait()
+    async with _units(engine, redis).open() as uow:
+        await _servers(uow).rename("srv", "renamed", force=False)
+    probe.release.set()
+    result = await discovering
+
+    assert result.error is None
+    [stored] = await _stored_servers(engine)
+    assert stored.name == "renamed"
+    assert stored.connection_state == ConnectionState.READY
+    assert "tools" in stored.capabilities
 
 
 async def test_discover_captures_capabilities(engine, redis):

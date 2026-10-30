@@ -11,6 +11,7 @@ from bundlemcp.application.contracts.persistence.stored_ciphertext import Stored
 from bundlemcp.application.contracts.secret_cipher import DecryptionError, SecretCipher
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.protocol_mode import NegotiationMode
+from bundlemcp.domain.servers.server_observations import ServerObservations
 from bundlemcp.infrastructure.postgres.rows.mcp_server_row import McpServerRow
 from bundlemcp.infrastructure.postgres.sqlalchemy_repository import SqlAlchemyRepository
 
@@ -91,6 +92,13 @@ class SqlAlchemyServerRepository(SqlAlchemyRepository[McpServer, McpServerRow]):
         if not wanted:
             return []
         return await self.all(McpServerRow.id.in_(wanted), order_by=(McpServerRow.name,))  # type: ignore[attr-defined]
+
+    async def record_observations(
+        self, server_id: uuid.UUID, observations: ServerObservations
+    ) -> bool:
+        # an update, never a merge: a merge of a row deleted meanwhile inserts it again
+        changed = await self.update_where(McpServerRow.id == server_id, **observations.model_dump())
+        return changed == 1
 
     # ---- encryption at rest ---------------------------------------------------------------
 
