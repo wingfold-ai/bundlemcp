@@ -1,6 +1,7 @@
 # ADR-0063: Discovery is serialized per server by a transaction-scoped lock
 
-**Status:** accepted · **Date:** 2026-10-30
+**Status:** accepted · **Date:** 2026-10-30 ·
+**Amended by:** [ADR-0064](0064-discovery-writes-only-what-it-observed.md)
 
 ## Context
 

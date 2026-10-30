@@ -1,4 +1,4 @@
-"""Two gateway replicas behind a round-robin proxy (SES-12, SES-19, UPS-39, DEP-7).
+"""Two gateway replicas behind a round-robin proxy (SES-12, SES-19, UPS-39, UPS-40, DEP-7).
 
 Needs the replica overlay on top of the core stack:
 
@@ -245,6 +245,47 @@ def test_ups39_refreshes_on_two_replicas_at_once_store_each_tool_once():
                 assert names and len(names) == len(set(names)), names
             finally:
                 admin.delete(f"{GATEWAY_URL}/api/v1/upstreams/{name}")
+
+
+def test_ups40_an_upstream_deleted_during_a_refresh_stays_deleted():
+    """UPS-40: an upstream deleted through one replica while a refresh of it runs on the other
+    stays deleted once the refresh has finished: never served again by name, never listed."""
+    delays = [0.0, 0.02, 0.05, 0.08, 0.12, 0.16, 0.2, 0.25]
+    with _service() as admin:
+        for delay in delays:
+            name = f"gone-{uuid.uuid4().hex[:8]}"
+            admin.put(
+                f"{GATEWAY_URL}/api/v1/upstreams/{name}",
+                json={"name": name, "url": ECHO_UPSTREAM_URL},
+            ).raise_for_status()
+            # the background probe the save started is done once the server reports ready
+            _within_ready(admin, name)
+
+            def refresh(upstream: str = name) -> httpx.Response:
+                with _service() as client:
+                    return client.post(f"{GATEWAY_URL}/api/v1/upstreams/{upstream}:refresh-tools")
+
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                refreshing = pool.submit(refresh)
+                time.sleep(delay)
+                deleted = admin.delete(f"{B_URL}/api/v1/upstreams/{name}")
+                refreshed = refreshing.result()
+            assert deleted.status_code == 204, deleted.text
+            assert refreshed.status_code in {200, 404}, refreshed.text
+            for base in (GATEWAY_URL, B_URL):
+                assert admin.get(f"{base}/api/v1/upstreams/{name}").status_code == 404, delay
+                listed = admin.get(f"{base}/api/v1/upstreams", params={"limit": 500}).json()
+                assert name not in [item["name"] for item in listed["items"]], delay
+
+
+def _within_ready(admin: httpx.Client, name: str, timeout: float = 15.0) -> None:
+    started = time.monotonic()
+    while time.monotonic() - started < timeout:
+        state = admin.get(f"{GATEWAY_URL}/api/v1/upstreams/{name}").json()["connection_state"]
+        if state == "ready":
+            return
+        time.sleep(0.1)
+    pytest.fail(f"{name} was not discovered within {timeout}s")
 
 
 def _revision(service: str) -> str:
