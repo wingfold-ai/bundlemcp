@@ -154,8 +154,9 @@
 
 These need GitHub and cannot be run before the pull request exists.
 
-- [ ] 9.1 The integration job is green with the pinned compose images and the numeric `USER` of both images (3.2, 4.1)
+- [x] 9.1 The integration job is green with the pinned compose images and the numeric `USER` of both images (3.2, 4.1)
 - [ ] 9.2 GitHub's validation of `.github/dependabot.yml` reports no error on the pull request, and after merge the
   Dependabot view (Insights → Dependency graph → Dependabot) lists the `docker-compose` ecosystem with a successful
   run (3.4)
-- [ ] 9.3 The `security` job is green on the pull request (6.2)
+- [x] 9.3 The `security` job is green on the pull request (6.2). Verified on #175, CI run 41078767459, which also
+  passed 9.1: integration 18 passed, browser suite 42 passed
