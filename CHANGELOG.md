@@ -6,6 +6,28 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.3] - 2026-10-30
+
+### Added
+
+- The upstream rename card now reports a name that is already taken before anything is sent, as the bundle and endpoint
+  rename cards do. ([#173](https://github.com/wingfold-ai/bundlemcp/pull/173))
+- The admin UI's pure logic now has a Vitest suite, run with `npm test`.
+  ([#173](https://github.com/wingfold-ai/bundlemcp/pull/173))
+- CI now runs the whole admin UI browser suite against the core stack, and keeps the Playwright report when it fails.
+  ([#173](https://github.com/wingfold-ai/bundlemcp/pull/173))
+
+### Changed
+
+- The bundle, upstream and endpoint detail pages show a failed action's error on the card that ran it, whether
+  validation or the API refused it. A failed page load still shows at the top of the page.
+  ([#173](https://github.com/wingfold-ai/bundlemcp/pull/173))
+
+### Fixed
+
+- The inspector's streamed tool call now gets the same handling of an expired session (401) or a lost admin role (403)
+  as other admin UI calls. ([#173](https://github.com/wingfold-ai/bundlemcp/pull/173))
+
 ## [0.3.2] - 2026-10-29
 
 ### Changed

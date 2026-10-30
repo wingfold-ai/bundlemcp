@@ -390,6 +390,57 @@
         "UI-8"
       ],
       "new": true
+    },
+    {
+      "id": "E2E-38",
+      "testFile": "server-flow.spec.ts",
+      "slug": "upstream-rename-taken-name",
+      "title": "Renaming an upstream to a name another upstream has shows the taken-name hint and sends nothing",
+      "requirements": [
+        "UI-4"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-39",
+      "testFile": "curation.spec.ts",
+      "slug": "curation-error-on-its-card",
+      "title": "An annotation override that is not a JSON object shows its error on the tool curation card only",
+      "requirements": [
+        "UI-12"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-40",
+      "testFile": "curation.spec.ts",
+      "slug": "card-errors-independent",
+      "title": "A refused member toggle keeps its error on the members card while a successful meta save shows none",
+      "requirements": [
+        "UI-12"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-41",
+      "testFile": "curation.spec.ts",
+      "slug": "load-error-at-page-top",
+      "title": "A bundle whose tools fail to load shows the load error at the top of the page",
+      "requirements": [
+        "UI-12"
+      ],
+      "new": true
+    },
+    {
+      "id": "E2E-42",
+      "testFile": "server-flow.spec.ts",
+      "slug": "upstream-rename-refusal-on-danger-card",
+      "title": "Renaming a bundle member without the acknowledgement shows the API's refusal on the danger zone card",
+      "requirements": [
+        "UI-12",
+        "UPS-5"
+      ],
+      "new": true
     }
   ]
 }
