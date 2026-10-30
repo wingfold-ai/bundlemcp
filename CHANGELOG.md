@@ -6,6 +6,25 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.5] - 2026-10-30
+
+### Changed
+
+- Deleting an upstream while a discovery of it is running now waits for that discovery to finish, on any replica, for at
+  most one probe timeout (60 seconds). The delete then removes the upstream together with everything the discovery
+  cached. ([#177](https://github.com/wingfold-ai/bundlemcp/pull/177))
+
+### Fixed
+
+- An upstream deleted while a discovery or tool refresh of it was running no longer comes back in the list once the
+  refresh finishes. A discovery that finds its upstream gone reports "server not found" and caches no tools, prompts or
+  resources for it. ([#177](https://github.com/wingfold-ai/bundlemcp/pull/177))
+- A rename or configuration change saved while a discovery is running is no longer undone when the discovery finishes.
+  Discovery now updates only what it found out: capabilities, protocol revision, health, connection state and last
+  discovery time. ([#177](https://github.com/wingfold-ai/bundlemcp/pull/177))
+- The health status that live calls record no longer overwrites a concurrent rename or configuration change, and no
+  longer re-creates a deleted upstream. ([#177](https://github.com/wingfold-ai/bundlemcp/pull/177))
+
 ## [0.3.4] - 2026-10-30
 
 ### Changed
