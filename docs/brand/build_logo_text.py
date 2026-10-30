@@ -60,7 +60,7 @@ def font(weight: int) -> TTFont:
             .decode()
         )
         url = re.search(r"url\((https://[^)]+)\)", css).group(1)
-        path.write_bytes(urllib.request.urlopen(url).read())
+        path.write_bytes(urllib.request.urlopen(url).read())  # noqa: S310
     return TTFont(path)
 
 

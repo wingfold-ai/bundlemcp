@@ -5,7 +5,7 @@ DENIED_FORWARD_HEADERS = frozenset(
     {"host", "content-length", "cookie", "x-api-key", "mcp-session-id"}
 )
 DENIED_FORWARD_PREFIXES = ("sec-", "proxy-")
-CALLER_TOKEN_HEADER = "authorization"
+CALLER_TOKEN_HEADER = "authorization"  # noqa: S105
 
 
 def is_forwardable(header: str) -> bool:

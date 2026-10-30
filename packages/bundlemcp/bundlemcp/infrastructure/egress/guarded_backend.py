@@ -87,7 +87,8 @@ class GuardedNetworkBackend:
                 )
             except Exception as exc:  # the next vetted address may still answer
                 failure = exc
-        assert failure is not None
+        if failure is None:
+            raise HostUnresolvable(target, "the host resolved to no address")
         raise failure
 
     async def connect_unix_socket(self, path: str, *args: Any, **kwargs: Any) -> Any:

@@ -1,27 +1,31 @@
 # bundlemcp gateway; build from the repo root:
 #   docker build -f apps/gateway/Dockerfile .
-FROM python:3.15.1-slim-bookworm AS builder
+
+# uv as a stage of its own, so the image it comes from is a FROM line an update tool reads
+FROM ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff AS uv
+
+FROM python:3.15.1-slim-bookworm@sha256:575f8bc12ec26542e0678bc6b60e385218248019d433157ec327264a78c3a853 AS builder
 
 # The builder shares the runtime's base, so the .venv it builds runs there unchanged
 # (astral-sh/uv publishes no bookworm image for this Python). uv is pinned at or above
 # 0.13.4, which stopped trusting the distrusted eMudhra emSign CAs, and uses the image's
 # own interpreter, the one the runtime stage has at the same path.
-COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /uvx /usr/local/bin/
+COPY --from=uv /uv /uvx /usr/local/bin/
 ENV UV_PYTHON_DOWNLOADS=never
 # optional extras of the library, e.g. --build-arg LIBRARY_EXTRAS=otel for tracing
 ARG LIBRARY_EXTRAS=""
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY packages/bundlemcp/pyproject.toml packages/bundlemcp/pyproject.toml
-RUN uv sync --frozen --no-install-workspace --no-dev --all-packages \
+RUN uv sync --locked --no-install-workspace --no-dev --all-packages \
     ${LIBRARY_EXTRAS:+--extra $LIBRARY_EXTRAS}
 COPY packages/ packages/
 # --no-editable installs the library into the venv, so the runtime stage
 # needs no source tree
-RUN uv sync --frozen --no-dev --all-packages --no-editable \
+RUN uv sync --locked --no-dev --all-packages --no-editable \
     ${LIBRARY_EXTRAS:+--extra $LIBRARY_EXTRAS}
 
-FROM python:3.15.1-slim-bookworm
+FROM python:3.15.1-slim-bookworm@sha256:575f8bc12ec26542e0678bc6b60e385218248019d433157ec327264a78c3a853
 # names the build; a new value makes a new image from the cached layers, which is
 # how the integration suite rolls out "a newly built image"
 ARG BUNDLEMCP_BUILD=dev
@@ -32,7 +36,7 @@ COPY --from=builder --chown=bundlemcp:bundlemcp /app/.venv /app/.venv
 COPY packages/bundlemcp/alembic.ini ./alembic.ini
 COPY apps/gateway/main.py ./main.py
 ENV PATH="/app/.venv/bin:$PATH"
-USER bundlemcp
+USER 10001
 EXPOSE 8000
 # the readiness probe is the container's health
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=6 \

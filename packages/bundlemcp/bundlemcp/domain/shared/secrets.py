@@ -11,9 +11,9 @@ import re
 import secrets
 
 API_KEY_PREFIX = "bmcp_sk_"
-ACCESS_TOKEN_PREFIX = "bmcp_at_"
-REFRESH_TOKEN_PREFIX = "bmcp_rt_"
-DELEGATED_TOKEN_PREFIX = "bmcp_dt_"
+ACCESS_TOKEN_PREFIX = "bmcp_at_"  # noqa: S105
+REFRESH_TOKEN_PREFIX = "bmcp_rt_"  # noqa: S105
+DELEGATED_TOKEN_PREFIX = "bmcp_dt_"  # noqa: S105
 # what a key value supplied from outside must look like: the prefix and a urlsafe secret
 API_KEY_FORMAT = re.compile(r"^bmcp_sk_[A-Za-z0-9_-]{32,}$")
 

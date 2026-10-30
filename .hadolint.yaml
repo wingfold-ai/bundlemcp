@@ -1,0 +1,4 @@
+# Dockerfile lint configuration, read by hadolint locally and by the CI security job.
+# Every finding fails, down to the info level; a justified exception is an inline
+# `# hadolint ignore=<rule>` with a comment that says why.
+failure-threshold: info

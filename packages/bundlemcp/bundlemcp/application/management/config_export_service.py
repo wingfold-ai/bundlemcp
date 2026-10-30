@@ -26,7 +26,7 @@ CREDENTIALS_WARNING = (
     "This document contains credentials: upstream header values and OAuth client secrets. "
     "Store and send it as you would a password."
 )
-CLIENT_SECRET = "client_secret"
+CLIENT_SECRET = "client_secret"  # noqa: S105
 EVERYTHING = 10_000  # no gateway holds anywhere near this many of one resource
 SECRETS_EXPORTED = "export.secrets_included"
 

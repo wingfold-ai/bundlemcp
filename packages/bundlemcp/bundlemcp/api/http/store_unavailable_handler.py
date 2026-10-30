@@ -18,7 +18,10 @@ async def store_unavailable_handler(request: Request, exc: Exception) -> JSONRes
     An MCP endpoint answers with a JSON-RPC error; the management API and the
     OAuth routes with a problem body.
     """
-    assert isinstance(exc, StoreUnavailable)
+    if not isinstance(exc, StoreUnavailable):
+        raise TypeError(
+            f"store_unavailable_handler handles StoreUnavailable, not {type(exc).__name__}"
+        )
     log.warning("store.unavailable", path=request.url.path, error=str(exc))
     headers = {"Retry-After": str(RETRY_AFTER_SECONDS)}
     if request.url.path.endswith("/mcp"):

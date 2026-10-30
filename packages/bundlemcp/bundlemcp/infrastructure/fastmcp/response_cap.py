@@ -80,7 +80,10 @@ class CappedResponses(httpx2.AsyncBaseTransport):
     async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
         response = await self._inner.handle_async_request(request)
         content_type = response.headers.get("content-type", "").lower()
-        assert isinstance(response.stream, httpx2.AsyncByteStream)
+        if not isinstance(response.stream, httpx2.AsyncByteStream):
+            raise TypeError(
+                f"an async transport returned a {type(response.stream).__name__} stream"
+            )
         response.stream = CappedStream(
             response.stream,
             self._limit(),

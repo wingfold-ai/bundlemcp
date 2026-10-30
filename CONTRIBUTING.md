@@ -60,6 +60,10 @@ uv sync --all-packages     # Python >= 3.13 workspace (gateway + library); CI an
 
 The admin UI and the docs site need Node 24 or later; `apps/web` refuses an older one on `npm ci`.
 
+CI installs the workspace with `uv sync --locked --all-packages`, and the gateway image with `--locked` too: an install
+fails when `uv.lock` no longer matches the `pyproject.toml` files, instead of quietly resolving again. If it fails with
+"the lockfile needs to be updated", run `uv lock` and commit `uv.lock`; `uv lock --check` shows it before you push.
+
 The full stack (gateway, web UI, Postgres, Valkey, a dev OIDC provider), when you need the real thing:
 
 ```bash
@@ -95,7 +99,7 @@ CI.
 
 ```bash
 uv run pytest -q                        # must pass
-uv run ruff check .                     # must be clean
+uv run ruff check .                     # must be clean, security rules (S) included
 uv run lint-imports                     # 3 contracts, 0 exceptions
 uv run rumdl check .                    # Markdown line length 120; `uv run rumdl fmt .` rewraps
 cd apps/web && npm run openapi          # regenerates openapi.json + types/api.d.ts
@@ -107,7 +111,13 @@ python3 tools/check_adr_graph.py        # ADR statuses and indexes agree
 python3 tools/check_spec_ids.py         # requirement codes are well-formed, unique and real
 python3 tools/release_notes.py --check  # CHANGELOG.md entries have dated headings, newest first
 openspec validate --all --strict        # specs and changes are well-formed
+uv run python tools/check_advisories.py # no known advisory in uv.lock or the npm lockfiles
 ```
+
+Ruff's `S` rules (flake8-bandit) cover the library with no file-level exemption. A false positive there gets a
+line-level `# noqa: S105` (or the rule it is) on that one line, where a reviewer sees it; never a per-file ignore for
+`packages/bundlemcp/bundlemcp/`. Only the test suites, `tools/`, `deploy/*.py` and `examples/` have per-file ignores,
+and a test checks that none reaches the library.
 
 And in the pull request:
 
@@ -243,7 +253,36 @@ the patterns, the `__` rule and the reserved endpoint names from `openapi.json`.
   they are broken.
 
 CI runs all of these on every pull request, plus the frontend build, the docs build, LikeC4 validation, both image
-builds and the integration suite against the compose stack; one `ci-passed` check requires every job.
+builds, the supply-chain security gate and the integration suite against the compose stack; one `ci-passed` check
+requires every job. Every job that installs the workspace does so with `--locked`.
+
+### The supply-chain security gate
+
+The `security` job runs on every pull request and every push to `main`:
+
+- **Dependency advisories:** `uv run python tools/check_advisories.py` audits the whole of `uv.lock` (development tools
+  included) with pip-audit, and the lockfiles of `apps/web` and `docs` with `npm audit --package-lock-only`. Every
+  Python advisory fails; an npm advisory fails at moderate severity or above, in a production or a development
+  dependency. When the advisory database cannot be reached, the check says so and exits 2: re-run it.
+- **Secrets:** gitleaks scans the commits the pull request adds. Known examples in the history are listed by
+  fingerprint in `.gitleaksignore`; a new documentation example carries a `gitleaks:allow` comment on its line.
+  Locally: `gitleaks git --redact --log-opts="origin/main..HEAD" .`
+- **Dockerfiles:** hadolint lints the five Dockerfiles at every severity (`.hadolint.yaml`). Locally:
+  `hadolint apps/*/Dockerfile examples/*/Dockerfile`. A justified exception is an inline `# hadolint ignore=<rule>`
+  with a comment that says why.
+
+**The allow-list.** An advisory may be accepted in `tools/advisory_allowlist.toml` only when no release fixes it yet,
+with a `reason` that says why it does not reach bundlemcp (or what limits it), and an `expires` date at most 90 days
+ahead. An expired entry fails the gate, so the acceptance is re-decided rather than forgotten; one dated further ahead
+fails too. Remove the entry in the pull request that locks the fix: the check prints an entry that matches nothing as
+removable.
+
+**Images are pinned by tag and digest.** Every image a Dockerfile builds from (the uv image is a stage of its own,
+named `uv`) and every image in `deploy/docker-compose*.yml` is written `<image>:<tag>@sha256:<digest>`, and a test
+fails on one that is not. The only exception is a `fleet` service whose image an operator chooses through a variable.
+Dependabot moves the tag and the digest together, and opens a digest-only update when a publisher rebuilds a tag. To
+pin one by hand, take the index digest of the tag: `docker buildx imagetools inspect python:3.15.1-slim-bookworm`
+prints it as `Digest:`.
 
 ## How a release happens
 

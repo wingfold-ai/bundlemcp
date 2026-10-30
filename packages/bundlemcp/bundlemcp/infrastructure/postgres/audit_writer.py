@@ -140,5 +140,5 @@ class QueuedAuditWriter:
                         self._metrics.audit_dropped(reason=AuditDropReason.WRITE_FAILED)
                     return
                 log.info("audit.write_retrying", records=len(batch), backoff=backoff)
-                await self._sleep(backoff * random.uniform(0.8, 1.2))
+                await self._sleep(backoff * random.uniform(0.8, 1.2))  # noqa: S311
                 backoff = min(backoff * 2, MAX_BACKOFF)
