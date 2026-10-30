@@ -6,6 +6,32 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.4] - 2026-10-30
+
+### Changed
+
+- A tool refresh can now wait up to one probe timeout (60 s) behind a discovery of the same server that is already
+  running, such as the background probe a save starts. It then reports a fresh result instead of failing.
+  ([#176](https://github.com/wingfold-ai/bundlemcp/pull/176))
+- A write that collides with a concurrent change on a uniqueness rule is now answered with 409 and a message saying it
+  can be retried. On MCP paths the answer is a JSON-RPC error.
+  ([#176](https://github.com/wingfold-ai/bundlemcp/pull/176))
+
+### Fixed
+
+- A tool refresh sent right after saving an upstream, or on two replicas at once, no longer fails with a 500 and a
+  dropped connection. Discoveries of one server now run one after another on every replica, and each tool is stored
+  once. ([#176](https://github.com/wingfold-ai/bundlemcp/pull/176))
+- The admin UI no longer discards unsaved edits when the page reads the data again. This covers bundle details, upstream
+  configuration, upstream OAuth settings, endpoint configuration, prompt and resource curation, and settings values.
+  Fields you haven't touched still follow the gateway. ([#176](https://github.com/wingfold-ai/bundlemcp/pull/176))
+- Secret inputs on the upstream configuration card are cleared after a successful save.
+  ([#176](https://github.com/wingfold-ai/bundlemcp/pull/176))
+- The inspector's argument form no longer resets when the tool list is read again. It resets only when you pick a
+  different tool or the tool's input schema changes. ([#176](https://github.com/wingfold-ai/bundlemcp/pull/176))
+- Pausing the live log page now drops a backlog load that is still in flight, so no entries appear on a paused page.
+  Resuming loads them. ([#176](https://github.com/wingfold-ai/bundlemcp/pull/176))
+
 ## [0.3.3] - 2026-10-30
 
 ### Added
