@@ -55,7 +55,7 @@ services:
   # published on (a tunnel's URL is only known at start); a real realm names
   # <public url>/login/callback exactly (docs/self-hosting/identity-provider).
   keycloak:
-    image: quay.io/keycloak/keycloak:26.4@sha256:9409c59bdfb65dbffa20b11e6f18b8abb9281d480c7ca402f51ed3d5977e6007
+    image: quay.io/keycloak/keycloak:26.8@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b
     restart: unless-stopped
     command: ["start-dev", "--import-realm", "--http-port=8080"]
     environment:
@@ -158,7 +158,7 @@ services:
   # DataForSEO MCP from npm. Boots without credentials; tool calls 401 until
   # DATAFORSEO_USERNAME/PASSWORD are set in deploy/.env.
   dataforseo:
-    image: node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
+    image: node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4
     profiles: [fleet]
     restart: unless-stopped
     command: ["npx", "-y", "dataforseo-mcp-server@2.9.8", "http"]
