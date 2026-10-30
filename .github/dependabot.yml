@@ -1,4 +1,6 @@
 # Dependabot version updates. Security updates are configured in the repository settings.
+# Titles are `chore: Bump the <group> group ...`: the plain prefix and the short group names
+# keep a grouped update's title within the 72 characters the pull-request title check allows.
 # Version updates wait 7 days after a release (cooldown) so a compromised release can be
 # caught before it lands here; security updates are never delayed.
 version: 2
@@ -12,6 +14,8 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    commit-message:
+      prefix: chore
     labels: ["dependencies"]
   - package-ecosystem: npm
     directories: ["/apps/web", "/docs"]
@@ -20,8 +24,10 @@ updates:
     cooldown:
       default-days: 7
     groups:
-      minor-and-patch:
+      npm:
         update-types: ["minor", "patch"]
+    commit-message:
+      prefix: chore
     labels: ["dependencies"]
   - package-ecosystem: uv
     directory: /
@@ -30,11 +36,18 @@ updates:
     cooldown:
       default-days: 7
     groups:
-      minor-and-patch:
+      uv:
         update-types: ["minor", "patch"]
+    commit-message:
+      prefix: chore
     labels: ["dependencies"]
   - package-ecosystem: docker
-    directories: ["/apps/gateway", "/apps/web", "/examples/echo-mcp", "/examples/oauth-demo-mcp"]
+    directories:
+      - /apps/gateway
+      - /apps/web
+      - /examples/conformance-mcp
+      - /examples/echo-mcp
+      - /examples/oauth-demo-mcp
     schedule:
       interval: weekly
     cooldown:
@@ -42,6 +55,28 @@ updates:
     # One pull request moves every Python image: the gateway's builder and runtime stages must
     # agree, and a test fails any image or CI job that differs from .python-version.
     groups:
-      python-images:
+      images:
         patterns: ["python", "*astral-sh/uv"]
+    commit-message:
+      prefix: chore
+    labels: ["dependencies"]
+  # Every image the compose stack runs is pinned by tag and digest; this moves both.
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    # A Postgres or Valkey major changes the on-disk format and needs a dump and restore,
+    # which is an operator's decision; digest, minor and patch updates still arrive.
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      - dependency-name: valkey/valkey
+        update-types: ["version-update:semver-major"]
+    groups:
+      compose:
+        patterns: ["*"]
+    commit-message:
+      prefix: chore
     labels: ["dependencies"]

@@ -91,7 +91,8 @@ class UpstreamConnectFlow:
             metadata_document_usable=self._metadata_document_url is not None
         )
         if identification == ClientIdentification.METADATA_DOCUMENT:
-            assert self._metadata_document_url is not None  # implied by the identification
+            if self._metadata_document_url is None:
+                raise RuntimeError("a metadata document was chosen, but none is configured")
             registration = UpstreamClientRegistration(client_id=self._metadata_document_url)
         elif identification == ClientIdentification.DYNAMIC_REGISTRATION:
             registration = await self._provider.register(

@@ -7,7 +7,7 @@ class ServerAuthMode(StrEnum):
     NONE = "none"
     STATIC_HEADERS = "static_headers"
     UPSTREAM_OAUTH = "upstream_oauth"
-    DELEGATED_TOKEN = "delegated_token"
+    DELEGATED_TOKEN = "delegated_token"  # noqa: S105
 
     def settled(self, *, has_static_headers: bool) -> "ServerAuthMode":
         """The mode a server is stored with, given whether it holds static headers.

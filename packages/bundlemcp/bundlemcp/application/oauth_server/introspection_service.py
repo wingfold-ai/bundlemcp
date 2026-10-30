@@ -47,7 +47,7 @@ class TokenIntrospectionService:
                     email=delegated.email,
                     oidc_iss=delegated.oidc_issuer,
                     oidc_sub=delegated.oidc_sub,
-                    token_use="delegated",
+                    token_use="delegated",  # noqa: S106
                     act={"sub": delegated.actor} if delegated.actor else None,
                 )
         row = await self._tokens.by_access_hash(self._hasher.digest(token))
@@ -59,7 +59,7 @@ class TokenIntrospectionService:
             if key is None:
                 return INACTIVE
             return IntrospectionResponse(
-                active=True, sub=f"{API_KEY_SUBJECT_PREFIX}{key.id}", token_use="api_key"
+                active=True, sub=f"{API_KEY_SUBJECT_PREFIX}{key.id}", token_use="api_key"  # noqa: S106
             )
         if not row.is_usable_at(self._clock.now()):
             return INACTIVE

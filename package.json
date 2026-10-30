@@ -4,9 +4,9 @@
   "license": "Apache-2.0",
   "description": "Root scripts; the JavaScript projects live in docs/ and apps/web with their own package.json",
   "scripts": {
-    "docs:install": "pnpm --dir docs install",
-    "docs:dev": "pnpm --dir docs dev",
-    "docs:build": "pnpm --dir docs build",
-    "docs:preview": "pnpm --dir docs preview"
+    "docs:install": "npm --prefix docs ci",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:build": "npm --prefix docs run build",
+    "docs:preview": "npm --prefix docs run preview"
   }
 }

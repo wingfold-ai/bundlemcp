@@ -337,7 +337,8 @@ class PooledUpstreamSessions:
         changed: clients then fetch again what they may have missed. A task
         is started anew when the filter changes, which loses nothing.
         """
-        assert session.client is not None
+        if session.client is None:
+            raise RuntimeError("a session is listened on only once its transport is open")
         acknowledged_before = False
         while session.is_open:
             try:

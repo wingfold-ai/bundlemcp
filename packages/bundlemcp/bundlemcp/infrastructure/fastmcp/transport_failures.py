@@ -55,7 +55,10 @@ class RecordedTransportFailures(httpx2.AsyncBaseTransport):
             else:
                 self._log.record_transport_failure()
             raise
-        assert isinstance(response.stream, httpx2.AsyncByteStream)
+        if not isinstance(response.stream, httpx2.AsyncByteStream):
+            raise TypeError(
+                f"an async transport returned a {type(response.stream).__name__} stream"
+            )
         response.stream = RecordedStream(response.stream, self._log)
         return response
 
