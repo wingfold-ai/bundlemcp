@@ -20,11 +20,14 @@
 - [x] 1.4 Let `apps/web/tests/spec-map.ts` also read `## ADDED Requirements` from `openspec/changes/*/specs/*/spec.md`
   (excluding `archive/`), with the main specs taking precedence. Verify with `npm run test:map`, which regenerates
   `TESTMAP.md` unchanged, and with a scratch `requirement("UI-12")` call resolving while this change is open
-- [ ] 1.5 In `.github/workflows/ci.yml`:
+- [x] 1.5 In `.github/workflows/ci.yml`:
   - integration job: replace `npx playwright test oauth-consent.spec.ts` with
     `npx playwright test --grep-invert @fleet`, rename the step `Admin UI browser suite (UI-13)`, and upload
     `apps/web/playwright-report` as an artifact on failure;
   - frontend job: add `UI unit tests (UI-13)` running `npm test`.
+
+  Verified on PR #173's CI (run 40943847746): 42 passed in 57.5 s, the 14 spec files including the 12 that never
+  ran in CI before and E2E-38 to E2E-42, with no skips.
 
   Do not edit the DEP-10 requirement. Verify with the pull request's CI: all thirteen specs run and pass on the
   unchanged pages. Fix each failure in the spec or its seed, never with a skip, and record the suite's duration in the
@@ -46,7 +49,7 @@
 - [x] 2.3 Add `upstreamCallbackUrl()` beside `apiBase()` in `composables/useApi.ts`, and use it in both places that
   build the callback URL. Verify with `npm run typecheck` and with `grep -rn "oauth/upstream/callback" apps/web/app`
   matching only `useApi.ts`
-- [ ] 2.4 Add `utils/headerRows.ts` (`HeaderRow`, `rowsToHeaders(rows, { emptyValue: "keep" | "key" })`) with
+- [x] 2.4 Add `utils/headerRows.ts` (`HeaderRow`, `rowsToHeaders(rows, { emptyValue: "keep" | "key" })`) with
   `unit/utils/headerRows.test.ts`, named `UI-1 …`: blank keys dropped, keys trimmed, and both empty-value rules. Add
   `components/HeaderRowsEditor.vue` (`v-model`, placeholder, input-type, test-id-prefix and button-label props), and
   use it for the forward and static headers on the upstream page and the forward headers in `ServerRegistration.vue`.
@@ -56,12 +59,12 @@
   `ValidationProblem`) with `unit/composables/useAction.nuxt.test.ts`, named `UI-12 …`. The tests cover: a validation
   problem sets `error` and sends nothing; an API error sets `error`; a success clears `error` and invalidates the named
   resources; a second `run` clears the previous error. Verify with `npm test`
-- [ ] 2.6 Add `authedFetch` to `composables/useApi.ts`, sharing the `401`/`403` handling with the `openapi-fetch`
+- [x] 2.6 Add `authedFetch` to `composables/useApi.ts`, sharing the `401`/`403` handling with the `openapi-fetch`
   middleware through one function. Verify with `npm run typecheck` and with `inspector.spec.ts` (E2E-37) still passing
 
 ## 3. Rename card
 
-- [ ] 3.1 Add `components/RenameCard.vue` (props `kind`, `current`, `taken` and `requireAcknowledgement`, a
+- [x] 3.1 Add `components/RenameCard.vue` (props `kind`, `current`, `taken` and `requireAcknowledgement`, a
   `consequence` slot, a `renamed` event, and its own `useAction`). Use it on the bundle page (acknowledgement
   required), on the endpoint page (acknowledgement required, the before/after URL in the slot) and in the upstream
   danger zone (acknowledgement optional, sends `force`). Pass the taken names on the upstream page, too. Verify with
@@ -74,13 +77,13 @@
 - [x] 4.1 Add `composables/useEditableRows.ts` for the curation drafts (`rowOf`, `sameRow` and the server-reseed
   watch, moved from `pages/bundles/[name].vue:266-300`) with `unit/composables/useEditableRows.nuxt.test.ts`, named
   `BND-16 …`. The tests check that a reseed keeps an unsaved draft and replaces a saved one. Verify with `npm test`
-- [ ] 4.2 Split `pages/bundles/[name].vue` into `BundleMetaCard`, `BundleMembersCard`, `BundleToolCuration`,
+- [x] 4.2 Split `pages/bundles/[name].vue` into `BundleMetaCard`, `BundleMembersCard`, `BundleToolCuration`,
   `BundleEndpointsCard` and `EndpointCreateForm`, plus the `RenameCard` from 3.1. Each card has its own `useAction`, an
   error element marked `data-testid="error"` inside the card, and a `data-testid="card-<name>"` on the card. The page
   keeps only the loads, the not-found state and the load error. Verify with `npm run typecheck`, `npm run build`, the
   bundle page at no more than 200 lines (`wc -l`), and the unchanged Playwright `bundle-flow.spec.ts` and
   `curation.spec.ts`
-- [ ] 4.3 Add Playwright scenarios citing UI-12 in `curation.spec.ts`, with entries in `spec-map.json` and
+- [x] 4.3 Add Playwright scenarios citing UI-12 in `curation.spec.ts`, with entries in `spec-map.json` and
   `npm run test:map`:
   - `E2E-39`: a non-object annotation override shows its error inside `card-curation` and nowhere else.
   - `E2E-40`: a member toggle refused with `409` (forced with `page.route`) shows its error on `card-members`, and it
@@ -91,24 +94,24 @@
 
 ## 5. Upstream detail page and registration (UI-12)
 
-- [ ] 5.1 Split `pages/upstreams/[name].vue` into `UpstreamConfigCard`, `UpstreamToolsCard`, `UpstreamOAuthCard` and
+- [x] 5.1 Split `pages/upstreams/[name].vue` into `UpstreamConfigCard`, `UpstreamToolsCard`, `UpstreamOAuthCard` and
   `DangerZoneCard`, each with its own `useAction` and in-card error. Verify with `npm run typecheck`,
   `npm run build`, the page at no more than 200 lines, and the unchanged `server-flow.spec.ts` and
   `gsc-upstream.spec.ts`
-- [ ] 5.2 Add Playwright scenario `E2E-42` in `server-flow.spec.ts`, citing UI-12 and UPS-5. Renaming `echo` (a
+- [x] 5.2 Add Playwright scenario `E2E-42` in `server-flow.spec.ts`, citing UI-12 and UPS-5. Renaming `echo` (a
   bundle member) without the acknowledgement shows the API's refusal inside `card-danger`, and `card-config` shows
   none. Add its `spec-map.json` entry and run `npm run test:map`. Verify with `npx playwright test server-flow.spec.ts`
-- [ ] 5.3 Extract `composables/useServerInspection.ts` and `components/CredentialSourcePicker.vue` from
+- [x] 5.3 Extract `composables/useServerInspection.ts` and `components/CredentialSourcePicker.vue` from
   `ServerRegistration.vue`, keeping its one error element (it is a single card). Verify with `npm run typecheck`,
   `ServerRegistration.vue` at no more than 300 lines, and the unchanged `server-flow.spec.ts` (E2E-03, E2E-04, E2E-31,
   E2E-32)
 
 ## 6. Endpoint detail page and inspector
 
-- [ ] 6.1 Give each section of `pages/endpoints/[name].vue` (configuration, danger zone) its own `useAction` and
+- [x] 6.1 Give each section of `pages/endpoints/[name].vue` (configuration, danger zone) its own `useAction` and
   in-card error, and add `data-testid="card-<name>"`. Verify with `npm run typecheck` and the unchanged
   `endpoint-config.spec.ts` (E2E-08, E2E-22, E2E-26)
-- [ ] 6.2 Extract `composables/useToolCall.ts` (stream, progress, outcome and failure, over `authedFetch`) and
+- [x] 6.2 Extract `composables/useToolCall.ts` (stream, progress, outcome and failure, over `authedFetch`) and
   `components/ToolArgumentsEditor.vue` (form and raw JSON) from `pages/inspector.vue`. Verify with
   `npm run typecheck`, `inspector.vue` at no more than 250 lines, and the unchanged `inspector.spec.ts` (E2E-37)
 
@@ -121,7 +124,7 @@
   `python3 tools/check_spec_ids.py`; all must pass. The last also confirms that no `.ts` or `.vue` comment cites a code
 - [x] 7.3 Run `cd apps/web && npm run openapi && npm run typecheck && npm run build && npm test`, with Node ≥ 24.
   `git diff --exit-code apps/web/openapi.json apps/web/types/api.d.ts` must show no change
-- [ ] 7.4 Run `cd apps/web && npx playwright test --grep-invert @fleet` against
+- [x] 7.4 Run `cd apps/web && npx playwright test --grep-invert @fleet` against
   `docker compose -f deploy/docker-compose.yml up -d --build --wait`; every scenario must pass, E2E-38 to E2E-42
   included. Run `npm run test:map` and confirm `TESTMAP.md` is committed
 - [x] 7.5 Run `openspec validate --all --strict`; it must pass
