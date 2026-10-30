@@ -276,7 +276,9 @@ request instead.
 `GET /api/v1/upstreams/{name}/tools` lists the cached tools with their input schema, annotations, `stale` flag and
 `last_seen_at`. `POST /api/v1/upstreams/{name}:refresh-tools` re-probes and re-discovers; the result reports how many
 tools were discovered and how many changed: new, redefined, gone stale or back again. A discovery that finds exactly
-what is cached writes no tool and tells no client to re-list.
+what is cached writes no tool and tells no client to re-list. Discoveries of one server never overlap, on any replica: a
+refresh that arrives while another discovery of that server is running (the background probe a save started, say)
+waits for it to finish, then probes and reports against what it stored.
 
 When the upstream advertises prompts or resources, the same discovery also lists its prompts, resources and resource
 templates, to the last page. Their names, URIs, titles and descriptions are cached for per-bundle curation

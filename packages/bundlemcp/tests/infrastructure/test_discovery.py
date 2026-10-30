@@ -1,7 +1,9 @@
 """Discovery tests (UPS-17/18/19, UPS-4) against in-process FastMCP servers."""
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
+from bundlemcp.application.contracts.upstream.upstream_probe import ProbeResult
 from bundlemcp.application.discovery.discovery_service import DiscoveryService
 from bundlemcp.application.discovery.upstream_health import UpstreamHealth
 from bundlemcp.application.serving.runtime_config import RuntimeConfig
@@ -80,6 +82,44 @@ async def test_discover_syncs_tools(engine, redis):
         assert names == {"alpha", "beta"}
         srv = (await db.execute(select(McpServerRow))).scalar_one()
         assert srv.health_status == HealthStatus.OK
+
+
+class OverlappingProbe:
+    """Probes for real, then holds the answer until a second probe has started (or a
+    short window closes), so two unserialized discoveries both read the tool cache
+    before either has written it."""
+
+    def __init__(self, inner: FastMcpUpstreamProbe) -> None:
+        self._inner = inner
+        self._started = 0
+        self._second = asyncio.Event()
+
+    async def probe(self, server, headers) -> ProbeResult:
+        self._started += 1
+        if self._started >= 2:
+            self._second.set()
+        result = await self._inner.probe(server, headers)
+        try:
+            await asyncio.wait_for(self._second.wait(), 0.3)
+        except TimeoutError:
+            pass
+        return result
+
+
+async def test_ups39_concurrent_discoveries_store_each_tool_once(engine, redis):
+    """UPS-39: two discoveries of one server at once both succeed and store each tool
+    once, where unserialized they would both insert and the second would fail."""
+    server = await seed_server(engine)
+    upstream = make_upstream(["alpha", "beta"])
+    svc = _discovery(engine, redis, OverlappingProbe(FastMcpUpstreamProbe(factory_for(upstream))))
+
+    first, second = await asyncio.gather(svc.discover(server.id), svc.discover(server.id))
+
+    assert first.error is None and second.error is None
+    assert sorted([first.changed, second.changed]) == [0, 2]
+    async with session_factory(engine)() as db:
+        names = [t.name for t in (await db.execute(select(ToolRow))).scalars()]
+    assert sorted(names) == ["alpha", "beta"]
 
 
 async def test_discover_captures_capabilities(engine, redis):

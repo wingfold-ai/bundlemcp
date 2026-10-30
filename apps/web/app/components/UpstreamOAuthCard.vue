@@ -9,22 +9,14 @@ const props = defineProps<{ serverName: string; status: UpstreamOAuthStatusRead 
 const emit = defineEmits<{ connected: [] }>();
 
 const api = useApi();
-const clientId = ref("");
+// a refetch of the status keeps what the admin is typing
+const clientId = useEditableField(() => props.status?.client_id ?? "");
+// never filled from the gateway, which does not hand the secret back
 const clientSecret = ref("");
-const authUrl = ref("");
-const tokenUrl = ref("");
-const grant = ref<Schemas["UpstreamGrant"]>("authorization_code");
-
-watch(
-  () => props.status,
-  (data) => {
-    if (!data) return;
-    clientId.value = data.client_id ?? "";
-    authUrl.value = data.authorization_url ?? "";
-    tokenUrl.value = data.token_url ?? "";
-    grant.value = data.grant_type ?? "authorization_code";
-  },
-  { immediate: true },
+const authUrl = useEditableField(() => props.status?.authorization_url ?? "");
+const tokenUrl = useEditableField(() => props.status?.token_url ?? "");
+const grant = useEditableField<Schemas["UpstreamGrant"]>(
+  () => props.status?.grant_type ?? "authorization_code",
 );
 
 const connectUrl = computed(() => `${apiBase()}/oauth/upstream/${props.serverName}/connect`);

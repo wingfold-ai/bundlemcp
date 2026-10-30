@@ -95,7 +95,8 @@ async function renamed(oldName: string, newName: string) {
     <p v-if="notFound" class="text-muted" data-testid="not-found">not found</p>
 
     <template v-else-if="bundle">
-      <BundleMetaCard :bundle="bundle" />
+      <!-- keyed, so another bundle always starts from its own values -->
+      <BundleMetaCard :key="bundle.id" :bundle="bundle" />
 
       <div class="wf-card max-w-xl" data-testid="card-rename">
         <RenameCard

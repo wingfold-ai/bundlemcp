@@ -23,34 +23,33 @@ const { data: endpoints } = await useEndpoints();
 const { data: profiles } = await useProfiles();
 
 // --- config form state ---
-const profile = ref<EndpointProfile>("default");
-const authModes = ref<EndpointAuthMode[]>([]);
-const enabled = ref(true);
+// A refetch of the endpoint keeps what the admin is editing; untouched fields follow it.
+const profile = useEditableField<EndpointProfile>(() => endpoint.value?.profile ?? "default");
+const authModes = useEditableField<EndpointAuthMode[]>(() => endpoint.value?.auth_modes ?? []);
+const enabled = useEditableField(() => endpoint.value?.enabled ?? true);
 // one origin per line; "*" alone allows every site
-const allowedOrigins = ref("");
+const allowedOrigins = useEditableField(() => (endpoint.value?.allowed_origins ?? []).join("\n"));
+// the read model leaves the stored rate limit untyped; it is what was saved as this shape
+const storedRateLimit = computed(() => endpoint.value?.rate_limit as RateLimitConfig | null);
 // Bound to <input type="number">, for which Vue's v-model assigns a number (or
-// "" when the field is cleared) — never assume these hold a string.
-const rlEndpointLimit = ref<string | number>("");
-const rlEndpointWindow = ref<string | number>("");
-const rlClientLimit = ref<string | number>("");
-const rlClientWindow = ref<string | number>("");
+// "" when the field is cleared) — never assume these hold a string. They are
+// filled the same way, so a saved value reads as unchanged once it comes back.
+const rlEndpointLimit = useEditableField<string | number>(() =>
+  numberField(storedRateLimit.value?.endpoint?.limit),
+);
+const rlEndpointWindow = useEditableField<string | number>(() =>
+  numberField(storedRateLimit.value?.endpoint?.window_seconds),
+);
+const rlClientLimit = useEditableField<string | number>(() =>
+  numberField(storedRateLimit.value?.per_client?.limit),
+);
+const rlClientWindow = useEditableField<string | number>(() =>
+  numberField(storedRateLimit.value?.per_client?.window_seconds),
+);
 
-function seed(ep: EndpointRead | null) {
-  if (!ep) return;
-  profile.value = ep.profile;
-  authModes.value = ep.auth_modes;
-  enabled.value = ep.enabled;
-  allowedOrigins.value = ep.allowed_origins.join("\n");
-  // the read model leaves the stored rate limit untyped; it is what was saved as this shape
-  const rl = ep.rate_limit as RateLimitConfig | null;
-  rlEndpointLimit.value = rl?.endpoint?.limit != null ? String(rl.endpoint.limit) : "";
-  rlEndpointWindow.value =
-    rl?.endpoint?.window_seconds != null ? String(rl.endpoint.window_seconds) : "";
-  rlClientLimit.value = rl?.per_client?.limit != null ? String(rl.per_client.limit) : "";
-  rlClientWindow.value =
-    rl?.per_client?.window_seconds != null ? String(rl.per_client.window_seconds) : "";
+function numberField(value: number | null | undefined): number | "" {
+  return value ?? "";
 }
-watch(endpoint, seed, { immediate: true });
 
 /** Every resource whose cached reads show this endpoint. */
 function endpointDependents(): string[] {

@@ -47,7 +47,12 @@ test(testTitle("E2E-19"), async ({ page, steps }) => {
       ),
       when("an admin changes only its override title in the UI and saves", { req: "BND-16" }, async () => {
         await page.getByTestId(`override-title-${reverse}`).fill("Reversed");
+        // the field shows the typed title before the save lands, so wait for the save itself
+        const saved = page.waitForResponse(
+          (r) => r.url().endsWith(`/tools/${reverse}`) && r.request().method() === "PUT",
+        );
         await page.getByTestId(`curation-save-${reverse}`).click();
+        expect((await saved).ok()).toBeTruthy();
         await expect(page.getByTestId(`override-title-${reverse}`)).toHaveValue("Reversed");
       }),
       then("the overrides set through the API are unchanged", { req: "BND-16" }, async () => {
@@ -229,10 +234,16 @@ test(testTitle("E2E-40"), async ({ page, steps }) => {
       when("the admin saves the bundle's description successfully", { req: "UI-12" }, async () => {
         await page.getByTestId("input-description").fill("e2e, edited");
         await page.getByTestId("save-bundle").click();
-        await expect.poll(async () => (await (await api.get(`bundles/${bundle}`)).json()).description).toBe(
-          "e2e, edited",
-        );
       }),
+      then(
+        "the description saved is the one typed, though the refused toggle made the page read the bundle again",
+        { req: "UI-14" },
+        async () => {
+          await expect
+            .poll(async () => (await (await api.get(`bundles/${bundle}`)).json()).description)
+            .toBe("e2e, edited");
+        },
+      ),
       then("the members card still shows its error, and the meta card shows none", { req: "UI-12" }, async () => {
         await expect(page.getByTestId("card-members").getByTestId("error")).toHaveText(
           "the member changed meanwhile",

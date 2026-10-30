@@ -417,7 +417,8 @@
       "slug": "card-errors-independent",
       "title": "A refused member toggle keeps its error on the members card while a successful meta save shows none",
       "requirements": [
-        "UI-12"
+        "UI-12",
+        "UI-14"
       ],
       "new": true
     },

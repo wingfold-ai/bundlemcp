@@ -1,7 +1,10 @@
 """Only a failure to reach the database counts as a store outage (SES-14)."""
 
 import pytest
+from bundlemcp.application.contracts.persistence.store_conflict import StoreConflict
 from bundlemcp.application.contracts.persistence.store_unavailable import StoreUnavailable
+from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.tool import Tool
 from bundlemcp.infrastructure.postgres.engine import session_factory
 from bundlemcp.infrastructure.postgres.sqlalchemy_unit_of_work import (
     SqlAlchemyUnitOfWorkFactory,
@@ -38,3 +41,18 @@ async def test_ses14_the_unit_of_work_raises_store_unavailable(engine, redis):
     with pytest.raises(ValueError):
         async with units.open():
             raise ValueError("a service's own failure passes through")
+
+
+async def test_mgmt6_an_integrity_violation_raises_store_conflict(engine, redis):
+    """MGMT-6: a write the database refuses for a duplicate key leaves the unit of work as
+    ``StoreConflict``, naming no value."""
+    units = SqlAlchemyUnitOfWorkFactory(session_factory(engine), redis)
+    async with units.open() as uow:
+        server = McpServer(name="dup", url="http://dup/mcp")
+        uow.servers.add(server)
+        await uow.commit()
+    with pytest.raises(StoreConflict):
+        async with units.open() as uow:
+            uow.tools.add(Tool(server_id=server.id, name="alpha", schema_hash="h1"))
+            uow.tools.add(Tool(server_id=server.id, name="alpha", schema_hash="h2"))
+            await uow.commit()

@@ -16,7 +16,8 @@ const argumentsEditor = useTemplateRef("argumentsEditor");
 const { calling, progress, outcome, failure, reset, call: callTool } = useToolCall();
 const destructive = computed(() => props.tool.annotations?.destructiveHint === true);
 
-watch(() => props.tool, reset);
+// another tool's call output is cleared; the same tool listed again keeps it
+watch(() => props.tool.name, reset);
 
 async function call() {
   const args = argumentsEditor.value?.callArguments();

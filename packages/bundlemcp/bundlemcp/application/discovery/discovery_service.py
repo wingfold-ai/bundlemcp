@@ -79,6 +79,11 @@ class DiscoveryService:
     Caching all of this is what lets bundles stay curatable and servable while
     an upstream is unreachable.
 
+    Discoveries of one server never overlap, on one replica or across several:
+    each holds the server's lock for its whole transaction, so a second one
+    (a refresh right after the probe a save scheduled, say) waits and then
+    compares against what the first stored. Different servers run in parallel.
+
     A server behind upstream OAuth is probed with a connected account's token.
     Until an account is connected there is nothing to probe with; that is
     reported but not counted as a failure, because the upstream has not failed.
@@ -135,6 +140,9 @@ class DiscoveryService:
         change, since the server may list differently for its other callers.
         """
         async with self._units.open() as uow:
+            # another discovery of this server, on any replica, finishes before this one
+            # reads anything, so both never store the same new tools
+            await uow.lock_server(server_id)
             server = await uow.servers.get(server_id)
             if server is None:
                 return DiscoveryResult(error="server not found")

@@ -15,12 +15,13 @@ const rawText = ref("{}");
 const values = ref<Record<string, unknown>>({});
 const fields = computed<FormField[] | null>(() => formFields(props.tool.input_schema));
 
+// a fresh form for another tool, but not for the same tool listed again
 watch(
-  () => props.tool,
-  (tool) => {
+  () => `${props.tool.name}\n${JSON.stringify(props.tool.input_schema)}`,
+  () => {
     values.value = {};
     rawText.value = "{}";
-    raw.value = formFields(tool.input_schema) === null;
+    raw.value = formFields(props.tool.input_schema) === null;
   },
   { immediate: true },
 );
