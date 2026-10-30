@@ -161,7 +161,13 @@ Writing one: copy the nearest existing test in the tier. Application tests build
 The `fleet` marker means an integration test needs private images and is skipped in CI.
 
 Browser tests are Playwright, in `apps/web/tests/`, with `npm run test:ui`. `apps/web/tests/TESTMAP.md` maps them to
-requirement IDs and is regenerated with `npm run test:map`.
+requirement IDs and is regenerated with `npm run test:map`. CI runs every one of them against the core stack; a scenario
+that needs the private fleet images carries `@fleet` in its title, which CI leaves out. A scenario may cite a
+requirement that an open change adds: `spec-map.ts` also reads the `## ADDED Requirements` of `openspec/changes/`.
+
+The UI's pure logic (`app/utils/`) and its composables have Vitest unit tests in `apps/web/unit/`, run with `npm test`
+and in CI's frontend job; they need no stack. A test that needs a Nuxt app, such as one for `useQuery`, is named
+`*.nuxt.test.ts` and runs in the Nuxt environment; every other test runs in plain Node.
 
 ### MCP conformance
 
