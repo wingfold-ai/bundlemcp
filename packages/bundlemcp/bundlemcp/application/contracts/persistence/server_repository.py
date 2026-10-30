@@ -5,6 +5,7 @@ from typing import Protocol, runtime_checkable
 from bundlemcp.application.contracts.persistence.repository import NamedRepository
 from bundlemcp.application.contracts.persistence.stored_secrets import StoredSecrets
 from bundlemcp.domain.servers.mcp_server import McpServer
+from bundlemcp.domain.servers.server_observations import ServerObservations
 
 
 @runtime_checkable
@@ -17,6 +18,16 @@ class ServerRepository(NamedRepository[McpServer], Protocol):
 
     async def by_ids(self, ids: Iterable[uuid.UUID]) -> list[McpServer]:
         """The servers with these ids, in name order; unknown ids are skipped."""
+        ...
+
+    async def record_observations(
+        self, server_id: uuid.UUID, observations: ServerObservations
+    ) -> bool:
+        """Write what contacting the server found out onto the server as it is stored now.
+
+        Leaves its name and configuration as they are stored, and never creates a server:
+        returns False, writing nothing, when the server no longer exists.
+        """
         ...
 
     def header_ciphertexts(self) -> StoredSecrets:

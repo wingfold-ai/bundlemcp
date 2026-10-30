@@ -30,6 +30,7 @@ from bundlemcp.domain.upstream_oauth.needs_connect import NeedsConnect
 from bundlemcp.domain.upstream_oauth.upstream_oauth_not_configured import UpstreamOAuthNotConfigured
 
 NOT_CONNECTED = "upstream not connected"
+SERVER_NOT_FOUND = "server not found"
 SWEEP_PAGE_SIZE = 100
 # one hanging upstream must not hold up a sweep of every other server
 PROBE_TIMEOUT_SECONDS = 60
@@ -83,6 +84,11 @@ class DiscoveryService:
     each holds the server's lock for its whole transaction, so a second one
     (a refresh right after the probe a save scheduled, say) waits and then
     compares against what the first stored. Different servers run in parallel.
+
+    A discovery writes only what it found out onto the server as it is stored
+    when the probe answers, never the copy it read before probing: a rename or a
+    configuration change saved meanwhile is kept, and a server deleted meanwhile
+    is not stored again, nor is anything cached for it.
 
     A server behind upstream OAuth is probed with a connected account's token.
     Until an account is connected there is nothing to probe with; that is
@@ -145,13 +151,14 @@ class DiscoveryService:
             await uow.lock_server(server_id)
             server = await uow.servers.get(server_id)
             if server is None:
-                return DiscoveryResult(error="server not found")
+                return DiscoveryResult(error=SERVER_NOT_FOUND)
             try:
                 headers = await self._headers(server)
             except (NeedsConnect, UpstreamOAuthNotConfigured):
                 # nothing to probe with yet, which is not an upstream failure
                 server.connection_state = ConnectionState.ACCOUNT_REQUIRED
-                uow.servers.add(server)
+                if not await self._observe(uow, server):
+                    return self._gone(server)
                 if announce:
                     await self._announce(uow, server)
                 await uow.commit()
@@ -183,7 +190,10 @@ class DiscoveryService:
             server.connection_state = ConnectionState.READY
             now = self._clock.now()
             server.last_discovered_at = now
-            uow.servers.add(server)
+            await self._health.apply_success(server)  # self-heal
+            # before anything is cached for the server, so nothing is cached for a deleted one
+            if not await self._observe(uow, server):
+                return self._gone(server)
 
             existing = {t.name: t for t in await uow.tools.for_server(server.id)}
             sync = sync_tools(server.id, existing, seen.tools, now)
@@ -202,7 +212,6 @@ class DiscoveryService:
             if relisted is not None:
                 changed_lists.add(relisted)
             pruned = await self._prune(uow, server) if prune else 0
-            await self._record_success(uow, server)
             if sync.changed or pruned or announce:
                 await self._announce(uow, server)  # clients re-list the bundle
             for entity_type in sorted(changed_lists):
@@ -323,10 +332,18 @@ class DiscoveryService:
             error=error[:200],
         )
         server.connection_state = state  # recorded on every probe
-        uow.servers.add(server)
+        if not await self._observe(uow, server):
+            return self._gone(server)
         await uow.commit()
         return DiscoveryResult(error=error, connection_state=state)
 
-    async def _record_success(self, uow: UnitOfWork, server: McpServer) -> None:
-        if await self._health.apply_success(server):  # self-heal
-            uow.servers.add(server)
+    @staticmethod
+    async def _observe(uow: UnitOfWork, server: McpServer) -> bool:
+        """Store what this discovery found out; False when the server has been deleted."""
+        return await uow.servers.record_observations(server.id, server.observations)
+
+    @staticmethod
+    def _gone(server: McpServer) -> DiscoveryResult:
+        """The answer for a server deleted while it was probed; nothing staged is committed."""
+        log.info("discovery.server_gone", server=server.name)
+        return DiscoveryResult(error=SERVER_NOT_FOUND)
