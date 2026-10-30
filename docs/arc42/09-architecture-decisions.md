@@ -68,6 +68,7 @@ Decision / Alternatives considered / Consequences), append-only, written in the 
 | [0060](../adr/0060-unauthenticated-fetches-use-a-public-only-egress-scope.md) | A public-only egress scope for URLs an unauthenticated caller chooses; client metadata documents fetched bounded and failure-cached | accepted | No private-network probing through `/oauth/authorize`; a private-address document needs an allow entry |
 | [0061](../adr/0061-static-upstream-headers-encrypted-in-the-repository.md) | The server repository encrypts static header values; plaintext only without a key; sealed by the background pass | accepted | No header value at rest in plaintext once a keyed pass has run; consumers unchanged |
 | [0062](../adr/0062-member-notifications-typed-at-the-pool-boundary.md) | A member's notifications are typed once at the pool and routed through a handler registry; handshake subscriptions as explicit requests; a re-opened listen stream refetches | accepted | No member `_meta` relayed, no deprecated SDK subscribe calls, no change lost while a listen stream was down |
+| [0063](../adr/0063-discovery-serialized-per-server-by-a-transaction-lock.md) | Discoveries of one server serialized by a Postgres transaction-level advisory lock taken through the unit of work; an integrity violation answered 409 | accepted | A refresh right after a save, or on two replicas at once, stores each tool once and never answers 500; it may wait one probe |
 
 Smaller, spec-local decisions (dropped features and their reasons) live in the
 [spec decision log](../../openspec/README.md).

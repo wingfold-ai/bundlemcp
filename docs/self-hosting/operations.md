@@ -32,7 +32,8 @@ Two log events deserve alerts:
 The admin UI's **Live logs** page tails every replica's events in one view, as they happen. Each replica copies the
 events at or above `BUNDLEMCP_LIVE_LOG_LEVEL` (`INFO` by default; an event must also pass `BUNDLEMCP_LOG_LEVEL`) into
 one capped Valkey stream, `bmcp:logs`, which keeps about the newest 10,000 entries. The page filters by level, text,
-upstream and endpoint, pauses and resumes from the last entry it showed, and marks which replica wrote each line.
+upstream and endpoint, pauses and resumes from the last entry it showed, and marks which replica wrote each line. A
+paused page changes no more: entries the page was still loading when you paused are dropped, and resuming loads them.
 
 An entry is the same line the process log writes, so it can never hold more: no secret, token, header value or tool
 argument. Copying never slows a request: events go through a bounded queue, and when Valkey is unreachable they reach

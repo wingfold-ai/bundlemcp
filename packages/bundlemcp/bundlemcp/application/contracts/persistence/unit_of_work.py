@@ -1,5 +1,6 @@
 """One transaction over the durable store, and the events that follow it."""
 
+import uuid
 from contextlib import AbstractAsyncContextManager
 from typing import Any, Protocol, runtime_checkable
 
@@ -102,6 +103,16 @@ class UnitOfWork(Protocol):
 
     def invalidate(self, event: InvalidationEvent) -> None:
         """Queue an event to publish once the enclosing commit succeeds."""
+        ...
+
+    async def lock_server(self, server_id: uuid.UUID) -> None:
+        """Hold one server exclusively until this unit of work commits or rolls back.
+
+        Waits while another unit of work, on any replica, holds the same server.
+        Only units of work that also lock the server wait: reads and writes of the
+        server itself are not blocked. Locking a server this unit of work already
+        holds returns at once.
+        """
         ...
 
     async def commit(self) -> None: ...
