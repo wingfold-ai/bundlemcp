@@ -2,7 +2,6 @@
 const api = useApi();
 
 const errorMsg = ref("");
-const values = ref<Record<string, string>>({});
 
 function asString(v: unknown): string {
   if (typeof v === "string") return v;
@@ -22,19 +21,18 @@ const { data: config, error: loadError } = await useQuery<Record<string, unknown
   { default: () => ({}) },
 );
 const keys = computed(() => Object.keys(config.value).sort());
-watch(
-  config,
-  (current) => {
-    values.value = Object.fromEntries(keys.value.map((k) => [k, asString(current[k])]));
-  },
-  { immediate: true },
+// a refetch (after saving another key, say) keeps a value the admin is editing
+const values = useEditableRows(
+  computed(() => keys.value.map((key) => ({ key, value: config.value[key] }))),
+  (entry) => entry.key,
+  (entry) => ({ value: asString(entry.value) }),
 );
 
 async function saveKey(key: string) {
   errorMsg.value = "";
   const { error } = await api.PUT("/api/v1/config/{key}", {
     params: { path: { key } },
-    body: { value: coerce(values.value[key] ?? "") },
+    body: { value: coerce(values.value[key]?.value ?? "") },
   });
   if (error) {
     errorMsg.value = apiErrorMessage(error);
@@ -45,6 +43,8 @@ async function saveKey(key: string) {
 
 async function resetKey(key: string) {
   errorMsg.value = "";
+  // a reset discards the draft too, so the field follows the gateway back to the default
+  values.value[key] = { value: asString(config.value[key]) };
   const { error } = await api.DELETE("/api/v1/config/{key}", {
     params: { path: { key } },
   });
@@ -77,7 +77,12 @@ async function resetKey(key: string) {
           <tr v-for="key in keys" :key="key" :data-testid="`config-row-${key}`">
             <td><code>{{ key }}</code></td>
             <td>
-              <input v-model="values[key]" class="wf-input" :data-testid="`config-${key}`" />
+              <input
+                v-if="values[key]"
+                v-model="values[key]!.value"
+                class="wf-input"
+                :data-testid="`config-${key}`"
+              />
             </td>
             <td class="space-x-2 whitespace-nowrap">
               <UButton

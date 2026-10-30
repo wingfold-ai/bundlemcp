@@ -29,7 +29,8 @@ const loadError = ref<string | null>(null);
 
 let source: EventSource | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
-// bumped by every restart, so a backfill that answers after the filters changed is dropped
+// bumped by every restart and every pause, so a backfill that answers after the filters
+// changed, or after the admin paused, is dropped
 let generation = 0;
 
 type LogQuery = { level?: Level; q?: string; upstream?: string; endpoint?: string };
@@ -155,6 +156,9 @@ function togglePause() {
     else void restart();
   } else {
     paused.value = true;
+    // a load still in flight answers into a paused page otherwise; drop it, as a filter
+    // change does, and resuming then loads afresh
+    generation++;
     closeStream();
     state.value = "paused";
   }

@@ -17,6 +17,7 @@ from bundlemcp.api.http.request_body_limit import (
 )
 from bundlemcp.api.http.request_context_middleware import RequestContextMiddleware
 from bundlemcp.api.http.service_error_handler import service_error_handler
+from bundlemcp.api.http.store_conflict_handler import store_conflict_handler
 from bundlemcp.api.http.store_unavailable_handler import store_unavailable_handler
 from bundlemcp.api.management.controllers import (
     ApiKeyController,
@@ -49,6 +50,7 @@ from bundlemcp.api.oauth.oauth_error_response import (
     authorization_redirect_handler,
     oauth_error_handler,
 )
+from bundlemcp.application.contracts.persistence.store_conflict import StoreConflict
 from bundlemcp.application.contracts.persistence.store_unavailable import StoreUnavailable
 from bundlemcp.application.errors import AuthorizationRedirectError, OAuthError, ServiceError
 from bundlemcp.application.settings.settings import Settings
@@ -90,6 +92,8 @@ def create_app(
     app.add_exception_handler(StoreConnectionError, live_state_unavailable_handler)
     app.add_exception_handler(StoreTimeoutError, live_state_unavailable_handler)
     app.add_exception_handler(StoreUnavailable, store_unavailable_handler)
+    # a write that lost a race with a concurrent one on a uniqueness rule
+    app.add_exception_handler(StoreConflict, store_conflict_handler)
     app.add_exception_handler(BodyTooLarge, body_too_large_handler)
     # bounds request bodies before routing, parsing or admission
     app.add_middleware(RequestBodyLimit)

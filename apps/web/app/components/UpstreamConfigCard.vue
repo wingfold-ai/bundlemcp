@@ -11,39 +11,32 @@ type ServerRead = Schemas["ServerRead"];
 const props = defineProps<{ server: ServerRead }>();
 
 const api = useApi();
-const url = ref("");
-const description = ref("");
-const authMode = ref<Schemas["ServerAuthMode"]>("none");
-const protocolMode = ref<ServerRead["protocol_mode"]>("auto");
-const listingSnapshot = ref<Schemas["ListingSnapshotMode"]>("auto");
-const identityMode = ref<Schemas["IdentityMode"]>("shared");
-const sendIdentityHeader = ref(true);
-const fwdRows = ref<HeaderRow[]>([]);
-const staticHeaderNames = ref<string[]>([]);
-const hdrRows = ref<HeaderRow[]>([]);
-
-watch(
-  () => props.server,
-  (data) => {
-    url.value = data.url;
-    description.value = data.description ?? "";
-    authMode.value = data.auth_mode;
-    identityMode.value = data.identity_mode;
-    sendIdentityHeader.value = data.send_identity_header;
-    protocolMode.value = data.protocol_mode;
-    listingSnapshot.value = data.listing_snapshot;
-    fwdRows.value = headersToRows(data.forward_headers);
-    staticHeaderNames.value = data.static_header_names ?? [];
-    hdrRows.value = [];
-  },
-  { immediate: true },
+// a refetch of the server keeps what the admin is editing; untouched fields follow it
+const url = useEditableField(() => props.server.url);
+const description = useEditableField(() => props.server.description ?? "");
+const authMode = useEditableField<Schemas["ServerAuthMode"]>(() => props.server.auth_mode);
+const protocolMode = useEditableField<ServerRead["protocol_mode"]>(
+  () => props.server.protocol_mode,
 );
+const listingSnapshot = useEditableField<Schemas["ListingSnapshotMode"]>(
+  () => props.server.listing_snapshot,
+);
+const identityMode = useEditableField<Schemas["IdentityMode"]>(() => props.server.identity_mode);
+const sendIdentityHeader = useEditableField(() => props.server.send_identity_header);
+const fwdRows = useEditableField<HeaderRow[]>(() => headersToRows(props.server.forward_headers));
+const staticHeaderNames = computed(() => props.server.static_header_names ?? []);
+// new or replacement secret values, never filled from the gateway; cleared once saved
+const hdrRows = ref<HeaderRow[]>([]);
 
 const forwardsCallerToken = computed(() =>
   fwdRows.value.some((r) => r.key.trim().toLowerCase() === "authorization"),
 );
 
-const { run: save, busy, error } = useAction(
+const {
+  run: saveConfig,
+  busy,
+  error,
+} = useAction(
   () =>
     api.PUT("/api/v1/upstreams/{name}", {
       params: { path: { name: props.server.name } },
@@ -71,6 +64,10 @@ const { run: save, busy, error } = useAction(
     ],
   },
 );
+
+async function save() {
+  if (await saveConfig()) hdrRows.value = [];
+}
 
 /** Apply the change a contradicting connection state calls for. */
 async function fixMismatch() {

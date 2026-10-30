@@ -1,5 +1,7 @@
 """A unit of work over dicts: what use-case tests run on, and the proof the ports are neutral."""
 
+import asyncio
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -89,9 +91,27 @@ class InMemoryUnitOfWork:
         self.published: list[InvalidationEvent] = []
         self._pending: list[InvalidationEvent] = []
         self._atomic_depth = 0
+        self._server_locks: dict[uuid.UUID, asyncio.Lock] = {}
+        # every caller shares this one unit of work, and a nested caller's commit is not the
+        # holder's: a lock belongs to the task that took it and lasts until that task leaves
+        # its outermost unit of work (see the factory)
+        self._held: dict[asyncio.Task | None, dict[uuid.UUID, asyncio.Lock]] = {}
 
     def invalidate(self, event: InvalidationEvent) -> None:
         self._pending.append(event)
+
+    async def lock_server(self, server_id: uuid.UUID) -> None:
+        held = self._held.setdefault(asyncio.current_task(), {})
+        if server_id in held:
+            return
+        lock = self._server_locks.setdefault(server_id, asyncio.Lock())
+        await lock.acquire()
+        held[server_id] = lock
+
+    def release_locks(self) -> None:
+        """Release every server lock the calling task holds."""
+        for lock in self._held.pop(asyncio.current_task(), {}).values():
+            lock.release()
 
     async def commit(self) -> None:
         if self._atomic_depth:
@@ -121,13 +141,25 @@ class InMemoryUnitOfWork:
             await self.commit()
 
 
-
 class InMemoryUnitOfWorkFactory:
-    """Hands out the same unit of work every time, so a test sees what a use case stored."""
+    """Hands out the same unit of work every time, so a test sees what a use case stored.
+
+    A server lock is released when the task that took it leaves its outermost unit of
+    work, as a real unit of work would release it on close; leaving a nested one does not.
+    """
 
     def __init__(self, uow: InMemoryUnitOfWork | None = None) -> None:
         self.uow = uow or InMemoryUnitOfWork()
+        self._depth: dict[asyncio.Task | None, int] = {}
 
     @asynccontextmanager
     async def open(self) -> AsyncIterator[InMemoryUnitOfWork]:
-        yield self.uow
+        task = asyncio.current_task()
+        self._depth[task] = self._depth.get(task, 0) + 1
+        try:
+            yield self.uow
+        finally:
+            self._depth[task] -= 1
+            if not self._depth[task]:
+                del self._depth[task]
+                self.uow.release_locks()

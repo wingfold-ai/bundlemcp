@@ -3,17 +3,19 @@
 import asyncio
 import os
 import traceback
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import Any
 
 from redis.asyncio import Redis
-from sqlalchemy.exc import DBAPIError, InterfaceError, OperationalError
+from sqlalchemy.exc import DBAPIError, IntegrityError, InterfaceError, OperationalError
 from sqlalchemy.exc import TimeoutError as PoolTimeout
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bundlemcp.application.contracts.persistence.invalidation_event import InvalidationEvent
+from bundlemcp.application.contracts.persistence.store_conflict import StoreConflict
 from bundlemcp.application.contracts.persistence.store_unavailable import StoreUnavailable
 from bundlemcp.application.contracts.secret_cipher import SecretCipher
 from bundlemcp.infrastructure.postgres.api_key_repository import SqlAlchemyApiKeyRepository
@@ -52,6 +54,7 @@ from bundlemcp.infrastructure.postgres.oauth_client_repository import (
 from bundlemcp.infrastructure.postgres.oauth_token_repository import (
     SqlAlchemyOAuthTokenRepository,
 )
+from bundlemcp.infrastructure.postgres.server_locks import ServerLocks
 from bundlemcp.infrastructure.postgres.server_repository import SqlAlchemyServerRepository
 from bundlemcp.infrastructure.postgres.tool_repository import SqlAlchemyToolRepository
 from bundlemcp.infrastructure.postgres.upstream_client_repository import (
@@ -75,13 +78,22 @@ class SqlAlchemyUnitOfWork:
     """
 
     def __init__(
-        self, session: AsyncSession, redis: Redis, *, cipher: SecretCipher | None = None
+        self,
+        session: AsyncSession,
+        redis: Redis,
+        *,
+        cipher: SecretCipher | None = None,
+        server_locks: ServerLocks | None = None,
     ) -> None:
         self._session = session
         self._redis = redis
         self._cipher = cipher  # encrypts static header values at rest; None on a keyless gateway
+        self._server_locks = server_locks or ServerLocks()
         self._pending: list[InvalidationEvent] = []
         self._atomic_depth = 0
+        # the servers this transaction holds, and the process-local locks to release with it
+        self._locked: set[uuid.UUID] = set()
+        self._local_locks: list[asyncio.Lock] = []
 
     @property
     def session(self) -> AsyncSession:
@@ -175,17 +187,37 @@ class SqlAlchemyUnitOfWork:
     def invalidate(self, event: InvalidationEvent) -> None:
         self._pending.append(event)
 
+    async def lock_server(self, server_id: uuid.UUID) -> None:
+        if server_id in self._locked:
+            return
+        local = await self._server_locks.acquire(self._session, server_id)
+        self._locked.add(server_id)
+        if local is not None:
+            self._local_locks.append(local)
+
+    def release_locks(self) -> None:
+        """Forget the servers this transaction held; Postgres has already let them go."""
+        self._locked.clear()
+        while self._local_locks:
+            self._local_locks.pop().release()
+
     async def commit(self) -> None:
         await self._flush_repositories()
         if self._atomic_depth:
             await self._session.flush()
             return
-        await self._session.commit()
+        try:
+            await self._session.commit()
+        finally:
+            self.release_locks()
         await self._publish_pending()
 
     async def rollback(self) -> None:
         self._pending.clear()
-        await self._session.rollback()
+        try:
+            await self._session.rollback()
+        finally:
+            self.release_locks()
 
     async def refresh(self, entity: Any) -> None:
         for repository in self._repositories():
@@ -234,17 +266,38 @@ class SqlAlchemyUnitOfWorkFactory:
         self._sessions = sessions
         self._redis = redis
         self._cipher = cipher
+        self._server_locks = ServerLocks()
 
     @asynccontextmanager
     async def open(self) -> AsyncIterator[SqlAlchemyUnitOfWork]:
-        """A unit of work; a database that cannot be reached surfaces as ``StoreUnavailable``."""
+        """A unit of work; a database that cannot be reached surfaces as ``StoreUnavailable``,
+        and a write refused by a uniqueness or integrity rule as ``StoreConflict``."""
+        uow: SqlAlchemyUnitOfWork | None = None
         try:
             async with self._sessions() as session:
-                yield SqlAlchemyUnitOfWork(session, self._redis, cipher=self._cipher)
+                uow = SqlAlchemyUnitOfWork(
+                    session, self._redis, cipher=self._cipher, server_locks=self._server_locks
+                )
+                yield uow
+        except IntegrityError as exc:
+            raise StoreConflict(_constraint_of(exc)) from exc
         except Exception as exc:
             if is_store_outage(exc):
                 raise StoreUnavailable(type(exc).__name__) from exc
             raise
+        finally:
+            # the session is closed, which ended its transaction and every lock it held
+            if uow is not None:
+                uow.release_locks()
+
+
+def _constraint_of(exc: IntegrityError) -> str:
+    """The name of the constraint a write broke, when the driver reports it; never a value."""
+    for error in (exc.orig, getattr(exc.orig, "__cause__", None)):
+        name = getattr(error, "constraint_name", None)
+        if isinstance(name, str) and name:
+            return name
+    return "integrity constraint"
 
 
 # Modules a connection failure is raised from; an OSError from anywhere else inside a

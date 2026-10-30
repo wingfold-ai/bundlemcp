@@ -104,10 +104,12 @@ async function deleted() {
         </span>
       </div>
 
-      <UpstreamConfigCard :server="server" />
+      <!-- keyed, so another server always starts from its own values -->
+      <UpstreamConfigCard :key="server.id" :server="server" />
       <UpstreamToolsCard ref="toolsCard" :server-name="serverName" :tools="tools" />
       <UpstreamOAuthCard
         v-if="server.auth_mode === 'upstream_oauth'"
+        :key="server.id"
         :server-name="serverName"
         :status="upstreamStatus"
         @connected="toolsCard?.refresh()"

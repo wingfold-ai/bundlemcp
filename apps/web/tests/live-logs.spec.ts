@@ -29,7 +29,14 @@ test(testTitle("E2E-36"), async ({ page, steps }) => {
       await page.goto("/logs");
       await expect(page.getByTestId("logs-page")).toBeVisible();
       await page.getByTestId("logs-level").selectOption("info");
+      // the text filter applies after a debounce, so "live" alone may still be the stream
+      // from before it; wait for the filtered load, then for the stream that follows it
+      const filtered = page.waitForResponse(
+        (r) => r.url().includes("/api/v1/logs?") && r.url().includes("q=%2Fbundles"),
+        { timeout: 15_000 },
+      );
       await page.getByTestId("logs-text").fill(BUNDLE_ROUTE);
+      await filtered;
       await expect(page.getByTestId("logs-state")).toHaveText("live", { timeout: 15_000 });
     }),
     when("pausing the stream", { req: "OPS-15" }, async () => {

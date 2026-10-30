@@ -7,17 +7,9 @@ type BundleRead = components["schemas"]["BundleRead"];
 const props = defineProps<{ bundle: BundleRead }>();
 
 const api = useApi();
-const description = ref("");
-const overview = ref("");
-
-watch(
-  () => props.bundle,
-  (b) => {
-    description.value = b.description ?? "";
-    overview.value = b.overview ?? "";
-  },
-  { immediate: true },
-);
+// another card's action reads the bundle again; what the admin is typing stays
+const description = useEditableField(() => props.bundle.description ?? "");
+const overview = useEditableField(() => props.bundle.overview ?? "");
 
 const { run, busy, error } = useCardAction();
 

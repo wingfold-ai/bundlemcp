@@ -1,4 +1,4 @@
-"""Two gateway replicas behind a round-robin proxy (SES-12, SES-19, DEP-7).
+"""Two gateway replicas behind a round-robin proxy (SES-12, SES-19, UPS-39, DEP-7).
 
 Needs the replica overlay on top of the core stack:
 
@@ -10,6 +10,7 @@ import os
 import subprocess
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 import pytest
@@ -190,6 +191,60 @@ def test_ses19_tool_disable_reaches_the_other_replica_within_the_budget():
             assert "error" in result or result["result"].get("isError")
         finally:
             admin.put(url, json={"enabled": True}).raise_for_status()
+
+
+ECHO_UPSTREAM_URL = "http://echo-mcp:9000/mcp"
+
+
+def _tool_names(admin: httpx.Client, name: str) -> list[str]:
+    resp = admin.get(f"{GATEWAY_URL}/api/v1/upstreams/{name}/tools", params={"limit": 500})
+    resp.raise_for_status()
+    return [tool["name"] for tool in resp.json()["items"]]
+
+
+def test_ups39_a_refresh_right_after_a_save_never_fails():
+    """UPS-39: registering an upstream starts a background discovery; a refresh sent at once
+    waits for it instead of colliding, answers 200, and every tool is cached once."""
+    with _service() as admin:
+        for _ in range(8):
+            name = f"race-{uuid.uuid4().hex[:8]}"
+            try:
+                admin.put(
+                    f"{GATEWAY_URL}/api/v1/upstreams/{name}",
+                    json={"name": name, "url": ECHO_UPSTREAM_URL},
+                ).raise_for_status()
+                refreshed = admin.post(f"{GATEWAY_URL}/api/v1/upstreams/{name}:refresh-tools")
+                assert refreshed.status_code == 200, refreshed.text
+                assert refreshed.json()["discovered"] > 0
+                names = _tool_names(admin, name)
+                assert names and len(names) == len(set(names)), names
+            finally:
+                admin.delete(f"{GATEWAY_URL}/api/v1/upstreams/{name}")
+
+
+def test_ups39_refreshes_on_two_replicas_at_once_store_each_tool_once():
+    """UPS-39: the same upstream refreshed through both replicas at the same moment: both
+    answer 200, and its tools are cached once each."""
+    with _service() as admin:
+        for _ in range(4):
+            name = f"race-{uuid.uuid4().hex[:8]}"
+            try:
+                admin.put(
+                    f"{GATEWAY_URL}/api/v1/upstreams/{name}",
+                    json={"name": name, "url": ECHO_UPSTREAM_URL},
+                ).raise_for_status()
+
+                def refresh(base: str, upstream: str = name) -> httpx.Response:
+                    with _service() as client:
+                        return client.post(f"{base}/api/v1/upstreams/{upstream}:refresh-tools")
+
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    answers = list(pool.map(refresh, [GATEWAY_URL, B_URL]))
+                assert [a.status_code for a in answers] == [200, 200], [a.text for a in answers]
+                names = _tool_names(admin, name)
+                assert names and len(names) == len(set(names)), names
+            finally:
+                admin.delete(f"{GATEWAY_URL}/api/v1/upstreams/{name}")
 
 
 def _revision(service: str) -> str:

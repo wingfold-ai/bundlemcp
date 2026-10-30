@@ -44,41 +44,16 @@ const { data: entries, error: entriesError } = useQuery<
   { default: () => [] },
 );
 
-const rows = ref<Record<string, EntryRow>>({});
-// what each row was last filled with from the gateway, to tell an edit in progress apart
-let seeded: Record<string, EntryRow> = {};
-
-function rowOf(e: MemberEntryCurationRead): EntryRow {
-  return {
+// A refetch lands while the admin may be editing another row — after saving one row,
+// say — so a row they changed keeps their edit; the rest take the gateway's values.
+const rows = useEditableRows(
+  entries,
+  (e) => e.entry_id,
+  (e): EntryRow => ({
     enabled: e.enabled,
     override_title: e.override_title ?? "",
     override_description: e.override_description ?? "",
-  };
-}
-
-const sameRow = (a: EntryRow | undefined, b: EntryRow | undefined) =>
-  JSON.stringify(a) === JSON.stringify(b);
-
-// A refetch lands while the admin may be editing another row — after saving one row,
-// say — so a row they changed keeps their edit; the rest take the gateway's values.
-watch(
-  entries,
-  (list) => {
-    const next: typeof rows.value = {};
-    const nextSeeded: typeof seeded = {};
-    for (const e of list) {
-      const fresh = rowOf(e);
-      const current = rows.value[e.entry_id];
-      const edited =
-        current !== undefined && !sameRow(current, seeded[e.entry_id]);
-      next[e.entry_id] = edited && !sameRow(current, fresh) ? current : fresh;
-      // a copy: the form edits its row in place, and the snapshot must not move with it
-      nextSeeded[e.entry_id] = { ...fresh };
-    }
-    rows.value = next;
-    seeded = nextSeeded;
-  },
-  { immediate: true },
+  }),
 );
 
 function isOverridden(e: MemberEntryCurationRead): boolean {
