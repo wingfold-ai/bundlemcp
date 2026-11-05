@@ -234,6 +234,7 @@ jobs:
               [ "$n" -gt 0 ] && { echo "$upstream discovered $n tools"; break; }
               sleep 3
             done
+            [ "$n" -gt 0 ] || { echo "::error::$upstream discovered no tools"; exit 1; }
           done
       - name: Run integration suite
         env:
