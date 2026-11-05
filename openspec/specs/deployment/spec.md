@@ -469,8 +469,8 @@ entries expire within 90 days.
 ### Requirement: DEP-15 Images are pinned by digest
 Every image a Dockerfile builds from or copies from, and every image the compose files run, SHALL be referenced by a
 version tag and its content digest, never by a moving tag alone, so a rebuild uses the bytes CI tested. Automated
-update pull requests keep tags and digests current. The one exception is an image the compose file takes from an
-operator-set variable for a service outside the default stack.
+update pull requests keep tags and digests current. No image is exempt, including one a compose file takes from a
+variable.
 
 #### Scenario: An unpinned image fails the tests
 - **GIVEN** a Dockerfile or compose file that names `node:26-alpine` or `example/image:latest` without a digest
@@ -487,9 +487,9 @@ operator-set variable for a service outside the default stack.
 - **WHEN** the runtime-version check ([ARC-2](../architecture/spec.md)) runs
 - **THEN** it reads Python `3.15` from that reference
 
-#### Scenario: An operator-chosen fleet image may float
-- **WHEN** a compose service outside the default stack takes its image from a variable such as `${SEO_PSI_IMAGE:-…}`
-- **THEN** its default may name a moving tag, and the test does not fail on it
+#### Scenario: An image chosen through a variable is pinned too
+- **WHEN** a compose service takes its image from a variable such as `${OTHER_IMAGE:-example/image:latest}`
+- **THEN** a default without a digest fails the test like any other unpinned image
 
 ## Out of scope
 

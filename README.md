@@ -43,16 +43,15 @@ Then:
    ```
 
    The seed also registers `oauth-demo`, an OAuth-protected example upstream, and two more endpoints on the `demo`
-   bundle (`claude` and `chatgpt`). The maintainers' private fleet is not part of the default seed; it lives in
-   `deploy/seed.fleet.yaml`.
+   bundle (`claude` and `chatgpt`), plus `introspect-demo`, an upstream that introspects the caller's forwarded
+   bearer, at the `passthrough` endpoint.
 3. Create an endpoint with the `oauth_only` profile and connect it in claude.ai; the gateway runs the OAuth
    authorization server and the consent screen itself. claude.ai needs a public HTTPS URL, so this step wants a real
    deployment or a tunnel.
 
 The user guides (deployment, connecting clients, the management API) live in [docs/](docs/README.md); run
 `npm run docs:install && npm run docs:dev` to browse them. The management API is documented at
-<http://localhost:8000/api/v1/docs>. The maintainers' fleet of upstreams (private images) starts with `--profile fleet`;
-see [deploy/TESTING.md](deploy/TESTING.md).
+<http://localhost:8000/api/v1/docs>. [deploy/TESTING.md](deploy/TESTING.md) covers the test suites against the stack.
 
 ## Where things are
 

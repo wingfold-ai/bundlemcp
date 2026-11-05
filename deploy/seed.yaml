@@ -1,7 +1,6 @@
 # Demo bootstrap: a fresh compose install is never empty.
-# Registers the echo-mcp example and an OAuth-protected demo upstream, bundles
-# them, and exposes endpoints. The maintainers' private fleet lives in
-# seed.fleet.yaml (deploy/TESTING.md).
+# Registers the echo-mcp example, an OAuth-protected demo upstream and an
+# upstream that introspects its callers, bundles them, and exposes endpoints.
 upstreams:
   - name: echo
     description: Demo echo MCP server
@@ -23,12 +22,35 @@ upstreams:
     upstream_oauth:
       client_id: bundlemcp
 
+  # An upstream that verifies every caller itself (examples/introspect-demo-mcp):
+  # it introspects the forwarded bearer against this gateway and reports what
+  # reached it. Its own bundle and endpoint keep the demo bundle's tools as they are.
+  - name: introspect-demo
+    description: >
+      Demo upstream that introspects the caller's forwarded bearer at this gateway
+      and reports the identity and headers it received.
+    url: http://introspect-demo:9000/mcp
+    forward_headers:
+      authorization: authorization
+      x-tenant-id: x-tenant
+    # Discovery has no caller bearer; this static header (replaced by the
+    # forwarded one at call time) lets discovery pass the server's
+    # introspection as an API-key caller. The dev service key: replace the
+    # whole seed for a real deployment.
+    static_headers:
+      authorization: Bearer bmcp_sk_devservicekey000000000000000000000000
+
 bundles:
   - name: demo
     description: Demo bundle - the echo server plus an OAuth-protected upstream
     upstreams:
       - echo
       - oauth-demo
+
+  - name: passthrough
+    description: The introspecting demo upstream, for header passthrough
+    upstreams:
+      - introspect-demo
 
 endpoints:
   - name: demo
@@ -52,3 +74,11 @@ endpoints:
     profile: write_as_read
     auth_modes:
       - oauth
+
+  # Signed-in users and API-key callers both reach the introspecting upstream.
+  - name: passthrough
+    bundle_name: passthrough
+    profile: default
+    auth_modes:
+      - oauth
+      - api_key

@@ -47,6 +47,7 @@ updates:
       - /apps/web
       - /examples/conformance-mcp
       - /examples/echo-mcp
+      - /examples/introspect-demo-mcp
       - /examples/oauth-demo-mcp
     schedule:
       interval: weekly

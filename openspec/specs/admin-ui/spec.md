@@ -312,10 +312,9 @@ page.
 - **THEN** the load error is shown at the top of the page
 
 ### Requirement: UI-13 Admin UI verified in CI
-CI SHALL run every browser scenario of the admin UI against the core stack, the stack without the fleet profile, for
-every pull request, and SHALL run unit tests for the UI's pure logic: name validation, the tool-argument form, the
-prompt preview and the invalidation of the query cache. A failing scenario or unit test SHALL fail the run. A scenario
-that needs images CI cannot pull is excluded by a marker in its title, never by omission from the run.
+CI SHALL run every browser scenario of the admin UI against the compose stack for every pull request, and SHALL run
+unit tests for the UI's pure logic: name validation, the tool-argument form, the prompt preview and the invalidation
+of the query cache. A failing scenario or unit test SHALL fail the run. No scenario is left out of the run.
 
 #### Scenario: A broken page fails CI
 - **GIVEN** a change that breaks adding a member on the bundle detail page
@@ -328,7 +327,7 @@ that needs images CI cannot pull is excluded by a marker in its title, never by 
 - **THEN** the frontend job fails on the unit test for upstream names
 
 #### Scenario: A new browser scenario runs without a CI edit
-- **WHEN** a contributor adds a browser scenario that needs only the core stack
+- **WHEN** a contributor adds a browser scenario
 - **THEN** the next CI run executes it without any change to the workflow
 
 ### Requirement: UI-14 Unsaved edits survive a refresh

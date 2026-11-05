@@ -7,11 +7,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[4]
 
 FROM = re.compile(r"^FROM\s+(?:--platform=\S+\s+)?(?P<image>\S+)(?:\s+AS\s+(?P<alias>\S+))?", re.I)
 COPY_FROM = re.compile(r"^COPY\s+(?:--\S+\s+)*?--from=(?P<image>\S+)", re.I)
-SERVICE = re.compile(r"^  (?P<name>[A-Za-z0-9_.-]+):\s*$")
 IMAGE = re.compile(r"^\s+image:\s*(?P<image>\S+)")
-PROFILES = re.compile(r"^\s+profiles:\s*\[(?P<profiles>[^\]]*)\]")
-OPERATOR_CHOSEN = re.compile(r"^\$\{[A-Z0-9_]+:-")
-FLEET_PROFILE = "fleet"
 
 
 def is_pinned(image: str) -> bool:
@@ -39,29 +35,11 @@ def dockerfile_floating(text: str) -> list[tuple[int, str]]:
 
 
 def compose_floating(text: str) -> list[tuple[int, str]]:
-    """``(line, image)`` for every compose service image without a digest.
-
-    The one exception is an image an operator chooses through a variable, for a
-    service of the ``fleet`` profile, which the default stack never starts.
-    """
-    found: list[tuple[int, str, str]] = []
-    profiles: dict[str, set[str]] = {}
-    service = ""
-    for number, line in enumerate(text.splitlines(), start=1):
-        if heading := SERVICE.match(line):
-            service = heading.group("name")
-        elif listed := PROFILES.match(line):
-            profiles[service] = {
-                p.strip().strip("'\"") for p in listed.group("profiles").split(",")
-            }
-        elif named := IMAGE.match(line):
-            image = named.group("image").strip("'\"")
-            if not is_pinned(image):
-                found.append((number, image, service))
+    """``(line, image)`` for every compose service image without a digest."""
     return [
-        (number, image)
-        for number, image, owner in found
-        if not (OPERATOR_CHOSEN.match(image) and FLEET_PROFILE in profiles.get(owner, set()))
+        (number, named.group("image").strip("'\""))
+        for number, line in enumerate(text.splitlines(), start=1)
+        if (named := IMAGE.match(line)) and not is_pinned(named.group("image").strip("'\""))
     ]
 
 
@@ -92,8 +70,8 @@ def test_dep15_every_image_is_pinned_by_digest():
 
 
 def test_dep15_the_check_catches_a_floating_tag():
-    """DEP-15: a tag without a digest is reported in a Dockerfile and in a compose file; a
-    digest, a stage alias and an operator-chosen fleet image are not."""
+    """DEP-15: a tag without a digest is reported in a Dockerfile and in a compose file, an
+    image chosen through a variable included; a digest and a stage alias are not."""
     digest = "@sha256:" + "0" * 64
     dockerfile = (
         "FROM node:26-alpine AS build\n"
@@ -113,13 +91,11 @@ def test_dep15_the_check_catches_a_floating_tag():
         "    image: example/image:latest\n"
         "  db:\n"
         f"    image: postgres:17-alpine{digest}\n"
-        "  seo-psi:\n"
-        "    image: ${SEO_PSI_IMAGE:-ghcr.io/x/y:latest}\n"
-        "    profiles: [fleet]\n"
         "  other:\n"
         "    image: ${OTHER_IMAGE:-ghcr.io/x/z:latest}\n"
+        "    profiles: [tunnel]\n"
     )
     assert compose_floating(compose) == [
         (3, "example/image:latest"),
-        (10, "${OTHER_IMAGE:-ghcr.io/x/z:latest}"),
+        (7, "${OTHER_IMAGE:-ghcr.io/x/z:latest}"),
     ]

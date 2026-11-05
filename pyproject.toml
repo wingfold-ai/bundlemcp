@@ -79,7 +79,6 @@ select = [
 asyncio_mode = "auto"
 testpaths = ["packages/bundlemcp/tests"]
 markers = [
-    "fleet: integration test requiring the private GHCR fleet images (skipped in CI)",
     "replicas: integration test requiring deploy/docker-compose.replicas.yml (two gateways)",
     "benchmark: integration test that reports a measurement instead of asserting it",
 ]
