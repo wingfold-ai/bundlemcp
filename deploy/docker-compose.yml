@@ -54,7 +54,7 @@ services:
   # published on (a tunnel's URL is only known at start); a real realm names
   # <public url>/login/callback exactly (docs/self-hosting/identity-provider).
   keycloak:
-    image: quay.io/keycloak/keycloak:26.4@sha256:9409c59bdfb65dbffa20b11e6f18b8abb9281d480c7ca402f51ed3d5977e6007
+    image: quay.io/keycloak/keycloak:26.8@sha256:3879c623248408de29a5303178b5816c77e8dfef3890c361f8c0bbeaa979ba3b
     restart: unless-stopped
     command: ["start-dev", "--import-realm", "--http-port=8080"]
     environment:
