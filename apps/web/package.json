@@ -38,6 +38,7 @@
     "vue-tsc": "^3.3.13"
   },
   "overrides": {
+    "glob": "^14.0.4",
     "simple-git": "^4.0.2",
     "esbuild": "^0.28.2",
     "openapi-typescript": {
