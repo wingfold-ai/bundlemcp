@@ -290,10 +290,10 @@ A **fixed-window counter** keyed to Redis server time so all replicas share the 
   `BUNDLEMCP_UPSTREAM_POOLING_ENABLED=false` swaps in `PerCallUpstreamSessions`.
 - **Identity forwarding (`protocol/header_forwarding.py`, `HeaderForwarding.headers_for`):** applies the server's
   `forward_headers` client→upstream map, skipping a deny-list (`host`, `content-length`, `cookie`, `x-api-key`,
-  `mcp-session-id`, any `sec-*`/`proxy-*`) — note `authorization` is *not* denied, so it can be forwarded (the seo-gsc
-  introspection pattern, see the OAuth doc). A client-supplied `X-MCP-User` is stripped (only in that exact spelling
-  today — see change `harden-http-edge`); the gateway injects its own `X-MCP-User: {sub}` when `send_identity_header` is
-  set (AUTH-28/AUTH-29).
+  `mcp-session-id`, any `sec-*`/`proxy-*`) — note `authorization` is *not* denied, so it can be forwarded (the
+  forwarded-bearer introspection pattern, see the OAuth doc). A client-supplied `X-MCP-User` is stripped (only in that
+  exact spelling today — see change `harden-http-edge`); the gateway injects its own `X-MCP-User: {sub}` when
+  `send_identity_header` is set (AUTH-28/AUTH-29).
 - **Protocol version (`protocol/protocol_version.py`):** negotiates against `SUPPORTED_PROTOCOL_VERSIONS` (newest
   first); requests older than the oldest supported fail `initialize`. `translate()` is an identity seam for future
   cross-version shimming.

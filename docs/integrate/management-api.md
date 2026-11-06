@@ -201,11 +201,11 @@ for container in discover_mcp_containers():
         "description": container.labels.get("description"),
         "send_identity_header": True,
     })
-put("/api/v1/bundles/fleet", {"name": "fleet", "description": "Every discovered server"})
+put("/api/v1/bundles/all-servers", {"name": "all-servers", "description": "Every discovered server"})
 for container in discover_mcp_containers():
-    put(f"/api/v1/bundles/fleet/upstreams/{container.name}", {"enabled": True})
-put("/api/v1/endpoints/fleet", {
-    "name": "fleet", "bundle_name": "fleet", "profile": "oauth_only", "auth_modes": ["oauth"],
+    put(f"/api/v1/bundles/all-servers/upstreams/{container.name}", {"enabled": True})
+put("/api/v1/endpoints/all-servers", {
+    "name": "all-servers", "bundle_name": "all-servers", "profile": "oauth_only", "auth_modes": ["oauth"],
 })
 ```
 

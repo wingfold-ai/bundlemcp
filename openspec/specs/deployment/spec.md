@@ -487,10 +487,6 @@ operator-set variable for a service outside the default stack.
 - **WHEN** the runtime-version check ([ARC-2](../architecture/spec.md)) runs
 - **THEN** it reads Python `3.15` from that reference
 
-#### Scenario: An operator-chosen fleet image may float
-- **WHEN** a compose service outside the default stack takes its image from a variable such as `${SEO_PSI_IMAGE:-…}`
-- **THEN** its default may name a moving tag, and the test does not fail on it
-
 ## Out of scope
 
 - Kubernetes/Helm (compose-first; the DEP rules are written to transfer).

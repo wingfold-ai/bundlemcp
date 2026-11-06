@@ -199,7 +199,8 @@ jobs:
         with:
           dockerfile: >-
             apps/gateway/Dockerfile apps/web/Dockerfile examples/conformance-mcp/Dockerfile
-            examples/echo-mcp/Dockerfile examples/oauth-demo-mcp/Dockerfile
+            examples/echo-mcp/Dockerfile examples/identity-demo-mcp/Dockerfile
+            examples/oauth-demo-mcp/Dockerfile
           config: .hadolint.yaml
 
   integration:
@@ -214,32 +215,31 @@ jobs:
           python-version: "3.15"
       - run: uv sync --locked --all-packages
       - name: Bring up the core stack
-        # The fleet (seo-psi, seo-gsc, hyperframes) is behind the
-        # `fleet` compose profile because its images are private, so the
-        # default stack is exactly what CI can build; its tests are marked
-        # `fleet` and skipped below — run them locally per deploy/TESTING.md.
-        # No deploy/.env in CI, so BUNDLEMCP_PUBLIC_URL falls back to
+        # Every image of the stack is built here or pulled from a public
+        # registry, so CI runs the same stack a contributor does. No deploy/.env in CI, so BUNDLEMCP_PUBLIC_URL falls back to
         # http://localhost:8000. --wait blocks on the health checks. The replica
         # overlay adds a second gateway and a round-robin proxy for the restart,
         # rolling-update and propagation tests.
         run: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.replicas.yml up -d --build --wait --wait-timeout 300
-      - name: Discover the seeded demo upstream
+      - name: Discover the seeded demo upstreams
         # Bootstrap schedules tool discovery best-effort (async), so a fresh boot
-        # can race echo-mcp's startup. Force + confirm discovery so the demo
-        # tools are present before the suite asserts on them.
+        # can race the example servers' startup. Force + confirm discovery so
+        # their tools are present before the suite asserts on them.
         run: |
           SK=bmcp_sk_devservicekey000000000000000000000000
-          for i in $(seq 1 30); do
-            n=$(curl -s -X POST -H "Authorization: Bearer $SK" \
-              http://localhost:8000/api/v1/upstreams/echo:refresh-tools \
-              | python3 -c "import sys,json;print(json.load(sys.stdin).get('discovered',0))" 2>/dev/null || echo 0)
-            [ "$n" -gt 0 ] && { echo "echo discovered $n tools"; break; }
-            sleep 3
+          for server in echo identity-demo; do
+            for i in $(seq 1 30); do
+              n=$(curl -s -X POST -H "Authorization: Bearer $SK" \
+                "http://localhost:8000/api/v1/upstreams/$server:refresh-tools" \
+                | python3 -c "import sys,json;print(json.load(sys.stdin).get('discovered',0))" 2>/dev/null || echo 0)
+              [ "$n" -gt 0 ] && { echo "$server discovered $n tools"; break; }
+              sleep 3
+            done
           done
-      - name: Run integration suite (core; fleet needs private GHCR images)
+      - name: Run integration suite
         env:
           BUNDLEMCP_INTEGRATION: "1"
-        run: uv run pytest tests/integration -q -m "not fleet"
+        run: uv run pytest tests/integration -q
       - name: Gateway overhead report (OPS-13, a report and not a gate)
         if: always()
         run: |
@@ -268,17 +268,15 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - name: Admin UI browser suite (UI-13)
-        # Every Playwright scenario, against the core stack started above. A
-        # scenario that needs the private fleet images carries @fleet in its
-        # title and is left out here; anything else a contributor adds runs
-        # without a change to this step. The OAuth consent scenarios are among
+        # Every Playwright scenario, against the stack started above; a
+        # scenario a contributor adds runs without a change to this step. The OAuth consent scenarios are among
         # them: HTTP clients ignore CSP, so only a browser proves that Approve
         # and Deny reach a client redirect URI on another origin.
         working-directory: apps/web
         run: |
           npm ci
           npx playwright install --with-deps chromium
-          npx playwright test --grep-invert @fleet
+          npx playwright test
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:

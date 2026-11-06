@@ -161,18 +161,17 @@ hermetic ones, so bare `pytest` runs them.
 | Application | `packages/bundlemcp/tests/application` | `infrastructure/memory` fakes | `… tests/application` |
 | Infrastructure | `packages/bundlemcp/tests/infrastructure` | SQLite and fakeredis | `… tests/infrastructure` |
 | API | `packages/bundlemcp/tests/api` | The ASGI app, no network | `… tests/api` |
-| Integration | `tests/integration` | The compose stack | `BUNDLEMCP_INTEGRATION=1 uv run pytest tests/integration -q -m "not fleet"` |
+| Integration | `tests/integration` | The compose stack | `BUNDLEMCP_INTEGRATION=1 uv run pytest tests/integration -q` |
 
 Note the paths: `uv run pytest tests/domain` collects nothing, because the hermetic tiers live under
 `packages/bundlemcp/`. [deploy/TESTING.md](deploy/TESTING.md) covers the integration suite.
 
 Writing one: copy the nearest existing test in the tier. Application tests build their collaborators from
 `infrastructure/memory`; API tests go through the ASGI app with the fixtures in `packages/bundlemcp/tests/conftest.py`.
-The `fleet` marker means an integration test needs private images and is skipped in CI.
 
 Browser tests are Playwright, in `apps/web/tests/`, with `npm run test:ui`. `apps/web/tests/TESTMAP.md` maps them to
-requirement IDs and is regenerated with `npm run test:map`. CI runs every one of them against the core stack; a scenario
-that needs the private fleet images carries `@fleet` in its title, which CI leaves out. A scenario may cite a
+requirement IDs and is regenerated with `npm run test:map`. CI runs every one of them against the compose stack. A
+scenario may cite a
 requirement that an open change adds: `spec-map.ts` also reads the `## ADDED Requirements` of `openspec/changes/`.
 
 The UI's pure logic (`app/utils/`) and its composables have Vitest unit tests in `apps/web/unit/`, run with `npm test`
@@ -279,7 +278,8 @@ removable.
 
 **Images are pinned by tag and digest.** Every image a Dockerfile builds from (the uv image is a stage of its own,
 named `uv`) and every image in `deploy/docker-compose*.yml` is written `<image>:<tag>@sha256:<digest>`, and a test
-fails on one that is not. The only exception is a `fleet` service whose image an operator chooses through a variable.
+fails on one that is not, a variable's default included. Every service either builds from this repository or pulls a
+public image, so CI runs the same stack a contributor does.
 Dependabot moves the tag and the digest together, and opens a digest-only update when a publisher rebuilds a tag. To
 pin one by hand, take the index digest of the tag: `docker buildx imagetools inspect python:3.15.1-slim-bookworm`
 prints it as `Digest:`.

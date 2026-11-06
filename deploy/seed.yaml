@@ -1,7 +1,7 @@
 # Demo bootstrap: a fresh compose install is never empty.
 # Registers the echo-mcp example and an OAuth-protected demo upstream, bundles
-# them, and exposes endpoints. The maintainers' private fleet lives in
-# seed.fleet.yaml (deploy/TESTING.md).
+# them, and exposes endpoints; the identity demo has a bundle and endpoint of
+# its own.
 upstreams:
   - name: echo
     description: Demo echo MCP server
@@ -23,12 +23,33 @@ upstreams:
     upstream_oauth:
       client_id: bundlemcp
 
+  # An upstream that reports what it learns about its caller
+  # (examples/identity-demo-mcp). The caller's authorization is forwarded and
+  # introspected there; the static header is the demo's own discovery token,
+  # which lets discovery list its tools and which the forwarded header replaces
+  # at call time. Both maps use the lowercase name, so the forwarded value wins.
+  - name: identity-demo
+    description: >
+      Reports the identity the gateway forwards: the introspected caller, the
+      X-MCP-User header and a mapped tenant header.
+    url: http://identity-demo:9000/mcp
+    forward_headers:
+      authorization: authorization
+      x-tenant-id: x-tenant
+    static_headers:
+      authorization: Bearer identity-demo-discovery
+
 bundles:
   - name: demo
     description: Demo bundle - the echo server plus an OAuth-protected upstream
     upstreams:
       - echo
       - oauth-demo
+
+  - name: identity
+    description: The identity demo, apart from the demo bundle
+    upstreams:
+      - identity-demo
 
 endpoints:
   - name: demo
@@ -52,3 +73,11 @@ endpoints:
     profile: write_as_read
     auth_modes:
       - oauth
+
+  # What an upstream learns about its caller, for OAuth users and API keys alike.
+  - name: identity
+    bundle_name: identity
+    profile: default
+    auth_modes:
+      - oauth
+      - api_key

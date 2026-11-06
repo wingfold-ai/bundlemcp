@@ -5,24 +5,19 @@
 - Docker Engine + compose plugin.
 - No `/etc/hosts` entry: the compose file pins `KC_HOSTNAME` so Keycloak advertises `http://localhost:8080` to the
   browser while the gateway keeps reaching it at `http://keycloak:8080` over the compose network.
-- `deploy/.env` copied from `deploy/.env.example`. For the seo-gsc flow fill in `GSC_GOOGLE_CLIENT_ID/SECRET` (Google
-  Cloud OAuth "Web application" client with the Search Console scope and redirect URI
-  `http://localhost:8001/google/callback`), `GSC_TOKEN_ENCRYPTION_KEY` (Fernet key) and `GSC_SIGNING_KEY`
-  (`openssl rand -hex 32`). DataForSEO credentials are optional — without them the server boots but calls 401.
+- Optionally `deploy/.env` copied from `deploy/.env.example`; without it the stack uses its built-in development
+  values.
 
 ## Bring the stack up
 
 ```bash
-# core stack (gateway, web, Postgres, Valkey, Keycloak, echo-mcp, oauth-demo)
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
-# ... plus the fleet (private GHCR images), with BUNDLEMCP_SEED_FILE=seed.fleet.yaml in deploy/.env
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile fleet up -d --build --wait
+# gateway, web, Postgres, Valkey, Keycloak, echo-mcp, identity-demo, oauth-demo
+docker compose -f deploy/docker-compose.yml up -d --build --wait
 ```
 
-Services: gateway :8000, web UI :3000, Keycloak :8080 (admin/admin), seo-gsc :8001, SeaweedFS :8333. `seed.yaml`
-registers echo and oauth-demo and exposes endpoints `demo` (api_key), `claude` and `chatgpt` (oauth).
-`seed.fleet.yaml` is the same document plus the fleet, with endpoints `seo` and `media` (oauth + api_key); the fleet
-integration tests need it.
+Services: gateway :8000, web UI :3000, Keycloak :8080 (admin/admin), oauth-demo :9000. `seed.yaml` registers echo,
+oauth-demo and identity-demo, and exposes the endpoints `demo` (api_key), `claude` and `chatgpt` (oauth), and
+`identity` (oauth + api_key).
 
 ## Reach the stack from claude.ai, ChatGPT or Claude Desktop
 
@@ -52,20 +47,15 @@ cd apps/web && npx playwright test
 cd apps/web && npm test
 ```
 
-CI runs the browser suite against the core stack with `npx playwright test --grep-invert @fleet`: every scenario except
-those tagged `@fleet` in their title, which need the private fleet images. Run those locally with the fleet profile up.
+CI runs the same commands against the same stack: every integration test and every browser scenario, with nothing left
+out.
 
-## Connecting Google Search Console (one-time, interactive)
+## Identity forwarding
 
-seo-gsc runs its own per-user Google OAuth; the gateway forwards your bearer (AUTH-27) and seo-gsc introspects it back
-at the gateway (AUTH-30, AUTH-5). To link a Google account:
+`tests/integration/test_identity_forwarding.py` checks what an upstream learns about its caller, against `identity-demo`
+(`examples/identity-demo-mcp`). That server refuses requests without a credential, introspects the bearer the gateway
+forwards against the gateway's `/oauth/introspect`, and its `whoami` tool reports the introspected caller, the
+`X-MCP-User` header and the mapped `x-tenant` header. The tests cover discovery through the static header, an OAuth
+user and an API key as callers, a spoofed `X-MCP-User`, header mapping, and callers never seeing each other's identity.
+The OAuth tests sign in as `admin` / `admin` through the dev Keycloak realm.
 
-1. Call any `seo-gsc__*` tool through `http://localhost:8000/seo/mcp` with an OAuth bearer (e.g. via the
-   `test_gsc_tool_call_reaches_gsc_via_forwarded_bearer` integration test, or claude.ai connected to the `seo`
-   endpoint). The reply contains seo-gsc's connect instructions with a ticket URL on `http://localhost:8001/connect`.
-2. Open that URL in a browser and complete the Google consent.
-3. Re-run the tool call — it now returns Search Console data for the connected account. Tokens are stored encrypted
-   inside seo-gsc, keyed by the introspected `sub`.
-
-Note: api_key callers introspect as `api_key:<key-id>` (AUTH-5), so a Google account can also be linked to an API key
-identity the same way.

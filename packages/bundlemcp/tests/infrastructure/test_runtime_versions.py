@@ -10,6 +10,7 @@ PYTHON_IMAGES = [
     "apps/gateway/Dockerfile",
     "examples/conformance-mcp/Dockerfile",
     "examples/echo-mcp/Dockerfile",
+    "examples/identity-demo-mcp/Dockerfile",
     "examples/oauth-demo-mcp/Dockerfile",
 ]
 IMAGE_VERSION = re.compile(r"\b(?:python:|uv:python)(\d+\.\d+)")

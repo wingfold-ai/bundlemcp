@@ -25,7 +25,7 @@ cp deploy/.env.example deploy/.env
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait --wait-timeout 300
 ```
 
-The stack starts seven containers:
+The stack starts eight containers:
 
 | Service | Port | Purpose |
 |---|---|---|
@@ -35,6 +35,7 @@ The stack starts seven containers:
 | `valkey` | internal | Live sessions, rate limits, cross-replica signalling |
 | `keycloak` | 8080 | Development identity provider (`admin` / `admin`) |
 | `echo-mcp` | internal | A tiny example MCP server with three tools |
+| `identity-demo` | internal | An example MCP server that reports who the gateway says is calling |
 | `oauth-demo` | 9000 | An example MCP server that requires its own OAuth sign-in (`demo_user` / `demo_password`) |
 
 `--wait` returns once the gateway reports ready. A timeout on the first run usually means the images are still being
@@ -43,7 +44,9 @@ built, not that anything failed.
 ::: tip Not empty on first boot
 The stack loads `deploy/seed.yaml` as a [bootstrap file](/self-hosting/bootstrap). It registers the two example
 upstream servers, puts them in a `demo` bundle, and publishes that bundle as three endpoints: `demo` for API keys,
-and `claude` and `chatgpt` for those clients, with the `oauth_only` and `write_as_read` profiles.
+and `claude` and `chatgpt` for those clients, with the `oauth_only` and `write_as_read` profiles. A separate `identity`
+endpoint serves the identity demo, which shows what an upstream server learns about you
+([Upstream identity](/integrate/upstream-identity#see-it-in-the-reference-stack)).
 :::
 
 ## 2. Sign in to the admin UI
