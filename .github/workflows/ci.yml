@@ -111,6 +111,8 @@ jobs:
         run: bash tests/deploy/test_stack_secrets.sh
       - name: The changelog's entries are well-formed (DEP-11)
         run: python3 tools/release_notes.py --check
+      - name: The sitemap lists every built page and robots.txt names it (DOC-13)
+        run: python3 tools/check_docs_sitemap.py
       - name: Site stays within the hosting quota (DOC-6, 9 MiB of a 10 MB plan)
         run: |
           size=$(du -sb docs/.vitepress/dist | cut -f1)

@@ -11,6 +11,9 @@ const analytics: HeadConfig[] =
     ? [["script", { defer: "", "data-domain": plausibleDomain, src: plausibleScript }]]
     : [];
 
+// The site's public address: the sitemap lists every page under it.
+const siteUrl = "https://bundlemcp.com";
+
 // The user-facing documentation site (the documentation spec). Architecture material in
 // docs/arc42, docs/adr and docs/likec4 stays out of the site: it is written
 // for contributors, links into openspec/, and is read on GitHub.
@@ -29,6 +32,7 @@ export default defineConfig({
   // /requirements.json, fetched by the Requirements page (docs/reference/requirements.md)
   vite: { plugins: [requirementsLedgerPlugin()] },
   lastUpdated: true,
+  sitemap: { hostname: siteUrl },
   head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo-mark.svg" }], ...analytics],
   themeConfig: {
     logo: { light: "/lockup-light.svg", dark: "/lockup-dark.svg", alt: "bundlemcp" },
