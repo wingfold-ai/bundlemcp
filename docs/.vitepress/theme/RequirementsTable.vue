@@ -5,10 +5,13 @@
  * openspec/ by ../requirements-ledger.ts with the Markdown already rendered.
  */
 import { computed, nextTick, onMounted, ref, watch } from "vue";
-import { withBase } from "vitepress";
+import { useData, withBase } from "vitepress";
 import type { Ledger, LedgerRequirement, Slice } from "../requirements-ledger";
 
 type Status = "all" | "active" | "proposed" | "retired";
+
+// links into the repository only once it is public
+const { theme } = useData();
 
 const slice = ref("all");
 const status = ref<Status>("all");
@@ -164,7 +167,9 @@ function changeUrl(change: string): string {
     <p class="req-boundary"><em>Not here:</em> {{ selected.boundary }}</p>
     <p class="req-meta">
       {{ counts(selected.code).active }} active, {{ counts(selected.code).proposed }} proposed ·
-      <a :href="specUrl(selected)" target="_blank" rel="noopener">specification</a> ·
+      <template v-if="theme.repositoryPublic">
+        <a :href="specUrl(selected)" target="_blank" rel="noopener">specification</a> ·
+      </template>
       <a href="#" @click.prevent="slice = 'all'">all slices</a>
     </p>
   </div>
@@ -193,14 +198,21 @@ function changeUrl(change: string): string {
         Specified {{ r.specified ?? "—" }} · active since {{ since(r) }}
         <template v-if="r.last_changed"> · last changed {{ r.last_changed }}</template>
         <template v-if="r.former_ids.length"> · was {{ r.former_ids.join(", ") }}</template>
-        <template v-if="r.url">
+        <template v-if="r.url && theme.repositoryPublic">
           · <a :href="r.url" target="_blank" rel="noopener">source</a></template
         >
       </p>
       <p v-if="r.open_changes.length" class="req-meta req-changes">
         <span v-for="c in r.open_changes" :key="c.change + c.op">
           {{ c.op === "ADDED" ? "proposed in" : `${c.op.toLowerCase()} by` }}
-          <a :href="changeUrl(c.change)" target="_blank" rel="noopener">{{ c.change }}</a>
+          <a
+            v-if="theme.repositoryPublic"
+            :href="changeUrl(c.change)"
+            target="_blank"
+            rel="noopener"
+            >{{ c.change }}</a
+          >
+          <code v-else>{{ c.change }}</code>
         </span>
       </p>
       <!-- eslint-disable-next-line vue/no-v-html -- rendered at build time from the repository's own specs -->

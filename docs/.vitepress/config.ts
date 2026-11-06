@@ -1,5 +1,11 @@
-import { defineConfig, type HeadConfig } from "vitepress";
+import { defineConfigWithTheme, type DefaultTheme, type HeadConfig } from "vitepress";
 import { requirementsLedgerPlugin } from "./requirements-ledger";
+import {
+  pointsIntoRepository,
+  repositoryPublic,
+  repositoryUrl,
+  unlinkRepository,
+} from "./repository-links";
 
 // Cookieless Plausible analytics on the published site only: the publish
 // workflow sets both variables from repository variables, so local builds, CI
@@ -17,7 +23,7 @@ const siteUrl = "https://bundlemcp.com";
 // The user-facing documentation site (the documentation spec). Architecture material in
 // docs/arc42, docs/adr and docs/likec4 stays out of the site: it is written
 // for contributors, links into openspec/, and is read on GitHub.
-export default defineConfig({
+export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: boolean }>({
   title: "bundlemcp",
   description:
     "Self-hostable MCP bundling gateway: register MCP servers, compose bundles, expose per-client endpoints.",
@@ -25,7 +31,13 @@ export default defineConfig({
   srcExclude: ["arc42/**", "adr/**", "likec4/**", "**/README.md"],
   cleanUrls: true,
   // syntax palette with green-teal tones that sit next to the brand accent
-  markdown: { theme: { light: "vitesse-light", dark: "vitesse-dark" } },
+  markdown: {
+    theme: { light: "vitesse-light", dark: "vitesse-dark" },
+    // until the repository is public, a link into it would only reach GitHub's 404
+    config: (md) => {
+      if (!repositoryPublic) unlinkRepository(md);
+    },
+  },
   // <likec4-view> is the web component generated from docs/likec4 at build time
   vue: { template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("likec4-") } } },
   ignoreDeadLinks: "localhostLinks",
@@ -33,6 +45,13 @@ export default defineConfig({
   vite: { plugins: [requirementsLedgerPlugin()] },
   lastUpdated: true,
   sitemap: { hostname: siteUrl },
+  // the home page's GitHub button, likewise
+  transformPageData(pageData) {
+    const actions = pageData.frontmatter.hero?.actions as { link?: string }[] | undefined;
+    if (!repositoryPublic && actions) {
+      pageData.frontmatter.hero.actions = actions.filter((a) => !pointsIntoRepository(a.link));
+    }
+  },
   head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo-mark.svg" }], ...analytics],
   themeConfig: {
     logo: { light: "/lockup-light.svg", dark: "/lockup-dark.svg", alt: "bundlemcp" },
@@ -107,15 +126,17 @@ export default defineConfig({
         items: [{ text: "Requirements", link: "/reference/requirements" }],
       },
     ],
-    socialLinks: [{ icon: "github", link: "https://github.com/wingfold-ai/bundlemcp" }],
-    editLink: {
-      pattern: "https://github.com/wingfold-ai/bundlemcp/edit/main/docs/:path",
-      text: "Edit this page on GitHub",
-    },
+    repositoryPublic,
+    socialLinks: repositoryPublic ? [{ icon: "github", link: repositoryUrl }] : [],
+    editLink: repositoryPublic
+      ? { pattern: `${repositoryUrl}/edit/main/docs/:path`, text: "Edit this page on GitHub" }
+      : undefined,
     search: { provider: "local" },
     outline: { level: [2, 3] },
     footer: {
-      message: "Specs, architecture records and diagrams live in the repository.",
+      message: repositoryPublic
+        ? "Specs, architecture records and diagrams live in the repository."
+        : undefined,
       copyright: "bundlemcp",
     },
   },

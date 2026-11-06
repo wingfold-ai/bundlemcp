@@ -7,6 +7,8 @@ telling the gateway its public identity. This page walks through the topology;
 
 ## Get the images
 
+<RepositoryNotice />
+
 Every push to `main` publishes both images to the GitHub Container Registry, tagged `:latest` and with the full commit
 SHA. Every release publishes them under its version as well:
 

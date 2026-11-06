@@ -43,11 +43,17 @@ One-time setup:
    | Variable | `INFOMANIAK_FTP_SERVER_DIR` | served folder ending in `/` (default `./`) |
    | Variable | `INFOMANIAK_FTP_PROTOCOL` | `ftps` (default), or `ftp` if refused |
    | Variable | `DOCS_PLAUSIBLE_SCRIPT_URL` | optional: Plausible script URL; unset, no analytics are loaded |
+   | Variable | `DOCS_REPOSITORY_PUBLIC` | `true` once the source repository is public; otherwise no repository links |
    | Secret | `DOCS_AUTH_USER` | optional: username that the published site asks for |
    | Secret | `DOCS_AUTH_PASSWORD` | optional: its password |
 
    With both auth secrets set, the next publish puts the site behind a password prompt
    (`.vitepress/basic-auth.htaccess`); delete them and publish again to make it public.
+
+   Until `DOCS_REPOSITORY_PUBLIC` is `true`, the build leaves out every link into the repository: the GitHub icon,
+   "Edit this page", the home page's GitHub button, and links in pages and in requirement texts, which keep their
+   text. The quickstart, the home page and the deployment page show a `<RepositoryNotice />` instead.
+   `tools/check_docs_repository_links.py` checks both builds in CI. Set the variable and publish again to show them.
 
    The build also writes `sitemap.xml`, listing every page under `https://bundlemcp.com`, and `public/robots.txt`
    points crawlers to it; `tools/check_docs_sitemap.py` checks both in CI. Each page's date, on the page and in the
