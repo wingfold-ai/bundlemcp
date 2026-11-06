@@ -57,11 +57,18 @@ such surface, the section is left out.
 ### Requirement: DOC-3 Demo seed
 The dev compose stack MUST ship a demo bootstrap file ([management](../management/spec.md)), `deploy/seed.yaml`,
 registering at least a small example MCP server container (`examples/echo-mcp`), one bundle, and one
-`default`-profile endpoint — a fresh install is never empty and the quickstart has something to click.
+`default`-profile endpoint — a fresh install is never empty and the quickstart has something to click. It also
+registers the identity demo (`examples/identity-demo-mcp`), which reports what it learns about its caller, in a bundle
+and endpoint of its own, so the demo bundle's tools stay those of the quickstart.
 
 #### Scenario: Fresh install is not empty
 - **WHEN** the compose stack starts against an empty database
 - **THEN** the `echo` server, the `demo` bundle and the `default`-profile `demo` endpoint exist without any manual step
+
+#### Scenario: The identity demo has its own endpoint
+- **WHEN** the compose stack starts against an empty database
+- **THEN** the `identity-demo` server, the `identity` bundle and the `identity` endpoint exist, and the `demo` bundle
+  does not contain `identity-demo`
 
 ### Requirement: DOC-4 Diagrams from LikeC4
 Docs MUST use the LikeC4-rendered views from `docs/likec4/` ([DOC-9](../documentation/spec.md)) instead
@@ -181,6 +188,55 @@ model with the three views.
 #### Scenario: Founding ADRs present
 - **WHEN** a contributor lists `docs/adr/`
 - **THEN** `0001-rewrite-not-fork.md` through `0010-single-workspace.md` are present
+
+### Requirement: DOC-13 Search-engine discovery
+The published documentation site MUST serve `/sitemap.xml` and `/robots.txt`. The sitemap lists the canonical URL
+of every page the site publishes, as `https://bundlemcp.com` followed by the page's clean path, and no URL for the
+not-found page or for material the site excludes. `robots.txt` allows every crawler and names
+`https://bundlemcp.com/sitemap.xml`. Each page's last-modified date, on the page and in the sitemap, is the date of
+the last commit that changed that page, not the date of the build. While the site asks for a password
+([DOC-6](spec.md)), both files ask for it too.
+
+#### Scenario: Every page is in the sitemap
+- **WHEN** the site is built
+- **THEN** the sitemap holds exactly one `https://bundlemcp.com` URL per built page, without an `.html` suffix, and
+  none for the not-found page
+
+#### Scenario: A page missing from the sitemap fails CI
+- **WHEN** a built page has no entry in the built sitemap, or the sitemap lists a URL with no built page
+- **THEN** the CI `docs` job fails and names the page
+
+#### Scenario: Crawlers find the sitemap
+- **WHEN** a crawler fetches `/robots.txt` from the public site
+- **THEN** it is allowed to crawl every path and finds `Sitemap: https://bundlemcp.com/sitemap.xml`
+
+#### Scenario: Dates come from page history
+- **WHEN** the publish workflow builds the site
+- **THEN** a page untouched since an earlier commit carries that commit's date, not the date of the push being
+  published
+
+### Requirement: DOC-14 Repository links follow its visibility
+The documentation site MUST link into the source repository only when it is built with the repository declared
+public (`DOCS_REPOSITORY_PUBLIC=true`, a repository variable the publish workflow passes to the build). Built
+otherwise, the site carries no link into the repository: no GitHub icon, no "Edit this page" link, no home-page
+button and no repository line in the footer; a link into the repository in a page or in a requirement's text keeps
+its text and loses the link. The home page, the quickstart and the deployment page then say that the source code and
+container images are not public yet. CI builds the site with the same setting as the publish workflow and checks the
+output against it.
+
+#### Scenario: A private build has no repository links
+- **WHEN** the site is built without `DOCS_REPOSITORY_PUBLIC=true`
+- **THEN** no built page and no requirement text links to the repository, and the home page, the quickstart and the
+  deployment page show the not-public notice
+
+#### Scenario: A public build links to the repository
+- **WHEN** the site is built with `DOCS_REPOSITORY_PUBLIC=true`
+- **THEN** the GitHub icon, the edit links and the links in pages are present, and no page shows the not-public
+  notice
+
+#### Scenario: A repository link in a private build fails CI
+- **WHEN** a built page or requirement text links to the repository while the setting is not `true`
+- **THEN** the CI `docs` job fails and names the file
 
 ## Out of scope
 
