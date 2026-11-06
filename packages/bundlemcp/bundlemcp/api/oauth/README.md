@@ -113,7 +113,7 @@ per-IP auth-failure limiter.
   - A forwarded **gateway API key** presented as the token introspects as
     `{"active": true, "sub": "api_key:<id>", "token_use": "api_key"}` (AUTH-30), so an introspecting upstream can serve
     API-key callers.
-  - This is what makes the seo-gsc pattern work — see [§4](#4-gateway--protected-upstream-system-d).
+  - This is what makes the forwarded-bearer pattern work — see [§4](#4-gateway--protected-upstream-system-d).
 - **`POST /oauth/revoke` (RFC 7009)** authenticates the client like the token endpoint (RFC 7009 §2.1; a public client
   by `client_id` alone) and flips `revoked` on a matching access or refresh token issued to that client; always 200 for
   an unknown or foreign token, 401 (counted toward the EP-20 lockout) for a client that cannot authenticate.
@@ -221,9 +221,10 @@ Simplest case; no per-user identity.
   forwarded header. A single reactive retry on upstream 401 force-refreshes and replays without re-metering
   (UPS-28/PROT-26).
 
-### (iii) Forwarded caller bearer + upstream introspection (the seo-gsc pattern)
+### (iii) Forwarded caller bearer + upstream introspection
 
-Some upstreams (like `seo-gsc`) run their *own* OAuth and just want to know who the caller is. Here the server is
+Some upstreams run their *own* OAuth and just want to know who the caller is; the stack's `identity-demo`
+(`examples/identity-demo-mcp`) is a minimal one. Here the server is
 `none`/`static_headers` with `forward_headers: {authorization: authorization}`. `_forward_headers` passes the caller's
 bearer through (`authorization` is not on the deny-list), and the upstream calls **our** `POST /oauth/introspect` (with
 a service key) to resolve it — getting back the OAuth `sub`, or `api_key:<id>` for API-key callers (AUTH-27/ AUTH-30).

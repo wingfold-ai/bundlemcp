@@ -47,11 +47,20 @@ def initialize(base_url: str, endpoint: str, *, api_key=None, bearer=None) -> st
 
 
 def mcp_call(
-    base_url, endpoint, session, method, params=None, *, api_key=None, bearer=None
+    base_url,
+    endpoint,
+    session,
+    method,
+    params=None,
+    *,
+    api_key=None,
+    bearer=None,
+    extra_headers: dict[str, str] | None = None,
 ) -> dict:
+    """One JSON-RPC request on a session; ``extra_headers`` are sent beside the credential."""
     resp = httpx.post(
         f"{base_url}/{endpoint}/mcp",
-        headers=_headers(session, api_key, bearer),
+        headers={**_headers(session, api_key, bearer), **(extra_headers or {})},
         json={"jsonrpc": "2.0", "id": 2, "method": method, "params": params or {}},
         timeout=30,
     )

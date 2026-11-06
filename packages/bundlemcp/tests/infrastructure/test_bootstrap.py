@@ -140,19 +140,25 @@ async def test_seed_file_parses():
     assert doc.endpoints[0].bundle_name == "demo"
 
 
-async def test_fleet_seed_extends_the_demo_seed_unchanged():
-    """The maintainers' seed is the demo seed plus the private fleet, so a stack
-    started with either file serves the same demo bundle and endpoints."""
+async def test_demo_seed_keeps_the_identity_demo_apart():
+    """DOC-3: the demo seed registers the identity demo in a bundle and endpoint of its own,
+    so the demo bundle keeps the quickstart's servers; the forwarded authorization replaces
+    the static discovery header because both use the same name."""
     import pathlib
 
     import yaml
 
     deploy = pathlib.Path(__file__).resolve().parents[4] / "deploy"
-    demo = BootstrapDocument(**yaml.safe_load((deploy / "seed.yaml").read_text()))
-    fleet = BootstrapDocument(**yaml.safe_load((deploy / "seed.fleet.yaml").read_text()))
-    for section in ("upstreams", "bundles", "endpoints"):
-        demo_entries = getattr(demo, section)
-        assert getattr(fleet, section)[: len(demo_entries)] == demo_entries, section
+    doc = BootstrapDocument(**yaml.safe_load((deploy / "seed.yaml").read_text()))
+    bundles = {bundle.name: bundle.upstreams for bundle in doc.bundles}
+    assert bundles["demo"] == ["echo", "oauth-demo"]
+    assert [name for name, members in bundles.items() if "identity-demo" in members] == ["identity"]
+    assert {endpoint.name: endpoint.bundle_name for endpoint in doc.endpoints}["identity"] == (
+        "identity"
+    )
+    [demo] = [server for server in doc.upstreams if server.name == "identity-demo"]
+    assert demo.forward_headers["authorization"] == "authorization"
+    assert "authorization" in demo.static_headers
 
 
 async def test_inline_json_document_is_applied_after_the_file(engine, redis, tmp_path):

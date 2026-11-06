@@ -166,5 +166,6 @@ starts with no service key present, and ignores the variable from then on.
 `deploy/seed.yaml` is the document the reference stack applies. It registers the `echo` example server and `oauth-demo`,
 an upstream that is itself OAuth-protected (`examples/oauth-demo-mcp`, login `demo_user` / `demo_password`), bundles
 both as `demo`, and exposes the bundle at three endpoints: `demo` with API-key access, and `claude` and `chatgpt` with
-OAuth for those clients, using the `oauth_only` and `write_as_read` profiles. It also registers the maintainers' fleet
-of upstream servers behind the `fleet` compose profile. Copy it as a starting point and remove the fleet entries.
+OAuth for those clients, using the `oauth_only` and `write_as_read` profiles. It also registers `identity-demo`
+(`examples/identity-demo-mcp`), an upstream that reports what it learns about its caller, in a bundle and endpoint of
+its own, both named `identity`. Copy the file as a starting point and keep only the entries you need.

@@ -28,8 +28,7 @@ This is a plain header, not a signed assertion. It is safe exactly when the serv
 gateway, which is the case on a compose or cluster network. Do not trust it on a server that is also reachable from the
 internet.
 
-A server that keys its state by `X-MCP-User` needs no OAuth handling at all. The `hyperframes` server in the reference
-stack works this way.
+A server that keys its state by `X-MCP-User` needs no OAuth handling at all: read the header and use it as the key.
 
 ## Delegated token plus introspection: verifiable, and bound to you
 
@@ -85,8 +84,8 @@ serves API-key callers without a second code path.
 
 `sub` is stable per user for the deployment's lifetime; use it as your per-user key. A user's token also introspects
 with `oidc_iss` and `oidc_sub`, the identity provider's issuer and subject, which outlive the gateway's database; key on
-those when your data must survive a gateway rebuild. The `seo-gsc` server in the
-reference stack works this way and stores per-user Google tokens keyed by `sub`.
+those when your data must survive a gateway rebuild. The `identity-demo` server in the reference stack works this way
+([below](#see-it-in-the-reference-stack)).
 
 ## Tool discovery of an introspecting server
 
@@ -102,7 +101,30 @@ works the same with `auth_mode: delegated_token`):
 ```
 
 The static header is sent when nothing is forwarded, and the forwarded header overrides it at call time. The server sees
-a service key during discovery, which introspects as active.
+a service key during discovery, which introspects as active. A server can also accept a discovery credential of its own
+instead, as the identity demo below does, so the gateway's service key stays out of the server's registration.
+
+## See it in the reference stack
+
+The compose stack runs `identity-demo` (`examples/identity-demo-mcp`), registered with `forward_headers`
+`authorization → authorization` and `x-tenant-id → x-tenant`, and a static discovery header. It introspects every
+bearer it receives, as described above. Its one tool, `whoami`, reports what it learned. Call it through the `identity`
+endpoint with an API key and an `X-Tenant-Id: tenant-42` header, and it answers:
+
+```json
+{
+  "caller": "api_key:…",
+  "client_id": "…",
+  "has_oidc_subject": false,
+  "x_mcp_user": "api_key:…",
+  "tenant": "tenant-42",
+  "header_names": ["accept", "authorization", "…", "x-mcp-user", "x-tenant"]
+}
+```
+
+`caller` is the introspected `sub`, and equals `X-MCP-User`. A signed-in user calling through OAuth gets their user id
+in both, with `has_oidc_subject` true. It never returns the bearer itself. The integration suite asserts these fields
+on every pull request (`tests/integration/test_identity_forwarding.py`).
 
 ## Session binding
 
