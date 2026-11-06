@@ -31,7 +31,7 @@ CHANGELOG = "CHANGELOG.md"
 HOOK_SOURCE = "packages/bundlemcp/bundlemcp/application/metering/metering_hook.py"
 PACKAGE_PYPROJECT = "packages/bundlemcp/pyproject.toml"
 MAX_TITLE = 72
-VERSIONING = "https://bundlemcp.com/integrate/metering-hook#versioning"
+VERSIONING = "https://bundlemcp.dev/integrate/metering-hook#versioning"
 
 TITLE = re.compile(
     r"^(?P<type>feat|fix|perf|refactor|docs|test|build|ci|chore|revert)"

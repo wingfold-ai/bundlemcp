@@ -26,7 +26,7 @@ DATED_HEADING = re.compile(r"^## \[(\d+)\.(\d+)\.(\d+)\] - \d{4}-\d{2}-\d{2}$")
 SECTION = re.compile(r"^## ", re.MULTILINE)
 NAMES_PROTOCOL = re.compile(r"metering-hook protocol", re.IGNORECASE)
 SOURCE_VERSION = re.compile(r"^METERING_PROTOCOL_VERSION = (\d+)", re.MULTILINE)
-VERSIONING = "https://bundlemcp.com/integrate/metering-hook#versioning"
+VERSIONING = "https://bundlemcp.dev/integrate/metering-hook#versioning"
 
 
 class ReleaseError(Exception):

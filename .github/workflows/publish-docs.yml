@@ -43,7 +43,7 @@ jobs:
         working-directory: docs
         env:
           # page views go to Plausible only when the script URL variable is set
-          DOCS_PLAUSIBLE_DOMAIN: bundlemcp.com
+          DOCS_PLAUSIBLE_DOMAIN: bundlemcp.dev
           DOCS_PLAUSIBLE_SCRIPT_URL: ${{ vars.DOCS_PLAUSIBLE_SCRIPT_URL }}
           # links into the repository (GitHub icon, edit links) only once it is public
           DOCS_REPOSITORY_PUBLIC: ${{ vars.DOCS_REPOSITORY_PUBLIC }}

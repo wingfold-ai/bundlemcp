@@ -18,7 +18,7 @@ const analytics: HeadConfig[] =
     : [];
 
 // The site's public address: the sitemap lists every page under it.
-const siteUrl = "https://bundlemcp.com";
+const siteUrl = "https://bundlemcp.dev";
 
 // The user-facing documentation site (the documentation spec). Architecture material in
 // docs/arc42, docs/adr and docs/likec4 stays out of the site: it is written
