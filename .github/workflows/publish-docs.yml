@@ -45,6 +45,8 @@ jobs:
           # page views go to Plausible only when the script URL variable is set
           DOCS_PLAUSIBLE_DOMAIN: bundlemcp.com
           DOCS_PLAUSIBLE_SCRIPT_URL: ${{ vars.DOCS_PLAUSIBLE_SCRIPT_URL }}
+          # links into the repository (GitHub icon, edit links) only once it is public
+          DOCS_REPOSITORY_PUBLIC: ${{ vars.DOCS_REPOSITORY_PUBLIC }}
       - name: Require a password while the site is private
         env:
           DOCS_AUTH_USER: ${{ secrets.DOCS_AUTH_USER }}
@@ -60,6 +62,10 @@ jobs:
             cat "$SITE_DIR/.htaccess"; } > "$RUNNER_TEMP/htaccess"
           mv "$RUNNER_TEMP/htaccess" "$SITE_DIR/.htaccess"
           echo "The site requires a password."
+      - name: Repository links follow the repository's visibility
+        run: python3 tools/check_docs_repository_links.py
+        env:
+          DOCS_REPOSITORY_PUBLIC: ${{ vars.DOCS_REPOSITORY_PUBLIC }}
       - name: Stays within the hosting quota
         run: |
           size=$(du -sb "$SITE_DIR" | cut -f1)

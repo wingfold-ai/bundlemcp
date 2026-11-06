@@ -18,6 +18,8 @@ Nothing else: the stack brings its own database, live-state store and identity p
 
 ## 1. Start the stack
 
+<RepositoryNotice />
+
 ```bash
 git clone https://github.com/wingfold-ai/bundlemcp.git
 cd bundlemcp

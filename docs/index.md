@@ -53,6 +53,8 @@ features:
 
 ## See it run
 
+<RepositoryNotice />
+
 Ten minutes from clone to a working bundle, with Docker and ports 8000, 3000
 and 8080 free. The compose stack ships a demo server, bundle and endpoint, so
 the first call needs nothing but a key.
