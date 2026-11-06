@@ -16,7 +16,7 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SITE_URL = "https://bundlemcp.com"
+SITE_URL = "https://bundlemcp.dev"
 SITEMAP_URL = f"{SITE_URL}/sitemap.xml"
 NOT_FOUND_PAGE = "404.html"
 LOC = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>")

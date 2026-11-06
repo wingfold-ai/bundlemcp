@@ -55,7 +55,10 @@ One-time setup:
    text. The quickstart, the home page and the deployment page show a `<RepositoryNotice />` instead.
    `tools/check_docs_repository_links.py` checks both builds in CI. Set the variable and publish again to show them.
 
-   The build also writes `sitemap.xml`, listing every page under `https://bundlemcp.com`, and `public/robots.txt`
+   The site's address is `https://bundlemcp.dev`. The hosting also serves `bundlemcp.com` and both `www` names, and
+   `public/.htaccess` redirects each of them, with the path, to `https://bundlemcp.dev` (301).
+
+   The build also writes `sitemap.xml`, listing every page under `https://bundlemcp.dev`, and `public/robots.txt`
    points crawlers to it; `tools/check_docs_sitemap.py` checks both in CI. Each page's date, on the page and in the
    sitemap, is the last commit that changed it, which is why the publish workflow checks out the full history.
 
