@@ -6,6 +6,14 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.6] - 2026-11-06
+
+### Security
+
+- Update the admin UI's build-time `glob` and `minimatch` dependencies to patched versions, which closes two moderate
+  advisories (GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249). The affected packages are used only when building the web
+  UI. ([#189](https://github.com/wingfold-ai/bundlemcp/pull/189))
+
 ## [0.3.5] - 2026-10-30
 
 ### Changed
