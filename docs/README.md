@@ -49,6 +49,10 @@ One-time setup:
    With both auth secrets set, the next publish puts the site behind a password prompt
    (`.vitepress/basic-auth.htaccess`); delete them and publish again to make it public.
 
+   The build also writes `sitemap.xml`, listing every page under `https://bundlemcp.com`, and `public/robots.txt`
+   points crawlers to it; `tools/check_docs_sitemap.py` checks both in CI. Each page's date, on the page and in the
+   sitemap, is the last commit that changed it, which is why the publish workflow checks out the full history.
+
 ## Brand assets
 
 `public/` holds the logo files the site and the repository README use. The bundle mark (`logo-mark.svg`, `logo.svg`) is
