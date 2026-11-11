@@ -54,7 +54,7 @@ services:
   # published on (a tunnel's URL is only known at start); a real realm names
   # <public url>/login/callback exactly (docs/self-hosting/identity-provider).
   keycloak:
-    image: quay.io/keycloak/keycloak:26.4@sha256:9409c59bdfb65dbffa20b11e6f18b8abb9281d480c7ca402f51ed3d5977e6007
+    image: quay.io/keycloak/keycloak:26.8@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
     restart: unless-stopped
     command: ["start-dev", "--import-realm", "--http-port=8080"]
     environment:
@@ -222,7 +222,7 @@ services:
   # Cloudflare quick tunnel: no account, a random *.trycloudflare.com URL that
   # changes whenever this container restarts.
   tunnel:
-    image: cloudflare/cloudflared:2026.10.6@sha256:004d843fa5fdc3103983fd580ee19fab4a8fa98add31f87249c1659e848c98e0
+    image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
     profiles: [tunnel]
     restart: unless-stopped
     command: ["tunnel", "--no-autoupdate", "--url", "http://proxy:80"]
