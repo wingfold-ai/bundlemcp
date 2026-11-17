@@ -6,6 +6,36 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.7] - 2026-11-17
+
+### Added
+
+- Brand the sign-in pages without rebuilding the image: `BUNDLEMCP_AUTH_PAGES_TEMPLATE_DIR` points at a directory of
+  templates that replace the consent, return-to-client, upstream connected, upstream refused and account deactivated
+  pages by file name. Pages without a file keep the built-in template.
+  ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+- Every page template is compiled and rendered once at startup, so a broken override stops the gateway with an error
+  naming the file instead of failing someone's sign-in. ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+- Serve your own stylesheets, fonts and images on the sign-in pages: files in the directory named by
+  `BUNDLEMCP_AUTH_PAGES_ASSET_DIR` are served read-only at `/auth-pages/assets/` and templates link to them with
+  `asset_url('logo.svg')`. The route exists only while the setting is present, and only css, font and image files are
+  served. ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+- A new self-hosting guide, "Branding the sign-in pages", documents the variables each page receives and what a consent
+  page override must keep. The development proxy routes `/auth-pages/*` to the gateway.
+  ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+
+### Changed
+
+- While an asset directory is configured, the sign-in pages' Content-Security-Policy also admits styles, fonts and
+  images from the gateway's own origin. Without the setting, the policy and every page are unchanged.
+  ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+
+### Security
+
+- Asset requests that name a directory, a hidden file, an unlisted file type, or a path leaving the asset directory
+  (`..`, encoded `..`, absolute, or a symlink pointing outside) answer `404`. Assets carry `nosniff` and a sandboxing
+  Content-Security-Policy. ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+
 ## [0.3.6] - 2026-11-06
 
 ### Security
