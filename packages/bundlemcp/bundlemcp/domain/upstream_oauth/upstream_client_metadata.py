@@ -109,6 +109,19 @@ class UpstreamClientMetadata(BaseModel):
             return self
         return self.model_copy(update={"step_up_scopes": merged})
 
+    def forgetting_server(self) -> Self:
+        """This record without the endpoints and step-up scopes of the server it was used with.
+
+        How the client was obtained, its grant and keys the gateway does not
+        know are kept, so the next connect discovers the endpoints afresh.
+        """
+        record = {
+            key: value
+            for key, value in self.model_dump().items()
+            if key not in ENDPOINT_KEYS and key != "step_up_scopes"
+        }
+        return type(self).model_validate(record)
+
     @property
     def remembered_endpoints(self) -> UpstreamMetadata | None:
         """The endpoints to connect with, carrying the step-up scopes; None to discover them."""

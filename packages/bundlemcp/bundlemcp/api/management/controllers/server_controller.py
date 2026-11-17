@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import HTTPException, Query, status
 
+from bundlemcp.api.http.management_auth import PrincipalProvider
 from bundlemcp.api.http.pagination import PageProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.http.service_providers import (
@@ -59,13 +60,17 @@ class ServerController(ManagementController):
 
     @route.put("/{name}")
     async def upsert_server(
-        self, name: str, body: ServerUpsert, service: ServerServiceProvider
+        self,
+        name: str,
+        body: ServerUpsert,
+        service: ServerServiceProvider,
+        principal: PrincipalProvider,
     ) -> ServerRead:
         if body.name != name:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, "body.name must match path name"
             )
-        return await service.upsert(body)
+        return await service.upsert(body, actor=principal)
 
     @route.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_server(self, name: str, service: ServerServiceProvider) -> None:

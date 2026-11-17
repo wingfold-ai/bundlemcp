@@ -35,7 +35,9 @@ from bundlemcp.application.schemas import (
     ServerUpsert,
     UpstreamOAuthConfig,
 )
+from bundlemcp.domain.access.principal import Principal
 from bundlemcp.domain.endpoints.profiles.profile_catalog import ProfileCatalog
+from bundlemcp.domain.servers.url_change import UrlChange
 
 # what changes on every write without being configuration
 VOLATILE = {"created_at", "updated_at", "last_used_at"}
@@ -78,8 +80,13 @@ class ConfigImportService:
         self._profiles = profiles
         self._public_base = public_base
 
-    async def run(self, doc: BootstrapDocument, *, dry_run: bool) -> ImportReport:
-        """Import ``doc``; with ``dry_run`` report what would happen and write nothing."""
+    async def run(
+        self, doc: BootstrapDocument, *, dry_run: bool, actor: Principal | None = None
+    ) -> ImportReport:
+        """Import ``doc``; with ``dry_run`` report what would happen and write nothing.
+
+        Management actions the import causes are recorded against ``actor``.
+        """
         if doc.api_keys:
             # keys are identity, not configuration: only a bootstrap document provisions them
             refused = [
@@ -98,7 +105,7 @@ class ConfigImportService:
         applied = False
         try:
             async with self._units.open() as uow, uow.atomic():
-                results = await self.apply_in(uow, doc, probes, strict=False)
+                results = await self.apply_in(uow, doc, probes, strict=False, actor=actor)
                 if dry_run or any(r.outcome is ImportOutcome.ERROR for r in results):
                     raise DocumentDiscarded
             applied = True
@@ -109,7 +116,13 @@ class ConfigImportService:
         return ImportReport(dry_run=dry_run, applied=applied, results=results)
 
     async def apply_in(
-        self, uow: UnitOfWork, doc: BootstrapDocument, discovery: ToolDiscovery, *, strict: bool
+        self,
+        uow: UnitOfWork,
+        doc: BootstrapDocument,
+        discovery: ToolDiscovery,
+        *,
+        strict: bool,
+        actor: Principal | None = None,
     ) -> list[ImportResult]:
         """Apply the document's resources in ``uow``; the caller owns the transaction.
 
@@ -124,6 +137,7 @@ class ConfigImportService:
             profiles=self._profiles,
             public_base=self._public_base,
             strict=strict,
+            actor=actor,
         )
         for server in doc.upstreams:
             await session.upstream(server)
@@ -147,9 +161,11 @@ class _Session:
         profiles: ProfileCatalog,
         public_base: str,
         strict: bool,
+        actor: Principal | None,
     ) -> None:
         self._uow = uow
         self._strict = strict
+        self._actor = actor
         self.results: list[ImportResult] = []
         self._servers = ServerService(uow, discovery=discovery, public_base=public_base)
         self._clients = UpstreamOAuthConfigService(uow, cipher=cipher, connections=connections)
@@ -189,7 +205,7 @@ class _Session:
     async def upstream(self, entry: BootstrapServer) -> None:
         before = await self._upstream_state(entry.name)
         try:
-            await self._servers.upsert(await self._server_upsert(entry))
+            await self._servers.upsert(await self._server_upsert(entry), actor=self._actor)
             if entry.upstream_oauth is not None:
                 await self._clients.set_client(
                     entry.name, await self._oauth_client(entry.name, entry.upstream_oauth)
@@ -203,6 +219,9 @@ class _Session:
         """The API's upsert for ``entry``, a placeholder replaced by the value stored for it."""
         stored = await self._uow.servers.by_name(entry.name)
         stored_headers = stored.static_headers if stored is not None else {}
+        moves_origin = (
+            stored is not None and UrlChange(previous=stored.url, current=entry.url).moves_origin
+        )
         headers: dict[str, str] = {}
         for header, value in entry.static_headers.items():
             if isinstance(value, SecretRef):
@@ -210,6 +229,11 @@ class _Session:
                     raise InvalidInputError(
                         f"static header {header!r} is a placeholder, but nothing is stored for "
                         "it (MGMT-18)"
+                    )
+                if moves_origin:
+                    raise InvalidInputError(
+                        f"static header {header!r} is a placeholder, but the url moves to another "
+                        "origin; give its value (UPS-42)"
                     )
                 headers[header] = stored_headers[header]
             else:

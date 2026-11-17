@@ -6,12 +6,17 @@ from bundlemcp.application.errors import ConflictError, PreconditionError
 from bundlemcp.application.management.named_resource_service import NamedResourceService
 from bundlemcp.application.management.per_user_upstream_check import PerUserUpstreamCheck
 from bundlemcp.application.management.presented_name_check import PresentedNameCheck
+from bundlemcp.application.management.upstream_credential_revocation import (
+    UpstreamCredentialRevocation,
+)
 from bundlemcp.application.schemas import DiscoveryResult, Page, ServerRead, ServerUpsert, ToolRead
+from bundlemcp.domain.access.principal import Principal
 from bundlemcp.domain.servers.mcp_server import McpServer
 from bundlemcp.domain.servers.self_reference import (
     addresses_gateway_endpoint,
     self_reference_refusal,
 )
+from bundlemcp.domain.servers.url_change import UrlChange
 from bundlemcp.domain.shared.resource_names import server_name as server_name_type
 from bundlemcp.domain.upstream_oauth.upstream_grant import UpstreamGrant
 
@@ -23,9 +28,10 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         )
         self._discovery = discovery
         self._policy = PerUserUpstreamCheck(uow)
+        self._revocation = UpstreamCredentialRevocation(uow)
         self._public_base = public_base
 
-    async def upsert(self, body: ServerUpsert) -> ServerRead:
+    async def upsert(self, body: ServerUpsert, *, actor: Principal | None = None) -> ServerRead:
         """Config-only upsert by natural key; idempotent; never blocks on probing.
 
         Fields a caller leaves out keep their stored value on update and take
@@ -33,6 +39,11 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         whether the server is on the gateway's own network. The upstream is
         probed in the background on create, when the write changes what
         discovery depends on, or when the last probe did not succeed.
+
+        Credentials never follow a server to a new URL: moving it to another
+        resource revokes what was obtained for the old one, recorded against
+        ``actor``, and moving it to another origin needs its static header
+        values again.
         """
         server = await self._by_name(body.name)
         created = server is None
@@ -40,11 +51,18 @@ class ServerService(NamedResourceService[McpServer, ServerRead]):
         if server is None:
             server = McpServer.register(body.name, body.changes())
         else:
+            move = UrlChange(previous=server.url, current=body.url)
             if server.url != body.url:
                 await self._ensure_not_a_member_pointing_at_the_gateway(server, body.url)
+            if move.moves_origin and server.static_headers and not body.static_headers:
+                raise ConflictError(
+                    "the new url is on another origin; enter the static header values again so "
+                    "the stored ones are not sent there (UPS-42)"
+                )
             server.reconfigure(body.changes())
             await self._policy.ensure_identity_switch_allowed(server)
             await self._ensure_grant_allows_identity(server)
+            await self._revocation.revoke(server, move, actor=actor)
         read = await self._save(server, name=body.name, created=created)
         # validate + discover best-effort; never blocks the API response. An
         # unchanged re-apply to a working server stays off the upstream (ADR-0043).
