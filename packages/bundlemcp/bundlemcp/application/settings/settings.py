@@ -1,6 +1,13 @@
 """The deploy-time configuration model."""
 
-from pydantic import AnyHttpUrl, BaseModel, Field, field_validator, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    DirectoryPath,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from bundlemcp.domain.access.identity_subject import IdentitySubject
 from bundlemcp.domain.oauth.redirect_uri_allow_list import RedirectUriAllowList
@@ -229,6 +236,21 @@ class Settings(BaseModel):
         "token, across all IPs. Once reached, further registrations are refused with HTTP 429 "
         "until clients are used or the periodic purge removes those unused for seven days. "
         "Applies to every registration, allow-listed or not",
+    )
+
+    # Browser pages the gateway renders during OAuth
+    auth_pages_template_dir: DirectoryPath | None = Field(
+        default=None,
+        description="Directory of Jinja templates that replace the gateway's own sign-in pages by "
+        "file name (consent.html, return_to_client.html, connected.html, connect_refused.html, "
+        "account_deactivated.html); a page not found there keeps the built-in template. Every page "
+        "is compiled and rendered once at startup, and a broken one stops the start",
+    )
+    auth_pages_asset_dir: DirectoryPath | None = Field(
+        default=None,
+        description="Directory of stylesheets, fonts and images served read-only under "
+        "/auth-pages/assets/ for the sign-in pages. While set, the pages' Content-Security-Policy "
+        "also admits styles, fonts and images from the gateway's own origin",
     )
 
     # Bootstrap (the management spec)

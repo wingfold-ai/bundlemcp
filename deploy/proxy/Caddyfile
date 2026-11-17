@@ -3,7 +3,7 @@
 # the API share an origin, so the gateway's paths go to it and everything else
 # to the web app. No TLS here: the tunnel terminates it.
 :80 {
-	@gateway path /api/* /oauth/* /login /login/* /logout /.well-known/* /healthz /readyz /*/mcp /*/mcp/*
+	@gateway path /api/* /oauth/* /auth-pages/* /login /login/* /logout /.well-known/* /healthz /readyz /*/mcp /*/mcp/*
 	reverse_proxy @gateway gateway:8000 {
 		# tool calls stream progress as SSE; never buffer
 		flush_interval -1

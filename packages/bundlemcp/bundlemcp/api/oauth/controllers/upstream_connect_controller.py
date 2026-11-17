@@ -19,9 +19,9 @@ from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.providers import SettingsProvider, UnitOfWorkProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
-from bundlemcp.api.oauth.pages.page_headers import PAGE_HEADERS
-from bundlemcp.api.oauth.pages.page_templates import PAGE_TEMPLATES
+from bundlemcp.api.oauth.pages.auth_page import AuthPage
 from bundlemcp.api.oauth.providers import (
+    AuthPagesProvider,
     ConnectStatesProvider,
     CurrentSessionUserProvider,
     DiscoveryProvider,
@@ -139,6 +139,7 @@ class UpstreamConnectController(Controller):
         store: UpstreamTokensProvider,
         discovery: DiscoveryProvider,
         user: CurrentSessionUserProvider,
+        pages: AuthPagesProvider,
         code: str = "",
         state: str = "",
         iss: str = "",
@@ -156,8 +157,8 @@ class UpstreamConnectController(Controller):
         refusal = pending.refusal_for(user)
         if refusal is not None:
             log.warning("upstream_oauth.connect_refused", reason=refusal.value)
-            html = PAGE_TEMPLATES.get_template("connect_refused.html").render()
-            return HTMLResponse(html, status_code=403, headers=PAGE_HEADERS)
+            html = pages.render(AuthPage.CONNECT_REFUSED)
+            return HTMLResponse(html, status_code=403, headers=pages.headers())
         # issuer identification (RFC 9207 section 2.4): checked before the code is redeemed and
         # before any error the response carries is acted on.
         if iss:
@@ -185,5 +186,5 @@ class UpstreamConnectController(Controller):
         # the new token may be the first that can list the server's tools, and
         # the connecting user's tool list changes either way, so their bundles re-list
         await discovery.schedule_probe(server.id, announce=True)
-        html = PAGE_TEMPLATES.get_template("connected.html").render(server_name=server.name)
-        return HTMLResponse(html, headers=PAGE_HEADERS)
+        html = pages.render(AuthPage.CONNECTED, server_name=server.name)
+        return HTMLResponse(html, headers=pages.headers())

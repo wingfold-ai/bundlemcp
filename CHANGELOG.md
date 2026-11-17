@@ -6,6 +6,34 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.8] - 2026-11-17
+
+### Added
+
+- Brand the sign-in pages without rebuilding the image: `BUNDLEMCP_AUTH_PAGES_TEMPLATE_DIR` replaces the consent,
+  return-to-client, upstream connected or refused, and account deactivated pages by file name, and any page without a
+  file keeps the built-in one. ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+- Serve your own stylesheets, fonts and images to the sign-in pages from `BUNDLEMCP_AUTH_PAGES_ASSET_DIR`, read-only at
+  `/auth-pages/assets/`. Templates build asset URLs with `asset_url('logo.svg')`, and only css, font and image files are
+  served. ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+- Check every sign-in page at startup: each is rendered once with sample values, so a broken template stops the gateway
+  with an error naming the file, before the database or Valkey is opened, instead of failing someone's sign-in.
+  ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+
+### Changed
+
+- While an asset directory is configured, the sign-in pages' Content-Security-Policy also allows styles, fonts and
+  images from the gateway's own origin. Scripts and other origins stay blocked, and without the setting the policy is
+  unchanged. ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+- The development proxy now sends `/auth-pages/*` to the gateway.
+  ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+
+### Security
+
+- Asset requests that name a directory, a hidden file, an unlisted file type, or a path leaving the asset directory
+  (`..`, encoded `..`, absolute, or a symlink pointing outside) answer `404`. Served assets carry `nosniff` and a
+  sandboxing Content-Security-Policy. ([#205](https://github.com/wingfold-ai/bundlemcp/pull/205))
+
 ## [0.3.7] - 2026-11-17
 
 ### Changed

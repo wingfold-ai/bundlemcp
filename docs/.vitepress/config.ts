@@ -85,6 +85,7 @@ export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: b
           { text: "Configuration", link: "/self-hosting/configuration" },
           { text: "Identity provider", link: "/self-hosting/identity-provider" },
           { text: "Bootstrap file", link: "/self-hosting/bootstrap" },
+          { text: "Branding the sign-in pages", link: "/self-hosting/auth-pages" },
           { text: "Operations", link: "/self-hosting/operations" },
           { text: "Troubleshooting", link: "/self-hosting/troubleshooting" },
         ],

@@ -8,6 +8,7 @@ from bundlemcp.api.http.auth_failure_guard import AuthFailureGuard
 from bundlemcp.api.mcp.routing.gateway_router import McpGatewayRouter
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
+from bundlemcp.api.oauth.pages.auth_pages import AuthPages
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.inspection.gateway_endpoint_client_factory import (
     GatewayEndpointClientFactory,
@@ -140,6 +141,10 @@ class AppContainer(BaseModel):
     )
     oidc_provider: OidcProvider | None = Field(
         description="The identity provider admins log in with; None when none is configured"
+    )
+    auth_pages: AuthPages = Field(
+        description="The browser pages the OAuth flows render, with the operator's overrides and "
+        "assets, checked at startup"
     )
     client_metadata: ClientMetadataFetcher = Field(
         description="Resolves URL-shaped OAuth client ids to their metadata documents"
