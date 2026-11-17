@@ -6,6 +6,20 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.3.7] - 2026-11-17
+
+### Changed
+
+- Upgrade the admin UI to Nuxt 4.6.4 and the Python dependencies dnspython (2.9.2) and the OpenTelemetry packages (api
+  and sdk 1.45.2, instrumentation 0.66b2). ([#206](https://github.com/wingfold-ai/bundlemcp/pull/206))
+
+### Security
+
+- Clear the published security advisories in dnspython, OpenTelemetry, Nuxt and its `@nuxt/*` packages, and node-forge
+  by upgrading to patched versions. ([#206](https://github.com/wingfold-ai/bundlemcp/pull/206))
+- Pin the admin UI's `readdir-glob` to version 4 so the build no longer pulls in a `minimatch` release with a known
+  advisory. ([#206](https://github.com/wingfold-ai/bundlemcp/pull/206))
+
 ## [0.3.6] - 2026-11-06
 
 ### Security
