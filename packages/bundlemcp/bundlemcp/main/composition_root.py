@@ -28,6 +28,7 @@ from bundlemcp.api.mcp.protocol.sse import KEEPALIVE_SECONDS
 from bundlemcp.api.oauth.browser_state.browser_state_ttl import BROWSER_STATE_TTL
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
+from bundlemcp.api.oauth.pages.auth_pages import auth_pages
 from bundlemcp.application.bootstrap import BootstrapRunner
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.observability.call_tracer import CallTracer
@@ -195,6 +196,9 @@ class CompositionRoot:
         """
         settings = self._settings
         overrides = self._overrides
+        # first, before any store is opened: a broken page template stops the start here
+        pages = auth_pages(settings)
+        pages.verify()
         clock = overrides.clock or SystemClock()
         hasher = Sha256SecretHasher()
         generator = overrides.secret_generator or OsSecretGenerator()
@@ -438,6 +442,7 @@ class CompositionRoot:
                 model=UpstreamConnectState,
             ),
             oidc_provider=self._start_oidc_provider(),
+            auth_pages=pages,
             invalidation=subscriber,
             mcp_router=mcp_router,
             client_metadata=client_metadata,

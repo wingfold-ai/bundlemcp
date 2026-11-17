@@ -38,6 +38,7 @@ from bundlemcp.api.management.controllers import (
 from bundlemcp.api.mcp.controllers.mcp_endpoint_controller import McpEndpointController
 from bundlemcp.api.mcp.protocol.server_info import SERVER_VERSION
 from bundlemcp.api.metrics.controllers import MetricsController
+from bundlemcp.api.oauth.controllers.auth_page_asset_controller import AuthPageAssetController
 from bundlemcp.api.oauth.controllers.authorize_controller import AuthorizeController
 from bundlemcp.api.oauth.controllers.introspection_controller import IntrospectionController
 from bundlemcp.api.oauth.controllers.login_controller import LoginController
@@ -132,6 +133,8 @@ def create_app(
         UpstreamConnectController(),  # the upstreams spec connect flow
     ):
         controller.mount(app)
+    if settings.auth_pages_asset_dir is not None:
+        AuthPageAssetController().mount(app)  # /auth-pages/assets, the operator's page assets
     UserController().mount(app, prefix=API_PREFIX)  # /api/v1/users
     HealthController().mount(app)
     if settings.metrics_enabled:

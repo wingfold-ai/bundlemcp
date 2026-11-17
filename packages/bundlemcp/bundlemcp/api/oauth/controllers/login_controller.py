@@ -17,10 +17,10 @@ from bundlemcp.api.oauth.login_binding_cookie import (
     login_binding_cookie_kwargs,
     login_binding_cookie_name,
 )
-from bundlemcp.api.oauth.pages.page_headers import PAGE_HEADERS
-from bundlemcp.api.oauth.pages.page_templates import PAGE_TEMPLATES
+from bundlemcp.api.oauth.pages.auth_page import AuthPage
 from bundlemcp.api.oauth.providers import (
     AdminSessionsProvider,
+    AuthPagesProvider,
     OidcLoginStatesProvider,
     OidcProviderProvider,
     UserProvisioningServiceProvider,
@@ -97,6 +97,7 @@ class LoginController(Controller):
         states: OidcLoginStatesProvider,
         provisioning: UserProvisioningServiceProvider,
         admin_sessions: AdminSessionsProvider,
+        pages: AuthPagesProvider,
         code: str = "",
         state: str = "",
         error: str = "",
@@ -112,6 +113,7 @@ class LoginController(Controller):
                 states=states,
                 provisioning=provisioning,
                 admin_sessions=admin_sessions,
+                pages=pages,
                 code=code,
                 state=state,
                 error=error,
@@ -132,6 +134,7 @@ class LoginController(Controller):
         states: OidcLoginStatesProvider,
         provisioning: UserProvisioningServiceProvider,
         admin_sessions: AdminSessionsProvider,
+        pages: AuthPagesProvider,
         code: str,
         state: str,
         error: str,
@@ -165,8 +168,8 @@ class LoginController(Controller):
         if not user.is_active:
             # the authorize flow signs people in here too, so it is refused the same way
             log.info("admin.login_refused_deactivated", user_id=str(user.id))
-            html = PAGE_TEMPLATES.get_template("account_deactivated.html").render()
-            return HTMLResponse(html, status_code=403, headers=PAGE_HEADERS)
+            html = pages.render(AuthPage.ACCOUNT_DEACTIVATED)
+            return HTMLResponse(html, status_code=403, headers=pages.headers())
 
         session_id = await admin_sessions.create(
             AdminSession(user_id=str(user.id), email=user.email, is_admin=user.is_admin)

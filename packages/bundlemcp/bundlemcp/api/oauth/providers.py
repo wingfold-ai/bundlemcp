@@ -18,6 +18,7 @@ from bundlemcp.api.http.providers import SettingsProvider, UnitOfWorkProvider
 from bundlemcp.api.http.service_providers import AdminSessionServiceProvider, AuthServiceProvider
 from bundlemcp.api.oauth.browser_state.oidc_login_state import OidcLoginState
 from bundlemcp.api.oauth.browser_state.upstream_connect_state import UpstreamConnectState
+from bundlemcp.api.oauth.pages.auth_pages import AuthPages
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.application.contracts.identity.oidc_provider import OidcProvider
 from bundlemcp.application.contracts.live_state.admin_session_store import AdminSessionStore
@@ -75,6 +76,10 @@ def get_oidc_login_states(request: Request) -> SingleUseState[OidcLoginState]:
 
 def get_connect_states(request: Request) -> SingleUseState[UpstreamConnectState]:
     return request.app.state.container.connect_states
+
+
+def get_auth_pages(request: Request) -> AuthPages:
+    return request.app.state.container.auth_pages
 
 
 def get_discovery(request: Request) -> DiscoveryService:
@@ -169,6 +174,7 @@ PendingAuthorizationsProvider = Annotated[
 OidcLoginStatesProvider = Annotated[SingleUseState[OidcLoginState], Depends(get_oidc_login_states)]
 ConnectStatesProvider = Annotated[SingleUseState[UpstreamConnectState], Depends(get_connect_states)]
 DiscoveryProvider = Annotated[DiscoveryService, Depends(get_discovery)]
+AuthPagesProvider = Annotated[AuthPages, Depends(get_auth_pages)]
 TokenServiceProvider = Annotated[OAuthTokenService, Depends(get_token_service)]
 IntrospectionServiceProvider = Annotated[
     TokenIntrospectionService, Depends(get_introspection_service)

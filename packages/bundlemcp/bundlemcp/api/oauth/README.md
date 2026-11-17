@@ -283,6 +283,9 @@ recoverable form, and those are encrypted with rotating keys and never logged or
 | `session_cookie.py` | The `bmcp_session` cookie name and attributes |
 | `login_binding_cookie.py` | The cookie binding a login to the browser that started it: name and attributes |
 | `controllers/upstream_connect_controller.py` | Upstream OAuth connect flow (`/oauth/upstream/…`) |
+| `controllers/auth_page_asset_controller.py` | The operator's page assets (`/auth-pages/assets/…`), mounted only when configured |
+| `pages/auth_pages.py` | `AuthPages`: renders the browser pages (operator overrides first), their headers, asset lookup |
+| `pages/auth_page.py` | `AuthPage`: the five page templates and the variables each receives |
 | `../../application/upstream_oauth/` | `UpstreamTokenService` and the storage, connect flow and refresher behind it |
 | `providers.py` | FastAPI providers for oauth-owned collaborators and the OAuth services |
 | `urls.py` | The endpoint resource identifier (§5) |

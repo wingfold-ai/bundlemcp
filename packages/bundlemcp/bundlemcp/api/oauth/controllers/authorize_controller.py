@@ -12,11 +12,12 @@ from bundlemcp.api.http.controller import Controller
 from bundlemcp.api.http.providers import SettingsProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.oauth.oauth_error_response import authorization_error_location
+from bundlemcp.api.oauth.pages.auth_page import AuthPage
+from bundlemcp.api.oauth.pages.auth_pages import AuthPages
 from bundlemcp.api.oauth.pages.form_action_source import form_action_source
-from bundlemcp.api.oauth.pages.page_headers import PAGE_HEADERS, page_headers
-from bundlemcp.api.oauth.pages.page_templates import PAGE_TEMPLATES
 from bundlemcp.api.oauth.providers import (
     AuthorizationServiceProvider,
+    AuthPagesProvider,
     CurrentSessionUserProvider,
     PendingAuthorizationsProvider,
 )
@@ -44,7 +45,9 @@ class AuthorizeController(Controller):
         return build_client_redirect(pending.redirect_uri, params, iss=issuer)
 
     @staticmethod
-    def _answer_consent(pending: PendingAuthorization, location: str, heading: str) -> Response:
+    def _answer_consent(
+        pages: AuthPages, pending: PendingAuthorization, location: str, heading: str
+    ) -> Response:
         """Send the browser on to the client once the consent form is answered.
 
         The consent page's form-action admits the client's redirect URI, so a
@@ -53,10 +56,13 @@ class AuthorizeController(Controller):
         """
         if form_action_source(pending.redirect_uri) is not None:
             return RedirectResponse(location, status_code=302)
-        html = PAGE_TEMPLATES.get_template("return_to_client.html").render(
-            client_name=pending.client_name, heading=heading, location=location
+        html = pages.render(
+            AuthPage.RETURN_TO_CLIENT,
+            client_name=pending.client_name,
+            heading=heading,
+            location=location,
         )
-        return HTMLResponse(html, headers=PAGE_HEADERS)
+        return HTMLResponse(html, headers=pages.headers())
 
     @route.get("/authorize")
     async def authorize(
@@ -67,6 +73,7 @@ class AuthorizeController(Controller):
         pending_authorizations: PendingAuthorizationsProvider,
         settings: SettingsProvider,
         user: CurrentSessionUserProvider,
+        pages: AuthPagesProvider,
     ) -> Response:
         if user is None:
             # needs an authenticated human — bounce through OIDC login.
@@ -92,7 +99,8 @@ class AuthorizeController(Controller):
             return RedirectResponse(location, status_code=302)
 
         token = await pending_authorizations.put(pending)  # single-use => CSRF-safe form
-        html = PAGE_TEMPLATES.get_template("consent.html").render(
+        html = pages.render(
+            AuthPage.CONSENT,
             client_name=pending.client_name,
             endpoint_name=pending.endpoint_name,
             bundle_name=pending.bundle_name,
@@ -102,7 +110,7 @@ class AuthorizeController(Controller):
             user_email=user.email or str(user.id),
         )
         # Approve and Deny are answered with a redirect to this client
-        headers = page_headers(form_redirect_source=form_action_source(pending.redirect_uri))
+        headers = pages.headers(form_redirect_source=form_action_source(pending.redirect_uri))
         return HTMLResponse(html, headers=headers)
 
     @route.post("/consent")
@@ -112,6 +120,7 @@ class AuthorizeController(Controller):
         pending_authorizations: PendingAuthorizationsProvider,
         settings: SettingsProvider,
         user: CurrentSessionUserProvider,
+        pages: AuthPagesProvider,
         token: Annotated[str, Form()],
         action: Annotated[str, Form()],
     ) -> Response:
@@ -128,11 +137,11 @@ class AuthorizeController(Controller):
                 issuer=settings.public_base,
             )
             return self._answer_consent(
-                pending, authorization_error_location(denied), "Access denied"
+                pages, pending, authorization_error_location(denied), "Access denied"
             )
         await service.grant_consent(pending)
         log.info("oauth.consent_granted", client_id=pending.client_id)
         location = self._code_location(
             pending, await service.issue_code(pending), settings.public_base
         )
-        return self._answer_consent(pending, location, "Access granted")
+        return self._answer_consent(pages, pending, location, "Access granted")

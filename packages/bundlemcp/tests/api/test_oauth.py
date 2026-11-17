@@ -11,7 +11,7 @@ import uuid
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from bundlemcp.api.oauth.pages.page_headers import PAGE_HEADERS
+from bundlemcp.api.oauth.pages.page_headers import page_headers
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.application.errors import InvalidInputError
 from bundlemcp.application.oauth_server import ClientIdMetadataDocument
@@ -1145,7 +1145,7 @@ async def test_unexpressible_redirect_uri_keeps_page_same_origin(oauth_env, acti
 
 def test_other_auth_pages_stay_same_origin():
     """SEC-6: pages that never redirect off-origin keep form-action 'self' alone."""
-    assert PAGE_HEADERS == {
+    assert page_headers() == {
         "Content-Security-Policy": SAME_ORIGIN_POLICY,
         "X-Frame-Options": "DENY",
         "Cache-Control": "no-store",
