@@ -123,6 +123,7 @@ Every authorization response, including error redirects, carries `iss=<issuer>` 
 | `POST` | `/logout` | Ends the bundlemcp session. |
 | `GET` | `/oauth/upstream/{server}/connect` | Starts the upstream OAuth flow for a server. Admins establish the shared connection; `?as=me` connects the signed-in user's own account on a `per_user` server. |
 | `GET` | `/oauth/upstream/callback` | The redirect URI to register with upstream OAuth providers: `<public url>/oauth/upstream/callback`. |
+| `GET` | `/auth-pages/assets/{path}` | Stylesheets, fonts and images for the sign-in pages, from `BUNDLEMCP_AUTH_PAGES_ASSET_DIR`. Exists only while that is set; see [Branding the sign-in pages](/self-hosting/auth-pages). |
 
 A login can be finished only by the browser that started it, so a callback link handed to someone else signs nobody
 in. `/login` sets a binding cookie holding a fresh random value, and the stored login state keeps only its hash. The
@@ -138,6 +139,10 @@ These pages, and the consent page `GET /oauth/authorize` renders, carry hardenin
 `access_denied` to the client. A redirect URI that cannot be written into a CSP (for example one whose path holds `;`
 or `,`) keeps the page same-origin, and Approve or Deny then answers with a page linking to the client instead of a
 redirect.
+
+With `BUNDLEMCP_AUTH_PAGES_ASSET_DIR` set, every one of these pages also admits stylesheets, fonts and images from the
+gateway's own origin (`'self'` in `style-src`, `font-src` and `img-src`) and nothing else; see
+[Branding the sign-in pages](/self-hosting/auth-pages#content-security-policy).
 
 ## Management API
 

@@ -91,6 +91,17 @@ claude.ai only.
 | `BUNDLEMCP_SHUTDOWN_DRAIN_SECONDS` | `20` | Seconds a stopping replica gives in-flight requests to finish. On the stop signal it reports not ready and refuses new requests with `503` and `Retry-After`, ends its notification streams, and answers calls still running at the end with an error (metered as `cancelled`), then exits. Keep your orchestrator's stop grace period above it; the compose file uses `stop_grace_period: 30s`. |
 | `BUNDLEMCP_CONFIG_CACHE_DISABLED` | `false` | Read runtime settings from the database on every access instead of caching them per replica. A debugging aid when you suspect a stale value: behaviour is identical, only slower. Endpoints, bundles and keys are never cached either way. |
 
+### Sign-in pages
+
+The pages the gateway renders itself during OAuth: the consent screen, the page returning a browser to its client, the
+pages ending an upstream connect, and the page refusing a deactivated account. See
+[Branding the sign-in pages](/self-hosting/auth-pages) for the template contract.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `BUNDLEMCP_AUTH_PAGES_TEMPLATE_DIR` | unset | Directory, as the gateway container sees it, of Jinja templates that replace built-in pages by file name (`consent.html`, …). A page without a file there keeps the built-in template. Every page is rendered once at start-up, and a template that fails stops the start, naming the file. A path that is not a directory stops the start. Unset: the built-in pages. |
+| `BUNDLEMCP_AUTH_PAGES_ASSET_DIR` | unset | Directory of stylesheets, fonts and images served read-only at `/auth-pages/assets/…`, for templates to load with `asset_url('…')`. While set, the pages' Content-Security-Policy also admits styles, fonts and images from the gateway's own origin. Unset: no asset route, and the policy loads no file. |
+
 ### Provisioning
 
 | Variable | Default | Meaning |

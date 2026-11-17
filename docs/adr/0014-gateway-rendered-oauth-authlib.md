@@ -2,7 +2,7 @@
 
 **Status:** accepted · **Date:** 2026-07-02 · **Amended by:** [ADR-0028](0028-oauth-server-as-services.md),
 [ADR-0031](0031-joserfc-id-token-validation.md) (joserfc replaces authlib, which is no longer a dependency),
-[ADR-0036](0036-oauth-slice-decomposition-and-shared-contracts.md)
+[ADR-0036](0036-oauth-slice-decomposition-and-shared-contracts.md), [ADR-0065](0065-operator-branded-auth-pages.md)
 
 ## Context
 

@@ -30,7 +30,7 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0011](0011-own-streamable-http-edge.md) | Own the Streamable-HTTP edge; FastMCP upstream-only | accepted (amended by 0027, 0029, 0035) |
 | [0012](0012-per-call-upstream-connections.md) | Per-call upstream connections in v1 | superseded by 0054 (amended by 0030) |
 | [0013](0013-service-key-auth-first.md) | Service-key auth first; admin OIDC with the UI | accepted (OIDC sessions have since shipped) |
-| [0014](0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB token validation | accepted (amended by 0028, 0031, 0036) |
+| [0014](0014-gateway-rendered-oauth-authlib.md) | Gateway-rendered auth pages; authlib RP; direct-DB token validation | accepted (amended by 0028, 0031, 0036, 0065) |
 | [0015](0015-keycloak-dev-idp.md) | Keycloak as the bundled dev IdP | accepted |
 | [0016](0016-relay-design.md) | Protocol-relay: per-replica registries + Redis signaling | accepted (amended by 0027, 0029) |
 | [0017](0017-upstream-oauth-encryption.md) | Upstream OAuth client + token encryption at rest | accepted (amended by 0028, 0037, 0040, 0061) |
@@ -81,3 +81,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0062](0062-member-notifications-typed-at-the-pool-boundary.md) | Member notifications are typed at the pool boundary | accepted |
 | [0063](0063-discovery-serialized-per-server-by-a-transaction-lock.md) | Discovery is serialized per server by a transaction-scoped lock | accepted (amended by 0064) |
 | [0064](0064-discovery-writes-only-what-it-observed.md) | Discovery writes only what it observed, and a delete waits for it | accepted |
+| [0065](0065-operator-branded-auth-pages.md) | Operators brand the auth pages with templates and same-origin assets | accepted |
