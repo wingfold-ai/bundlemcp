@@ -17,11 +17,11 @@ onto dummy servers in `examples/`, then remove the fleet from the repository.
 
 ## What Changes
 
-- **A new example upstream, `examples/identity-demo-mcp`.** It is a small MCP server that reports what it learns
-  about its caller. It introspects the bearer it receives against the gateway's `/oauth/introspect`, authenticating
-  with the stack's service key, exactly as the fleet's introspecting server did. Its `whoami` tool returns the introspected `sub` and
-  `client_id`, the `X-MCP-User` value, the value of one forwarded tenant header, and the names of the other headers it
-  received. It never returns a token or a header value that is a credential.
+- **A new example upstream, `examples/identity-demo-mcp`.** It is a small MCP server that reports what it learns about
+  its caller. It introspects the bearer it receives against the gateway's `/oauth/introspect`, authenticating with the
+  stack's service key, exactly as the fleet's introspecting server did. Its `whoami` tool returns the introspected `sub`
+  and `client_id`, the `X-MCP-User` value, the value of one forwarded tenant header, and the names of the other headers
+  it received. It never returns a token or a header value that is a credential.
 - **The demo seed registers it.** `deploy/seed.yaml` adds the upstream `identity-demo` with these settings:
   - `forward_headers`: `authorization → authorization`, `x-tenant-id → x-tenant`;
   - a static discovery header;

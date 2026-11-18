@@ -4,9 +4,9 @@
 
 See proposal.md, "Why". Facts from the current tree that shape the approach:
 
-- **What the fleet tests prove.** Two of the five tests in `tests/integration/test_fleet_bundles.py`, the ones that only list
-  a fleet server's tools, prove nothing the echo smoke tests
-  do not already prove. The other three need an upstream that does one of the following:
+- **What the fleet tests prove.** Two of the five tests in `tests/integration/test_fleet_bundles.py`, the ones that only
+  list a fleet server's tools, prove nothing the echo smoke tests do not already prove. The other three need an upstream
+  that does one of the following:
   - introspects a forwarded bearer;
   - refuses discovery without a credential, through its static `authorization` header;
   - receives `X-MCP-User`.
@@ -165,7 +165,8 @@ of the block. Until then, `openspec validate` reports this one error on the chan
 
 - **The demo checks less than a real introspecting server could.** It is maintained in this repository, so a gateway
   change that breaks a real upstream's expectations could pass if the demo is too lenient. → It uses the same RFC 7662
-  call the fleet's introspecting server makes, with HTTP Basic client authentication, and the tests assert exact values, not just "an answer".
+  call the fleet's introspecting server makes, with HTTP Basic client authentication, and the tests assert exact values,
+  not just "an answer".
 - **Discovery at boot can race the demo's startup**, as it does with echo. → CI forces its discovery in the same step
   that forces echo's, with the same retry loop.
 - **The demo depends on the gateway's introspection at call time.** If introspection breaks, the `identity` endpoint
