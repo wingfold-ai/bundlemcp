@@ -311,6 +311,11 @@ Every pull request into `main` carries the release its merge makes; nobody cuts 
    ending with the metering-hook protocol version and whether it changed since the previous release. A failed
    rehearsal publishes nothing. A `semver: none` pull request releases nothing.
 
+The public roadmap, [bundlemcp.dev/roadmap](docs/roadmap.md), moves with releases. The pull request that finishes a
+roadmap theme moves it to **Now** in the frontmatter of `docs/roadmap.md`, and a `feat` or breaking pull request is the
+moment to check that the page still holds. Its **In progress** station needs no edit: the docs build reads it from
+`openspec/changes/`. Themes carry no dates.
+
 What this means while you work on a branch:
 
 - CI owns the release entry and the version lines; a hand edit to the version is replaced. Pull before you push

@@ -1,5 +1,7 @@
 import { defineConfigWithTheme, type DefaultTheme, type HeadConfig } from "vitepress";
 import { requirementsLedgerPlugin } from "./requirements-ledger";
+import { roadmapChangesPlugin } from "./roadmap-changes";
+import { assertStationLinks, type RoadmapStation } from "./roadmap-stations";
 import {
   pointsIntoRepository,
   repositoryPublic,
@@ -41,12 +43,15 @@ export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: b
   // <likec4-view> is the web component generated from docs/likec4 at build time
   vue: { template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("likec4-") } } },
   ignoreDeadLinks: "localhostLinks",
-  // /requirements.json, fetched by the Requirements page (docs/reference/requirements.md)
-  vite: { plugins: [requirementsLedgerPlugin()] },
+  // /requirements.json, fetched by the Requirements page (docs/reference/requirements.md),
+  // and virtual:roadmap-changes, the roadmap's "In progress" station (docs/roadmap.md)
+  vite: { plugins: [requirementsLedgerPlugin(), roadmapChangesPlugin()] },
   lastUpdated: true,
   sitemap: { hostname: siteUrl },
   // the home page's GitHub button, likewise
   transformPageData(pageData) {
+    const stations = pageData.frontmatter.stations as RoadmapStation[] | undefined;
+    if (stations) assertStationLinks(stations, pageData.relativePath);
     const actions = pageData.frontmatter.hero?.actions as { link?: string }[] | undefined;
     if (!repositoryPublic && actions) {
       pageData.frontmatter.hero.actions = actions.filter((a) => !pointsIntoRepository(a.link));
@@ -62,6 +67,7 @@ export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: b
       { text: "Manage", link: "/manage/servers", activeMatch: "/manage/" },
       { text: "Connect clients", link: "/connect/claude", activeMatch: "/connect/" },
       { text: "Integrate", link: "/integrate/management-api", activeMatch: "/integrate/" },
+      { text: "Roadmap", link: "/roadmap" },
     ],
     sidebar: [
       {

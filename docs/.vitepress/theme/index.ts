@@ -5,6 +5,7 @@ import HomePipeline from "./HomePipeline.vue";
 import ImageLightbox from "./ImageLightbox.vue";
 import LikeC4Diagram from "./LikeC4Diagram.vue";
 import RepositoryNotice from "./RepositoryNotice.vue";
+import RoadmapLine from "./RoadmapLine.vue";
 import "./custom.css";
 
 export default {
@@ -19,5 +20,6 @@ export default {
     app.component("HomePipeline", HomePipeline);
     app.component("LikeC4Diagram", LikeC4Diagram);
     app.component("RepositoryNotice", RepositoryNotice);
+    app.component("RoadmapLine", RoadmapLine);
   },
 } satisfies Theme;
