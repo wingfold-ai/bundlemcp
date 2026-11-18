@@ -16,7 +16,7 @@ class ShippedMigrations(BaseModel):
     known: frozenset[str] = Field(description="Every revision in this release's history")
 
     @classmethod
-    def read(cls) -> "ShippedMigrations":
+    def read(cls) -> ShippedMigrations:
         """From the scripts installed with the library, so an image cannot be told a wrong head."""
         config = Config()
         config.set_main_option("script_location", MIGRATIONS)

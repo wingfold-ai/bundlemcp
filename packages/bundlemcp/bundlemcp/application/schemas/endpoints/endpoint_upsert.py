@@ -56,7 +56,7 @@ class EndpointUpsert(BaseModel):
         return None if value is None else normalise_allowed_origins(value)
 
     @model_validator(mode="after")
-    def auth_mode_rules(self) -> "EndpointUpsert":
+    def auth_mode_rules(self) -> EndpointUpsert:
         modes = set(self.auth_modes)
         if not modes:
             raise ValueError("auth_modes must not be empty (EP-3)")

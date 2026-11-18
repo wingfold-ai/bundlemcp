@@ -81,7 +81,7 @@ class RequestState(BaseModel):
         target: str,
         arguments: dict[str, Any],
         sub: str | None,
-    ) -> "RequestState":
+    ) -> RequestState:
         try:
             state = cls.model_validate_json(cipher.decrypt(token))
         except (DecryptionError, ValidationError, ValueError) as exc:

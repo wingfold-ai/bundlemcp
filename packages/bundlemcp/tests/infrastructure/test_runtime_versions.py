@@ -50,6 +50,36 @@ def test_arc2_every_python_image_names_a_version():
     assert not missing, f"no Python version found in: {missing}"
 
 
+MATRIX_VERSIONS = re.compile(r"^\s*python:\s*\[([^\]]*)\]", re.MULTILINE)
+REQUIRES_PYTHON = re.compile(r'^requires-python\s*=\s*">=(\d+)\.(\d+)"', re.MULTILINE)
+
+
+def supported() -> list[str]:
+    """Every minor version from the requires-python floor up to the declared one."""
+    floor = REQUIRES_PYTHON.search((ROOT / "pyproject.toml").read_text())
+    assert floor, "pyproject.toml declares no requires-python floor"
+    major, lowest = int(floor.group(1)), int(floor.group(2))
+    newest = int(declared().split(".")[1])
+    return [f"{major}.{minor}" for minor in range(lowest, newest + 1)]
+
+
+def test_arc2_ci_tests_every_supported_python():
+    """ARC-2: the backend test matrix covers every Python version requires-python allows."""
+    matrix = MATRIX_VERSIONS.search((ROOT / ".github/workflows/ci.yml").read_text())
+    assert matrix, "ci.yml has no python matrix"
+    tested = re.findall(r"\d+\.\d+", matrix.group(1))
+    assert tested == supported(), f"expected {supported()}, CI tests {tested}"
+
+
+def test_arc2_packages_share_one_python_floor():
+    """ARC-2: the workspace and the library declare the same requires-python."""
+    floors = {
+        REQUIRES_PYTHON.search((ROOT / path).read_text()).group(0)
+        for path in ["pyproject.toml", "packages/bundlemcp/pyproject.toml"]
+    }
+    assert len(floors) == 1, floors
+
+
 def node_versions(text: str) -> list[int]:
     """Every major Node version a workflow sets up."""
     return [int(v) for v in NODE_WORKFLOW_VERSION.findall(text)]

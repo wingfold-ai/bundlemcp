@@ -32,7 +32,7 @@ class ToolRead(BaseModel):
     )
 
     @classmethod
-    def of(cls, tool: Tool, server: McpServer) -> "ToolRead":
+    def of(cls, tool: Tool, server: McpServer) -> ToolRead:
         return cls(
             id=tool.id,
             server_id=tool.server_id,

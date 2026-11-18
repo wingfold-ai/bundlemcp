@@ -26,6 +26,6 @@ class PkcePair(BaseModel):
     challenge: str = Field(description="S256 digest sent with the authorization request")
 
     @classmethod
-    def generate(cls) -> "PkcePair":
+    def generate(cls) -> PkcePair:
         verifier = secrets.token_urlsafe(48)
         return cls(verifier=verifier, challenge=pkce_challenge(verifier))

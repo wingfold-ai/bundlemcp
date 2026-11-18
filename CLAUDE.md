@@ -44,7 +44,7 @@ See [overview](openspec/README.md) and [architecture](openspec/specs/architectur
 
 ## Development
 
-- Python ≥3.13, uv: `uv sync --all-packages`; run services with `uv run`.
+- Python ≥3.14, uv: `uv sync --all-packages`; run services with `uv run`.
 - Stack: `docker compose -f deploy/docker-compose.yml up` (gateway, web, Postgres, Valkey, dev OIDC IdP).
 - Local dev loop without rebuilding containers: bring up `postgres` and `valkey` from compose, then run the gateway on
   the host with `uv run uvicorn --factory apps.gateway.main:app_factory --reload --no-proxy-headers`.

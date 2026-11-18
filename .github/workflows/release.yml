@@ -29,6 +29,7 @@ concurrency:
 jobs:
   notes:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -51,6 +52,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/publish.yml
     with:
       version: ${{ needs.notes.outputs.version }}
@@ -58,6 +61,7 @@ jobs:
   release:
     needs: [notes, images]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:

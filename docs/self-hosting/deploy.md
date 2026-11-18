@@ -35,6 +35,18 @@ docker push your-registry/bundlemcp-gateway:$SHA
 docker push your-registry/bundlemcp-web:$SHA
 ```
 
+### Verify an image
+
+Images published after v0.4.0 carry an SBOM and a signed SLSA build provenance record, so you can check that an image
+was built by this repository's release workflow from the commit it names before you deploy it:
+
+```bash
+gh attestation verify oci://ghcr.io/wingfold-ai/bundlemcp-gateway:<version> --owner wingfold-ai
+docker buildx imagetools inspect ghcr.io/wingfold-ai/bundlemcp-gateway:<version> --format '{{ json .SBOM }}'
+```
+
+The first command fails for an image that was not built by the workflow, or was changed after it was pushed.
+
 "Upgrading" means deploying a newer release: read every changelog entry between the two versions first — see
 [Migrations and upgrades](#migrations-and-upgrades) for what to look for in them. A merge that releases nothing
 (documentation, tests, CI) still publishes `:latest` and `:<sha>`.
