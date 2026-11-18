@@ -9,6 +9,8 @@
     src="https://img.shields.io/github/v/release/wingfold-ai/bundlemcp?label=release" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
   <a href="https://bundlemcp.dev"><img src="https://img.shields.io/badge/docs-bundlemcp.dev-2c7f86" alt="Docs"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/wingfold-ai/bundlemcp"><img
+    src="https://api.scorecard.dev/projects/github.com/wingfold-ai/bundlemcp/badge" alt="OpenSSF Scorecard"></a>
 </p>
 
 **Your self-hosted MCP servers, in claude.ai and ChatGPT, behind one endpoint and one login.**

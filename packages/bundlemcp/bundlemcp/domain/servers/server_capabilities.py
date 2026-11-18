@@ -36,7 +36,7 @@ class ServerCapabilities(CapabilityObject):
     @classmethod
     def of_bundle_content(
         cls, *, prompts: bool, resources: bool, completions: bool
-    ) -> "ServerCapabilities":
+    ) -> ServerCapabilities:
         """What a bundle's own content offers: its prompts and resources change through the
         gateway, which announces it, and completions come from suggested argument values."""
         return cls(
@@ -69,7 +69,7 @@ class ServerCapabilities(CapabilityObject):
         """The server announces changes to its resource list."""
         return self.resources is not None and self.resources.announces_changes
 
-    def relayable(self, notifications: bool) -> "ServerCapabilities":
+    def relayable(self, notifications: bool) -> ServerCapabilities:
         """What a bundle can advertise on this member's behalf.
 
         Prompts, resources, completions and logging pass on; tools never do,
@@ -97,7 +97,7 @@ class ServerCapabilities(CapabilityObject):
             logging=OpenCapability() if self.logging is not None else None,
         )
 
-    def union(self, other: "ServerCapabilities") -> "ServerCapabilities":
+    def union(self, other: ServerCapabilities) -> ServerCapabilities:
         """Every typed capability either side advertises, each flag set when either side sets
         it. Keys outside the typed members are not carried into the union."""
         return ServerCapabilities(
@@ -108,7 +108,7 @@ class ServerCapabilities(CapabilityObject):
             logging=OpenCapability() if self.logging or other.logging else None,
         )
 
-    def with_tools_list_changed(self) -> "ServerCapabilities":
+    def with_tools_list_changed(self) -> ServerCapabilities:
         """The same capabilities, with tools advertised and their list changes announced."""
         return self.model_copy(update={"tools": ANNOUNCED})
 

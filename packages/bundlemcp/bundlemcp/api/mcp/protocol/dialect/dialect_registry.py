@@ -22,7 +22,7 @@ class DialectRegistry:
         self._handshake = {d.version: d for d in handshake}
 
     @classmethod
-    def default(cls, *, legacy_enabled: bool) -> "DialectRegistry":
+    def default(cls, *, legacy_enabled: bool) -> DialectRegistry:
         return cls(
             modern=[ModernDialect(v) for v in MODERN_PROTOCOL_VERSIONS],
             handshake=[HandshakeDialect(v) for v in HANDSHAKE_PROTOCOL_VERSIONS]

@@ -3,7 +3,7 @@ name = "bundlemcp"
 version = "0.4.0"
 description = "Self-hostable MCP bundling gateway"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 license = "Apache-2.0"
 dependencies = [
     "fastapi>=0.116",

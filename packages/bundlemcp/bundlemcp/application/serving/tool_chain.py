@@ -33,7 +33,7 @@ class ToolChain(BaseModel):
     @classmethod
     def for_endpoint(
         cls, preset: EndpointProfilePreset, call_stages: tuple[ChainStage, ...] = ()
-    ) -> "ToolChain":
+    ) -> ToolChain:
         """The chain of an endpoint with this profile; without call stages it only presents."""
         presenting = (StaleToolFilter(), CurationFilter(), ProfileStage(preset=preset))
         return cls(

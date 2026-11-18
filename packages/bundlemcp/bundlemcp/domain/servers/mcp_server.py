@@ -93,7 +93,7 @@ class McpServer(BaseModel):
     )
 
     @classmethod
-    def register(cls, name: str, changes: ServerChanges) -> "McpServer":
+    def register(cls, name: str, changes: ServerChanges) -> McpServer:
         """A new server configured by its first write.
 
         Settings the write leaves out take their defaults; whether the caller's identity is

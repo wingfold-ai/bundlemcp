@@ -23,7 +23,7 @@ class RedirectUriAllowList(BaseModel):
     )
 
     @classmethod
-    def of(cls, entries: Iterable[str]) -> "RedirectUriAllowList":
+    def of(cls, entries: Iterable[str]) -> RedirectUriAllowList:
         """Parse configured entries; a malformed one raises a validation error naming it."""
         return cls(patterns=tuple(RedirectUriPattern(pattern=entry) for entry in entries))
 

@@ -93,7 +93,7 @@ class AuditRecord(BaseModel):
         user_id: uuid.UUID | None,
         api_key_id: uuid.UUID | None,
         auth_method: EndpointAuthMode | None,
-    ) -> "AuditRecord":
+    ) -> AuditRecord:
         """A successful management action by the given user or key; it names no endpoint or tool.
 
         Only the action's name is kept, never a value the action handled.

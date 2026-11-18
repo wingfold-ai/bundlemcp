@@ -39,7 +39,7 @@ class EndpointResource(BaseModel):
         )
 
     @classmethod
-    def parse(cls, public_base: str, resource: str) -> "EndpointResource | None":
+    def parse(cls, public_base: str, resource: str) -> EndpointResource | None:
         """Read an identifier back; None when it does not name an endpoint of this gateway."""
         prefix = public_base + "/"
         if not resource.startswith(prefix) or not resource.endswith(cls.PATH_SUFFIX):

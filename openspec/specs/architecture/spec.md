@@ -24,14 +24,16 @@ one-time choice.
 - **THEN** it is pinned with `>=` (e.g. `fastmcp>=4.0.3`), never with an exact `==` pin
 
 ### Requirement: ARC-2 Runtime versions
-The gateway SHALL require Python ≥ 3.13 (`requires-python = ">=3.13"`) and SHALL be built, tested and shipped on the
-latest stable Python release, 3.15 at the time of writing. The repository declares that version in one place, and
-every image that runs Python (the gateway and the example upstreams) and every CI job that sets up Python uses exactly
-the declared version. The web app SHALL be built and run on Node ≥ 24: `apps/web/package.json` declares it in
-`engines`, every CI and publishing job that runs Node uses 24 or later, and the web image runs Node 26.
+The gateway SHALL require Python ≥ 3.14 (`requires-python = ">=3.14"`, the first release with lazily evaluated
+annotations, which the code relies on) and SHALL be built, tested and shipped on the latest stable Python release, 3.15
+at the time of writing. The repository declares that version in one place, and every image that runs Python (the gateway
+and the example upstreams) and every CI job that sets up Python uses exactly the declared version, except the backend
+tests, which run on every version from the `requires-python` floor up to the declared one. The web app SHALL be built
+and run on Node ≥ 24: `apps/web/package.json` declares it in `engines`, every CI and publishing job that runs Node uses
+24 or later, and the web image runs Node 26.
 
 #### Scenario: Gateway refuses an older Python
-- **WHEN** the workspace is installed with a Python older than 3.13
+- **WHEN** the workspace is installed with a Python older than 3.14
 - **THEN** `uv sync` rejects the interpreter because of `requires-python`
 
 #### Scenario: Web app is built on Node 24 or later
@@ -54,6 +56,11 @@ the declared version. The web app SHALL be built and run on Node ≥ 24: `apps/w
 #### Scenario: No CI job runs an older Node
 - **WHEN** the workflows under `.github/workflows/` are inspected
 - **THEN** every `node-version` they set is 24 or later
+
+#### Scenario: CI tests every supported Python
+- **GIVEN** `requires-python = ">=3.14"` and Python 3.15 declared as the shipped version
+- **WHEN** the backend test matrix in CI does not list exactly 3.14 and 3.15
+- **THEN** the hermetic test suite fails and names the versions it expected and the ones CI tests
 
 ### Requirement: ARC-3 Pydantic everywhere
 Every structured value MUST be a Pydantic model; no `dataclasses`. Domain entities are plain `BaseModel` classes in

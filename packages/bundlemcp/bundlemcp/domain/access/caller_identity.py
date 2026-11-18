@@ -37,11 +37,11 @@ class CallerIdentity(BaseModel):
     )
 
     @classmethod
-    def anonymous(cls) -> "CallerIdentity":
+    def anonymous(cls) -> CallerIdentity:
         return cls(auth_method=EndpointAuthMode.NONE)
 
     @classmethod
-    def oauth_user(cls, user: User) -> "CallerIdentity":
+    def oauth_user(cls, user: User) -> CallerIdentity:
         return cls(
             auth_method=EndpointAuthMode.OAUTH,
             user_id=str(user.id),
@@ -51,7 +51,7 @@ class CallerIdentity(BaseModel):
         )
 
     @classmethod
-    def with_api_key(cls, key_id: uuid.UUID) -> "CallerIdentity":
+    def with_api_key(cls, key_id: uuid.UUID) -> CallerIdentity:
         return cls(auth_method=EndpointAuthMode.API_KEY, api_key_id=str(key_id))
 
     @property

@@ -22,7 +22,7 @@ class ProfileCatalog(BaseModel):
     )
 
     @model_validator(mode="after")
-    def every_profile_registered_under_its_name(self) -> "ProfileCatalog":
+    def every_profile_registered_under_its_name(self) -> ProfileCatalog:
         missing = [p.value for p in EndpointProfile if p not in self.presets]
         if missing:
             raise ValueError(f"profiles without a preset: {missing}")
@@ -32,7 +32,7 @@ class ProfileCatalog(BaseModel):
         return self
 
     @classmethod
-    def builtin(cls) -> "ProfileCatalog":
+    def builtin(cls) -> ProfileCatalog:
         """The profiles the gateway ships."""
         presets: list[EndpointProfilePreset] = [
             DefaultProfile(),

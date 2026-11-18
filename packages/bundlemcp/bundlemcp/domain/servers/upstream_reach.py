@@ -20,7 +20,7 @@ class UpstreamReach(StrEnum):
     UNDECIDED = "undecided"
 
     @classmethod
-    def of_failure(cls, responses: ResponseLog, *, jsonrpc_code: int | None) -> "UpstreamReach":
+    def of_failure(cls, responses: ResponseLog, *, jsonrpc_code: int | None) -> UpstreamReach:
         """What a call that raised tells about its upstream.
 
         ``jsonrpc_code`` is the code of the JSON-RPC error the call raised, if

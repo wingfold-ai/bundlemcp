@@ -321,7 +321,7 @@ class Settings(BaseModel):
         return str(self.public_url).rstrip("/")
 
     @model_validator(mode="after")
-    def _one_metering_hook(self) -> "Settings":
+    def _one_metering_hook(self) -> Settings:
         # one hook per deployment, in-process or over HTTP
         if self.metering_hook and self.metering_http_url:
             raise ValueError("set BUNDLEMCP_METERING_HOOK or BUNDLEMCP_METERING_HTTP_URL, not both")

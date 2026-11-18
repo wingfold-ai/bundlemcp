@@ -22,13 +22,13 @@ class AuthenticationOutcome(BaseModel):
     )
 
     @classmethod
-    def authenticated(cls, identity: CallerIdentity) -> "AuthenticationOutcome":
+    def authenticated(cls, identity: CallerIdentity) -> AuthenticationOutcome:
         return cls(identity=identity)
 
     @classmethod
-    def not_entitled(cls, holder: CallerIdentity) -> "AuthenticationOutcome":
+    def not_entitled(cls, holder: CallerIdentity) -> AuthenticationOutcome:
         return cls(forbidden=holder)
 
     @classmethod
-    def nobody(cls) -> "AuthenticationOutcome":
+    def nobody(cls) -> AuthenticationOutcome:
         return cls()

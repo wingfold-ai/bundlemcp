@@ -84,7 +84,7 @@ class Load:
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
 
-    def __enter__(self) -> "Load":
+    def __enter__(self) -> Load:
         self._thread.start()
         return self
 
