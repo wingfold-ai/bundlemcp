@@ -67,6 +67,8 @@ avoid conflicts and minimize harm.
 When an incident does occur, it is important to report it promptly. To report a possible violation, **contact the
 maintainers privately at contact@wingfold.ch, never a public issue.**
 
+The project maintainers act as the Community Moderators.
+
 Community Moderators take reports of violations seriously and will make every effort to respond in a timely manner. They
 will investigate all reports of code of conduct violations, reviewing messages, logs, and recordings, or interviewing
 witnesses and other participants. Community Moderators will keep investigation and enforcement actions as transparent as
@@ -76,10 +78,6 @@ resolution.
 
 
 ## Addressing and Repairing Harm
-
-**[NOTE: The remedies and repairs outlined below are suggestions based on best practices in code of conduct enforcement.
-If your community has its own established enforcement process, be sure to edit this section to describe your own
-policies.]**
 
 If an investigation by the Community Moderators finds that this Code of Conduct has been violated, the following
 enforcement ladder may be used to determine how best to repair harm, based on the incident's impact on the individuals
@@ -115,7 +113,7 @@ skipped.
       through other remedies has failed to change the behavior.
    3. Repair: There is no possible repair in cases of this severity.
 
-This enforcement ladder is intended as a guideline. It does not limit the ability of Community Managers to use their
+This enforcement ladder is intended as a guideline. It does not limit the ability of Community Moderators to use their
 discretion and judgment, in keeping with the best interests of our community.
 
 

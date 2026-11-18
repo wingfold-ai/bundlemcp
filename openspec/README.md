@@ -59,23 +59,22 @@ URL serving that bundle over Streamable HTTP. One bundle can have **many endpoin
 
 ### Why a rewrite (and not a fork)
 
-metamcp proved the product shape but is barely maintained and has an architectural flaw that caused repeated production
-pain: **all live state — connection pools, transports, rate-limit counters — lives in the memory of a single Node
-process.** A restart drops every session (`404 Session not found` storms); a second replica is impossible; the fork
-accumulated an entire recovery subsystem just to mitigate it.
+metamcp proved the product shape. Its live state (connection pools, transports, rate-limit counters) lives in the
+memory of one Node process, so a restart drops every session and a second replica cannot share them. Changing that
+means changing where every request keeps its state, which is a rewrite rather than a patch.
 
-bundlemcp inverts that: durable configuration in Postgres, live session state in Valkey, **no in-memory-only state that
-a request depends on**. Any replica serves any session; restarts are non-events (see
+bundlemcp keeps durable configuration in Postgres and live session state in Valkey, with **no in-memory-only state
+that a request depends on**. Any replica serves any session, and a restart is a non-event (see
 [sessions](specs/sessions/spec.md)).
 
-The rewrite also switches to the maintainer's home stack — Python (FastAPI + FastMCP, Pydantic everywhere) and Nuxt 4 —
-and strips features that do not serve the bundling mission (see the decision log below).
+The rewrite is in Python (FastAPI + FastMCP, Pydantic everywhere) and Nuxt 4, and leaves out the features that do not
+serve the bundling mission (see the decision log below).
 
 ### Scope boundary: bundlemcp vs. the application layer
 
-bundlemcp is the **reusable building block**; the application layer is an **application** of it (a commercial
-multi-tenant MCP platform). bundlemcp must be fully usable standalone — with any OIDC provider and no billing — while
-exposing the exact contact points such an application needs.
+bundlemcp is the **reusable building block**; an application layer is an **application** of it, for example a
+multi-tenant MCP platform that adds billing. bundlemcp must be fully usable standalone — with any OIDC provider and no
+billing — while exposing the exact contact points such an application needs.
 
 | Concern | bundlemcp (this project) | Application layer |
 |---|---|---|

@@ -8,6 +8,12 @@ protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) say
 
 ## [0.4.0] - 2026-11-17
 
+The first public preview. bundlemcp bundles self-hosted MCP servers behind endpoints for claude.ai, ChatGPT and
+scripts: an OAuth 2.1 server and API keys in front of them, tool curation per bundle, per-user upstream credentials, an
+audit log, a metering hook and sessions that survive a restart. What comes next is on the
+[roadmap](https://bundlemcp.dev/roadmap). Until 1.0, a minor release may change the management API, settings or the
+bootstrap format; such a change is marked **Breaking** here.
+
 ### Fixed
 
 - **Breaking:** Keep upstream credentials from following a moved URL

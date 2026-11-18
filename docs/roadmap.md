@@ -76,10 +76,10 @@ never out of date.
 
 ## What bundlemcp won't do
 
-Some features of metamcp, the project bundlemcp replaces, were left out on purpose: stdio and SSE transports (wrap a
-stdio server in a [sidecar](/connect/stdio-sidecar) instead), an OpenAPI REST bridge, API keys in query parameters,
-per-user resource ownership, admin tools over MCP, local password accounts, translations and a marketplace page. The
-reasons for each are in the
+bundlemcp began as a rewrite of metamcp's bundling core, and some of metamcp's features were left out on purpose: stdio
+and SSE transports (wrap a stdio server in a [sidecar](/connect/stdio-sidecar) instead), an OpenAPI REST bridge, API
+keys in query parameters, per-user resource ownership, admin tools over MCP, local password accounts, translations and a
+marketplace page. The reasons for each are in the
 [decision log](https://github.com/wingfold-ai/bundlemcp/blob/main/openspec/README.md#decision-log--deliberately-dropped-from-metamcp).
 A dropped feature comes back only with new evidence.
 
