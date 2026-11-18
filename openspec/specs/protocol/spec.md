@@ -783,7 +783,7 @@ watches. The protocol replays nothing, so a change made while the stream was dow
 
 ### Protocol passthrough
 
-Origin: new — metamcp covered only fragments (timeouts, progress-token forwarding). Motivating case: the hyperframes
+Origin: new — metamcp covered only fragments (timeouts, progress-token forwarding). Motivating case: a video-rendering
 upstream blocks ~130 s per render; without progress-aware timeouts and cancellation such calls are unusable through a
 gateway. MCP revision 2026-07-28 replaced the protocol's stateful core (no `initialize`, no `Mcp-Session-Id`, no GET
 stream, no server-initiated requests); the gateway speaks every supported revision on both hops so any client era works

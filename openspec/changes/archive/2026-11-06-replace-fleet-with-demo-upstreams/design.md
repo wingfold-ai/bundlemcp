@@ -4,12 +4,12 @@
 
 See proposal.md, "Why". Facts from the current tree that shape the approach:
 
-- **What the fleet tests prove.** Two of the five tests in `tests/integration/test_fleet_bundles.py`
-  (`test_seo_bundle_serves_psi_tools_with_api_key`, `test_dataforseo_tools_listed`) prove nothing the echo smoke tests
+- **What the fleet tests prove.** Two of the five tests in `tests/integration/test_fleet_bundles.py`, the ones that only list
+  a fleet server's tools, prove nothing the echo smoke tests
   do not already prove. The other three need an upstream that does one of the following:
-  - introspects a forwarded bearer (seo-gsc);
-  - refuses discovery without a credential (seo-gsc, through its static `authorization` header);
-  - receives `X-MCP-User` (hyperframes).
+  - introspects a forwarded bearer;
+  - refuses discovery without a credential, through its static `authorization` header;
+  - receives `X-MCP-User`.
 - **The fleet seed's static header breaks under `deploy/stack.sh`.** `seed.fleet.yaml` puts the published dev
   service key, `bmcp_sk_devservicekey…`, in a literal static header. `deploy/stack.sh` replaces that key with a
   generated one ([DEP-13](../../specs/deployment/spec.md)), so on a stack started that way the seeded header no
@@ -44,7 +44,7 @@ See proposal.md, "Why". Facts from the current tree that shape the approach:
   UPS-17) is already implemented.
 - No replacement for the private servers' own features (Google Search Console data, rendering). They are not gateway
   behaviour.
-- No rewrite of git history, and no edit to the ADRs that mention seo-gsc or hyperframes.
+- No rewrite of git history, and no edit to the ADRs that mention fleet servers.
 - The maintainer's private deployment with the real servers lives outside this repository and is not planned here.
 
 ## Decisions
@@ -71,7 +71,7 @@ The demo accepts a request if its bearer is either of these:
 Anything else gets `401`. The seed gives the upstream a static header, `authorization: Bearer <discovery token>`. At
 call time the forwarded `authorization` replaces it, which the gateway already does.
 
-- *Alternative: the static header carries the service key, as with seo-gsc.* Rejected, because it breaks under
+- *Alternative: the static header carries the service key, as with the fleet.* Rejected, because it breaks under
   `deploy/stack.sh` (see Context). It would also put a gateway credential in the seed, where DEP-13 removes published
   credentials.
 - *Alternative: let discovery through unauthenticated.* Rejected. Then nothing proves the static header is sent on
@@ -165,7 +165,7 @@ of the block. Until then, `openspec validate` reports this one error on the chan
 
 - **The demo checks less than a real introspecting server could.** It is maintained in this repository, so a gateway
   change that breaks a real upstream's expectations could pass if the demo is too lenient. → It uses the same RFC 7662
-  call seo-gsc makes, with HTTP Basic client authentication, and the tests assert exact values, not just "an answer".
+  call the fleet's introspecting server makes, with HTTP Basic client authentication, and the tests assert exact values, not just "an answer".
 - **Discovery at boot can race the demo's startup**, as it does with echo. → CI forces its discovery in the same step
   that forces echo's, with the same retry loop.
 - **The demo depends on the gateway's introspection at call time.** If introspection breaks, the `identity` endpoint

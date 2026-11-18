@@ -783,7 +783,7 @@ Origin: metamcp carry-over (scoping added, query-param mode dropped). Prior art:
 ### Identity forwarding
 
 Origin: metamcp carry-over (fork feature `forward_headers` plus the first consumer's identity contract). Prior art:
-`../metamcp/apps/backend/src/lib/metamcp/header-forwarding.ts`, the first consumer's compose stack (seo-gsc/hyperframes
+`../metamcp/apps/backend/src/lib/metamcp/header-forwarding.ts`, the first consumer's compose stack (its upstreams'
 identity contract). This is the contract the first consumer's upstream servers already rely on.
 
 metamcp solved cross-caller connection reuse by bypassing idle-session reuse for servers with forwarded headers;

@@ -3,7 +3,7 @@
 ## 1. Loopback host ports (DEP-13)
 
 - [x] 1.1 Bind every `ports:` entry in `deploy/docker-compose.yml` to `127.0.0.1` (keycloak, gateway 8000 and 9000, web,
-  seo-gsc, seaweedfs), and read `KC_BOOTSTRAP_ADMIN_PASSWORD` from `${KEYCLOAK_ADMIN_PASSWORD:-admin}`. Verify with
+  and the fleet services), and read `KC_BOOTSTRAP_ADMIN_PASSWORD` from `${KEYCLOAK_ADMIN_PASSWORD:-admin}`. Verify with
   `docker compose -f deploy/docker-compose.yml config | grep -A2 'ports:'` showing only `127.0.0.1` host IPs, and with
   the integration job still passing in CI
 - [x] 1.2 Add `tools/check_compose_ports.py`, which fails when any host port in a `deploy/docker-compose*.yml` is not

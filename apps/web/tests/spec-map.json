@@ -124,8 +124,8 @@
     },
     {
       "id": "E2E-12",
-      "testFile": "gsc-upstream.spec.ts",
-      "slug": "gsc-forwarding-status",
+      "testFile": "upstream-forwarding.spec.ts",
+      "slug": "forwarding-status",
       "title": "The UI surfaces header forwarding and flags it as passthrough",
       "requirements": [
         "AUTH-30",
@@ -134,8 +134,8 @@
     },
     {
       "id": "E2E-13",
-      "testFile": "gsc-upstream.spec.ts",
-      "slug": "gsc-connect-link",
+      "testFile": "upstream-forwarding.spec.ts",
+      "slug": "connect-link",
       "title": "The upstream-OAuth connect link targets the gateway route",
       "requirements": [
         "UI-6",

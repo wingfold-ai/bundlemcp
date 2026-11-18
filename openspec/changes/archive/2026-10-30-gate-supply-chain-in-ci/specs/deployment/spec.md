@@ -104,5 +104,5 @@ operator-set variable for a service outside the default stack.
 - **THEN** it reads Python `3.15` from that reference
 
 #### Scenario: An operator-chosen fleet image may float
-- **WHEN** a compose service outside the default stack takes its image from a variable such as `${SEO_PSI_IMAGE:-…}`
+- **WHEN** a compose service outside the default stack takes its image from a variable such as `${FLEET_IMAGE:-…}`
 - **THEN** its default may name a moving tag, and the test does not fail on it

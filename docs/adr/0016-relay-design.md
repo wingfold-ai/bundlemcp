@@ -44,7 +44,7 @@ _Not recorded at the time of the decision._
 ### Positive
 
 - Long-running calls work end to end: progress visible, cancellable, timeouts progress-aware — the motivating
-  hyperframes case.
+  video-render case.
 - Cross-replica correctness is proven hermetically (two app instances on one fakeredis: deliver/cancel/reply all route).
 
 ### Trade-offs

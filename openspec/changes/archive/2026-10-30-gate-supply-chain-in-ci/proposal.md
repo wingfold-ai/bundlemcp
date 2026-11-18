@@ -44,7 +44,7 @@ The 2026-10-29 code audit records these as findings S4, S5, S6 and S28.
   - every `FROM` in the five Dockerfiles, and the uv image the gateway builder copies from, names its tag and a
     `@sha256:` digest. The uv image becomes a named build stage, so Dependabot can see it;
   - every third-party image in `deploy/docker-compose*.yml` does too, and the three `:latest` tags become versioned
-    tags. The private fleet images chosen through `SEO_PSI_IMAGE`, `SEO_GSC_IMAGE` and `HYPERFRAMES_IMAGE` are the one
+    tags. The private fleet images chosen through `${…_IMAGE}` variables are the one
     exception;
   - Dependabot keeps them current: its `docker` ecosystem also covers `examples/conformance-mcp` (missing today), and
     a `docker-compose` ecosystem is added for `deploy/`. Postgres and Valkey major versions are left to an operator,
