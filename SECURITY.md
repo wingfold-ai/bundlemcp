@@ -2,14 +2,13 @@
 
 ## Supported versions
 
-Security fixes are released for the latest published version.
+bundlemcp is a pre-1.0 preview. Security fixes land in a new release on the newest minor line only; upgrade to it to
+receive them.
 
 | Version | Supported |
 | ------- | --------- |
-| latest  | yes       |
-| older   | no        |
-
-<!-- Replace this table if more than one release line is maintained. -->
+| 0.4.x   | yes       |
+| < 0.4   | no        |
 
 ## Reporting a vulnerability
 

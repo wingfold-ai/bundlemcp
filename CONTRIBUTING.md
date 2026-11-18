@@ -7,8 +7,11 @@ open a pull request. Coding conventions are in [CLAUDE.md](CLAUDE.md) and the ru
 ## Ways to contribute
 
 - **Report a bug** with the bug report form in the issue tracker.
-- **Suggest a feature** with the feature request form. For open-ended ideas or questions, open an issue describing the
-  problem you want to solve first.
+- **Suggest a feature** with the feature request form once the problem is clear. Open-ended ideas belong in the
+  [Ideas category of Discussions](https://github.com/wingfold-ai/bundlemcp/discussions/categories/ideas), and questions
+  in [Discussions](https://github.com/wingfold-ai/bundlemcp/discussions).
+- **Ask a question** in [Discussions](https://github.com/wingfold-ai/bundlemcp/discussions) rather than the issue
+  tracker.
 - **Improve the documentation.** Small fixes need no issue first.
 - **Fix an issue.** Issues labelled `good first issue` are a good place to start; `help wanted` marks work the
   maintainers would like help with.
@@ -346,8 +349,9 @@ What this means while you work on a branch:
 
 ## Where to ask
 
-Open an issue. If it is about a decision rather than a defect, check the [spec decision log](openspec/README.md) and the
-[ADR index](docs/adr/README.md) first — a surprising number of "why not X" questions are answered there, with the
+Ask in [GitHub Discussions](https://github.com/wingfold-ai/bundlemcp/discussions); the issue tracker is for bugs and
+agreed features. If it is about a decision rather than a defect, check the [spec decision log](openspec/README.md) and
+the [ADR index](docs/adr/README.md) first — a surprising number of "why not X" questions are answered there, with the
 reason.
 
 ## Licensing of contributions

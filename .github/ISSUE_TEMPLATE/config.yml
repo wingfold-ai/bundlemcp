@@ -1,5 +1,14 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Ask a question
+    url: https://github.com/wingfold-ai/bundlemcp/discussions/categories/q-a
+    about: Questions about running or using bundlemcp; the issue tracker is for bugs and agreed features.
+  - name: Share an idea
+    url: https://github.com/wingfold-ai/bundlemcp/discussions/categories/ideas
+    about: Open-ended ideas and use cases, before they become a feature request.
+  - name: Read the documentation
+    url: https://bundlemcp.dev
+    about: Setup, configuration, connecting clients and the management API.
   - name: Report a security vulnerability
     url: https://github.com/wingfold-ai/bundlemcp/security/advisories/new
     about: Please report security problems privately, never in a public issue.

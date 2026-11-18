@@ -11,10 +11,27 @@ body:
     id: version
     attributes:
       label: Version
-      description: The version or commit you are using.
-      placeholder: "1.2.3"
+      description: The release (the image tag, or `version` in `pyproject.toml`) or the commit you run.
+      placeholder: "0.4.0"
     validations:
       required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How do you run bundlemcp?
+      options:
+        - The compose stack from this repository (deploy/docker-compose.yml)
+        - The published container images
+        - From source on the host (uv run)
+        - Other (say below)
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client and upstream server
+      description: The client that connects to bundlemcp, and the upstream server involved, if any.
+      placeholder: "claude.ai custom connector; a FastMCP upstream"
   - type: textarea
     id: what-happened
     attributes:
@@ -36,14 +53,14 @@ body:
     id: logs
     attributes:
       label: Relevant output
-      description: Error messages or logs. This is formatted as code automatically.
+      description: Error messages or logs, with tokens and keys removed. This is formatted as code automatically.
       render: shell
   - type: input
     id: environment
     attributes:
       label: Environment
-      description: Operating system, runtime version and anything else that might matter.
-      placeholder: "Ubuntu 24.04, Node 22"
+      description: Operating system, Docker version and anything else that might matter.
+      placeholder: "Ubuntu 24.04, Docker 27.3"
   - type: checkboxes
     id: checks
     attributes:
