@@ -280,6 +280,9 @@ jobs:
     permissions:
       contents: write
       packages: write
+      # the image publishing it calls signs a provenance attestation for each image
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/release.yml
     with:
       version: ${{ needs.tag.outputs.version }}
