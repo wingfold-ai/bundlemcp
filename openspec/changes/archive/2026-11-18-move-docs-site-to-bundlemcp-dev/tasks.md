@@ -18,5 +18,5 @@
 
 - [x] 3.1 Run the gates: `uv run pytest -q`, `uv run ruff check .`, `uv run rumdl check .`, `uv run lint-imports`,
   the `tools/check_*.py` scripts and `openspec validate --all --strict`.
-- [ ] 3.2 After publishing, check the live site: `https://bundlemcp.com/guide/quickstart` answers `301` to
+- [x] 3.2 After publishing, check the live site: `https://bundlemcp.com/guide/quickstart` answers `301` to
   `https://bundlemcp.dev/guide/quickstart`, and `https://bundlemcp.dev/sitemap.xml` answers `200`.
