@@ -28,3 +28,6 @@ deploy/docker-compose.override.yml
 # the MCP conformance suite writes its results here
 /results/
 overhead-report.json
+
+# personal Claude Code settings; the shared ones are .claude/settings.json
+.claude/settings.local.json

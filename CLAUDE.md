@@ -132,8 +132,9 @@ See [overview](openspec/README.md) and [architecture](openspec/specs/architectur
 
 ## Git & Commit Attribution
 
-Commits and PRs must land in the user's name, never Claude's. The standing rules — no `Co-Authored-By: Claude` trailer,
-no "Generated with Claude Code" line, commit/PR behavior, and the security guardrails — are documented in:
+Commits and PRs land in the contributor's name, never Claude's. The standing rules — no `Co-Authored-By: Claude`
+trailer, no "Generated with Claude Code" line, commit/PR behavior, personal settings in `.claude/settings.local.json`,
+and the security guardrails — are documented in:
 
 @.claude/docs/git-attribution.md
 
