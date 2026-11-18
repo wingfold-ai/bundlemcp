@@ -10,3 +10,9 @@
 # package = "example"
 # reason = "Build-time only, through the docs toolchain; no released version fixes it"
 # expires = 2027-01-15
+
+[[advisory]]
+id = "GHSA-fc5q-39xc-vjpf"
+package = "picomatch"
+reason = "Build-time only: Vite, Nuxt and the docs toolchain match glob patterns from this repository, never from a request, and the web image ships Nuxt's .output, which contains no picomatch. No released version fixes it (every version up to 4.0.7 is affected)"
+expires = 2027-01-18
