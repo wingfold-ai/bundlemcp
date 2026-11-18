@@ -52,7 +52,7 @@
 - [x] 2.5 Document the new service and endpoint:
   - a row in the services table of `docs/guide/quickstart.md`;
   - the seed description in `docs/self-hosting/bootstrap.md`;
-  - `docs/integrate/upstream-identity.md`, whose `hyperframes` and `seo-gsc` examples become the identity demo, with
+  - `docs/integrate/upstream-identity.md`, whose fleet-server examples become the identity demo, with
     `whoami` shown as what an upstream sees.
 
   Verify that `python3 tools/check_docs_links.py` and `python3 tools/check_docs_symbols.py` pass and that the docs
@@ -83,16 +83,14 @@
 
   Verify with `uv run pytest -q`, and that `grep -n fleet .github/workflows/ci.yml pyproject.toml` finds nothing.
 - [x] 4.2 Clean up `deploy/docker-compose.yml`:
-  - remove the services `seo-psi`, `seo-gsc`, `dataforseo`, `seaweedfs` and `hyperframes`, and the volumes `gscdata`
-    and `seaweed-data`;
+  - remove the five fleet services and their two volumes;
   - remove the fleet sentence of the header comment, the `seed.fleet.yaml` mount and its comment at
     `BUNDLEMCP_BOOTSTRAP_FILE`, keeping `${BUNDLEMCP_SEED_FILE:-seed.yaml}`.
 
   Delete `deploy/seed.fleet.yaml` and `deploy/seaweedfs/`. Verify that `docker compose -f deploy/docker-compose.yml
   config --profiles` lists no `fleet` profile.
 - [x] 4.3 Clean up `deploy/.env.example`:
-  - remove the fleet lines, the seo-gsc and dataforseo sections, and `SEO_PSI_IMAGE`, `SEO_GSC_IMAGE`,
-    `HYPERFRAMES_IMAGE` and `PSI_API_KEY`;
+  - remove the fleet lines, the fleet servers' sections, and their image and API-key variables;
   - keep `BUNDLEMCP_SEED_FILE`, documented as "your own seed".
 
   Verify that `bash tests/deploy/test_stack_secrets.sh` passes.

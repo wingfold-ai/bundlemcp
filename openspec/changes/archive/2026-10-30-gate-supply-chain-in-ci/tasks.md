@@ -48,18 +48,19 @@
   the three examples build, and that `uv run pytest -q packages/bundlemcp/tests/infrastructure/test_runtime_versions.py`
   still passes
 - [x] 3.2 Pin every third-party image in `deploy/docker-compose.yml` and `deploy/docker-compose.replicas.yml` the same
-  way. `chrislusf/seaweedfs`, `cloudflare/cloudflared` and `ngrok/ngrok` move from `:latest` to their current versioned
-  tags, and `dataforseo` moves from `node:20-alpine` to `node:24-alpine`. Leave the three `${…_IMAGE:-…}` fleet images
-  as they are. Verify with `docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.replicas.yml config`
-  succeeding, `python3 tools/check_compose_ports.py` passing, and every pinned reference pulling by its digest (the
-  integration job is 9.1)
+      way. `chrislusf/seaweedfs`, `cloudflare/cloudflared` and `ngrok/ngrok` move from `:latest` to their current
+      versioned tags, and one fleet service moves from `node:20-alpine` to `node:24-alpine`. Leave the three
+      `${…_IMAGE:-…}` fleet images as they are. Verify with
+      `docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.replicas.yml config` succeeding,
+      `python3 tools/check_compose_ports.py` passing, and every pinned reference pulling by its digest (the integration
+      job is 9.1)
 - [x] 3.3 Add `packages/bundlemcp/tests/infrastructure/test_image_pins.py`, line-based like
   `tools/check_compose_ports.py`. `test_dep15_every_image_is_pinned_by_digest` covers `FROM` (skipping stage aliases)
   and `COPY --from=<image>` in `apps/*/Dockerfile` and `examples/*/Dockerfile`, and `image:` in
   `deploy/docker-compose*.yml`, exempting only variable-chosen images of `fleet`-profile services.
   `test_dep15_the_check_catches_a_floating_tag` checks the detector on inline texts: `node:26-alpine` and
   `example/image:latest` are reported, an image with `@sha256:` is not, `FROM builder` is not, and
-  `${SEO_PSI_IMAGE:-ghcr.io/x/y:latest}` under a fleet service is not. Verify both pass on the repository and the first
+  `${FLEET_IMAGE:-ghcr.io/x/y:latest}` under a fleet service is not. Verify both pass on the repository and the first
   fails on a copy with one digest removed
 - [x] 3.4 In `.github/dependabot.yml`: add `/examples/conformance-mcp` to the `docker` directories; add a
   `docker-compose` ecosystem for `/deploy` with the same weekly schedule, 7-day cooldown and `dependencies` label;

@@ -9,7 +9,7 @@ Registering a server asked the operator for `auth_mode`, `identity_mode`, `forwa
 the code showed that part of the confusion was structural:
 
 - `none` and `static_headers` behaved identically — static headers were sent whenever stored — so the choice between
-  them meant nothing (`deploy/seed.yaml` registers `seo-gsc` with an `authorization` static header and the default
+  them meant nothing (`deploy/seed.yaml` registered an upstream with an `authorization` static header and the default
   `auth_mode: none`).
 - `identity_mode` only has an effect with upstream OAuth, yet was asked for every server.
 - Whether a server needs OAuth is published by the server itself: since MCP 2025-06-18 an OAuth-protected server

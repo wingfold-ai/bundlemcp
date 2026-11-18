@@ -463,7 +463,7 @@ def test_ups15_a_mistyped_entry_is_skipped_like_a_non_object():
 
 async def test_ups13_identity_header_defaults_by_network_and_is_kept_on_update(uow):
     servers = ServerService(uow, discovery=NoopToolDiscovery(), public_base="http://gw")
-    internal = await servers.upsert(ServerUpsert(name="gsc", url="http://seo-gsc:8000/mcp"))
+    internal = await servers.upsert(ServerUpsert(name="crm", url="http://crm:8000/mcp"))
     external = await servers.upsert(ServerUpsert(name="lin", url="https://mcp.linear.app/mcp"))
     assert internal.send_identity_header is True
     assert external.send_identity_header is False
@@ -673,7 +673,7 @@ async def test_auth32_a_delegated_server_gets_a_token_bound_to_it():
         store, clock=clock, generator=SequentialSecretGenerator(), hasher=Sha256SecretHasher()
     )
     server = McpServer(
-        name="gsc", url="http://seo-gsc:8000/mcp", auth_mode=ServerAuthMode.DELEGATED_TOKEN
+        name="crm", url="http://crm:8000/mcp", auth_mode=ServerAuthMode.DELEGATED_TOKEN
     )
     resolver = UpstreamCredentialResolver(None, PUBLIC_BASE, delegated=issuer)
     user = CallerIdentity.oauth_user(
@@ -686,7 +686,7 @@ async def test_auth32_a_delegated_server_gets_a_token_bound_to_it():
     assert record is not None
     assert (record.sub, record.audience, record.actor) == (
         str(uuid_of("u1")),
-        "http://seo-gsc:8000/mcp",
+        "http://crm:8000/mcp",
         "endpoint:main",
     )
     assert token not in str(store.records)  # only the hash is kept

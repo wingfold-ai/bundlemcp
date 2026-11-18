@@ -4,7 +4,7 @@
 
 ## Context
 
-A tools-only gateway breaks real workloads: long-running calls (hyperframes renders ~130 s) need progress +
+A tools-only gateway breaks real workloads: long-running calls (a video render takes ~130 s) need progress +
 progress-aware timeouts + cancellation; modern upstreams initiate sampling/elicitation requests toward the client. The
 cheaper alternative (relay progress/cancellation, reject sampling/ elicitation) was considered and declined in the
 2026-07 scope review.

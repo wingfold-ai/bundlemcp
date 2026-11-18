@@ -15,7 +15,7 @@ async def test_auth32_a_record_round_trips_and_expires_with_the_token(redis):
     record = DelegatedToken(
         sub="api_key:1",
         server_id=uuid.uuid4(),
-        audience="http://seo-gsc:8000/mcp",
+        audience="http://crm:8000/mcp",
         endpoint="main",
         expires_at=datetime.now(UTC) + timedelta(minutes=5),
     )

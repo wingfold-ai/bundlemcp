@@ -4,7 +4,7 @@
 
 ## Context
 
-Upstreams that must verify who is calling (the reference stack's `seo-gsc`) are registered with
+Upstreams that must verify who is calling (such as an upstream that introspects the caller's bearer) are registered with
 `forward_headers: {"authorization": "authorization"}`: the gateway passes the caller's own bearer, issued for a gateway
 endpoint, and the upstream introspects it. The MCP authorization spec forbids this ("The MCP server MUST NOT pass
 through the token it received from the MCP client"; servers "MUST NOT accept or transit any other tokens"): the upstream
@@ -31,8 +31,8 @@ introspection authority its upstreams already use, so it can perform that exchan
 - Anonymous callers get no token. Tool discovery, which has no caller, sends the server's static headers as for any
   other server.
 - Forwarding `authorization` stays supported for existing trusted upstreams but is reported (`forwards_caller_token`)
-  and labelled in the UI as passthrough, with `delegated_token` as the recommended alternative. The reference stack's
-  `seo-gsc` keeps its configuration until its introspection code accepts the delegated `aud`.
+  and labelled in the UI as passthrough, with `delegated_token` as the recommended alternative. Such an upstream
+  keeps its configuration until its introspection code accepts the delegated `aud`.
 
 ## Alternatives considered
 

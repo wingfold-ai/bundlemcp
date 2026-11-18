@@ -181,10 +181,10 @@ both together, and open a digest-only pull request when a tag is re-pushed (a De
   it has never proposed a uv update here. The stage is never run, so the build output does not change.
 - **Compose:** `postgres:17-alpine`, `valkey/valkey:8-alpine`, `quay.io/keycloak/keycloak:26.4`, `caddy:2-alpine`,
   `caddy:2.10.2-alpine`, and the three `:latest` tags. Each `:latest` becomes the image's current versioned tag plus
-  a digest. The fleet's `dataforseo` service runs `node:20-alpine`, which has been out of support since April 2026; it
+  a digest. One fleet service runs `node:20-alpine`, which has been out of support since April 2026; it
   moves to `node:24-alpine`, the version CI uses, and is pinned rather than frozen on an unsupported runtime.
-- **Exempt:** the three fleet services whose image comes from `${SEO_PSI_IMAGE:-…}`, `${SEO_GSC_IMAGE:-…}` and
-  `${HYPERFRAMES_IMAGE:-…}`. They are private first-party images, behind the `fleet` profile, that CI never pulls.
+- **Exempt:** the three fleet services whose image comes from a `${…_IMAGE:-…}`
+  variable. They are private first-party images, behind the `fleet` profile, that CI never pulls.
   An operator picks them through the variable, and Dependabot could not read their registry.
 - **Dependabot:** add `/examples/conformance-mcp` to the `docker` directories. Add a `docker-compose` ecosystem for
   `/deploy`. Ignore `version-update:semver-major` for `postgres` and `valkey/valkey`, because a Postgres major needs a

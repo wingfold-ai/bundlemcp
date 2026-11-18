@@ -53,7 +53,7 @@
   `unit/utils/headerRows.test.ts`, named `UI-1 …`: blank keys dropped, keys trimmed, and both empty-value rules. Add
   `components/HeaderRowsEditor.vue` (`v-model`, placeholder, input-type, test-id-prefix and button-label props), and
   use it for the forward and static headers on the upstream page and the forward headers in `ServerRegistration.vue`.
-  Verify with `npm test`, and with Playwright `gsc-upstream.spec.ts` (E2E-12 still finds `fwd-key-0`) and
+  Verify with `npm test`, and with Playwright `upstream-forwarding.spec.ts` (E2E-12 still finds `fwd-key-0`) and
   `server-flow.spec.ts`
 - [x] 2.5 Add `composables/useAction.ts` (`useAction(fn, { invalidates })` → `{ run, busy, error }`, plus
   `ValidationProblem`) with `unit/composables/useAction.nuxt.test.ts`, named `UI-12 …`. The tests cover: a validation
@@ -97,7 +97,7 @@
 - [x] 5.1 Split `pages/upstreams/[name].vue` into `UpstreamConfigCard`, `UpstreamToolsCard`, `UpstreamOAuthCard` and
   `DangerZoneCard`, each with its own `useAction` and in-card error. Verify with `npm run typecheck`,
   `npm run build`, the page at no more than 200 lines, and the unchanged `server-flow.spec.ts` and
-  `gsc-upstream.spec.ts`
+  `upstream-forwarding.spec.ts`
 - [x] 5.2 Add Playwright scenario `E2E-42` in `server-flow.spec.ts`, citing UI-12 and UPS-5. Renaming `echo` (a
   bundle member) without the acknowledgement shows the API's refusal inside `card-danger`, and `card-config` shows
   none. Add its `spec-map.json` entry and run `npm run test:map`. Verify with `npx playwright test server-flow.spec.ts`

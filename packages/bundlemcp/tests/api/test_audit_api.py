@@ -32,9 +32,9 @@ async def client(service_client: AsyncClient, engine: AsyncEngine) -> AsyncClien
                 created_at=datetime(2026, 7, 2, 10, 0, tzinfo=UTC),
                 endpoint_name="seo",
                 bundle_name="seo",
-                server_name="seo-gsc",
+                server_name="crm",
                 tool_name="list_sites",
-                presented_tool_name="seo-gsc__list_sites",
+                presented_tool_name="crm__list_sites",
                 status="denied",
                 denied_reason="tool disabled",
             )
@@ -59,7 +59,7 @@ async def test_audit_filters(client: AsyncClient):
     assert by_status["items"][0]["denied_reason"] == "tool disabled"
 
     by_tool = (
-        await client.get("/api/v1/audit-records", params={"tool_name": "seo-gsc__list_sites"})
+        await client.get("/api/v1/audit-records", params={"tool_name": "crm__list_sites"})
     ).json()
     assert by_tool["total"] == 1  # matches the presented name too
 

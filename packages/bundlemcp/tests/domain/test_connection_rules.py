@@ -87,7 +87,7 @@ def test_response_log_finds_the_step_up_challenge_and_the_401():
 @pytest.mark.parametrize(
     ("url", "internal"),
     [
-        ("http://seo-gsc:8000/mcp", True),
+        ("http://crm:8000/mcp", True),
         ("http://localhost:9000/mcp", True),
         ("http://10.1.2.3/mcp", True),
         ("http://mcp.svc.internal/mcp", True),
@@ -193,7 +193,7 @@ def test_ups36_resource_is_the_documents_parent_identifier_or_the_url():
     [
         ("io.github.acme/Weather Server", "https://x/mcp", "weather-server"),
         (None, "https://mcp.linear.app/mcp", "linear"),
-        (None, "http://seo-gsc:8000/mcp", "seo-gsc"),
+        (None, "http://crm:8000/mcp", "crm"),
         ("Bad__Name!!", "https://x", "bad-name"),
         (None, "http://127.0.0.1:8021/mcp", "server"),
     ],
