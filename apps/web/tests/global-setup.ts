@@ -9,8 +9,9 @@ export default async function globalSetup(config: FullConfig) {
 
   await page.goto(webUrl);
   // middleware redirects to the gateway /login, which redirects to Keycloak
-  // (hostname `keycloak` — see TESTING.md /etc/hosts prerequisite)
-  await page.waitForURL(/(localhost|keycloak):8080/, { timeout: 30_000 });
+  // (hostname `keycloak` — see TESTING.md /etc/hosts prerequisite); matched by
+  // its realm path, so a stack on other ports signs in too
+  await page.waitForURL(/\/realms\/bundlemcp\//, { timeout: 30_000 });
   await page.locator("#username").fill("admin");
   await page.locator("#password").fill("admin");
   await page.locator("#kc-login").click();

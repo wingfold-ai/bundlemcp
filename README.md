@@ -2,15 +2,39 @@
   <img src="docs/public/banner.svg" alt="bundlemcp: unified mcp server bundler" width="720">
 </p>
 
-A self-hostable **MCP bundling gateway**. Register upstream MCP servers (Streamable HTTP), compose them into
-**bundles**, and expose each bundle through one or more **endpoints** shaped for the client that will use it: an OAuth
-profile for claude.ai, a re-annotation profile for ChatGPT, API-key access for scripts. One gateway, any number of
-replicas: sessions, rate limits and cross-replica signalling live in Valkey, configuration, tokens and the audit log in
-Postgres, so a restart or a second replica is a non-event.
+**Your self-hosted MCP servers, in claude.ai and ChatGPT, behind one endpoint and one login.**
 
-It is a focused rewrite of the bundling core of [metamcp](https://github.com/metatool-ai/metamcp), built to be consumed
-by an application layer that adds its own identity provider, billing and discovery, but fully usable on its own with any
-OIDC provider.
+bundlemcp is a self-hostable MCP gateway. Register your MCP servers, bundle their tools, and give each client the
+endpoint it needs: OAuth for claude.ai and ChatGPT, API keys for scripts and agents. Your servers need no login of
+their own, and you decide which tools each bundle shows and how they are named.
+
+**[Documentation](https://bundlemcp.dev)** · [Quickstart](#quickstart) · [Roadmap](https://bundlemcp.dev/roadmap)
+
+<p align="center">
+  <img src="docs/public/screenshots/readme/upstream-servers.png" width="720"
+    alt="The admin UI's upstream servers: one without auth, one behind OAuth with an account per user, one with an API key">
+</p>
+
+- **One login.** A built-in OAuth 2.1 server that claude.ai and ChatGPT connect to, admin sign-in through any OIDC
+  provider, and API keys for scripts.
+- **Bundles.** Many servers behind one endpoint, their tool names prefixed so they never collide. Changes apply live.
+- **Tool curation.** Hide, rename or re-describe each tool per bundle, and shape each endpoint for its client.
+- **Spec bridging.** Each server is negotiated on its own, so older and newer MCP clients and servers work together.
+- **Restart-safe.** Sessions live in Valkey and configuration in Postgres, so any replica serves any session.
+
+<p align="center">
+  <img src="docs/public/screenshots/readme/tool-curation.png" width="720"
+    alt="Tool curation in a bundle over two servers: one tool hidden, one renamed, one with a new description">
+</p>
+
+## How it compares
+
+| | What it does well | Where bundlemcp differs |
+|---|---|---|
+| [metamcp](https://github.com/metatool-ai/metamcp) | Bundles servers behind one endpoint, with API-key and OIDC auth (MIT). bundlemcp began as a rewrite of its bundling core. | Restart-safe sessions, several replicas, and new MCP spec revisions as they come. An importer for metamcp setups is [on the roadmap](https://bundlemcp.dev/roadmap). |
+| [IBM ContextForge](https://github.com/IBM/mcp-context-forge) | The most complete option: gateway, registry, virtual servers, rate limiting and a choice of protocol version (Apache 2.0). | A narrower scope (bundling, auth and tool curation for hosted clients), so less to set up and run. |
+| [MCPJungle](https://github.com/mcpjungle/MCPJungle), [Docker MCP Gateway](https://github.com/docker/mcp-gateway) | Bundle servers behind one endpoint for local clients and bearer tokens. | An OAuth server that claude.ai and ChatGPT can sign in through, and tools curated per bundle. |
+| Auth-only proxies ([mcp-front](https://github.com/dgellow/mcp-front), [mcp-oauth-gateway](https://github.com/atrawog/mcp-oauth-gateway)) | Put OAuth in front of an MCP server for claude.ai. | Many servers behind one login, with their tools curated per bundle. |
 
 ## Quickstart
 
@@ -53,6 +77,14 @@ The user guides (deployment, connecting clients, the management API) live in [do
 `npm run docs:install && npm run docs:dev` to browse them. The management API is documented at
 <http://localhost:8000/api/v1/docs>. Testing against the full stack is covered in
 [deploy/TESTING.md](deploy/TESTING.md).
+
+## Under the hood
+
+bundlemcp registers upstream MCP servers over Streamable HTTP and exposes each bundle through one or more endpoints,
+each with a profile for its client. Sessions, rate limits and cross-replica signalling live in Valkey; configuration,
+tokens and the audit log in Postgres, so a restart or a second replica is a non-event. It is a focused rewrite of the
+bundling core of metamcp, built to be consumed by an application layer that adds its own identity provider, billing
+and discovery, and fully usable on its own with any OIDC provider.
 
 ## Where things are
 
