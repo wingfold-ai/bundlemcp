@@ -124,6 +124,12 @@ URI; because CSP disregards the path of a redirected request, what it admits in 
 A redirect URI that cannot be written as a source expression leaves `form-action 'self'` in place, and the consent
 answer is a same-origin page linking to the client instead of a redirect.
 
+While an operator asset directory is configured ([AUTH-39](../auth/spec.md)), every page's CSP also admits
+stylesheets, fonts and images from the gateway's own origin, and nothing else:
+`default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'; frame-ancestors 'none'`,
+followed by the same `form-action` as without it. Scripts, frames, connections and every other origin stay refused.
+Without an asset directory the CSP is exactly the one above.
+
 #### Scenario: Consent page names exactly this client's redirect URI
 - **WHEN** the consent page renders for an authorization with redirect URI `https://claude.ai/api/mcp/auth_callback?x=1`
 - **THEN** its CSP `form-action` is `'self' https://claude.ai/api/mcp/auth_callback` and it carries
@@ -136,6 +142,16 @@ answer is a same-origin page linking to the client instead of a redirect.
 #### Scenario: Browser reaches a cross-origin client
 - **WHEN** a user approves consent in Chromium for a client whose redirect URI is on another origin
 - **THEN** the browser follows the redirect to that client
+
+#### Scenario: Assets configured admit same-origin styles, fonts and images
+- **GIVEN** an operator asset directory is configured
+- **WHEN** the consent page renders for redirect URI `https://claude.ai/api/mcp/auth_callback`
+- **THEN** its CSP is `default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self';
+  frame-ancestors 'none'; form-action 'self' https://claude.ai/api/mcp/auth_callback`
+
+#### Scenario: No asset directory keeps the policy
+- **WHEN** no asset directory is configured
+- **THEN** every page's CSP is the one without `'self'` in `style-src` and without `font-src` or `img-src`
 
 ### Requirement: SEC-7 Request body size limit
 `/{endpoint}/mcp` and `/api/v1` MUST reject a request body larger than the request limit (runtime-configurable,

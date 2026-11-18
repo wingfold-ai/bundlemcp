@@ -191,15 +191,15 @@ model with the three views.
 
 ### Requirement: DOC-13 Search-engine discovery
 The published documentation site MUST serve `/sitemap.xml` and `/robots.txt`. The sitemap lists the canonical URL
-of every page the site publishes, as `https://bundlemcp.com` followed by the page's clean path, and no URL for the
+of every page the site publishes, as `https://bundlemcp.dev` followed by the page's clean path, and no URL for the
 not-found page or for material the site excludes. `robots.txt` allows every crawler and names
-`https://bundlemcp.com/sitemap.xml`. Each page's last-modified date, on the page and in the sitemap, is the date of
+`https://bundlemcp.dev/sitemap.xml`. Each page's last-modified date, on the page and in the sitemap, is the date of
 the last commit that changed that page, not the date of the build. While the site asks for a password
 ([DOC-6](spec.md)), both files ask for it too.
 
 #### Scenario: Every page is in the sitemap
 - **WHEN** the site is built
-- **THEN** the sitemap holds exactly one `https://bundlemcp.com` URL per built page, without an `.html` suffix, and
+- **THEN** the sitemap holds exactly one `https://bundlemcp.dev` URL per built page, without an `.html` suffix, and
   none for the not-found page
 
 #### Scenario: A page missing from the sitemap fails CI
@@ -208,7 +208,7 @@ the last commit that changed that page, not the date of the build. While the sit
 
 #### Scenario: Crawlers find the sitemap
 - **WHEN** a crawler fetches `/robots.txt` from the public site
-- **THEN** it is allowed to crawl every path and finds `Sitemap: https://bundlemcp.com/sitemap.xml`
+- **THEN** it is allowed to crawl every path and finds `Sitemap: https://bundlemcp.dev/sitemap.xml`
 
 #### Scenario: Dates come from page history
 - **WHEN** the publish workflow builds the site
@@ -237,6 +237,24 @@ output against it.
 #### Scenario: A repository link in a private build fails CI
 - **WHEN** a built page or requirement text links to the repository while the setting is not `true`
 - **THEN** the CI `docs` job fails and names the file
+
+### Requirement: DOC-15 One canonical address
+The documentation site's address MUST be `https://bundlemcp.dev`. Every other host name the hosting serves for it
+(`bundlemcp.com`, `www.bundlemcp.com`, `www.bundlemcp.dev`) answers every request with a permanent redirect (`301`)
+to the same path and query on `https://bundlemcp.dev`, in one hop also from plain HTTP. The published build reports
+page views to Plausible under `bundlemcp.dev`.
+
+#### Scenario: An old address keeps its path
+- **WHEN** a client requests `https://bundlemcp.com/guide/quickstart?x=1`
+- **THEN** the answer is `301` with `Location: https://bundlemcp.dev/guide/quickstart?x=1`
+
+#### Scenario: Plain HTTP on an old address takes one hop
+- **WHEN** a client requests `http://www.bundlemcp.com/`
+- **THEN** the answer is `301` with `Location: https://bundlemcp.dev/`
+
+#### Scenario: The canonical address serves the site
+- **WHEN** a client requests `https://bundlemcp.dev/guide/quickstart`
+- **THEN** the page is served with `200`, and `http://bundlemcp.dev/` redirects to `https://bundlemcp.dev/`
 
 ## Out of scope
 
