@@ -337,6 +337,9 @@ without new evidence.
 
 ## Roadmap — deferred, not dropped
 
+The public roadmap is [docs/roadmap.md](../docs/roadmap.md), published at `https://bundlemcp.dev/roadmap`. This
+table keeps the reasoning behind two of its themes.
+
 | Item | Status |
 |---|---|
 | **metamcp migration importer** — one-shot CLI reading a metamcp Postgres DB and mapping servers→registry, namespaces→bundles (+curation), endpoints→endpoints | Deferred by decision (2026-07). Revisit when bundlemcp reaches feature parity; until then migration is manual/bootstrap-file based. |
