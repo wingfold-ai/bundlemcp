@@ -84,6 +84,23 @@ why, and it is probed again on the next refresh or the next live call. This is w
 repeatedly `PUT`ting desired state.
 :::
 
+### Changing a server's URL
+
+Credentials never follow a server to a new URL, so pointing an upstream elsewhere costs its connections:
+
+- **Another resource** (a different scheme, host, port or path; the host's letter case and a trailing slash do not
+  count): every stored upstream OAuth token of the server is deleted, shared and per user. Users connect their accounts
+  again, and `per_user` callers get the connect tool back. A client the gateway registered or identified itself is
+  deleted too, so the next connect discovers the new resource's authorization server. A client you stored keeps its id
+  and grant but forgets the remembered endpoints. The audit log records it as a `management` record with action
+  `upstream.credentials_revoked`.
+- **Another origin** (scheme, host or port): the same write must carry the values of the server's static headers again,
+  or it answers `409` and nothing changes. The secret of a client you stored is cleared; store it again with
+  `PUT /api/v1/upstreams/{name}/upstream-oauth`. An import cannot keep a header value with a placeholder across such a
+  move.
+
+A new path on the same host keeps the static header values and the client secret, but still disconnects the accounts.
+
 ### Fields
 
 | Field | Default | Meaning |

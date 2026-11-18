@@ -6,6 +6,13 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.4.0] - 2026-11-17
+
+### Fixed
+
+- **Breaking:** Keep upstream credentials from following a moved URL
+  ([#208](https://github.com/wingfold-ai/bundlemcp/pull/208))
+
 ## [0.3.8] - 2026-11-17
 
 ### Added

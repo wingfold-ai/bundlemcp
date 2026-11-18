@@ -37,6 +37,10 @@ class ConfigTransferController(ManagementController):
 
     @route.post("/import")
     async def import_config(
-        self, body: BootstrapDocument, service: ConfigImportServiceProvider, dry_run: bool = False
+        self,
+        body: BootstrapDocument,
+        service: ConfigImportServiceProvider,
+        principal: PrincipalProvider,
+        dry_run: bool = False,
     ) -> ImportReport:
-        return await service.run(body, dry_run=dry_run)
+        return await service.run(body, dry_run=dry_run, actor=principal)
