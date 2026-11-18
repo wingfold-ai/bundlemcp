@@ -51,8 +51,9 @@ async def test_ses11_an_in_flight_call_completes_during_the_drain(engine, redis)
         async with AsyncClient(
             base_url=base_url, headers={"Authorization": f"Bearer {ENDPOINT_KEY}"}, timeout=10
         ) as http:
-            call = asyncio.create_task(_modern_hang(http, 7, seconds=1))
-            await asyncio.sleep(0.4)
+            started = asyncio.Event()
+            call = asyncio.create_task(_modern_hang(http, 7, seconds=1, started=started))
+            await asyncio.wait_for(started.wait(), timeout=10)  # admitted before the drain
             app.state.container.drain.begin()
             message = await asyncio.wait_for(call, timeout=5)
     assert "result" in message and not message["result"].get("isError")
