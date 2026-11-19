@@ -315,3 +315,20 @@ def test_dep12_a_description_with_a_ci_skip_marker_is_refused(body):
 
 def test_dep12_a_description_without_a_marker_passes():
     release.check_description("CI's own commits skip CI; the squash merge does not.")
+
+
+@pytest.mark.parametrize(
+    ("body", "defused"),
+    [
+        (
+            "<li><code>afba454</code> chore(release): 18.2.0 [skip ci]</li>",
+            "<li><code>afba454</code> chore(release): 18.2.0 (skip ci)</li>",
+        ),
+        ("[CI SKIP] please", "(CI SKIP) please"),
+        ("Notes\n\nskip-checks: true\n", "Notes\n\nskip-checks true\n"),
+        ("Bumps a pin.", "Bumps a pin."),
+    ],
+)
+def test_dep12_a_dependabot_description_has_its_ci_skip_markers_defused(body, defused):
+    assert release.defuse_skip_markers(body) == defused
+    release.check_description(defused)

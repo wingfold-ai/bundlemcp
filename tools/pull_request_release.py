@@ -120,6 +120,23 @@ def parse_title(title: str) -> TitleRelease:
     )
 
 
+def defuse_skip_markers(body: str) -> str:
+    """A description with every CI-skip marker made inert, its words kept.
+
+    Dependabot quotes the updated package's commits, and release commits often end in
+    ``[skip ci]``; the brackets become parentheses and ``skip-checks: true`` loses its colon,
+    so the quote still reads the same but no longer skips anything once squashed.
+    """
+    return SKIP_MARKER.sub(
+        lambda match: (
+            f"({match.group(0)[1:-1]})"
+            if match.group(0).startswith("[")
+            else match.group(0).replace(":", "", 1)
+        ),
+        body,
+    )
+
+
 def check_description(body: str) -> None:
     """Refuse a description that would skip CI on ``main``.
 
@@ -341,6 +358,10 @@ def main() -> int:
     labels.add_argument("title")
     bot_title = commands.add_parser("bot-title", help="Print a Dependabot title cut to fit")
     bot_title.add_argument("title")
+    bot_description = commands.add_parser(
+        "bot-description", help="Print a Dependabot description with its CI-skip markers defused"
+    )
+    bot_description.add_argument("file", type=Path, help="File with the pull request description")
     description = commands.add_parser("description", help="Refuse a CI-skip marker")
     description.add_argument("file", type=Path, help="File with the pull request description")
     applying = commands.add_parser("apply", help="Write the entry and the bump")
@@ -359,6 +380,8 @@ def main() -> int:
             sys.stdout.write("\n".join(parse_title(args.title).labels) + "\n")
         elif args.command == "bot-title":
             sys.stdout.write(shorten_bot_title(args.title) + "\n")
+        elif args.command == "bot-description":
+            sys.stdout.write(defuse_skip_markers(args.file.read_text()))
         elif args.command == "description":
             check_description(args.file.read_text())
         elif args.command == "apply":

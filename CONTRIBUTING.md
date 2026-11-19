@@ -334,7 +334,8 @@ What this means while you work on a branch:
   or by the job that pushed CI's commit when CI was already done. Until then the check is pending and the merge waits.
 - Never write a CI-skip marker (`[skip ci]` and its variants) in a pull request's description: the squash merge takes
   its message from the description, and on `main` the marker skips CI, the image publish and the release. The title
-  check fails on one.
+  check fails on one. In a Dependabot description, which quotes the updated package's commits, CI turns such a marker
+  into `(skip ci)` instead.
 - CI cannot push to a fork. A pull request from a fork fails its entry check; a maintainer moves the branch into the
   repository before merging.
 - `python3 tools/release_notes.py v1.2.0` prints what a release will say. A tag pushed by hand (`git tag v1.2.0 && git
