@@ -6,6 +6,17 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.4.1] - 2026-11-19
+
+### Fixed
+
+- A Dependabot pull request title longer than 72 characters is now shortened before the title check, so it no longer
+  fails CI. The group suffix goes first, then the version updated from, then the directory, and the shortened title is
+  saved on the pull request so the squash commit carries it. ([#221](https://github.com/wingfold-ai/bundlemcp/pull/221))
+- The end-to-end test of the audit page's successful-call count now waits for the count to stop changing, because the
+  gateway writes audit records after it answers. This removes an occasional spurious CI failure.
+  ([#221](https://github.com/wingfold-ai/bundlemcp/pull/221))
+
 ## [0.4.0] - 2026-11-17
 
 The first public preview. bundlemcp bundles self-hosted MCP servers behind endpoints for claude.ai, ChatGPT and
