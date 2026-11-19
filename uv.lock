@@ -188,7 +188,7 @@ wheels = [
 
 [[package]]
 name = "bundlemcp"
-version = "0.4.1"
+version = "0.4.2"
 source = { editable = "packages/bundlemcp" }
 dependencies = [
     { name = "alembic" },
@@ -252,7 +252,7 @@ provides-extras = ["otel"]
 
 [[package]]
 name = "bundlemcp-workspace"
-version = "0.4.1"
+version = "0.4.2"
 source = { virtual = "." }
 
 [package.dev-dependencies]

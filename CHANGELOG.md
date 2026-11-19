@@ -6,6 +6,15 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.4.2] - 2026-11-19
+
+### Fixed
+
+- A Dependabot pull request whose description quotes a CI-skip marker such as `[skip ci]` no longer fails the
+  description check and waits for a manual edit. CI turns the marker into `(skip ci)` and saves the description, so the
+  squash commit does not skip CI, the image publish or the release on `main`. Descriptions written by people are still
+  refused. ([#226](https://github.com/wingfold-ai/bundlemcp/pull/226))
+
 ## [0.4.1] - 2026-11-19
 
 ### Fixed
