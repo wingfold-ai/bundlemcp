@@ -77,11 +77,26 @@ jobs:
           echo "$labels"
           echo "labels=$(echo "$labels" | paste -sd, -)" >> "$GITHUB_OUTPUT"
           echo "semver=$(echo "$labels" | sed -n 's/^semver: //p')" >> "$GITHUB_OUTPUT"
+      # Dependabot quotes the updated package's commits, and a release commit often ends in
+      # [skip ci]; CI defuses such a marker in a Dependabot description instead of failing.
       - name: The description skips no CI on main
         env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
           BODY: ${{ github.event.pull_request.body }}
         run: |
           printf '%s' "$BODY" > "$RUNNER_TEMP/body.md"
+          if [ "$AUTHOR" = "dependabot[bot]" ]; then
+            uv run --no-project --with "$PYDANTIC" python tools/pull_request_release.py \
+              bot-description "$RUNNER_TEMP/body.md" > "$RUNNER_TEMP/defused.md"
+            if ! cmp -s "$RUNNER_TEMP/body.md" "$RUNNER_TEMP/defused.md"; then
+              gh api -X PATCH "repos/$GH_REPO/pulls/$NUMBER" -F "body=@$RUNNER_TEMP/defused.md" > /dev/null
+              echo "Defused a CI-skip marker in the description"
+              mv "$RUNNER_TEMP/defused.md" "$RUNNER_TEMP/body.md"
+            fi
+          fi
           uv run --no-project --with "$PYDANTIC" python tools/pull_request_release.py \
             description "$RUNNER_TEMP/body.md"
       - name: Replace the type and semver labels
