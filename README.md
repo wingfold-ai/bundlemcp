@@ -48,7 +48,7 @@ As of November 2026; these projects move fast, so corrections are welcome.
 
 | | What it does well | Where bundlemcp differs |
 |---|---|---|
-| [metamcp](https://github.com/metatool-ai/metamcp) | Bundles servers behind one endpoint, with API-key and OIDC auth (MIT). bundlemcp began as a rewrite of its bundling core. | Restart-safe sessions, several replicas, and new MCP spec revisions as they come. An importer for metamcp setups is [on the roadmap](https://bundlemcp.dev/roadmap). |
+| [metamcp](https://github.com/metatool-ai/metamcp) | Bundles servers behind one endpoint, with API-key and OIDC auth (MIT). bundlemcp began as a rewrite of its bundling core. | Restart-safe sessions, several replicas, and new MCP spec revisions as they come. [Coming from metamcp](https://bundlemcp.dev/guide/coming-from-metamcp) maps a setup over; an importer is [on the roadmap](https://bundlemcp.dev/roadmap). |
 | [IBM ContextForge](https://github.com/IBM/mcp-context-forge) | The most complete option: gateway, registry, virtual servers, rate limiting and a choice of protocol version (Apache 2.0). | A narrower scope (bundling, auth and tool curation for hosted clients), so less to set up and run. |
 | [MCPJungle](https://github.com/mcpjungle/MCPJungle), [Docker MCP Gateway](https://github.com/docker/mcp-gateway) | Bundle servers behind one endpoint for local clients and bearer tokens. | An OAuth server that claude.ai and ChatGPT can sign in through, and tools curated per bundle. |
 | Auth-only proxies ([mcp-front](https://github.com/dgellow/mcp-front), [mcp-oauth-gateway](https://github.com/atrawog/mcp-oauth-gateway)) | Put OAuth in front of an MCP server for claude.ai. | Many servers behind one login, with their tools curated per bundle. |

@@ -1,0 +1,57 @@
+# metamcp: three MCP servers, namespace "research",
+# and two endpoints on it.
+version: 1
+
+upstreams:
+  # metamcp: STREAMABLE_HTTP with a bearerToken.
+  # The token becomes a static Authorization header.
+  - name: search
+    description: Web search and page fetching
+    url: https://search.example.com/mcp
+    auth_mode: static_headers
+    static_headers:
+      # substitute before mounting
+      authorization: Bearer ${SEARCH_TOKEN}
+
+  # metamcp: STDIO, command uvx, args [mcp-hn].
+  # The command runs in a sidecar, registered by URL.
+  - name: hackernews
+    description: Hacker News stories and users
+    url: http://hn-mcp:8080/mcp
+
+  # metamcp: STREAMABLE_HTTP, no authentication.
+  - name: docs
+    description: Search the team handbook
+    url: http://docs-mcp:8000/mcp
+
+bundles:
+  # metamcp: namespace "research".
+  - name: research
+    description: Search, news and the handbook in one place
+    upstreams:
+      - search
+      - name: hackernews
+        # metamcp tool overrides, by the server's tool name
+        tools:
+          - tool: get_stories
+            override_name: hn_top_stories
+          - tool: search_stories
+            override_name: hn_search
+            override_description: Search Hacker News by keyword
+          # turned off in the metamcp namespace
+          - tool: get_user_info
+            enabled: false
+      - docs
+
+endpoints:
+  # metamcp: endpoint "research" with MCP OAuth.
+  - name: research
+    bundle_name: research
+    profile: oauth_only
+    auth_modes: [oauth]
+
+  # metamcp: endpoint "research-api" with API-key auth.
+  # The key goes in the Authorization header only.
+  - name: research-api
+    bundle_name: research
+    auth_modes: [api_key]

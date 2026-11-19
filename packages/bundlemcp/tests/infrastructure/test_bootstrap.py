@@ -371,3 +371,59 @@ async def test_ups10_bootstrap_document_may_use_the_legacy_alias(engine, redis):
         server = await uow.servers.by_name("old")
     assert server is not None
     assert server.protocol_mode == NegotiationMode.SESSION
+
+
+async def test_doc18_the_metamcp_migration_example_applies(engine, redis):
+    """DOC-18: the worked example on the Coming from metamcp page creates what it describes.
+
+    The first start discovers the tools; curation names tools by their upstream names, so it
+    lands on the next start, as the bootstrap page says.
+    """
+    import pathlib
+
+    from bundlemcp.application.bootstrap.document_loader import load_document
+    from bundlemcp.infrastructure.fastmcp.upstream_probe import FastMcpUpstreamProbe
+    from bundlemcp.infrastructure.postgres.rows.bundle_tool_row import BundleToolRow
+    from bundlemcp.infrastructure.postgres.rows.tool_row import ToolRow
+
+    from tests.infrastructure.test_discovery import factory_for, make_upstream
+
+    example = pathlib.Path(__file__).parents[4] / "docs" / "snippets" / "metamcp-migration.yaml"
+    doc = load_document(str(example))
+    factory = session_factory(engine)
+    units = SqlAlchemyUnitOfWorkFactory(factory, redis)
+    tools = ["web_search", "get_stories", "search_stories", "get_user_info", "search_docs"]
+    probe = FastMcpUpstreamProbe(factory_for(make_upstream(tools)))
+    runner = BootstrapRunner(
+        units,
+        InlineDiscovery(units, probe, health=_health(units, redis), clock=SystemClock()),
+        cipher=None,
+        connections=NoUpstreamConnections(),
+        profiles=ProfileCatalog.builtin(),
+        public_base="http://gw",
+        hasher=Sha256SecretHasher(),
+        generator=SequentialSecretGenerator(),
+    )
+
+    await runner.apply(doc)
+    await runner.apply(doc)
+
+    async with factory() as db:
+        servers = {s.id: s.name for s in (await db.execute(select(McpServerRow))).scalars()}
+        assert sorted(servers.values()) == ["docs", "hackernews", "search"]
+        assert [b.name for b in (await db.execute(select(BundleRow))).scalars()] == ["research"]
+        members = (await db.execute(select(BundleServerRow))).scalars().all()
+        assert sorted(servers[m.server_id] for m in members) == ["docs", "hackernews", "search"]
+        endpoints = {e.name: e for e in (await db.execute(select(EndpointRow))).scalars()}
+        assert sorted(endpoints) == ["research", "research-api"]
+        assert endpoints["research"].profile == "oauth_only"
+        tool_names = {
+            t.id: (servers[t.server_id], t.name)
+            for t in (await db.execute(select(ToolRow))).scalars()
+        }
+        curation = {
+            tool_names[c.tool_id]: c for c in (await db.execute(select(BundleToolRow))).scalars()
+        }
+    assert curation[("hackernews", "get_stories")].override_name == "hn_top_stories"
+    assert curation[("hackernews", "search_stories")].override_name == "hn_search"
+    assert curation[("hackernews", "get_user_info")].enabled is False
