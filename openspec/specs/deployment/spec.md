@@ -312,7 +312,10 @@ A pull request into `main` SHALL carry the release its merge makes, so the squas
   `semver: major`; otherwise `feat` is `minor`, `fix`, `perf` and `revert` are `patch`, and every other type is `none`.
   A title that is not a Conventional Commit fails the check and gets no labels. A description that contains a CI-skip
   marker (`[skip ci]` and its variants) fails the check too, because the squash merge takes its message from the
-  description and the marker would skip CI and the release on `main`.
+  description and the marker would skip CI and the release on `main`. A title is at most 72 characters. A title
+  Dependabot wrote that is longer is shortened by CI before it is checked, losing only what the diff already shows:
+  first the group and directory count Dependabot appends, then the version updated from, then the directory, until it
+  fits. CI saves the shortened title on the pull request, so the squash commit carries it.
 - **Next version.** The pull request's version is the version on `main` raised by its `semver:` label. While the major
   version is `0`, a major bump raises the minor and a minor or patch bump raises the patch (`0.1.0` → `0.2.0` and
   `0.1.1`); from `1.0.0` the bumps are literal.
@@ -402,6 +405,12 @@ A pull request into `main` SHALL carry the release its merge makes, so the squas
 #### Scenario: The entry commit does not rerun CI
 - **WHEN** CI commits the entry and the bump to a pull request's branch
 - **THEN** no new CI run starts for that commit
+
+#### Scenario: A long Dependabot title is shortened
+- **WHEN** Dependabot opens a pull request titled
+  `chore: Bump likec4 from 1.59.4 to 1.60.0 in /docs in the npm group across 1 directory`
+- **THEN** CI retitles it `chore: Bump likec4 from 1.59.4 to 1.60.0 in /docs`, and the check passes with
+  `type: chore` and `semver: none`
 
 ### Requirement: DEP-13 Development stack exposes no published credential
 The development stack started through `deploy/stack.sh` SHALL hold no credential whose value is published in the

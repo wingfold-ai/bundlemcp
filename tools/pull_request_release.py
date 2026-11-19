@@ -38,6 +38,12 @@ TITLE = re.compile(
     r"(?:\((?P<scope>[a-z0-9][a-z0-9-]*)\))?(?P<breaking>!)?: (?P<subject>\S.*)$"
 )
 EXPECTED = "<type>(<scope>)!: <Subject>, e.g. 'feat(bundles): Order members by hand'"
+# What shorten_bot_title drops from a Dependabot title, in order, until the title fits.
+BOT_TITLE_CUTS = (
+    re.compile(r"(?: in the [\w-]+ group)?(?: across \d+ director(?:y|ies))?$"),
+    re.compile(r" from \S+(?= to \S+)"),
+    re.compile(r" in /\S*$"),
+)
 BUMPS = {"feat": "minor", "fix": "patch", "perf": "patch", "revert": "patch"}
 # What makes GitHub skip a push's workflows when it appears in the head commit's message.
 SKIP_MARKER = re.compile(
@@ -80,6 +86,21 @@ class TitleRelease(BaseModel):
     @property
     def labels(self) -> list[str]:
         return [f"type: {self.type}", f"semver: {self.bump}"]
+
+
+def shorten_bot_title(title: str) -> str:
+    """A Dependabot title cut to fit the title limit, losing only what the diff already shows.
+
+    Dependabot appends where and in which group it updated (``in /docs in the npm group across 1
+    directory``), which can push a single-package title past the limit. The suffix goes first,
+    then the version updated from, then the directory; a title that fits is returned unchanged,
+    and one still too long after all three is returned as far as it was shortened.
+    """
+    for pattern in BOT_TITLE_CUTS:
+        if len(title) <= MAX_TITLE:
+            break
+        title = pattern.sub("", title)
+    return title
 
 
 def parse_title(title: str) -> TitleRelease:
@@ -318,6 +339,8 @@ def main() -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     labels = commands.add_parser("labels", help="Print the labels a title derives")
     labels.add_argument("title")
+    bot_title = commands.add_parser("bot-title", help="Print a Dependabot title cut to fit")
+    bot_title.add_argument("title")
     description = commands.add_parser("description", help="Refuse a CI-skip marker")
     description.add_argument("file", type=Path, help="File with the pull request description")
     applying = commands.add_parser("apply", help="Write the entry and the bump")
@@ -334,6 +357,8 @@ def main() -> int:
     try:
         if args.command == "labels":
             sys.stdout.write("\n".join(parse_title(args.title).labels) + "\n")
+        elif args.command == "bot-title":
+            sys.stdout.write(shorten_bot_title(args.title) + "\n")
         elif args.command == "description":
             check_description(args.file.read_text())
         elif args.command == "apply":

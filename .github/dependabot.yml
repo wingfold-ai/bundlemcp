@@ -1,6 +1,8 @@
 # Dependabot version updates. Security updates are configured in the repository settings.
 # Titles are `chore: Bump the <group> group ...`: the plain prefix and the short group names
 # keep a grouped update's title within the 72 characters the pull-request title check allows.
+# A group holding one update is titled after the package instead and can run longer; the
+# release-entry workflow shortens such a title before checking it.
 # Version updates wait 7 days after a release (cooldown) so a compromised release can be
 # caught before it lands here; security updates are never delayed.
 version: 2
