@@ -77,6 +77,7 @@ export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: b
           { text: "Quickstart", link: "/guide/quickstart" },
           { text: "Core concepts", link: "/guide/concepts" },
           { text: "bundlemcp vs. FastMCP", link: "/guide/bundlemcp-vs-fastmcp" },
+          { text: "Coming from metamcp", link: "/guide/coming-from-metamcp" },
           { text: "Upstream server settings", link: "/guide/upstream-server-settings" },
           { text: "Authentication", link: "/guide/authentication" },
           { text: "Glossary", link: "/guide/glossary" },

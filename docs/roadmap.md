@@ -81,7 +81,8 @@ and SSE transports (wrap a stdio server in a [sidecar](/connect/stdio-sidecar) i
 keys in query parameters, per-user resource ownership, admin tools over MCP, local password accounts, translations and a
 marketplace page. The reasons for each are in the
 [decision log](https://github.com/wingfold-ai/bundlemcp/blob/main/openspec/README.md#decision-log--deliberately-dropped-from-metamcp).
-A dropped feature comes back only with new evidence.
+A dropped feature comes back only with new evidence. [Coming from metamcp](/guide/coming-from-metamcp) says what to
+use instead of each, and how to move a metamcp setup over.
 
 ## Have a say
 

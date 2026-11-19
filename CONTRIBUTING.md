@@ -321,6 +321,10 @@ roadmap theme moves it to **Now** in the frontmatter of `docs/roadmap.md`, and a
 moment to check that the page still holds. Its **In progress** station needs no edit: the docs build reads it from
 `openspec/changes/`. Themes carry no dates.
 
+[Coming from metamcp](docs/guide/coming-from-metamcp.md) names the metamcp release it was compared against. A `feat` or
+breaking pull request is also the moment to check it against the current metamcp release, and to update that release
+and anything that changed.
+
 What this means while you work on a branch:
 
 - CI owns the release entry and the version lines; a hand edit to the version is replaced. Pull before you push
