@@ -23,12 +23,12 @@ class CallSettlement(BaseModel):
     error_message: str | None = Field(default=None, description="Why the call failed, when it did")
 
     @classmethod
-    def refused(cls, reason: str) -> "CallSettlement":
+    def refused(cls, reason: str) -> CallSettlement:
         """A call a stage refused before the upstream was reached."""
         return cls(status=AuditStatus.DENIED, outcome=MeterOutcome.NO_RESULT, denied_reason=reason)
 
     @classmethod
-    def failed(cls, error_message: str) -> "CallSettlement":
+    def failed(cls, error_message: str) -> CallSettlement:
         """A call the gateway could not make, before the upstream was reached."""
         return cls(
             status=AuditStatus.ERROR, outcome=MeterOutcome.NO_RESULT, error_message=error_message

@@ -21,7 +21,7 @@ class Page[T](BaseModel):
         offset: int,
         limit: int,
         read: Callable[[E], T],
-    ) -> "Page[T]":
+    ) -> Page[T]:
         """The page a repository query returned, each entity rendered through ``read``."""
         return cls(
             items=[read(entity) for entity in page_slice.items],

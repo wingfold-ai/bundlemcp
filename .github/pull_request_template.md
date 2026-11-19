@@ -1,6 +1,8 @@
 ## Summary
 
-<!-- What does this change, and why? -->
+<!-- What does this change, and why?
+     CI writes this pull request's changelog entry with the Claude API, which receives the diff and this description:
+     see "How a release happens" in CONTRIBUTING.md. -->
 
 Fixes #
 

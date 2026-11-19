@@ -2,7 +2,7 @@
 name = "bundlemcp-workspace"
 version = "0.4.0"
 description = "bundlemcp workspace root (see packages/ and apps/)"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 
@@ -33,7 +33,7 @@ bundlemcp = { workspace = true }
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py314"
 # Skill scripts under .claude/ are tooling that ships with the skills, not project code.
 extend-exclude = [".claude"]
 

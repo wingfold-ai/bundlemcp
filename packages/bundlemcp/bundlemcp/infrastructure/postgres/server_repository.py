@@ -102,7 +102,7 @@ class SqlAlchemyServerRepository(SqlAlchemyRepository[McpServer, McpServerRow]):
 
     # ---- encryption at rest ---------------------------------------------------------------
 
-    def header_ciphertexts(self) -> "ServerHeaderCiphertexts":
+    def header_ciphertexts(self) -> ServerHeaderCiphertexts:
         return ServerHeaderCiphertexts(self._session, self.flush_pending)
 
     async def seal_plaintext_headers(self, limit: int) -> int:

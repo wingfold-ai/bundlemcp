@@ -123,7 +123,7 @@ def seed_member(uow, identity_mode=IdentityMode.PER_USER) -> tuple[McpServer, Bu
         auth_mode=ServerAuthMode.UPSTREAM_OAUTH,
         identity_mode=identity_mode,
     )
-    bundle = Bundle(name="marius")
+    bundle = Bundle(name="personal")
     uow.servers.add(server)
     uow.bundles.add(bundle)
     uow.memberships.add(BundleServer(bundle_id=bundle.id, server_id=server.id))

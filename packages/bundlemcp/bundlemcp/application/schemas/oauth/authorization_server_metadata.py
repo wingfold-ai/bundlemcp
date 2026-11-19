@@ -44,7 +44,7 @@ class AuthorizationServerMetadata(BaseModel):
     @classmethod
     def for_issuer(
         cls, issuer: str, *, metadata_documents: bool = True
-    ) -> "AuthorizationServerMetadata":
+    ) -> AuthorizationServerMetadata:
         return cls(
             client_id_metadata_document_supported=metadata_documents,
             issuer=issuer,

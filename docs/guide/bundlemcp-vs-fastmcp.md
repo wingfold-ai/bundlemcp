@@ -1,71 +1,45 @@
-# bundlemcp vs. FastMCP: Gateway vs. Framework
+# bundlemcp vs. FastMCP
 
-A common question when evaluating bundlemcp is:
+A common question when you look at bundlemcp: "Can't I just serve my tools with FastMCP?"
 
-> *"Can't I just expose my tools directly using FastMCP? What does bundlemcp do differently, and what value does it
-> add?"*
-
-The short answer: **FastMCP is a framework for building individual MCP servers. bundlemcp is an infrastructure gateway
-for operating, aggregating, and securing multiple MCP servers in production.**
-
-In fact, bundlemcp does not replace FastMCP — it uses FastMCP internally as its upstream client engine.
-
----
-
-## The Core Distinction
+The two sit at different layers. [FastMCP](https://gofastmcp.com) is a Python framework for **writing** an MCP server.
+bundlemcp is a gateway you **run** in front of MCP servers, whatever they are written in. They work together: bundlemcp
+uses FastMCP as its client towards the upstream servers, and many of those upstream servers are FastMCP servers.
 
 <LikeC4Diagram view="gatewayVsFramework" />
 
-- **Use FastMCP when:** You want to author tools in Python. FastMCP provides a great developer experience for defining
-  `@mcp.tool()` functions, prompts, and resources.
-- **Use bundlemcp when:** You have one or more MCP servers and need to serve them to real users, LLMs, or production
-  agents with enterprise requirements: horizontal scaling, authentication, auditing, and per-client shaping.
+## When each fits
 
----
+**Write the server with FastMCP** when you want to define tools, prompts and resources in Python. FastMCP can also
+compose and proxy servers in code, and it ships authentication providers and middleware, so a single server you own
+can be made remote-ready on its own.
 
-## Comparison Matrix
+**Put bundlemcp in front** when you have several servers, often ones you did not write, and want to serve them to
+hosted clients without changing them:
 
-| Capability | FastMCP (Server Framework) | bundlemcp (Bundling Gateway) |
+- **One endpoint for many servers.** Servers are registered once, and their tools are combined into bundles with
+  prefixed names (`server__tool`), so names never collide.
+- **One login.** bundlemcp runs the OAuth 2.1 server claude.ai and ChatGPT connect to, and issues API keys for scripts.
+  The upstream servers need no login of their own. When they do have one, bundlemcp can keep a token per user for
+  them and forward the caller's identity.
+- **Curation without code changes.** Hide, rename or re-describe a tool per bundle, and shape each endpoint for its
+  client, for example re-annotating tools for ChatGPT.
+- **Configuration instead of code.** Servers, bundles and endpoints change through the admin UI or the management API
+  and apply live, without a redeploy.
+- **Sessions that survive a restart.** Session state lives in Valkey, so any replica serves any request and a restart
+  does not end sessions. An open event stream is still cut and has to reconnect.
+- **One audit trail and one metering hook** across every bundled tool.
+- **Mixed protocol revisions.** Each upstream is negotiated on its own, so clients and servers on different MCP
+  revisions can work together.
+
+## In short
+
+| | FastMCP | bundlemcp |
 |---|---|---|
-| **Primary Purpose** | Tool authoring and standalone server execution. | Gateway proxy, bundling, security, and traffic governance. |
-| **Session Architecture** | **In-Memory:** Sessions and connection state reside in Python process memory. A process restart terminates all active client sessions (`404 Session not found`). | **Horizontally Scalable Live State:** Sessions reside in Valkey (Redis). Any gateway replica serves any request without sticky sessions; restarts are zero-downtime non-events. |
-| **Multi-Server Aggregation** | Runs as a single server on its own port. | Aggregates unlimited upstream servers into unified virtual **Bundles** with namespacing (`server__tool`) to eliminate name collisions. |
-| **Client Shaping** | Exposes a static, uniform schema to all callers. | **Endpoint Profiles:** Exposes the same bundle through multiple endpoints shaped for specific consumers (e.g. re-annotating write tools as read-safe for ChatGPT, hiding uncurated tools). |
-| **Client Authentication** | None built-in (relies on custom transport wrappers). | **Turnkey Auth Gateway:** Built-in OAuth 2.1 server (RFC 7591 dynamic client registration + PKCE for Claude.ai), API keys (`bmcp_sk_...`), and OIDC federation (Keycloak, Auth0) for admin UI. |
-| **Upstream Authentication** | Unaware of downstream caller identity. | **Upstream OAuth & Identity Propagation:** Injects per-user OAuth tokens (GitHub, Slack) and forwards `X-MCP-User` identity headers to upstreams. |
-| **Operational Governance** | No audit logging, rate limiting, or metering. | Centralized structured audit logs (`AuditSink`), IP brute-force lockout, fixed-window rate limiting, and credit/billing interception hooks (`MeteringHook`). |
-| **Protocol Compatibility** | Fixed to the SDK revision it was built against. | **Dual-Era Gateway:** Accepts Stateless (Copilot/modern) and Session (Claude/ChatGPT/Cursor) MCP requests simultaneously on a single URL. |
+| What it is | A framework you write an MCP server with | A gateway you run in front of MCP servers |
+| You work in | Python code | The admin UI, the management API or a bootstrap file |
+| Typical scope | One server, or a few composed in code | Many servers from different authors behind shared endpoints |
+| Client login | Authentication providers you configure in code | A built-in OAuth 2.1 server plus API keys, shared by every bundled server |
+| Per-client shaping | What your code exposes | Endpoint profiles and per-bundle curation |
 
----
-
-## Key Values bundlemcp Delivers
-
-### 1. Zero-Downtime Rolling Restarts & Horizontal Scaling
-Standard MCP servers maintain connection pools and session IDs in local memory. When deployed behind a load balancer or
-Kubernetes ingress, this causes two critical failure modes:
-1. Replicas cannot share sessions without sticky session affinity.
-2. Any deployment, restart, or worker crash instantly drops all client connections with `404 Session not found`.
-
-bundlemcp solves this by storing all durable state in Postgres and all live sessions in Valkey. A client session is pure
-data: any replica can serve any request, and gateway restarts never interrupt active client conversations.
-
-### 2. Multi-Server Sprawl Eliminated
-Instead of requiring users to register 5 to 10 distinct connection URLs in Claude or Cursor, bundlemcp lets operators
-register servers once, curate tools into logical bundles (e.g. `engineering-bundle`, `analytics-bundle`), and hand users
-a single stable connection URL.
-
-### 3. Work Around Client Quirks Without Changing Server Code
-Different LLM clients enforce conflicting constraints:
-- **Claude.ai** requires a strict OAuth 2.1 authorization server with dynamic client registration and metadata discovery
-  endpoints.
-- **ChatGPT** refuses MCP write tools unless they are explicitly re-annotated as read-safe.
-- **CI/CD scripts and local agents** need direct API key authentication without interactive browser redirects.
-
-With bundlemcp, you author your tools once in FastMCP. You then create multiple **Endpoints** in bundlemcp pointing to
-the same bundle — one shaped for Claude.ai with OAuth, one with read-safe re-annotations for ChatGPT, and one
-authenticated by API key for automation.
-
-### 4. Enterprise Auditability & Billing
-bundlemcp provides a unified audit trail recording caller identity, endpoint, upstream server, tool name, execution
-duration, and outcome status across all aggregated tools. Its `MeteringHook` allows commercial platforms to enforce
-check-and-debit credit balances before driving upstream calls.
+If you only run one server that you wrote yourself, FastMCP alone may be all you need.

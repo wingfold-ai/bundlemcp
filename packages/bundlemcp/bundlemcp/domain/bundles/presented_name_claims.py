@@ -24,7 +24,7 @@ class PresentedNameClaims(BaseModel):
     @classmethod
     def settle(
         cls, tools: list[PresentedTool], curations: dict[uuid.UUID, BundleTool]
-    ) -> "PresentedNameClaims":
+    ) -> PresentedNameClaims:
         holders: dict[str, PresentedTool] = {}
         displaced: list[PresentedTool] = []
         for tool in tools:

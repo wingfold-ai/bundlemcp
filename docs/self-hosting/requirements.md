@@ -25,7 +25,7 @@ provider. Go to the [Quickstart](/guide/quickstart).
 | An OIDC identity provider | Mandatory, and yours. See below |
 | A TLS-terminating reverse proxy | Yours. The gateway speaks plain HTTP on one port |
 | A container registry | Only if you build your own images; otherwise pull the published ones, see [Deploy](/self-hosting/deploy#get-the-images) |
-| Python | Only if you run the gateway outside a container: 3.13 or newer; the image ships 3.15 |
+| Python | Only if you run the gateway outside a container: 3.14 or newer; the image ships 3.15 |
 | Node.js | Only if you build or run the admin UI outside a container: 24 or newer (`npm ci` refuses older); the image ships 26 |
 
 ### The identity provider is not optional

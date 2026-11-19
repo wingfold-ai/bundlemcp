@@ -2,7 +2,22 @@
   <img src="docs/public/banner.svg" alt="bundlemcp: unified mcp server bundler" width="720">
 </p>
 
+<p align="center">
+  <a href="https://github.com/wingfold-ai/bundlemcp/actions/workflows/ci.yml"><img
+    src="https://github.com/wingfold-ai/bundlemcp/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/wingfold-ai/bundlemcp/releases"><img
+    src="https://img.shields.io/github/v/release/wingfold-ai/bundlemcp?label=release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
+  <a href="https://bundlemcp.dev"><img src="https://img.shields.io/badge/docs-bundlemcp.dev-2c7f86" alt="Docs"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/wingfold-ai/bundlemcp"><img
+    src="https://api.scorecard.dev/projects/github.com/wingfold-ai/bundlemcp/badge" alt="OpenSSF Scorecard"></a>
+</p>
+
 **Your self-hosted MCP servers, in claude.ai and ChatGPT, behind one endpoint and one login.**
+
+> **Status: public preview (v0.4).** It runs the maintainer's own MCP servers every day, but the management API,
+> settings and bootstrap format may still change before 1.0. Breaking changes are called out in the
+> [changelog](CHANGELOG.md).
 
 bundlemcp is a self-hostable MCP gateway. Register your MCP servers, bundle their tools, and give each client the
 endpoint it needs: OAuth for claude.ai and ChatGPT, API keys for scripts and agents. Your servers need no login of
@@ -29,6 +44,8 @@ their own, and you decide which tools each bundle shows and how they are named.
 
 ## How it compares
 
+As of November 2026; these projects move fast, so corrections are welcome.
+
 | | What it does well | Where bundlemcp differs |
 |---|---|---|
 | [metamcp](https://github.com/metatool-ai/metamcp) | Bundles servers behind one endpoint, with API-key and OIDC auth (MIT). bundlemcp began as a rewrite of its bundling core. | Restart-safe sessions, several replicas, and new MCP spec revisions as they come. An importer for metamcp setups is [on the roadmap](https://bundlemcp.dev/roadmap). |
@@ -38,7 +55,7 @@ their own, and you decide which tools each bundle shows and how they are named.
 
 ## Quickstart
 
-Prerequisites: Docker with the compose plugin, and ports 8000, 3000 and 8080 free.
+Prerequisites: Docker with the compose plugin, and ports 8000, 3000, 8080, 9000 and 9100 free.
 
 ```bash
 cp deploy/.env.example deploy/.env
@@ -69,9 +86,9 @@ Then:
    The seed also registers `oauth-demo`, an OAuth-protected example upstream, and two more endpoints on the `demo`
    bundle (`claude` and `chatgpt`), and `identity-demo`, which reports what an upstream learns about its caller, on an
    `identity` endpoint of its own.
-3. Create an endpoint with the `oauth_only` profile and connect it in claude.ai; the gateway runs the OAuth
-   authorization server and the consent screen itself. claude.ai needs a public HTTPS URL, so this step wants a real
-   deployment or a tunnel.
+3. Connect claude.ai to the seeded `claude` endpoint; the gateway runs the OAuth authorization server and the consent
+   screen itself. claude.ai needs a public HTTPS URL, so start the stack with `deploy/stack.sh up`, which adds a tunnel
+   and prints the URL to paste ([quickstart](docs/guide/quickstart.md)).
 
 The user guides (deployment, connecting clients, the management API) live in [docs/](docs/README.md); run
 `npm run docs:install && npm run docs:dev` to browse them. The management API is documented at
@@ -128,7 +145,8 @@ Integration and browser tests run against the compose stack; see [deploy/TESTING
 ## Contributing
 
 Contributions are welcome. **Start here:** [CONTRIBUTING.md](CONTRIBUTING.md) — the read order, the change checklist,
-how to add a migration and how to debug. Conventions are in [CLAUDE.md](CLAUDE.md). Report security problems privately
+how to add a migration and how to debug. The coding conventions, which AI coding assistants read too, are in
+[CLAUDE.md](CLAUDE.md) and [.claude/docs/](.claude/docs/). Report security problems privately
 as described in [SECURITY.md](SECURITY.md). Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License

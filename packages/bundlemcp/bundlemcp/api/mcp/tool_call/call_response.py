@@ -49,7 +49,7 @@ class BufferedCallResponse:
     needs no input channel.
     """
 
-    async def render(self, call: "ToolCall", admitted: "AdmittedCall") -> Response:
+    async def render(self, call: ToolCall, admitted: AdmittedCall) -> Response:
         started = time.monotonic()
         watcher = asyncio.create_task(self._watch(call, admitted))
         try:
@@ -60,7 +60,7 @@ class BufferedCallResponse:
         return JSONResponse(outcome.jsonrpc(call.rpc_id, call.shape))
 
     @staticmethod
-    async def _watch(call: "ToolCall", admitted: "AdmittedCall") -> None:
+    async def _watch(call: ToolCall, admitted: AdmittedCall) -> None:
         while not await call.client_disconnected():
             await asyncio.sleep(DISCONNECT_POLL_SECONDS)
         call.disconnected(admitted)
@@ -90,7 +90,7 @@ class StreamedCallResponse:
             params["message"] = message
         return {"jsonrpc": "2.0", "method": "notifications/progress", "params": params}
 
-    async def render(self, call: "ToolCall", admitted: "AdmittedCall") -> Response:
+    async def render(self, call: ToolCall, admitted: AdmittedCall) -> Response:
         queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         events = CallEvents(call.correlation_id, queue, call.signals)
 

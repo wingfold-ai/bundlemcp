@@ -19,8 +19,6 @@ The shared `.claude/settings.json` sets Claude Code's `attribution` to empty so 
 - Commit with your own git identity. The repository never sets `user.name` or `user.email`; configure them in your
   global git config.
 - Only commit or push when the contributor asks. On the default branch, branch first.
-- Cloud (web) commits are authored by the contributor but carry no GitHub "Verified" badge, because the sandbox has no
-  signing key. Authorship is correct; only the signature is absent.
 - Titles and descriptions follow [CONTRIBUTING.md](../../CONTRIBUTING.md#commit-and-pull-request-titles).
 
 ## Personal settings stay local

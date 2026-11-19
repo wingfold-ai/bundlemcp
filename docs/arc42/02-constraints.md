@@ -2,7 +2,7 @@
 
 | Constraint | Rationale / source |
 |---|---|
-| Python ≥ 3.13 backend, Nuxt 4 frontend | Maintainer's home stack ([ADR-0001](../adr/0001-rewrite-not-fork.md)) |
+| Python ≥ 3.14 backend, Nuxt 4 frontend | Maintainer's home stack ([ADR-0001](../adr/0001-rewrite-not-fork.md)) |
 | FastMCP v4, SQLModel, Postgres + Redis, Nuxt UI v4 | [architecture spec](../../openspec/specs/architecture/spec.md) stack table; [ADR-0030](../adr/0030-fastmcp-4.md) (FastMCP 4, superseding [ADR-0002](../adr/0002-fastmcp-v3.md)), [ADR-0034](../adr/0034-pydantic-entities-and-row-classes.md), [ADR-0004](../adr/0004-postgres-redis-state-split.md) |
 | **Latest stable versions, always** (min-version pins) | Standing rule ARC-1 |
 | Pydantic-first: one definition from DB row to generated TS type | ARC-3/ARC-4; [ADR-0003](../adr/0003-sqlmodel-pydantic-first.md) |

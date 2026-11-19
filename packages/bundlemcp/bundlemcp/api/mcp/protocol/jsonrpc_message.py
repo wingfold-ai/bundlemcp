@@ -28,7 +28,7 @@ class JsonRpcMessage(BaseModel):
         return {} if value is None else value
 
     @classmethod
-    def parse(cls, body: Any) -> "JsonRpcMessage":
+    def parse(cls, body: Any) -> JsonRpcMessage:
         if not isinstance(body, dict):
             raise ValueError("a JSON-RPC message is an object")
         return cls.model_validate(body)

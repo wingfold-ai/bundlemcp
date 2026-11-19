@@ -10,7 +10,7 @@ difference.
 ## Prerequisites
 
 - Docker Engine 24 or newer with the compose plugin.
-- Ports 8000, 3000, 8080 and 9000 free on the host.
+- Ports 8000, 3000, 8080, 9000 and 9100 free on the host.
 - About 4 GB of free RAM and 5 GB of disk. The first start builds a Python and a
   Nuxt image from source, which takes a few minutes.
 
@@ -35,8 +35,8 @@ The stack starts eight containers:
 | `web` | 3000 | The admin UI |
 | `postgres` | internal | Durable configuration, tokens, audit log |
 | `valkey` | internal | Live sessions, rate limits, cross-replica signalling |
-| `keycloak` | 8080 | Development identity provider (`admin` / `admin`) |
-| `echo-mcp` | internal | A tiny example MCP server with three tools |
+| `keycloak` | 8080 | Development identity provider, with the sign-in user `admin` / `admin` |
+| `echo-mcp` | 9100 | A tiny example MCP server with four tools; the host port is for the integration tests |
 | `identity-demo` | internal | An example MCP server that reports who the gateway says is calling |
 | `oauth-demo` | 9000 | An example MCP server that requires its own OAuth sign-in (`demo_user` / `demo_password`) |
 
@@ -44,10 +44,10 @@ The stack starts eight containers:
 built, not that anything failed.
 
 ::: tip Not empty on first boot
-The stack loads `deploy/seed.yaml` as a [bootstrap file](/self-hosting/bootstrap). It registers the two example
-upstream servers, puts them in a `demo` bundle, and publishes that bundle as three endpoints: `demo` for API keys,
-and `claude` and `chatgpt` for those clients, with the `oauth_only` and `write_as_read` profiles. A separate `identity`
-endpoint serves the identity demo, which shows what an upstream server learns about you
+The stack loads `deploy/seed.yaml` as a [bootstrap file](/self-hosting/bootstrap). It registers the three example
+upstream servers, puts `echo` and `oauth-demo` in a `demo` bundle, and publishes that bundle as three endpoints: `demo`
+for API keys, and `claude` and `chatgpt` for those clients, with the `oauth_only` and `write_as_read` profiles. A
+separate `identity` endpoint serves the identity demo, which shows what an upstream server learns about you
 ([Upstream identity](/integrate/upstream-identity#see-it-in-the-reference-stack)).
 :::
 
@@ -59,10 +59,10 @@ That account's email is listed in `BUNDLEMCP_ADMIN_EMAILS`, so it gets admin rig
 **Upstream servers** page. Any other account sees the catalogue instead: the bundles it can connect an MCP client to,
 and nothing to manage.
 
-![The Upstream servers page lists the two seeded upstream servers](/screenshots/quickstart/01-upstream-servers.png)
+![The Upstream servers page lists the three seeded upstream servers](/screenshots/quickstart/01-upstream-servers.png)
 
-`echo` is ready. `oauth-demo` says *account not connected*: it only answers to someone who has signed in to it, which
-happens later, from an MCP client.
+`echo` and `identity-demo` are ready. `oauth-demo` says *account not connected*: it only answers to someone who has
+signed in to it, which happens later, from an MCP client.
 
 ## 3. Register an upstream server
 
@@ -72,7 +72,7 @@ own server instead, enter its URL — see the warning below first.
 
 1. On the **Upstream servers** page, enter `http://echo-mcp:9000/mcp` under **Register upstream server** and click
    **Check**. The gateway contacts the server and reports what it found: here *ready*, the MCP revision it speaks and
-   three tools, and that it needs no credential.
+   four tools, and that it needs no credential.
 2. Enter `my-server` as the **Name**. The name becomes the prefix of every tool the server contributes, such as
    `my-server__echo`.
 3. Click **Register**.
@@ -81,7 +81,7 @@ own server instead, enter its URL — see the warning below first.
 
 The server's page opens. Its **Tools** table shows what the gateway discovered; **Refresh tools** asks the server again.
 
-![The server page with its three discovered tools](/screenshots/quickstart/03-discovered-tools.png)
+![The server page with its four discovered tools](/screenshots/quickstart/03-discovered-tools.png)
 
 The other settings on this page — headers, identity, auth mode — are explained in
 [Upstream server settings](/guide/upstream-server-settings). The echo server needs none of them.

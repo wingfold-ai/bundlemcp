@@ -7,6 +7,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # weekly on main, so a new advisory against a locked dependency, or a change outside the
+  # repository, surfaces even in a week without pushes; on this run the secret scan reads the
+  # whole history
+  schedule:
+    - cron: "17 5 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -18,33 +23,44 @@ concurrency:
 
 jobs:
   backend:
+    name: backend (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # every version requires-python allows, oldest first; the lint steps run once, on the newest
+        python: ["3.14", "3.15"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          python-version: "3.15"
+          python-version: ${{ matrix.python }}
       - run: uv sync --locked --all-packages
       - name: Ruff
+        if: matrix.python == '3.15'
         run: uv run ruff check .
       - name: Markdown line length
+        if: matrix.python == '3.15'
         run: uv run rumdl check .
       - name: Import contracts
+        if: matrix.python == '3.15'
         run: uv run lint-imports
       - name: Tests
         run: uv run pytest -q
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.15"
       - run: uv sync --locked --all-packages
@@ -77,6 +93,7 @@ jobs:
 
   docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -128,6 +145,7 @@ jobs:
 
   diagrams:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -135,8 +153,14 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+        working-directory: docs
       - name: Validate LikeC4 model (DOC-10)
-        run: npx --yes likec4 validate docs/likec4
+        # the likec4 version docs/package-lock.json locks, which Dependabot keeps current
+        run: npx likec4 validate likec4
+        working-directory: docs
       - name: Validate OpenSpec specs and changes (DOC-7)
         run: npx --yes @fission-ai/openspec@1.14.0 validate --all --strict --no-interactive
         env:
@@ -144,6 +168,7 @@ jobs:
 
   image:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -157,6 +182,7 @@ jobs:
     # Known advisories in the locked dependencies, secrets in the commits this run adds, and
     # Dockerfile lint. Ruff's security rules run in the backend job's Ruff step.
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       # the release binary, verified against the checksum the release publishes
       GITLEAKS_VERSION: "8.30.1"
@@ -168,7 +194,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.15"
       - run: uv sync --locked --all-packages
@@ -214,12 +240,13 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.15"
       - run: uv sync --locked --all-packages
@@ -303,6 +330,7 @@ jobs:
     # The served revisions the MCP conformance suite has scenarios for, read
     # from the gateway's own registry, so a new revision joins the matrix.
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       revisions: ${{ steps.list.outputs.revisions }}
     steps:
@@ -310,7 +338,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.15"
       - run: uv sync --locked --all-packages
@@ -323,6 +351,7 @@ jobs:
   conformance:
     needs: conformance-revisions
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -332,7 +361,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.15"
       - run: uv sync --locked --all-packages
@@ -361,6 +390,7 @@ jobs:
     if: always()
     needs: [backend, frontend, docs, diagrams, image, security, integration, conformance-revisions, conformance]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       checks: read
@@ -382,7 +412,7 @@ jobs:
         if: env.SAME_REPO == 'true'
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         if: env.SAME_REPO == 'true'
       - name: Set the result on CI's own commits at the branch head
         if: env.SAME_REPO == 'true'

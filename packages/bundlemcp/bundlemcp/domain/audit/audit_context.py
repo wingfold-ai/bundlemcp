@@ -27,7 +27,7 @@ class AuditContext(BaseModel):
     server_name: str | None = Field(default=None, description="Upstream server, once resolved")
     tool_name: str | None = Field(default=None, description="Upstream tool name, once resolved")
 
-    def resolved(self, tool: PresentedTool) -> "AuditContext":
+    def resolved(self, tool: PresentedTool) -> AuditContext:
         return self.model_copy(
             update={"server_name": tool.server.name, "tool_name": tool.tool.name}
         )

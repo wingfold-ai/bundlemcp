@@ -176,7 +176,7 @@ class CompositionRoot:
         self._tracing = tracing
         self._stack = AsyncExitStack()
 
-    async def __aenter__(self) -> "CompositionRoot":
+    async def __aenter__(self) -> CompositionRoot:
         try:
             self._state.container = await self._compose()
         except BaseException:

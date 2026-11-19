@@ -17,7 +17,7 @@ class ConnectAccountTool(ListedTool):
     """
 
     @classmethod
-    def for_server(cls, server: McpServer) -> "ConnectAccountTool":
+    def for_server(cls, server: McpServer) -> ConnectAccountTool:
         title = f"Connect your {server.name} account"
         return cls(
             presented_name=PresentedName(server=server.name, name=CONNECT_ACCOUNT_TOOL).text,

@@ -22,7 +22,7 @@ class PresentedName(BaseModel):
         return f"{self.server}{PRESENTED_NAME_SEPARATOR}{self.name}"
 
     @classmethod
-    def parse(cls, text: str) -> "PresentedName | None":
+    def parse(cls, text: str) -> PresentedName | None:
         """Split a presented name; None when it carries no server prefix."""
         server, separator, name = text.partition(PRESENTED_NAME_SEPARATOR)
         if not separator or not server or not name:

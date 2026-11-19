@@ -15,7 +15,7 @@ class ClientCredentials(BaseModel):
     )
 
     @classmethod
-    def from_basic_header(cls, authorization: str | None) -> "ClientCredentials | None":
+    def from_basic_header(cls, authorization: str | None) -> ClientCredentials | None:
         """Credentials carried as HTTP Basic, or None when the header is not Basic."""
         if not authorization or not authorization.lower().startswith("basic "):
             return None
