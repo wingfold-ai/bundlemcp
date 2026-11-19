@@ -75,15 +75,30 @@ test(testTitle("E2E-27"), async ({ page, steps }) => {
   ]);
 });
 
+// The gateway writes audit records after it answers, so a count read right after a call can
+// still grow. Waits until two reads a second apart agree and returns that count.
+async function settledSuccessTotal(): Promise<number> {
+  const api = await adminApi();
+  const read = async (): Promise<number> =>
+    (await (await api.get("audit-records?status=success&limit=1")).json()).total;
+  let total = await read();
+  for (let attempt = 0; attempt < 15; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const next = await read();
+    if (next === total) break;
+    total = next;
+  }
+  await api.dispose();
+  return total;
+}
+
 test(testTitle("E2E-28"), async ({ page, steps }) => {
   await callEchoTwice();
   let total = 0;
   await steps.play([
     given("the audit page filtered to successful calls", async () => {
       await page.goto("/audit");
-      const api = await adminApi();
-      total = (await (await api.get("audit-records?status=success&limit=1")).json()).total;
-      await api.dispose();
+      total = await settledSuccessTotal();
       expect(total).toBeGreaterThanOrEqual(2);
       await page.getByTestId("filter-status").selectOption("success");
       await page.getByTestId("filter-apply").click();

@@ -62,6 +62,35 @@ def test_dep12_title_over_72_characters_fails():
 
 
 @pytest.mark.parametrize(
+    ("title", "shortened"),
+    [
+        (
+            "chore: Bump likec4 from 1.59.4 to 1.60.0 in /docs in the npm group across 1 directory",
+            "chore: Bump likec4 from 1.59.4 to 1.60.0 in /docs",
+        ),
+        (
+            "chore: Bump @nuxt/some-very-long-package-name from 10.12.13 to 10.12.14 in /apps/web"
+            " in the npm group across 1 directory",
+            "chore: Bump @nuxt/some-very-long-package-name to 10.12.14 in /apps/web",
+        ),
+        (
+            "chore: Bump @nuxt/an-extremely-long-package-name-for-this-x from 10.12.13 to 10.12.14"
+            " in /apps/web",
+            "chore: Bump @nuxt/an-extremely-long-package-name-for-this-x to 10.12.14",
+        ),
+    ],
+)
+def test_dep12_a_dependabot_title_over_the_limit_is_cut_to_fit(title, shortened):
+    assert release.shorten_bot_title(title) == shortened
+    release.parse_title(shortened)
+
+
+def test_dep12_a_dependabot_title_within_the_limit_is_kept():
+    title = "chore: Bump the uv group across 1 directory with 7 updates"
+    assert release.shorten_bot_title(title) == title
+
+
+@pytest.mark.parametrize(
     ("current", "bump", "expected"),
     [
         ("0.1.0", "major", "0.2.0"),

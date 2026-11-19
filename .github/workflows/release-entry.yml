@@ -36,15 +36,42 @@ jobs:
       issues: write
     outputs:
       semver: ${{ steps.derive.outputs.semver }}
+      title: ${{ steps.title.outputs.title }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      # Dependabot names the directory and group after the version, which can push a
+      # single-package title past the limit; CI cuts that part off rather than failing the
+      # check. An edit made with the workflow token starts no new run, so this run goes on
+      # with the shortened title.
+      - name: A Dependabot title fits the limit
+        id: title
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          title=$TITLE
+          if [ "$AUTHOR" = "dependabot[bot]" ]; then
+            title=$(uv run --no-project --with "$PYDANTIC" python tools/pull_request_release.py bot-title "$TITLE")
+            if [ "$title" != "$TITLE" ]; then
+              gh api -X PATCH "repos/$GH_REPO/pulls/$NUMBER" -f title="$title" > /dev/null
+              echo "Shortened the title to: $title"
+            fi
+          fi
+          {
+            echo "title<<EOF_TITLE"
+            echo "$title"
+            echo "EOF_TITLE"
+          } >> "$GITHUB_OUTPUT"
       - name: The title is a Conventional Commit
         id: derive
         env:
-          TITLE: ${{ github.event.pull_request.title }}
+          TITLE: ${{ steps.title.outputs.title }}
         run: |
           labels=$(uv run --no-project --with "$PYDANTIC" python tools/pull_request_release.py labels "$TITLE")
           echo "$labels"
@@ -131,7 +158,7 @@ jobs:
           ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TITLE: ${{ github.event.pull_request.title }}
+          TITLE: ${{ needs.labels.outputs.title }}
           BODY: ${{ github.event.pull_request.body }}
           NUMBER: ${{ github.event.pull_request.number }}
           URL: ${{ github.event.pull_request.html_url }}
@@ -147,7 +174,7 @@ jobs:
       - name: Write the entry and the bump
         id: apply
         env:
-          TITLE: ${{ github.event.pull_request.title }}
+          TITLE: ${{ needs.labels.outputs.title }}
           NUMBER: ${{ github.event.pull_request.number }}
           URL: ${{ github.event.pull_request.html_url }}
           WRITTEN: ${{ steps.writer.outcome == 'success' }}

@@ -297,6 +297,8 @@ Every pull request into `main` carries the release its merge makes; nobody cuts 
    whenever the title is edited: `!` is `major`, `feat` is `minor`, `fix`, `perf` and `revert` are `patch`, everything
    else is `none`. Below 1.0 each bump moves one place to the right: a breaking change takes `0.1.0` to `0.2.0`, a
    feature or fix to `0.1.1`. Reaching `1.0.0` is a pull request of its own.
+   A Dependabot title that runs over the limit is shortened by CI: it drops the group Dependabot appends, then the
+   version updated from, then the directory, until the title fits.
 2. **CI commits the entry to your branch.** For any bump but `none`, CI pushes one commit,
    `chore(repo): Release <version>`, adding the `## [<version>] - <date>` entry to `CHANGELOG.md` and raising the
    version in both `pyproject.toml` files, `uv.lock` and `apps/web/openapi.json`. That commit says `[skip ci]`, so it
