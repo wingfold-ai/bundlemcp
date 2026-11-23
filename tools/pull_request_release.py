@@ -45,6 +45,9 @@ BOT_TITLE_CUTS = (
     re.compile(r" in /\S*$"),
 )
 BUMPS = {"feat": "minor", "fix": "patch", "perf": "patch", "revert": "patch"}
+# Scopes whose changes reach no published image: CI, the repository's own tooling, and the
+# documentation site, which publishes from main without a release.
+NO_RELEASE_SCOPES = frozenset({"ci", "repo", "docs"})
 # What makes GitHub skip a push's workflows when it appears in the head commit's message.
 SKIP_MARKER = re.compile(
     r"\[(?:skip ci|ci skip|no ci|skip actions|actions skip)\]|^skip-checks: *true", re.I | re.M
@@ -112,11 +115,15 @@ def parse_title(title: str) -> TitleRelease:
         raise ReleaseError(f"the title is no Conventional Commit; expected {EXPECTED}")
     breaking = match.group("breaking") is not None
     kind = match.group("type")
+    if match.group("scope") in NO_RELEASE_SCOPES:
+        bump = "none"
+    else:
+        bump = "major" if breaking else BUMPS.get(kind, "none")
     return TitleRelease(
         type=kind,
         breaking=breaking,
         subject=match.group("subject"),
-        bump="major" if breaking else BUMPS.get(kind, "none"),
+        bump=bump,
     )
 
 

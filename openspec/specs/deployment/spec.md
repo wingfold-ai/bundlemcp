@@ -261,8 +261,19 @@ deployed stack pulls) and `:<commit-sha>` (to pin or roll back to an exact build
 `v<major>.<minor>.<patch>` tag publishes both images as `:<major>.<minor>.<patch>` and creates a release whose notes
 come from the changelog's entry for that version. A merge into `main` that raises the version
 ([DEP-12](spec.md)) creates that version's tag and publishes its release without anyone pushing a tag; a tag a
-maintainer pushes by hand publishes the same way. Every release's notes SHALL state the metering-hook protocol version
-([PROT-27](../protocol/spec.md)) and call it out when it changed since the previous release. Every published image SHALL
+maintainer pushes by hand publishes the same way. Every release's notes SHALL frame the entry the same way, so any
+release page makes sense to someone who has never heard of bundlemcp:
+
+- before the entry, one sentence saying what bundlemcp is;
+- after it, the two image references of this version, a note while the version is below `1.0.0` that a minor release
+  may still change the management API, settings or the bootstrap format, links to the quickstart, the documentation
+  and the repository's Discussions, and a *Full Changelog* link comparing this tag with the previous release tag
+  (none for the first release);
+- last, the metering-hook protocol version ([PROT-27](../protocol/spec.md)), called out when it changed since the
+  previous release.
+
+A release SHALL be marked as the repository's latest only when its version is the highest release tag, so the
+repository's `releases/latest` link always leads to the newest version. Every published image SHALL
 carry an SBOM and a SLSA provenance record; in a public repository it SHALL also carry a provenance attestation signed
 by GitHub that names the workflow and the commit it was built from.
 
@@ -274,7 +285,27 @@ by GitHub that names the workflow and the commit it was built from.
 - **GIVEN** the version on `main` is `1.1.0`
 - **WHEN** a pull request that raises it to `1.2.0` is merged
 - **THEN** the merge commit is tagged `v1.2.0`, both images are pushed as `:1.2.0`, and a release `v1.2.0` is created
-  with the changelog's `1.2.0` entry as its notes
+  with the changelog's `1.2.0` entry in its notes, and it is marked as the latest release
+
+#### Scenario: Release notes frame the entry
+- **GIVEN** the previous release tag is `v1.1.0`
+- **WHEN** the release `v1.2.0` is created
+- **THEN** its notes open with the sentence saying what bundlemcp is, followed by the `1.2.0` entry. They then name
+  `ghcr.io/<owner>/bundlemcp-gateway:1.2.0` and `ghcr.io/<owner>/bundlemcp-web:1.2.0`, link to the quickstart, the
+  documentation and Discussions, and link to the comparison `v1.1.0...v1.2.0`. They end with the metering-hook
+  protocol line
+
+#### Scenario: Preview caveat below 1.0
+- **WHEN** the release `v0.5.0` is created
+- **THEN** its notes say that until 1.0 a minor release may change the management API, settings or the bootstrap
+  format
+- **AND WHEN** the release `v1.0.0` is created
+- **THEN** its notes carry no such caveat
+
+#### Scenario: An older line does not become latest
+- **GIVEN** the release tags `v1.1.0` and `v1.2.0` exist
+- **WHEN** a maintainer pushes the tag `v1.1.1` and its release is created
+- **THEN** the release `v1.1.1` is not marked as the latest release, and `releases/latest` still leads to `v1.2.0`
 
 #### Scenario: Merge that keeps the version releases nothing
 - **WHEN** a pull request that does not change the version is merged
@@ -282,7 +313,7 @@ by GitHub that names the workflow and the commit it was built from.
 
 #### Scenario: Release tag publishes a versioned release
 - **WHEN** the tag `v1.2.0` is pushed
-- **THEN** both images are pushed as `:1.2.0`, and a release `v1.2.0` is created with the changelog's `1.2.0` entry as
+- **THEN** both images are pushed as `:1.2.0`, and a release `v1.2.0` is created with the changelog's `1.2.0` entry in
   its notes
 
 #### Scenario: Metering protocol change is called out
@@ -310,7 +341,9 @@ A pull request into `main` SHALL carry the release its merge makes, so the squas
 - **Labels from the title.** The pull request's title MUST be a Conventional Commit (`<type>(<scope>)!: <Subject>`). CI
   derives a `type: <type>` label and a `semver:` label from it, and replaces both whenever the title is edited: `!` is
   `semver: major`; otherwise `feat` is `minor`, `fix`, `perf` and `revert` are `patch`, and every other type is `none`.
-  A title that is not a Conventional Commit fails the check and gets no labels. A description that contains a CI-skip
+  A title whose scope is `ci`, `repo` or `docs` is `semver: none` whatever its type, `!` included: such a change
+  reaches no published image, and the documentation site publishes from `main` without a release. A title
+  that is not a Conventional Commit fails the check and gets no labels. A description that contains a CI-skip
   marker (`[skip ci]` and its variants) fails the check too, because the squash merge takes its message from the
   description and the marker would skip CI and the release on `main`. In a description Dependabot wrote, which quotes
   the updated package's commits, CI defuses each marker instead, turning `[skip ci]` into `(skip ci)`, and saves the
@@ -377,6 +410,18 @@ A pull request into `main` SHALL carry the release its merge makes, so the squas
 #### Scenario: Documentation change is no release
 - **WHEN** a pull request titled `docs(repo): Describe the release flow` is opened
 - **THEN** it is labelled `type: docs` and `semver: none`, and its branch gains no entry and no version change
+
+#### Scenario: CI fix is no release
+- **WHEN** a pull request titled `fix(ci): Defuse CI-skip markers that Dependabot quotes` is opened
+- **THEN** it is labelled `type: fix` and `semver: none`, and its branch gains no entry and no version change
+
+#### Scenario: Breaking repository change is no release
+- **WHEN** a pull request titled `refactor(repo)!: Move the tools into scripts` is opened
+- **THEN** it is labelled `type: refactor` and `semver: none`
+
+#### Scenario: Unscoped fix still releases
+- **WHEN** a pull request titled `fix: Reject expired tokens` is opened
+- **THEN** it is labelled `type: fix` and `semver: patch`
 
 #### Scenario: Title that is no Conventional Commit fails
 - **WHEN** a pull request titled `Update stuff` is opened

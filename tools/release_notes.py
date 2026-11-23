@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-"""Release notes from CHANGELOG.md, stating the metering-hook protocol version.
+"""Release notes from CHANGELOG.md, framed so any release page explains bundlemcp.
 
     python3 tools/release_notes.py v1.2.0      # the notes for that tag, on stdout
+    python3 tools/release_notes.py --latest v1.2.0  # 'true' when it is the highest tag
     python3 tools/release_notes.py --check     # every entry heading is well-formed
+
+The entry comes from CHANGELOG.md as it stands, so a correction made after a
+release reaches its page when the notes are refreshed; the protocol version is
+read at the tag, so each release states what it shipped.
+
+The notes open with what bundlemcp is, then the version's entry, the images to
+run, the preview caveat below 1.0, where to start and give feedback, and a
+comparison with the previous release tag; they end with the metering-hook
+protocol version and whether it changed since that tag.
 
 Fails (exit 1) when the changelog has no entry for the version, or when the
 metering-hook protocol changed since the previous release tag and the entry
-does not say so. An entry names the protocol only in a release that changes
-it; the notes always end with the version the source ships and whether it
-changed since the previous release tag.
+does not say so. An entry names the protocol only in a release that changes it.
 """
 
 import argparse
@@ -26,7 +34,17 @@ DATED_HEADING = re.compile(r"^## \[(\d+)\.(\d+)\.(\d+)\] - \d{4}-\d{2}-\d{2}$")
 SECTION = re.compile(r"^## ", re.MULTILINE)
 NAMES_PROTOCOL = re.compile(r"metering-hook protocol", re.IGNORECASE)
 SOURCE_VERSION = re.compile(r"^METERING_PROTOCOL_VERSION = (\d+)", re.MULTILINE)
-VERSIONING = "https://bundlemcp.dev/integrate/metering-hook#versioning"
+DOCS = "https://bundlemcp.dev"
+VERSIONING = f"{DOCS}/integrate/metering-hook#versioning"
+DEFAULT_REPO = "wingfold-ai/bundlemcp"
+PROJECT = (
+    "bundlemcp is a self-hostable MCP gateway that turns all your MCP servers into one "
+    "connector for any MCP client."
+)
+PREVIEW = (
+    "bundlemcp is a preview until 1.0: a minor release may change the management API, settings "
+    "or the bootstrap format, and such a change is marked **Breaking**."
+)
 
 
 class ReleaseError(Exception):
@@ -64,8 +82,9 @@ def notes(
     *,
     previous_tag: str | None,
     previous: int | None,
+    repo: str = DEFAULT_REPO,
 ) -> str:
-    """The release notes for ``version``: its changelog entry, then the protocol line."""
+    """The release notes for ``version``: its changelog entry in the frame every release shares."""
     entry = entries(changelog).get(version)
     if entry is None:
         raise ReleaseError(
@@ -86,7 +105,32 @@ def notes(
             f"Metering-hook protocol version: **{current}**, **changed** from {previous} in "
             f"{previous_tag}. Hooks must be updated; see {VERSIONING}."
         )
-    return f"{entry}\n\n---\n\n{protocol}\n"
+    parts = [PROJECT, entry, *frame(version, previous_tag, repo), "---", protocol]
+    return "\n\n".join(parts) + "\n"
+
+
+def frame(version: str, previous_tag: str | None, repo: str) -> list[str]:
+    """The parts after the entry: what to run, the caveat, where to go next, what changed."""
+    owner = repo.split("/")[0].lower()
+    parts = [
+        "### Run this version",
+        "```text\n"
+        f"ghcr.io/{owner}/bundlemcp-gateway:{version}\n"
+        f"ghcr.io/{owner}/bundlemcp-web:{version}\n"
+        "```",
+        f"How to deploy and upgrade: [Deploy]({DOCS}/self-hosting/deploy).",
+    ]
+    if version.startswith("0."):
+        parts.append(PREVIEW)
+    parts.append(
+        f"[Quickstart]({DOCS}/guide/quickstart) · [Documentation]({DOCS}) · "
+        f"[Questions and feedback](https://github.com/{repo}/discussions)"
+    )
+    if previous_tag is not None:
+        parts.append(
+            f"**Full Changelog**: https://github.com/{repo}/compare/{previous_tag}...v{version}"
+        )
+    return parts
 
 
 def check(changelog: str) -> None:
@@ -103,45 +147,78 @@ def check(changelog: str) -> None:
         raise ReleaseError("CHANGELOG.md lists a version twice or out of order; newest first")
 
 
-def _git(*args: str) -> str | None:
-    done = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+def _git(*args: str, root: Path = ROOT) -> str | None:
+    done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
     return done.stdout.strip() if done.returncode == 0 else None
 
 
-def previous_release(tag: str) -> tuple[str | None, int | None]:
+def at_tag(tag: str, path: str, root: Path = ROOT) -> str:
+    """The content of ``path`` as the tag shipped it."""
+    content = _git("show", f"{tag}:{path}", root=root)
+    if content is None:
+        raise ReleaseError(f"{tag} does not exist or has no {path}")
+    return content
+
+
+def previous_release(tag: str, root: Path = ROOT) -> tuple[str | None, int | None]:
     """The release tag before ``tag`` and the protocol version it shipped, if there is one."""
-    previous = _git("describe", "--tags", "--abbrev=0", "--match", "v*.*.*", f"{tag}^")
+    previous = _git("describe", "--tags", "--abbrev=0", "--match", "v*.*.*", f"{tag}^", root=root)
     if previous is None:
         return None, None
-    source = _git("show", f"{previous}:{HOOK_SOURCE}")
+    source = _git("show", f"{previous}:{HOOK_SOURCE}", root=root)
     return previous, source_protocol(source) if source is not None else None
+
+
+def tag_notes(tag: str, repo: str = DEFAULT_REPO, root: Path = ROOT) -> str:
+    """The notes for ``tag``: the changelog as it stands, the protocol the tag shipped."""
+    match = TAG.match(tag)
+    if match is None:
+        raise ReleaseError(f"{tag!r} is not a release tag like v1.2.0")
+    previous_tag, previous = previous_release(tag, root)
+    return notes(
+        match.group(1),
+        (root / "CHANGELOG.md").read_text(),
+        source_protocol(at_tag(tag, HOOK_SOURCE, root)),
+        previous_tag=previous_tag,
+        previous=previous,
+        repo=repo,
+    )
+
+
+def is_latest(tag: str, root: Path = ROOT) -> bool:
+    """Whether ``tag`` is the highest release tag, so ``releases/latest`` should lead to it."""
+    match = TAG.match(tag)
+    if match is None:
+        raise ReleaseError(f"{tag!r} is not a release tag like v1.2.0")
+    listed = (_git("tag", "--list", "v*.*.*", root=root) or "").split()
+    versions = [_semver(found.group(1)) for found in map(TAG.match, listed) if found]
+    return all(_semver(match.group(1)) >= version for version in versions)
+
+
+def _semver(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("tag", nargs="?", help="Release tag, e.g. v1.2.0")
     parser.add_argument("--check", action="store_true", help="Validate the changelog only")
+    parser.add_argument(
+        "--latest", action="store_true", help="Print whether the tag is the highest release tag"
+    )
+    parser.add_argument(
+        "--repo", default=DEFAULT_REPO, help="The GitHub repository as owner/name, for links"
+    )
     args = parser.parse_args()
-    changelog = CHANGELOG.read_text()
     try:
-        current = source_protocol((ROOT / HOOK_SOURCE).read_text())
         if args.check:
-            check(changelog)
+            check(CHANGELOG.read_text())
             sys.stderr.write("CHANGELOG.md entries are well-formed.\n")
             return 0
-        match = TAG.match(args.tag or "")
-        if match is None:
-            raise ReleaseError(f"{args.tag!r} is not a release tag like v1.2.0")
-        previous_tag, previous = previous_release(args.tag)
-        sys.stdout.write(
-            notes(
-                match.group(1),
-                changelog,
-                current,
-                previous_tag=previous_tag,
-                previous=previous,
-            )
-        )
+        if args.latest:
+            sys.stdout.write("true\n" if is_latest(args.tag or "") else "false\n")
+            return 0
+        sys.stdout.write(tag_notes(args.tag or "", args.repo))
     except ReleaseError as exc:
         sys.stderr.write(f"{exc}\n")
         return 1
