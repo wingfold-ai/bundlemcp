@@ -91,16 +91,16 @@ failing tests.
 
 ### Requirement: DOC-6 Published site
 Every push to `main` that touches `docs/` MUST build the site and upload it by FTP to Infomaniak web hosting
-(`.github/workflows/publish-docs.yml`); the upload is incremental and never deletes files it did not upload. The
-hosting plan has a 10 MB quota, so the built site must stay under 9 MiB; CI checks this on every pull request and again
+(`.github/workflows/publish-docs.yml`); the upload is incremental and never deletes files it did not upload. The hosting
+plan has a 10 MB quota, so the built site must stay at or under 9.6 MB; CI checks this on every pull request and again
 before each upload. `docs/public/.htaccess` redirects to HTTPS and maps clean URLs to their `.html` files. The published
 build alone loads cookieless Plausible analytics (self-hosted, in Switzerland), enabled by the
 `DOCS_PLAUSIBLE_SCRIPT_URL` repository variable; local builds, CI and forks load no tracking script. While the
-`DOCS_AUTH_USER` and `DOCS_AUTH_PASSWORD` secrets are set, the published site asks for that username and password
-(HTTP Basic, on HTTPS only); removing them makes it public again on the next publish.
+`DOCS_AUTH_USER` and `DOCS_AUTH_PASSWORD` secrets are set, the published site asks for that username and password (HTTP
+Basic, on HTTPS only); removing them makes it public again on the next publish.
 
 #### Scenario: Oversized site fails before upload
-- **WHEN** the built site exceeds 9437184 bytes
+- **WHEN** the built site exceeds 9600000 bytes
 - **THEN** the CI `docs` job on the pull request fails, and the publish workflow stops before the FTP upload
 
 #### Scenario: Local build carries no analytics

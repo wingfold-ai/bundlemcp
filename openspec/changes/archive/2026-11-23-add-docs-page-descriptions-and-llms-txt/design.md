@@ -27,8 +27,8 @@ description folded over several lines), and writes both files into the build out
 
 - [Descriptions go stale when a page changes] → they sit in the page's own frontmatter, and the test catches a
   missing or overlong one; a wrong one is caught in review.
-- [llms-full.txt takes 338 KB of the hosting quota] → with it the built site is about 9.2 MB, roughly 220 KB under
-  the 9 MiB size check CI runs for the 10 MB plan (DOC-6). Chosen deliberately to ship the full text; if the site
-  outgrows the check, dropping `llms-full.txt` or the long reference pages from it is the first relief.
+- [llms-full.txt takes 336 KB of the hosting quota] → the site CI builds then measures 9.48 MB, over the old 9 MiB
+  check, so the limit rises to 9.6 MB, 400 KB under the 10 MB plan. Chosen over dropping the full text. If the site
+  outgrows 9.6 MB, dropping `llms-full.txt` or its longest reference pages is the first relief.
 - [llms.txt is a young convention] → it costs one build step and no runtime; if assistants stop reading it, removing
   it is equally small.

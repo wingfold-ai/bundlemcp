@@ -18,6 +18,9 @@
 - [x] 2.3 Name the two files in the publishing section of `docs/README.md`. Verify that `uv run rumdl check .` and
   `python3 tools/check_docs_links.py` pass.
 
+- [x] 2.4 Raise the site size limit to 9,600,000 bytes in DOC-6, `.github/workflows/ci.yml`,
+  `.github/workflows/publish-docs.yml` and `docs/README.md`. Verify that the CI `docs` job passes on the pull request.
+
 ## 3. Gates
 
 - [x] 3.1 Run `uv run pytest -q`, `uv run ruff check .`, `uv run rumdl check .`, `uv run lint-imports`, the

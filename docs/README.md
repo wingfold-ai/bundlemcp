@@ -25,7 +25,7 @@ and change in the same PR as the behaviour they describe (DOC-5).
 `.github/workflows/publish-docs.yml` builds the site on every push to `main` that touches `docs/` (or when run by hand
 from the **Actions** tab) and uploads it by FTP to Infomaniak web hosting (DOC-6). The upload is incremental: the action
 keeps `.ftp-deploy-sync-state.json` on the server, sends only changed files, and removes only files it uploaded itself.
-The hosting quota is 10 MB, so CI fails any build over 9 MiB. `public/.htaccess` is copied into the site: it redirects
+The hosting quota is 10 MB, so CI fails any build over 9.6 MB. `public/.htaccess` is copied into the site: it redirects
 HTTP to HTTPS and serves `/guide/quickstart` from `guide/quickstart.html`, because the site uses clean URLs.
 
 One-time setup:

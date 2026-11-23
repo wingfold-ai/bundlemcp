@@ -19,8 +19,8 @@ concurrency:
 
 env:
   SITE_DIR: docs/.vitepress/dist
-  # Infomaniak's Starter hosting has a 10 MB quota; 9 MiB keeps headroom below it.
-  MAX_SITE_BYTES: 9437184
+  # Infomaniak's Starter hosting has a 10 MB quota; 9.6 MB keeps headroom below it.
+  MAX_SITE_BYTES: 9600000
 
 jobs:
   publish:
