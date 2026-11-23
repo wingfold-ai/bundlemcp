@@ -153,6 +153,11 @@ docs: explain the retry setting
 Use `feat` for new behaviour, `fix` for bug fixes, and `docs`, `test`, `refactor`, `chore`, `ci` or `build` for the
 rest. Mark a breaking change with `!` (`feat!: drop Node 18`) and describe the migration in the pull request body.
 
+Three scopes say the change reaches no published image, so it releases nothing whatever its type: `ci` for the
+workflows, `repo` for the repository's own tooling and files, and `docs` for the documentation site, which publishes
+from `main` on its own. A fix to the CI pipeline is `fix(ci): …`, not `fix(gateway): …`; a change to the gateway or
+the admin UI never takes one of these scopes.
+
 ## Tests
 
 Four hermetic tiers under `packages/bundlemcp/tests/`, plus integration tests at the root. `testpaths` points at the
@@ -292,13 +297,13 @@ prints it as `Digest:`.
 Every pull request into `main` carries the release its merge makes; nobody cuts one by hand.
 `.github/workflows/release-entry.yml` does the work:
 
-1. **The title decides the version.** The title must be a Conventional Commit (`feat(bundles): Order members by
-   hand`, at most 72 characters). CI labels the pull request `type: <type>` and `semver: <bump>` from it, and again
-   whenever the title is edited: `!` is `major`, `feat` is `minor`, `fix`, `perf` and `revert` are `patch`, everything
-   else is `none`. Below 1.0 each bump moves one place to the right: a breaking change takes `0.1.0` to `0.2.0`, a
-   feature or fix to `0.1.1`. Reaching `1.0.0` is a pull request of its own.
-   A Dependabot title that runs over the limit is shortened by CI: it drops the group Dependabot appends, then the
-   version updated from, then the directory, until the title fits.
+1. **The title decides the version.** The title must be a Conventional Commit (`feat(bundles): Order members by hand`,
+   at most 72 characters). CI labels the pull request `type: <type>` and `semver: <bump>` from it, and again whenever
+   the title is edited: `!` is `major`, `feat` is `minor`, `fix`, `perf` and `revert` are `patch`, everything else is
+   `none`. A title scoped `ci`, `repo` or `docs` is `none` whatever its type, `!` included. Below 1.0 each bump moves
+   one place to the right: a breaking change takes `0.1.0` to `0.2.0`, a feature or fix to `0.1.1`. Reaching `1.0.0` is
+   a pull request of its own. A Dependabot title that runs over the limit is shortened by CI: it drops the group
+   Dependabot appends, then the version updated from, then the directory, until the title fits.
 2. **CI commits the entry to your branch.** For any bump but `none`, CI pushes one commit,
    `chore(repo): Release <version>`, adding the `## [<version>] - <date>` entry to `CHANGELOG.md` and raising the
    version in both `pyproject.toml` files, `uv.lock` and `apps/web/openapi.json`. That commit says `[skip ci]`, so it
@@ -312,9 +317,16 @@ Every pull request into `main` carries the release its merge makes; nobody cuts 
    CI comments once; merge or rebase onto `main` yourself, and your next push renumbers it.
 4. **The merge releases.** The squash commit carries the entry and the bump. On `main`, CI tags `v<version>` and runs
    `.github/workflows/release.yml`: it rehearses the documented restore against the compose stack
-   (`restore-rehearsal.yml`), publishes both images as `:<version>`, and creates the GitHub release from the entry,
-   ending with the metering-hook protocol version and whether it changed since the previous release. A failed
-   rehearsal publishes nothing. A `semver: none` pull request releases nothing.
+   (`restore-rehearsal.yml`), publishes both images as `:<version>`, and creates the GitHub release from the entry.
+   A failed rehearsal publishes nothing. A `semver: none` pull request releases nothing.
+5. **Every release page explains itself.** `tools/release_notes.py` frames the entry the same way each time, so the
+   page makes sense to someone who has never heard of bundlemcp. It opens with one sentence on what bundlemcp is. After
+   the entry come both image references, the preview caveat while the version is below 1.0, links to the quickstart,
+   the documentation and Discussions, and a *Full Changelog* link to the previous release tag. It ends with the
+   metering-hook protocol version and whether it changed. The notes are read at the tag, so
+   `python3 tools/release_notes.py v0.4.2` prints exactly what that release shows. A release is marked latest only
+   when it is the highest version, so `https://github.com/wingfold-ai/bundlemcp/releases/latest` is always the link
+   to share.
 
 The public roadmap, [bundlemcp.dev/roadmap](docs/roadmap.md), moves with releases. The pull request that finishes a
 roadmap theme moves it to **Now** in the frontmatter of `docs/roadmap.md`, and a `feat` or breaking pull request is the

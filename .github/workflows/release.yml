@@ -1,6 +1,9 @@
 # Cut a release from a v<major>.<minor>.<patch> tag: check the
 # changelog has an entry for it, rehearse the restore, publish both images as
-# :<version>, then create the GitHub release from the changelog entry. Each
+# :<version>, then create the GitHub release from the changelog entry, framed
+# with what bundlemcp is, the images, where to start and a comparison with the
+# previous release. It is marked latest only when it is the highest version, so
+# a patch for an older line never takes over releases/latest. Each
 # step needs the one before, so a missing entry or a failed rehearsal publishes
 # nothing. A tag pushed by hand starts it; a merge that raises the version calls
 # it, because a tag pushed with the workflow token starts no workflow.
@@ -75,6 +78,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          python3 tools/release_notes.py "$TAG" > "$RUNNER_TEMP/notes.md"
+          python3 tools/release_notes.py --repo "$GH_REPO" "$TAG" > "$RUNNER_TEMP/notes.md"
+          latest=$(python3 tools/release_notes.py --latest "$TAG")
           gh release create "$TAG" --verify-tag --title "$TAG" \
-            --notes-file "$RUNNER_TEMP/notes.md"
+            --notes-file "$RUNNER_TEMP/notes.md" --latest="$latest"

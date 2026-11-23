@@ -41,6 +41,10 @@ History.
         ("refactor(auth)!: Rename the session cookie", ["type: refactor", "semver: major"]),
         ("docs(repo): Describe the release flow", ["type: docs", "semver: none"]),
         ("chore: Bump a pin", ["type: chore", "semver: none"]),
+        ("fix(ci): Defuse CI-skip markers", ["type: fix", "semver: none"]),
+        ("feat(docs): Add a roadmap page", ["type: feat", "semver: none"]),
+        ("refactor(repo)!: Move the tools", ["type: refactor", "semver: none"]),
+        ("fix: Reject expired tokens", ["type: fix", "semver: patch"]),
     ],
 )
 def test_dep12_title_derives_type_and_semver_labels(title, labels):
@@ -217,6 +221,13 @@ def test_dep12_main_moving_on_renumbers_above_the_merged_entry(tree):
 def test_dep12_semver_none_removes_an_earlier_entry_and_bump(tree):
     _apply(tree, "feat(bundles): Order members by hand", TEXT)
     assert _apply(tree, "docs(bundles): Order members by hand") is None
+    assert (tree / "CHANGELOG.md").read_text() == BASE_CHANGELOG
+    assert 'version = "1.1.0"' in (tree / "pyproject.toml").read_text()
+
+
+def test_dep12_a_non_releasing_scope_gets_no_entry_or_bump(tree):
+    """DEP-12: a CI-scoped fix releases nothing; the branch keeps main's changelog and version."""
+    assert _apply(tree, "fix(ci): Defuse CI-skip markers", TEXT) is None
     assert (tree / "CHANGELOG.md").read_text() == BASE_CHANGELOG
     assert 'version = "1.1.0"' in (tree / "pyproject.toml").read_text()
 
