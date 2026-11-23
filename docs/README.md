@@ -74,6 +74,17 @@ uv run --with fonttools python docs/brand/build_logo_text.py
 
 Edit the HTML, re-run the script, commit both.
 
+`public/og-image.png` is the link-preview image (1200×630) that every page's Open Graph and Twitter card tags point to,
+so a shared link shows the logo, the headline and the servers-to-bundle diagram. It is rendered from
+`.vitepress/og-image/og.html`, which uses the logo files above:
+
+```bash
+uv run --no-project --with playwright tools/render_og_image.py
+```
+
+Commit the HTML and the PNG together. LinkedIn caches a preview for days; after a change, refresh it once with
+LinkedIn's Post Inspector.
+
 ## Diagrams
 
 The context and deployment diagrams in the guides are live views of the LikeC4 model in `likec4/`. `npm run build` and

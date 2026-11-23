@@ -1,0 +1,52 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{width:1200px;height:630px}
+body{font-family:Inter,sans-serif;background:#1b2325;color:#eef4f4;position:relative;overflow:hidden}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(148,205,210,.16) 1.2px,transparent 1.2px);background-size:26px 26px;mask-image:radial-gradient(ellipse at 70% 50%,#000 20%,transparent 75%)}
+.g1{position:absolute;width:760px;height:760px;border-radius:50%;background:radial-gradient(circle,rgba(63,154,163,.35),rgba(63,154,163,0) 62%);right:-170px;top:-120px}
+.g2{position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(176,34,34,.22),rgba(176,34,34,0) 62%);left:-200px;bottom:-260px}
+.left{position:absolute;left:72px;top:70px;width:560px}
+.lockup{height:64px}
+h1{font-size:56px;line-height:1.05;font-weight:800;letter-spacing:-2px;margin-top:58px}
+h1 span{background:linear-gradient(90deg,#94cdd2,#5fb6bf);-webkit-background-clip:text;color:transparent}
+.sub{font-size:25px;line-height:1.4;color:#b6c7c9;margin-top:22px;max-width:520px}
+.tags{position:absolute;left:72px;bottom:62px;display:flex;gap:12px}
+.tag{font-size:19px;font-weight:600;color:#cfe6e8;padding:8px 16px;border-radius:999px;border:1px solid rgba(148,205,210,.35);background:rgba(148,205,210,.08)}
+.url{position:absolute;right:48px;bottom:66px;font-family:'JetBrains Mono',monospace;font-size:21px;color:#94cdd2}
+svg.flow{position:absolute;right:40px;top:70px;width:520px;height:420px}
+.node{position:absolute;font-family:'JetBrains Mono',monospace;font-size:17px;color:#dbeff0;background:rgba(36,46,48,.92);border:1px solid rgba(148,205,210,.28);border-radius:12px;padding:10px 16px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.node i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4ade80;margin-right:10px;box-shadow:0 0 8px #4ade80}
+.hub{position:absolute;left:905px;top:205px;width:150px;height:150px;border-radius:34px;background:linear-gradient(145deg,#2c7f86,#1f5f65);box-shadow:0 0 0 1px rgba(148,205,210,.4),0 20px 60px rgba(44,127,134,.55);display:flex;align-items:center;justify-content:center}
+.hub img{width:104px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+</style></head><body>
+<div class="g1"></div><div class="g2"></div><div class="grid"></div>
+<svg class="flow" viewBox="0 0 520 420" style="right:auto;left:680px">
+<defs><linearGradient id="l" x1="0" x2="1"><stop offset="0" stop-color="#94cdd2" stop-opacity=".15"/><stop offset="1" stop-color="#94cdd2" stop-opacity=".9"/></linearGradient>
+<linearGradient id="r" x1="0" x2="1"><stop offset="0" stop-color="#94cdd2" stop-opacity=".9"/><stop offset="1" stop-color="#94cdd2" stop-opacity=".2"/></linearGradient></defs>
+<g fill="none" stroke-width="2.5">
+<path d="M150 42 C 200 42, 200 210, 225 210" stroke="url(#l)"/>
+<path d="M150 125 C 200 125, 210 210, 225 210" stroke="url(#l)"/>
+<path d="M150 210 C 190 210, 210 210, 225 210" stroke="url(#l)" stroke-dasharray="5 6"/>
+<path d="M150 295 C 200 295, 210 210, 225 210" stroke="url(#l)"/>
+<path d="M150 378 C 200 378, 200 210, 225 210" stroke="url(#l)"/>
+<path d="M375 210 L 424 210" stroke="#94cdd2" stroke-width="3" stroke-dasharray="7 6"/>
+</g>
+<circle cx="225" cy="210" r="4" fill="#94cdd2"/>
+</svg>
+<div class="node" style="left:680px;top:92px"><i></i>notes</div>
+<div class="node" style="left:680px;top:175px"><i></i>calendar</div>
+<div class="node" style="left:680px;top:260px;opacity:.55;border-style:dashed">+ more</div>
+<div class="node" style="left:680px;top:345px"><i></i>github</div>
+<div class="node" style="left:680px;top:428px"><i></i>home-lab</div>
+<div class="hub"><img src="../../public/logo-mark.svg" alt=""></div>
+<div class="node" style="left:1104px;top:262px;padding:10px 12px">/mcp</div>
+<div class="left">
+<img class="lockup" src="../../public/lockup-dark.svg" alt="">
+<h1>One gateway for<br><span>all your MCP servers</span></h1>
+<p class="sub">One endpoint, one login, curated tools.<br>For any MCP client.</p>
+</div>
+<div class="tags"><span class="tag">Open source</span><span class="tag">Self-hosted</span><span class="tag">Python</span></div>
+<div class="url">bundlemcp.dev</div>
+</body></html>

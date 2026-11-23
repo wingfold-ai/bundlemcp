@@ -19,8 +19,33 @@ const analytics: HeadConfig[] =
     ? [["script", { defer: "", "data-domain": plausibleDomain, src: plausibleScript }]]
     : [];
 
-// The site's public address: the sitemap lists every page under it.
+// The site's public address: the sitemap lists every page under it, and link
+// previews name each page by its address under it.
 const siteUrl = "https://bundlemcp.dev";
+
+// Link previews (Open Graph and Twitter cards) share one image on every page;
+// tools/render_og_image.py renders it from docs/.vitepress/og-image/og.html.
+const previewImage = `${siteUrl}/og-image.png`;
+const preview: HeadConfig[] = [
+  ["meta", { property: "og:type", content: "website" }],
+  ["meta", { property: "og:site_name", content: "bundlemcp" }],
+  ["meta", { property: "og:image", content: previewImage }],
+  ["meta", { property: "og:image:width", content: "1200" }],
+  ["meta", { property: "og:image:height", content: "630" }],
+  [
+    "meta",
+    { property: "og:image:alt", content: "bundlemcp: one gateway for all your MCP servers" },
+  ],
+  ["meta", { name: "twitter:card", content: "summary_large_image" }],
+  ["meta", { name: "twitter:image", content: previewImage }],
+];
+
+// A page's canonical address: index.md is its directory, other pages drop .md,
+// as cleanUrls serves them and the sitemap lists them.
+function pageUrl(relativePath: string): string {
+  const path = relativePath.replace(/(^|\/)index\.md$/, "$1").replace(/\.md$/, "");
+  return `${siteUrl}/${path}`;
+}
 
 // The user-facing documentation site (the documentation spec). Architecture material in
 // docs/arc42, docs/adr and docs/likec4 stays out of the site: it is written
@@ -57,7 +82,18 @@ export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: b
       pageData.frontmatter.hero.actions = actions.filter((a) => !pointsIntoRepository(a.link));
     }
   },
-  head: [["link", { rel: "icon", type: "image/svg+xml", href: "/logo-mark.svg" }], ...analytics],
+  head: [
+    ["link", { rel: "icon", type: "image/svg+xml", href: "/logo-mark.svg" }],
+    ...preview,
+    ...analytics,
+  ],
+  transformHead({ pageData, title, description }) {
+    return [
+      ["meta", { property: "og:title", content: title }],
+      ["meta", { property: "og:description", content: description }],
+      ["meta", { property: "og:url", content: pageUrl(pageData.relativePath) }],
+    ];
+  },
   themeConfig: {
     logo: { light: "/lockup-light.svg", dark: "/lockup-dark.svg", alt: "bundlemcp" },
     siteTitle: false,
