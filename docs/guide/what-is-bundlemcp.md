@@ -1,3 +1,8 @@
+---
+description: "What bundlemcp is: an MCP gateway and proxy that bundles MCP servers, adds OAuth 2.1 sign-in, curates
+  their tools and gives each MCP client its own endpoint."
+---
+
 # What is bundlemcp?
 
 bundlemcp is a self-hostable **MCP bundling gateway**. It sits between the MCP clients your users run (claude.ai,

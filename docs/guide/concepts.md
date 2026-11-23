@@ -1,3 +1,8 @@
+---
+description: "The core concepts of the bundlemcp MCP gateway: upstream servers, bundles, endpoints, profiles and tool
+  curation, and how they fit together."
+---
+
 # Core concepts
 
 This page explains the ideas bundlemcp is built from. If you have not run it yet, the [Quickstart](/guide/quickstart)

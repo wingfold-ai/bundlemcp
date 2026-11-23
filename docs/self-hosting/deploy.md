@@ -1,3 +1,8 @@
+---
+description: "Deploy the self-hosted bundlemcp MCP gateway to production: a TLS reverse proxy, your own identity
+  provider, real secrets and the public URL."
+---
+
 # Production deployment
 
 The reference stack in `deploy/docker-compose.yml` is built for local development. Running it for other people means

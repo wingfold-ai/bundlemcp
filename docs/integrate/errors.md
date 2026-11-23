@@ -1,3 +1,8 @@
+---
+description: "Error responses of bundlemcp: HTTP with a JSON body on the management API and the OAuth server, JSON-RPC
+  errors on the MCP endpoints."
+---
+
 # Error responses
 
 The gateway serves two protocols, so it has two error vocabularies: HTTP with

@@ -1,3 +1,8 @@
+---
+description: "Run bundlemcp day to day: what to monitor, how to rotate credentials, and what the gateway does when a
+  dependency misbehaves."
+---
+
 # Operations
 
 Day-two topics: what to watch, how to rotate credentials, and what the gateway does when a dependency misbehaves.

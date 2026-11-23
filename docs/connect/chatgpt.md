@@ -1,3 +1,8 @@
+---
+description: "Connect ChatGPT to your MCP servers through bundlemcp, with the write_as_read profile that re-annotates
+  tools so ChatGPT accepts them unchanged."
+---
+
 # Connect ChatGPT
 
 ChatGPT's connector support is stricter about write tools than other clients: tools annotated as non-read-only or

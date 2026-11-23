@@ -1,3 +1,8 @@
+---
+description: "Troubleshoot bundlemcp by symptom: for each common problem the usual cause, the command that confirms it
+  and the fix."
+---
+
 # Troubleshooting
 
 Symptom first. Each entry gives the usual cause, the command that confirms it,

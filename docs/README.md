@@ -25,7 +25,7 @@ and change in the same PR as the behaviour they describe (DOC-5).
 `.github/workflows/publish-docs.yml` builds the site on every push to `main` that touches `docs/` (or when run by hand
 from the **Actions** tab) and uploads it by FTP to Infomaniak web hosting (DOC-6). The upload is incremental: the action
 keeps `.ftp-deploy-sync-state.json` on the server, sends only changed files, and removes only files it uploaded itself.
-The hosting quota is 10 MB, so CI fails any build over 9 MiB. `public/.htaccess` is copied into the site: it redirects
+The hosting quota is 10 MB, so CI fails any build over 9.6 MB. `public/.htaccess` is copied into the site: it redirects
 HTTP to HTTPS and serves `/guide/quickstart` from `guide/quickstart.html`, because the site uses clean URLs.
 
 One-time setup:
@@ -61,6 +61,9 @@ One-time setup:
    The build also writes `sitemap.xml`, listing every page under `https://bundlemcp.dev`, and `public/robots.txt`
    points crawlers to it; `tools/check_docs_sitemap.py` checks both in CI. Each page's date, on the page and in the
    sitemap, is the last commit that changed it, which is why the publish workflow checks out the full history.
+The build also writes `llms.txt`, every sidebar page with its title, URL and description for AI assistants, and
+`llms-full.txt`, the Markdown of the same pages. Each page's `description` frontmatter is its search-result snippet,
+`og:description` and `llms.txt` line, so a new page needs one, at most 160 characters.
 
 ## Brand assets
 

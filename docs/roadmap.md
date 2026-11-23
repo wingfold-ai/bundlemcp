@@ -1,6 +1,6 @@
 ---
 title: Roadmap
-description: Where bundlemcp is heading, from the v0.4 public preview to v1.0 and beyond.
+description: "Where bundlemcp is heading, from the v0.4 public preview to v1.0 and beyond."
 sidebar: false
 aside: false
 # The stations of the line below. Themes, never dates: this list changes only at releases.

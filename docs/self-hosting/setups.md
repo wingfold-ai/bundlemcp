@@ -1,3 +1,8 @@
+---
+description: "Three ways to run bundlemcp, locally, through a tunnel or in production: what each is for and which
+  settings a real deployment must provide."
+---
+
 # Local, tunnel or production
 
 There are three ways to run bundlemcp, and only the last one is meant for other people to use. This page says what each

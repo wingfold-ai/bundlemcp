@@ -1,3 +1,8 @@
+---
+description: "Use stdio-only MCP servers with bundlemcp: run them behind a small HTTP sidecar and register it as a
+  Streamable HTTP upstream server."
+---
+
 # stdio servers behind a sidecar
 
 bundlemcp talks to upstream servers over **Streamable HTTP only**. It never spawns processes, which keeps the gateway

@@ -1,3 +1,8 @@
+---
+description: "The bundlemcp management API: a versioned REST API under /api/v1 for everything the admin UI does, to
+  script servers, bundles, endpoints and audit queries."
+---
+
 # Management API
 
 Everything the admin UI does goes through a versioned REST API under `/api/v1`. The UI has no privileged side channel,

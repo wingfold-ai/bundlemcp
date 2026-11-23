@@ -1,3 +1,8 @@
+---
+description: "What you need to run bundlemcp: Docker to try it out; Postgres, Valkey, an OIDC provider and a TLS
+  reverse proxy to run it for other people."
+---
+
 # Requirements
 
 What bundlemcp needs from you before it will run, split by whether you are

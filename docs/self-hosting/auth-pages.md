@@ -1,3 +1,8 @@
+---
+description: "Brand the bundlemcp OAuth sign-in and consent pages with your own templates, fonts, colours and logo,
+  without rebuilding the image."
+---
+
 # Branding the sign-in pages
 
 During OAuth the gateway renders a few browser pages itself. The one people see most is the **consent screen**, where

@@ -1,3 +1,8 @@
+---
+description: "Endpoints publish a bundle as one MCP URL per kind of client: OAuth for claude.ai, re-annotated tools
+  for ChatGPT, API keys for scripts."
+---
+
 # Endpoints
 
 An endpoint is a public URL that serves one bundle over Streamable HTTP. Create several for the same bundle to give each

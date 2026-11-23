@@ -1,3 +1,8 @@
+---
+description: "Connect scripts, CI jobs, n8n and coding agents to bundlemcp with an API key, without a browser-based
+  OAuth flow."
+---
+
 # Connect scripts and agents
 
 Anything that cannot run a browser-based OAuth flow, or should not act as a person, connects with an **API key**: cron

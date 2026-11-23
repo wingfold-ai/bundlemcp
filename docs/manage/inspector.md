@@ -1,3 +1,8 @@
+---
+description: "Try an MCP server's tools from the bundlemcp admin UI: connect, list its tools, fill in arguments and
+  call them, without a separate MCP client."
+---
+
 # Inspector
 
 The Inspector page tries a server's tools without a separate MCP client: connect, see what the server offers, fill in

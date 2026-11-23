@@ -1,3 +1,8 @@
+---
+description: "bundlemcp vs. FastMCP: when to write an MCP server with FastMCP, and when to put an MCP gateway in front
+  of several servers you did not write."
+---
+
 # bundlemcp vs. FastMCP
 
 A common question when you look at bundlemcp: "Can't I just serve my tools with FastMCP?"

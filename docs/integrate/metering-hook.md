@@ -1,3 +1,8 @@
+---
+description: "The bundlemcp metering hook: a versioned Python protocol, in process or over HTTP, to add billing,
+  quotas or entitlement checks to MCP tool calls."
+---
+
 # Metering hook
 
 The hook is the supported place for an application layer to plug in billing,

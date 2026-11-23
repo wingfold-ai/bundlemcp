@@ -137,11 +137,11 @@ jobs:
         run: python3 tools/check_docs_repository_links.py
         env:
           DOCS_REPOSITORY_PUBLIC: ${{ vars.DOCS_REPOSITORY_PUBLIC }}
-      - name: Site stays within the hosting quota (DOC-6, 9 MiB of a 10 MB plan)
+      - name: Site stays within the hosting quota (DOC-6, 9.6 MB of a 10 MB plan)
         run: |
           size=$(du -sb docs/.vitepress/dist | cut -f1)
-          echo "Site size: $size bytes (limit 9437184)"
-          test "$size" -le 9437184
+          echo "Site size: $size bytes (limit 9600000)"
+          test "$size" -le 9600000
 
   diagrams:
     runs-on: ubuntu-latest

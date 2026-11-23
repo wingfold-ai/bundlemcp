@@ -1,3 +1,8 @@
+---
+description: "Every HTTP route the bundlemcp gateway serves, by prefix: MCP endpoints, the OAuth server, the
+  management API and health checks, all on one port."
+---
+
 # HTTP surface reference
 
 Every route the gateway serves, by prefix. All of them live on the one port the gateway listens on; the reverse proxy
