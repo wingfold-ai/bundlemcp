@@ -1,3 +1,8 @@
+---
+description: "MCP authentication in bundlemcp: how MCP clients sign in with OAuth 2.1 or API keys, how the gateway
+  authenticates to upstream servers, and who may do what."
+---
+
 # Authentication
 
 Every tool call through bundlemcp crosses two boundaries. The MCP client has to prove to the gateway who is calling, and

@@ -1,3 +1,8 @@
+---
+description: "Every BUNDLEMCP_ environment variable that configures the bundlemcp gateway, with its default and what
+  it changes."
+---
+
 # Configuration
 
 The gateway is configured through environment variables prefixed `BUNDLEMCP_`, read once at startup. A `.env` file in

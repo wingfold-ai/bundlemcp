@@ -1,3 +1,8 @@
+---
+description: "Run bundlemcp with Docker Compose in about ten minutes: register a local MCP server, bundle it, publish
+  an endpoint and call a tool through the gateway."
+---
+
 # Quickstart
 
 This walkthrough starts bundlemcp on your own machine, and then uses the admin UI to register an upstream MCP server,

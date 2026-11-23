@@ -1,3 +1,8 @@
+---
+description: "Export the whole bundlemcp configuration as one JSON document and import it elsewhere, for backups,
+  moves to production or a first bootstrap file."
+---
+
 # Export and import
 
 The whole configuration — upstream servers, bundles with their members, curation, prompts and resources, and

@@ -1,6 +1,6 @@
 ---
-description: How a metamcp setup maps onto bundlemcp, what bundlemcp leaves out, and how to move servers, namespaces
-  and endpoints over.
+description: "How a metamcp setup maps onto bundlemcp, what bundlemcp leaves out, and how to move servers, namespaces
+  and endpoints over."
 ---
 
 # Coming from metamcp

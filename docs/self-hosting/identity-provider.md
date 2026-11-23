@@ -1,3 +1,8 @@
+---
+description: "Connect bundlemcp to any OIDC identity provider for admin sign-in and for the consent of MCP clients;
+  there is no local password store."
+---
+
 # Identity provider
 
 Humans authenticate to bundlemcp **only** through an external OIDC provider. There is no local password store, no signup

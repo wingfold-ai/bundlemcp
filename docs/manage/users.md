@@ -1,3 +1,8 @@
+---
+description: "How users appear in bundlemcp when they first sign in through your identity provider, who is an admin,
+  and how to deactivate users or revoke consents."
+---
+
 # Users and consents
 
 Users are not created in bundlemcp. They appear the first time someone signs in through the identity provider, whether

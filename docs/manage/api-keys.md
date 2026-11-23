@@ -1,3 +1,8 @@
+---
+description: "Create and manage bundlemcp API keys for scripts, CI, automation platforms, server-to-server callers and
+  the management API."
+---
+
 # API keys
 
 API keys authenticate anything that cannot do an OAuth flow: scripts, CI, automation platforms, server-to-server

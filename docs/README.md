@@ -61,6 +61,9 @@ One-time setup:
    The build also writes `sitemap.xml`, listing every page under `https://bundlemcp.dev`, and `public/robots.txt`
    points crawlers to it; `tools/check_docs_sitemap.py` checks both in CI. Each page's date, on the page and in the
    sitemap, is the last commit that changed it, which is why the publish workflow checks out the full history.
+The build also writes `llms.txt`, every sidebar page with its title, URL and description for AI assistants, and
+`llms-full.txt`, the Markdown of the same pages. Each page's `description` frontmatter is its search-result snippet,
+`og:description` and `llms.txt` line, so a new page needs one, at most 160 characters.
 
 ## Brand assets
 

@@ -1,3 +1,8 @@
+---
+description: "Register upstream MCP servers in bundlemcp over Streamable HTTP, local or remote, with no auth, static
+  headers or OAuth, from the admin UI or the API."
+---
+
 # Upstream servers
 
 An upstream server is an MCP server the gateway connects to over Streamable HTTP and forwards calls to. Register it

@@ -1,6 +1,7 @@
 ---
 title: Requirements
-description: Every bundlemcp requirement by slice, with its status and the dates it was specified, became active and last changed.
+description: "Every bundlemcp requirement by slice, with its status and the dates it was specified, became active and
+  last changed."
 aside: false
 ---
 

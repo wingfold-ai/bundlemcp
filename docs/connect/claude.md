@@ -1,3 +1,8 @@
+---
+description: "Connect claude.ai to your MCP servers as one custom connector: bundlemcp provides the OAuth 2.1 sign-in,
+  PKCE and consent screen claude.ai expects."
+---
+
 # Connect claude.ai
 
 claude.ai connects to remote MCP servers as **custom connectors** and expects the server to be an OAuth 2.1 resource

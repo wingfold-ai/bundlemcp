@@ -1,3 +1,8 @@
+---
+description: "Every upstream MCP server setting in bundlemcp in plain terms: how the gateway reaches the server, signs
+  in to it and tells it who is calling."
+---
+
 # Upstream server settings explained
 
 An **upstream server** (or **upstream** for short) is an MCP server that bundlemcp connects to on your behalf. Your MCP

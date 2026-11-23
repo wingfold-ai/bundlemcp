@@ -1,3 +1,8 @@
+---
+description: "Provision bundlemcp at startup from a bootstrap file that declares upstream servers, bundles and
+  endpoints, applied as upserts by name."
+---
+
 # Bootstrap file
 
 A bootstrap document declares upstream servers, bundles and endpoints that the gateway applies **at startup**, as

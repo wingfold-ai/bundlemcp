@@ -1,3 +1,8 @@
+---
+description: "Bundles in bundlemcp combine several MCP servers into one virtual server; tool curation renames, re-
+  describes or hides their tools per bundle."
+---
+
 # Bundles and tool curation
 
 A bundle composes any number of registered servers into one virtual MCP server and decides how their tools are

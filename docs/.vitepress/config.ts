@@ -1,5 +1,6 @@
 import { defineConfigWithTheme, type DefaultTheme, type HeadConfig } from "vitepress";
 import { requirementsLedgerPlugin } from "./requirements-ledger";
+import { writeLlmsFiles } from "./llms-txt";
 import { roadmapChangesPlugin } from "./roadmap-changes";
 import { assertStationLinks, type RoadmapStation } from "./roadmap-stations";
 import {
@@ -53,7 +54,7 @@ function pageUrl(relativePath: string): string {
 export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: boolean }>({
   title: "bundlemcp",
   description:
-    "Self-hostable MCP bundling gateway: register MCP servers, compose bundles, expose per-client endpoints.",
+    "Self-hostable, open-source MCP gateway: all your MCP servers behind one endpoint, with one login and curated tools, for any MCP client.",
   lang: "en-US",
   srcExclude: ["arc42/**", "adr/**", "likec4/**", "**/README.md"],
   cleanUrls: true,
@@ -87,6 +88,10 @@ export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: b
     ...preview,
     ...analytics,
   ],
+  // /llms.txt and /llms-full.txt: the sidebar's pages for AI assistants
+  async buildEnd(siteConfig) {
+    await writeLlmsFiles(siteConfig, siteUrl);
+  },
   transformHead({ pageData, title, description }) {
     return [
       ["meta", { property: "og:title", content: title }],

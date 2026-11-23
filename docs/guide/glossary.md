@@ -1,3 +1,8 @@
+---
+description: "Glossary of bundlemcp and MCP terms: upstream server, bundle, endpoint, profile, curation, MCP client
+  and the other words these docs use."
+---
+
 # Glossary
 
 The vocabulary the rest of these pages assumes.

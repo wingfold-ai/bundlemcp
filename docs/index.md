@@ -1,4 +1,7 @@
 ---
+title: Open-source MCP gateway
+description: "bundlemcp is a self-hostable, open-source MCP gateway: all your MCP servers behind one endpoint, with
+  one OAuth login and curated tools, for any MCP client."
 layout: home
 
 hero:

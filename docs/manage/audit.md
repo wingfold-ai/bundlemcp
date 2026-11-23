@@ -1,3 +1,8 @@
+---
+description: "The bundlemcp audit log records every MCP tool call: who called which tool, which server it went to, how
+  long it took and how it ended."
+---
+
 # Audit log
 
 Every `tools/call` through every endpoint produces one audit record in Postgres: who called what, where it went, how

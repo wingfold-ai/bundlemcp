@@ -1,3 +1,8 @@
+---
+description: "How an MCP server behind bundlemcp learns who is calling: two mechanisms with different trust levels,
+  and how the server verifies them."
+---
+
 # Identity for upstream servers
 
 An MCP server behind the gateway usually wants to know **who** is calling: to keep per-user state, apply quotas, or
