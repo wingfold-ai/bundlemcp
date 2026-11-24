@@ -1,4 +1,17 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfigWithTheme, type DefaultTheme, type HeadConfig } from "vitepress";
+import { FEED_PATH, writeBlogFeed } from "./blog-feed";
+import {
+  AUTHORS,
+  BLOG_TITLE,
+  draftSources,
+  isDraft,
+  isPostPage,
+  postDate,
+  postsLoader,
+  readPost,
+} from "./blog-posts";
 import { requirementsLedgerPlugin } from "./requirements-ledger";
 import { writeLlmsFiles } from "./llms-txt";
 import { roadmapChangesPlugin } from "./roadmap-changes";
@@ -28,7 +41,6 @@ const siteUrl = "https://bundlemcp.dev";
 // tools/render_og_image.py renders it from docs/.vitepress/og-image/og.html.
 const previewImage = `${siteUrl}/og-image.png`;
 const preview: HeadConfig[] = [
-  ["meta", { property: "og:type", content: "website" }],
   ["meta", { property: "og:site_name", content: "bundlemcp" }],
   ["meta", { property: "og:image", content: previewImage }],
   ["meta", { property: "og:image:width", content: "1200" }],
@@ -40,6 +52,17 @@ const preview: HeadConfig[] = [
   ["meta", { name: "twitter:card", content: "summary_large_image" }],
   ["meta", { name: "twitter:image", content: previewImage }],
 ];
+
+// Feed readers find the blog's RSS feed from any page.
+const feedDiscovery: HeadConfig = [
+  "link",
+  { rel: "alternate", type: "application/rss+xml", title: BLOG_TITLE, href: `${siteUrl}${FEED_PATH}` },
+];
+
+// Drafts under docs/blog are rendered by the dev server only: `vitepress build`
+// sets NODE_ENV to production before it reads this file.
+const docsDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const drafts = process.env.NODE_ENV === "production" ? draftSources(docsDir) : [];
 
 // A page's canonical address: index.md is its directory, other pages drop .md,
 // as cleanUrls serves them and the sitemap lists them.
@@ -56,7 +79,7 @@ export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: b
   description:
     "Self-hostable, open-source MCP gateway: all your MCP servers behind one endpoint, with one login and curated tools, for any MCP client.",
   lang: "en-US",
-  srcExclude: ["arc42/**", "adr/**", "likec4/**", "**/README.md"],
+  srcExclude: ["arc42/**", "adr/**", "likec4/**", "**/README.md", ...drafts],
   cleanUrls: true,
   // syntax palette with green-teal tones that sit next to the brand accent
   markdown: {
@@ -82,22 +105,52 @@ export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: b
     if (!repositoryPublic && actions) {
       pageData.frontmatter.hero.actions = actions.filter((a) => !pointsIntoRepository(a.link));
     }
+    // blog pages: no sidebar, outline or prev/next; a post's header reads the
+    // normalised date and the author's profile link from its frontmatter
+    if (pageData.relativePath.startsWith("blog/")) {
+      Object.assign(pageData.frontmatter, { sidebar: false, aside: false, prev: false, next: false });
+    }
+    if (isPostPage(pageData.relativePath)) {
+      const frontmatter = pageData.frontmatter;
+      if (isDraft(frontmatter)) {
+        frontmatter.date = postDate(frontmatter.date);
+        frontmatter.authorLink = AUTHORS[frontmatter.author as string];
+      } else {
+        const post = readPost(frontmatter, pageUrl(pageData.relativePath), pageData.relativePath);
+        Object.assign(frontmatter, { date: post.date, authorLink: post.authorLink });
+      }
+    }
   },
   head: [
     ["link", { rel: "icon", type: "image/svg+xml", href: "/logo-mark.svg" }],
     ...preview,
+    feedDiscovery,
     ...analytics,
   ],
-  // /llms.txt and /llms-full.txt: the sidebar's pages for AI assistants
+  // /llms.txt and /llms-full.txt (the sidebar's pages and the published posts,
+  // for AI assistants) and the blog's RSS feed
   async buildEnd(siteConfig) {
-    await writeLlmsFiles(siteConfig, siteUrl);
+    const posts = await postsLoader().load();
+    await writeLlmsFiles(siteConfig, siteUrl, posts);
+    await writeBlogFeed(siteConfig.outDir, siteUrl, posts);
   },
   transformHead({ pageData, title, description }) {
-    return [
+    const head: HeadConfig[] = [
       ["meta", { property: "og:title", content: title }],
       ["meta", { property: "og:description", content: description }],
       ["meta", { property: "og:url", content: pageUrl(pageData.relativePath) }],
     ];
+    const { date, authorLink } = pageData.frontmatter;
+    if (isPostPage(pageData.relativePath) && date) {
+      head.push(
+        ["meta", { property: "og:type", content: "article" }],
+        ["meta", { property: "article:published_time", content: date }],
+      );
+      if (authorLink) head.push(["meta", { property: "article:author", content: authorLink }]);
+    } else {
+      head.push(["meta", { property: "og:type", content: "website" }]);
+    }
+    return head;
   },
   themeConfig: {
     logo: { light: "/lockup-light.svg", dark: "/lockup-dark.svg", alt: "bundlemcp" },
@@ -108,6 +161,7 @@ export default defineConfigWithTheme<DefaultTheme.Config & { repositoryPublic: b
       { text: "Manage", link: "/manage/servers", activeMatch: "/manage/" },
       { text: "Connect clients", link: "/connect/claude", activeMatch: "/connect/" },
       { text: "Integrate", link: "/integrate/management-api", activeMatch: "/integrate/" },
+      { text: "Blog", link: "/blog/", activeMatch: "/blog/" },
       { text: "Roadmap", link: "/roadmap" },
     ],
     sidebar: [

@@ -133,6 +133,8 @@ jobs:
         run: python3 tools/release_notes.py --check
       - name: The sitemap lists every built page and robots.txt names it (DOC-13)
         run: python3 tools/check_docs_sitemap.py
+      - name: The blog's feed and llms.txt list every published post and no draft (DOC-22)
+        run: python3 tools/check_docs_blog.py
       - name: Repository links follow the repository's visibility (DOC-14)
         run: python3 tools/check_docs_repository_links.py
         env:

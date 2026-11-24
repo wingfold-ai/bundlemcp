@@ -51,7 +51,7 @@ def test_doc21_llms_txt_follows_the_sidebar():
     """DOC-21: the build writes llms.txt from the sidebar, and every sidebar link names a page
     that exists."""
     config = CONFIG.read_text()
-    assert "await writeLlmsFiles(siteConfig, siteUrl)" in config
+    assert "await writeLlmsFiles(siteConfig, siteUrl, posts)" in config
     links = re.findall(r'link: "(/[a-z0-9/-]+)"', config.split("sidebar: [", 1)[1])
     assert links
     for link in links:

@@ -111,3 +111,29 @@ html:not(.dark) .dark-only {
 .vp-doc img {
   cursor: zoom-in;
 }
+
+/* The blog index: one post per entry, date above title above description. */
+.vp-doc ul.blog-index {
+  list-style: none;
+  padding-left: 0;
+}
+.vp-doc ul.blog-index li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--vp-c-divider);
+}
+.vp-doc ul.blog-index time {
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+.vp-doc ul.blog-index a.title {
+  font-size: 18px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.vp-doc ul.blog-index .description {
+  color: var(--vp-c-text-2);
+}

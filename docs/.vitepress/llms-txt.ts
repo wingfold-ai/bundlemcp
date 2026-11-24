@@ -1,21 +1,24 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { DefaultTheme, SiteConfig } from "vitepress";
+import type { Post } from "./blog-posts";
 
 // Writes /llms.txt and /llms-full.txt (https://llmstxt.org) into the build output.
 // llms.txt is the site's name and description, then one section per sidebar
-// group listing its pages as links with their descriptions; pages outside the
-// sidebar go under "Optional". llms-full.txt is the Markdown of the same pages,
-// in the same order, each headed by its URL.
+// group listing its pages as links with their descriptions, then the published
+// blog posts newest first under "Blog"; pages outside the sidebar go under
+// "Optional". llms-full.txt is the Markdown of the same pages, in the same
+// order, each headed by its URL.
 
 // Pages outside the sidebar that an assistant may still want.
 const OPTIONAL = [
   { text: "Home", link: "/" },
   { text: "Roadmap", link: "/roadmap" },
+  { text: "Blog", link: "/blog/" },
 ];
 
 // Rendered from data at runtime, so its Markdown says nothing useful.
-const NO_FULL_TEXT = new Set(["/reference/requirements"]);
+const NO_FULL_TEXT = new Set(["/reference/requirements", "/blog/"]);
 
 interface Page {
   title: string;
@@ -48,26 +51,34 @@ function splitFrontmatter(source: string): { meta: Record<string, string>; body:
 }
 
 function sourceFile(link: string): string {
-  return link === "/" ? "index.md" : `${link.replace(/^\//, "")}.md`;
+  if (link.endsWith("/")) return `${link.replace(/^\//, "")}index.md`;
+  return `${link.replace(/^\//, "")}.md`;
 }
 
 async function readPage(srcDir: string, siteUrl: string, text: string, link: string): Promise<Page> {
   const { meta, body } = splitFrontmatter(await readFile(join(srcDir, sourceFile(link)), "utf8"));
   const heading = /^# (.+)$/m.exec(body);
+  const title = meta.title ?? heading?.[1] ?? text;
   return {
-    title: meta.title ?? heading?.[1] ?? text,
+    title,
     link,
     url: `${siteUrl}${link}`,
     description: meta.description ?? "",
-    body,
+    // a blog post's title is its frontmatter's, so its Markdown has no heading
+    body: heading ? body : `# ${title}\n\n${body}`,
   };
 }
 
-export async function writeLlmsFiles(siteConfig: SiteConfig, siteUrl: string): Promise<void> {
+export async function writeLlmsFiles(
+  siteConfig: SiteConfig,
+  siteUrl: string,
+  posts: Post[],
+): Promise<void> {
   const { srcDir, outDir, site } = siteConfig;
   const sidebar = (site.themeConfig as DefaultTheme.Config).sidebar as DefaultTheme.SidebarItem[];
   const groups = [
     ...sidebar.map((group) => ({ name: group.text ?? "", items: group.items ?? [] })),
+    { name: "Blog", items: posts.map((post) => ({ text: post.title, link: post.url })) },
     { name: "Optional", items: OPTIONAL },
   ];
   const sections: Section[] = [];
@@ -76,7 +87,7 @@ export async function writeLlmsFiles(siteConfig: SiteConfig, siteUrl: string): P
     for (const item of group.items) {
       if (item.link) pages.push(await readPage(srcDir, siteUrl, item.text ?? "", item.link));
     }
-    sections.push({ name: group.name, pages });
+    if (pages.length) sections.push({ name: group.name, pages });
   }
 
   const index = [`# ${site.title}`, "", `> ${site.description}`, ""];
