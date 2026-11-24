@@ -35,6 +35,7 @@ The vocabulary the rest of these pages assumes.
 | **User** | Any other signed-in person. Sees the catalogue, authorises connectors, connects their own upstream accounts. |
 | **Caller identity** | Who the gateway resolved a request to: a user id, `api_key:<id>`, or nothing on an open endpoint. It is what audit records, the metering hook and `X-MCP-User` all report. |
 | **Service key** | An API key that manages the gateway through `/api/v1`. |
+| **Scope** | A right a service key is limited to, such as `read` or `introspect`; a service key without scopes has them all. |
 | **Endpoint key** | An API key scoped to specific endpoints, for calling them. It cannot manage anything. |
 | **Upstream identity** | Which account a call to an upstream server uses: one `shared` connection for everyone, or `per_user`, where each person connects their own. See [Identity for upstream servers](/integrate/upstream-identity). |
 | **Connect link** | The URL a user follows to attach their own account on a `per_user` server. |

@@ -70,7 +70,8 @@ forbids; the UI and API flag it (`forwards_caller_token`). Prefer a delegated to
 
 1. Register the server with `forward_headers: {"authorization": "authorization"}`. The gateway then passes the caller's
    `Authorization` header through on every call.
-2. Give the server a `service`-kind API key so it can call the introspection route. Introspection is never anonymous.
+2. Give the server a `service`-kind API key with the scope `introspect`, so it can call the introspection route and
+   nothing else. Introspection is never anonymous.
 3. In the server, on each request, `POST` the received bearer to `<public url>/oauth/introspect`:
 
 ```bash

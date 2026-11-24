@@ -16,7 +16,38 @@ callers, and the management API itself.
 | `service` | Everything an `endpoint` key can, plus the management API under `/api/v1`. |
 
 Use `service` keys for automation that configures the gateway and for upstream servers that call the introspection
-route. Hand out `endpoint` keys to anything that only needs to use tools.
+route, limited to the [scopes](#scopes) each one needs. Hand out `endpoint` keys to anything that only needs to use
+tools.
+
+## Scopes
+
+A service key can be limited to scopes. Without scopes it may do everything, as every service key could before scopes
+existed. With scopes, it may call only what they open; every other route answers 403.
+
+| Scope | Opens |
+|---|---|
+| `introspect` | Token introspection, `POST /oauth/introspect`. |
+| `read` | Reading bundles (members, tools, curation, prompts, resources), endpoints and profiles, upstreams (tools, upstream-OAuth status), API keys and runtime settings. |
+| `bundles:write` | Changing bundles: create, rename, delete, members and their order, tool curation, member-prompt and member-resource curation, bundle prompts and resources. |
+| `endpoints:write` | Changing endpoints: create, rename, delete. |
+| `upstreams:write` | Changing upstream servers: create, rename, delete, inspect, import from `server.json`, refresh tools, and upstream-OAuth settings, connect and token deletion. |
+| `keys:manage` | Creating, activating, deactivating and deleting API keys, but only service keys whose scopes the caller itself holds. |
+| `mcp` | Calling tools on endpoints that accept API keys. A scoped key without it never authenticates an MCP call. |
+
+Audit records, configuration export and import, the inspector, live logs, users, changing runtime settings, `/metrics`
+and the `/api/v1/me` routes are for administrators and service keys without scopes only.
+
+Two examples: a server that only verifies forwarded bearers needs `introspect`; a job that copies bundles and gives
+them endpoints needs `read`, `bundles:write` and `endpoints:write`.
+
+```bash
+curl -s https://gw.example.com/api/v1/api-keys \
+  -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" \
+  -d '{"name": "edge-filter", "kind": "service", "scopes": ["introspect"]}'
+```
+
+Scopes cannot be changed on an existing key: create a new key and delete the old one. An endpoint key takes no scopes,
+and an unknown scope is refused with 422.
 
 Keys are created by administrators only. A person using an endpoint does not get a key: they connect their MCP client
 through OAuth, and the call is attributed to them. Keys identify a script or a service, never a person; see
