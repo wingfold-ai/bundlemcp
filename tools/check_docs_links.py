@@ -53,6 +53,8 @@ LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*$", re.MULTILINE)
 CUSTOM_ANCHOR = re.compile(r"\{#([\w-]+)\}\s*$")
 SKIP_PREFIXES = ("http://", "https://", "mailto:", "#/", "data:")
+# Files the VitePress build writes into the site root; no source file holds them.
+BUILT_FILES = {"/blog/feed.xml"}
 
 
 def slugs(heading: str) -> set[str]:
@@ -124,6 +126,8 @@ def main() -> int:
                 if not target:
                     if anchor and anchor not in anchors(source):
                         problems.append(f"{rel}:{number}: no heading for anchor #{anchor}")
+                    continue
+                if target in BUILT_FILES:
                     continue
                 resolved = resolve(source, target)
                 if resolved is None:

@@ -65,6 +65,31 @@ The build also writes `llms.txt`, every sidebar page with its title, URL and des
 `llms-full.txt`, the Markdown of the same pages. Each page's `description` frontmatter is its search-result snippet,
 `og:description` and `llms.txt` line, so a new page needs one, at most 160 characters.
 
+### Writing a blog post
+
+A post is one file, `blog/<slug>.md`, published at `/blog/<slug>`. It starts with this frontmatter and has no `#`
+heading of its own; the post header shows the title, the date and the author line:
+
+```yaml
+---
+title: The title of the post
+description: One or two sentences for the blog index, the feed, search results and link previews.
+date: 2026-12-01
+author: Marius Högger
+draft: true
+---
+```
+
+`author` must be a name in the `AUTHORS` table of `.vitepress/blog-posts.ts`, which holds the profile the author line
+links to. A post with a field missing, a date not written `YYYY-MM-DD` or an unknown author fails the build.
+
+`draft: true`, written exactly so, keeps a post out of the production build: no page, no entry in the blog index, the
+RSS feed (`/blog/feed.xml`), the sitemap or `llms.txt`. `npm run dev` still shows it, marked as a draft. Delete the
+line to publish. A draft is public in the repository, so a post goes in as a draft only once it is close to done.
+
+Published posts are listed newest first on `/blog/`, in the feed and under `## Blog` in `llms.txt`;
+`tools/check_docs_blog.py` checks in CI that the three agree and that no draft was built.
+
 ## Brand assets
 
 `public/` holds the logo files the site and the repository README use. The bundle mark (`logo-mark.svg`, `logo.svg`) is

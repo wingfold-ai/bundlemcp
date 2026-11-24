@@ -1,6 +1,7 @@
 import { h } from "vue";
 import type { Theme } from "vitepress";
 import DefaultTheme from "vitepress/theme";
+import BlogPostHeader from "./BlogPostHeader.vue";
 import HomePipeline from "./HomePipeline.vue";
 import ImageLightbox from "./ImageLightbox.vue";
 import LikeC4Diagram from "./LikeC4Diagram.vue";
@@ -13,6 +14,7 @@ export default {
   Layout: () =>
     h(DefaultTheme.Layout, null, {
       "home-hero-after": () => h(HomePipeline),
+      "doc-before": () => h(BlogPostHeader),
       "layout-bottom": () => h(ImageLightbox),
     }),
   enhanceApp({ app }) {
