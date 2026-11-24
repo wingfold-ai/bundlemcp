@@ -6,6 +6,46 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.4.3] - 2026-11-24
+
+### Added
+
+- Limit a service key to scopes (`introspect`, `read`, `bundles:write`, `endpoints:write`, `upstreams:write`,
+  `keys:manage`, `mcp`) through the new `scopes` field on key creation. A key without scopes keeps every right, so
+  existing keys and `BUNDLEMCP_INITIAL_SERVICE_KEY` are unchanged.
+  ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+- Set `scopes` on service-key entries in the bootstrap file, including `value_from_env` keys. An endpoint key with
+  scopes, or an unknown scope, fails the document at startup.
+  ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+- Show `scopes` when an API key is read or listed, sorted and de-duplicated. The API keys page shows what each key may
+  do and lets you pick scopes when creating a service key. ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+- Publish the access each management route needs as `x-bundlemcp-access` in the OpenAPI document.
+  ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+
+### Changed
+
+- A scoped service key gets 403 on any management route outside its scopes. Audit, export and import, the inspector,
+  logs, users, runtime-settings changes, `/metrics` and the `/me` routes stay open only to admins and unscoped service
+  keys. ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+- Token introspection accepts a service key without scopes or with the `introspect` scope. A key scoped to anything else
+  gets 401. ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+- A scoped service key without `mcp` no longer authenticates MCP calls, and introspecting it reports it inactive.
+  ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+- A caller with `keys:manage` can create, activate, deactivate or delete only scoped service keys whose scopes it holds
+  itself, so it cannot create a full service key or an endpoint key. Anything else gets 403.
+  ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+- The API answers 422 when an endpoint key is created with scopes or a service key with an unknown scope. A key's scopes
+  cannot be edited after creation: create a new key and delete the old one.
+  ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+
+### Security
+
+- Service keys can now follow least privilege. A component that only introspects tokens, or a worker that only maintains
+  bundles, no longer holds a key that can reconfigure the gateway.
+  ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+- A management route has to declare the access it needs, or the gateway refuses to build it. A new route is therefore
+  unreachable by scoped keys until it is classified. ([#231](https://github.com/wingfold-ai/bundlemcp/pull/231))
+
 ## [0.4.2] - 2026-11-19
 
 ### Fixed
