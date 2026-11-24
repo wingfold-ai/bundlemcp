@@ -1,0 +1,19 @@
+# What the evaluation image serves: the echo-mcp example, bundled and exposed
+# on one endpoint that accepts the image's demo service key.
+upstreams:
+  - name: echo
+    description: Demo echo MCP server
+    url: http://127.0.0.1:9000/mcp
+
+bundles:
+  - name: demo
+    description: Demo bundle - the echo server
+    upstreams:
+      - echo
+
+endpoints:
+  - name: demo
+    bundle_name: demo
+    profile: default
+    auth_modes:
+      - api_key

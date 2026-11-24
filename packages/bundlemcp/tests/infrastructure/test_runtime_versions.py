@@ -8,6 +8,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[4]
 
 PYTHON_IMAGES = [
     "apps/gateway/Dockerfile",
+    "deploy/glama/Dockerfile",
     "examples/conformance-mcp/Dockerfile",
     "examples/echo-mcp/Dockerfile",
     "examples/identity-demo-mcp/Dockerfile",
@@ -27,7 +28,13 @@ def declared() -> str:
 def references() -> list[tuple[str, str]]:
     """Every (file, version) pair naming a Python version in an image or a CI job."""
     found = []
-    dockerfiles = sorted({*ROOT.glob("apps/*/Dockerfile"), *ROOT.glob("examples/*/Dockerfile")})
+    dockerfiles = sorted(
+        {
+            *ROOT.glob("apps/*/Dockerfile"),
+            *ROOT.glob("examples/*/Dockerfile"),
+            *ROOT.glob("deploy/*/Dockerfile"),
+        }
+    )
     workflows = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
     for path, pattern in [(p, IMAGE_VERSION) for p in dockerfiles] + [
         (p, WORKFLOW_VERSION) for p in workflows

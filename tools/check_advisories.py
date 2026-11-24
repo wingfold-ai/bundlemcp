@@ -4,7 +4,8 @@
     uv run python tools/check_advisories.py
 
 The Python audit exports the whole workspace lock (every package, group and
-extra, development tools included) and hands it to pip-audit; every reported
+extra, development tools included), and the lock of each standalone Python
+project an image installs, and hands each to pip-audit; every reported
 vulnerability counts, since Python advisories rarely carry a severity. The npm
 audit reads the lockfiles of apps/web and docs, development dependencies
 included; an advisory of moderate severity or above counts, a low or info one
@@ -45,6 +46,17 @@ PYTHON_EXPORT = [
     "--all-extras",
     "--no-hashes",
     "--no-emit-workspace",
+]
+# Python projects outside the workspace with a lock of their own, which an image installs
+PYTHON_STANDALONE_PROJECTS = ("deploy/glama/bridge",)
+PYTHON_STANDALONE_EXPORT = [
+    "uv",
+    "export",
+    "--locked",
+    "--all-groups",
+    "--all-extras",
+    "--no-hashes",
+    "--no-emit-project",
 ]
 FIX_HINT = (
     "upgrade it; if no release fixes it yet, list it in tools/advisory_allowlist.toml "
@@ -138,7 +150,7 @@ class Verdict(BaseModel):
         return not (self.failing or self.expired or self.too_far)
 
 
-def python_advisories(report: dict[str, Any]) -> list[Advisory]:
+def python_advisories(report: dict[str, Any], source: str = "uv.lock") -> list[Advisory]:
     """Every vulnerability in a ``pip-audit --format json`` report.
 
     A dependency pip-audit skipped was not audited, which the check cannot vouch
@@ -151,7 +163,7 @@ def python_advisories(report: dict[str, Any]) -> list[Advisory]:
     return [
         Advisory(
             ecosystem="python",
-            source="uv.lock",
+            source=source,
             package=dependency["name"],
             version=dependency["version"],
             id=vuln["id"],
@@ -220,10 +232,12 @@ def load_allowlist(path: Path) -> Allowlist:
     return Allowlist.model_validate(tomllib.loads(path.read_text()))
 
 
-def run_python_audit() -> dict[str, Any]:
-    export = subprocess.run(PYTHON_EXPORT, cwd=ROOT, capture_output=True, text=True)
+def run_python_audit(project: str = "") -> dict[str, Any]:
+    """pip-audit's report on the workspace lock, or on ``project``'s own lock."""
+    command = PYTHON_STANDALONE_EXPORT if project else PYTHON_EXPORT
+    export = subprocess.run(command, cwd=ROOT / project, capture_output=True, text=True)
     if export.returncode != 0:
-        raise AuditNotRun(f"uv export failed: {export.stderr.strip()}")
+        raise AuditNotRun(f"uv export failed in {project or '.'}: {export.stderr.strip()}")
     audit = subprocess.run(
         [
             sys.executable,
@@ -304,6 +318,8 @@ def main(argv: list[str]) -> int:
         return 1
     try:
         advisories = python_advisories(run_python_audit())
+        for project in PYTHON_STANDALONE_PROJECTS:
+            advisories += python_advisories(run_python_audit(project), f"{project}/uv.lock")
         for project in NPM_PROJECTS:
             advisories += npm_advisories(run_npm_audit(project), project)
     except AuditNotRun as error:
@@ -320,6 +336,8 @@ def main(argv: list[str]) -> int:
         return 1
     sys.stderr.write(
         "No advisory at or above the bar in uv.lock, "
+        + ", ".join(f"{p}/uv.lock" for p in PYTHON_STANDALONE_PROJECTS)
+        + ", "
         + " or ".join(f"{p}/package-lock.json" for p in NPM_PROJECTS)
         + f" ({len(verdict.accepted)} accepted).\n"
     )

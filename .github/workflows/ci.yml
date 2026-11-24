@@ -237,7 +237,7 @@ jobs:
           dockerfile: >-
             apps/gateway/Dockerfile apps/web/Dockerfile examples/conformance-mcp/Dockerfile
             examples/echo-mcp/Dockerfile examples/identity-demo-mcp/Dockerfile
-            examples/oauth-demo-mcp/Dockerfile
+            examples/oauth-demo-mcp/Dockerfile deploy/glama/Dockerfile
           config: .hadolint.yaml
 
   integration:

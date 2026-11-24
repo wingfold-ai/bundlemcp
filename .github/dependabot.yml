@@ -32,7 +32,7 @@ updates:
       prefix: chore
     labels: ["dependencies"]
   - package-ecosystem: uv
-    directory: /
+    directories: ["/", "/deploy/glama/bridge"]
     schedule:
       interval: weekly
     cooldown:
@@ -47,6 +47,7 @@ updates:
     directories:
       - /apps/gateway
       - /apps/web
+      - /deploy/glama
       - /examples/conformance-mcp
       - /examples/echo-mcp
       - /examples/identity-demo-mcp
