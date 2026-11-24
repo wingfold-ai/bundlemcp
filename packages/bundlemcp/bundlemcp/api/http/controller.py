@@ -7,6 +7,9 @@ from fastapi import APIRouter, FastAPI, params
 
 from bundlemcp.api.http.route import RouteSpec, route_spec
 
+# The OpenAPI extension naming the access a route needs (a key scope, or "full").
+ACCESS_EXTENSION = "x-bundlemcp-access"
+
 
 class Controller:
     """A group of related routes declared as decorated methods of one class.
@@ -29,9 +32,24 @@ class Controller:
         )
         for name, spec in self._routes():
             options = {"include_in_schema": self.include_in_schema, **spec.options}
+            extra = list(options.pop("dependencies", ())) + self._route_dependencies(name, spec)
+            if spec.access is not None:
+                # published so the OpenAPI document and the route audit can see it
+                options["openapi_extra"] = {
+                    **options.get("openapi_extra", {}),
+                    ACCESS_EXTENSION: str(spec.access),
+                }
             self.router.add_api_route(
-                spec.path, getattr(self, name), methods=[spec.method], **options
+                spec.path,
+                getattr(self, name),
+                methods=[spec.method],
+                dependencies=extra,
+                **options,
             )
+
+    def _route_dependencies(self, name: str, spec: RouteSpec) -> list[params.Depends]:
+        """Dependencies one route adds to the router's own; none by default."""
+        return []
 
     @classmethod
     def _routes(cls) -> list[tuple[str, RouteSpec]]:

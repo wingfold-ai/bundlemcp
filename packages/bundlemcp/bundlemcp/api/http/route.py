@@ -19,11 +19,18 @@ class RouteSpec(BaseModel):
         default_factory=dict,
         description="Keyword arguments passed through to FastAPI's add_api_route",
     )
+    access: str | None = Field(
+        default=None,
+        description="What the caller must hold: a key scope, or 'full'. Every management route "
+        "declares it; a management controller refuses a route without one",
+    )
 
 
 def _mark(method: str, path: str, options: dict[str, Any]) -> Callable[[Callable], Callable]:
+    access = options.pop("access", None)
+
     def decorate(handler: Callable) -> Callable:
-        spec = RouteSpec(method=method, path=path, options=options)
+        spec = RouteSpec(method=method, path=path, options=options, access=access)
         setattr(handler, ROUTE_ATTRIBUTE, spec)
         return handler
 
@@ -32,6 +39,9 @@ def _mark(method: str, path: str, options: dict[str, Any]) -> Callable[[Callable
 
 class RouteDecorators:
     """``@route.get("/{name}")`` and friends.
+
+    A route may name the ``access`` its caller needs (``access=ApiKeyScope.READ`` or
+    ``access=FULL``); management routes must.
 
     Unlike ``APIRouter``'s decorators these register nothing: there is no
     router yet while the class body runs, and the method is still unbound. The

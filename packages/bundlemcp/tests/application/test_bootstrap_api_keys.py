@@ -173,3 +173,40 @@ async def test_mgmt10_a_scope_naming_an_unknown_endpoint_does_not_land(uow):
     with pytest.raises(ValueError, match="nowhere"):
         await _runner(uow, {"CI_KEY": REGISTRAR}).apply(doc)
     assert await uow.api_keys.by_name("ci") is None
+
+
+async def test_mgmt10_auth40_a_scoped_service_key_from_an_environment_reference(uow):
+    """MGMT-10, AUTH-40: an entry's scopes are stored with the key."""
+    doc = _document(
+        {
+            "name": "edge-filter",
+            "kind": "service",
+            "scopes": ["introspect"],
+            "value_from_env": "EDGE_KEY",
+        },
+        {
+            "name": "bundle-sync",
+            "kind": "service",
+            "scopes": ["read", "bundles:write", "endpoints:write"],
+            "value_from_env": "SYNC_KEY",
+        },
+    )
+    await _runner(uow, {"EDGE_KEY": REGISTRAR, "SYNC_KEY": "bmcp_sk_" + "s" * 43}).apply(doc)
+    edge = await uow.api_keys.by_name("edge-filter")
+    sync = await uow.api_keys.by_name("bundle-sync")
+    assert edge is not None and [str(s) for s in edge.scopes] == ["introspect"]
+    assert sync is not None
+    assert sorted(str(s) for s in sync.scopes) == ["bundles:write", "endpoints:write", "read"]
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {"name": "e", "kind": "endpoint", "scopes": ["read"], "value_from_env": "X"},
+        {"name": "u", "kind": "service", "scopes": ["admin"], "value_from_env": "X"},
+    ],
+)
+def test_mgmt10_auth40_scopes_only_on_service_keys_and_only_known_ones(entry):
+    """MGMT-10, AUTH-40: an endpoint key with scopes, or an unknown scope, fails validation."""
+    with pytest.raises(ValidationError):
+        _document(entry)

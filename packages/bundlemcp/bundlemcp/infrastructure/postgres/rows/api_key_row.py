@@ -36,6 +36,11 @@ class ApiKeyRow(SQLModel, table=True):
         sa_column=Column(JSON),
         description="Endpoints this key may call; empty means every endpoint",
     )
+    scopes: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(JSON, nullable=False, server_default="[]"),
+        description="What a service key may do; empty means everything",
+    )
     is_active: bool = Field(default=True, description="Whether the key is currently accepted")
     last_used_at: datetime | None = Field(
         default=None,

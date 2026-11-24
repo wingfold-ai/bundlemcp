@@ -5,6 +5,7 @@ from fastapi import Response
 from bundlemcp.api.http.providers import MetricsExpositionProvider
 from bundlemcp.api.http.route import route
 from bundlemcp.api.management.controllers.management_controller import ManagementController
+from bundlemcp.domain.access.api_key_scope import FULL
 
 
 class MetricsController(ManagementController):
@@ -17,7 +18,7 @@ class MetricsController(ManagementController):
 
     include_in_schema = False
 
-    @route.get("/metrics")
+    @route.get("/metrics", access=FULL)
     async def metrics(self, exposition: MetricsExpositionProvider) -> Response:
         page = await exposition.render()
         return Response(content=page.content, media_type=page.media_type)

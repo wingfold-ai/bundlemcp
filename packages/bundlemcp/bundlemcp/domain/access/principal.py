@@ -15,3 +15,8 @@ class Principal(BaseModel):
     api_key_id: str | None = Field(
         default=None, description="Service key used; None for admin sessions"
     )
+    scopes: tuple[str, ...] = Field(
+        default=(),
+        description="The service key's scopes; empty for an admin or an unscoped key, which "
+        "may do everything",
+    )

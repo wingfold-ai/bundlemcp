@@ -165,7 +165,7 @@ Anything that cannot run a browser uses an **API key** (`bmcp_sk_…`), sent as 
 | Kind | May call |
 |---|---|
 | `endpoint` | MCP endpoints that accept `api_key`, restricted to its scoped endpoints |
-| `service` | The same, **plus** the management API and the introspection route |
+| `service` | The same, **plus** the management API and the introspection route; or, with [scopes](/manage/api-keys#scopes), only what they open |
 
 A key is a *machine* identity. Its caller identity is `api_key:<id>`, which is what audit, metering and `X-MCP-User` all
 report. Keys are hashed at rest and shown once at creation.

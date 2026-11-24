@@ -29,6 +29,7 @@ from bundlemcp.application.schemas import (
     MeRead,
 )
 from bundlemcp.domain.access.api_key import ApiKey
+from bundlemcp.domain.access.api_key_scope import FULL
 from bundlemcp.domain.access.user import User
 
 
@@ -46,6 +47,11 @@ class MeController(Controller):
         match caller:
             case User():
                 return caller
+            case ApiKey() if caller.is_scoped:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "a scoped service key has no identity routes (MGMT-23)",
+                )
             case ApiKey() if caller.is_service_key:
                 return caller
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "not signed in")
@@ -58,7 +64,7 @@ class MeController(Controller):
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "sign in as a person")
         return caller
 
-    @route.get("/consents")
+    @route.get("/consents", access=FULL)
     async def my_consents(
         self, request: Request, callers: CallerResolverProvider, users: UserServiceProvider
     ) -> list[ConsentRead]:
@@ -66,7 +72,7 @@ class MeController(Controller):
         user = await self._signed_in_user(request, callers)
         return await users.list_consents(user.id)
 
-    @route.delete("/consents/{consent_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @route.delete("/consents/{consent_id}", status_code=status.HTTP_204_NO_CONTENT, access=FULL)
     async def revoke_my_consent(
         self,
         consent_id: uuid.UUID,
@@ -80,7 +86,7 @@ class MeController(Controller):
         require_same_site_origin(request, settings)
         await users.revoke_own_consent(user.id, consent_id)
 
-    @route.get("")
+    @route.get("", access=FULL)
     async def whoami(self, request: Request, callers: CallerResolverProvider) -> MeRead:
         caller = await self._caller(request, callers)
         if isinstance(caller, User):
@@ -93,7 +99,7 @@ class MeController(Controller):
             )
         return MeRead(kind="service", api_key_id=caller.id)
 
-    @route.get("/endpoints")
+    @route.get("/endpoints", access=FULL)
     async def available_endpoints(
         self,
         request: Request,
@@ -105,7 +111,7 @@ class MeController(Controller):
         await self._caller(request, callers)
         return await endpoints.available(settings.public_base)
 
-    @route.get("/bundles/{bundle_name}/tools")
+    @route.get("/bundles/{bundle_name}/tools", access=FULL)
     async def bundle_tools(
         self,
         bundle_name: str,
@@ -121,7 +127,7 @@ class MeController(Controller):
         bundle_id = await endpoints.reachable_bundle_id(bundle_name)
         return await bundles.catalogue_tools(bundle_id)
 
-    @route.get("/bundles/{bundle_name}/prompts")
+    @route.get("/bundles/{bundle_name}/prompts", access=FULL)
     async def bundle_prompts(
         self,
         bundle_name: str,
@@ -136,7 +142,7 @@ class MeController(Controller):
         bundle_id = await endpoints.reachable_bundle_id(bundle_name)
         return await prompts.catalogue(bundle_id)
 
-    @route.get("/bundles/{bundle_name}/resources")
+    @route.get("/bundles/{bundle_name}/resources", access=FULL)
     async def bundle_resources(
         self,
         bundle_name: str,

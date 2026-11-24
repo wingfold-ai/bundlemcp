@@ -17,6 +17,7 @@ from bundlemcp.api.http.service_providers import (
 from bundlemcp.api.management.controllers.management_controller import ManagementController
 from bundlemcp.application.management.audit_service import AuditFilter
 from bundlemcp.application.schemas import AuditRecordRead, Page
+from bundlemcp.domain.access.api_key_scope import FULL
 
 # one query parameter per filter field, parsed straight into the model
 AuditFilterQuery = Annotated[AuditFilter, Depends(AuditFilter)]
@@ -40,7 +41,7 @@ class AuditController(ManagementController):
     prefix = "/audit-records"
     tags = ("audit",)
 
-    @route.get(":export", response_class=StreamingResponse)
+    @route.get(":export", response_class=StreamingResponse, access=FULL)
     async def export_audit_records(
         self, service: AuditExportServiceProvider, filter_: AuditFilterQuery
     ) -> StreamingResponse:
@@ -51,7 +52,7 @@ class AuditController(ManagementController):
             headers={"Content-Disposition": 'attachment; filename="audit-records.csv"'},
         )
 
-    @route.get("")
+    @route.get("", access=FULL)
     async def list_audit_records(
         self, service: AuditServiceProvider, page: PageProvider, filter_: AuditFilterQuery
     ) -> Page[AuditRecordRead]:

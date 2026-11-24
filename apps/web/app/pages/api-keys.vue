@@ -3,6 +3,7 @@ import type { components } from "~~/types/api";
 
 type ApiKeyRead = components["schemas"]["ApiKeyRead"];
 type ApiKeyCreated = components["schemas"]["ApiKeyCreated"];
+type ApiKeyScope = components["schemas"]["ApiKeyScope"];
 
 const api = useApi();
 
@@ -21,9 +22,28 @@ function scopeText(key: ApiKeyRead): string {
   return key.endpoint_ids.map((id) => endpointNameById.value.get(id) ?? id).join(", ");
 }
 
+/** What a service key may do: its scopes, or everything when it has none. */
+function rightsText(key: ApiKeyRead): string {
+  if (key.kind !== "service") return "—";
+  return key.scopes.length === 0 ? "everything" : key.scopes.join(", ");
+}
+
+// The scopes a service key may be limited to, with what each opens.
+const SCOPES: { value: ApiKeyScope; help: string }[] = [
+  { value: "read", help: "read bundles, endpoints, upstreams, keys and settings" },
+  { value: "bundles:write", help: "change bundles, their members, curation, prompts, resources" },
+  { value: "endpoints:write", help: "change endpoints" },
+  { value: "upstreams:write", help: "change upstream servers, discovery and upstream OAuth" },
+  { value: "keys:manage", help: "manage keys, never beyond its own scopes" },
+  { value: "introspect", help: "call token introspection" },
+  { value: "mcp", help: "call tools on endpoints that accept API keys" },
+];
+
 // --- create form ---
 const keyName = ref("");
 const keyKind = ref<"endpoint" | "service">("endpoint");
+// a service key limited to these; none chosen gives it every right
+const keyScopes = ref<ApiKeyScope[]>([]);
 // the endpoints an endpoint key is limited to; none chosen means every endpoint
 const keyEndpointIds = ref<string[]>([]);
 
@@ -38,6 +58,7 @@ async function createKey() {
       name: keyName.value,
       kind: keyKind.value,
       endpoint_ids: keyKind.value === "endpoint" ? keyEndpointIds.value : [],
+      scopes: keyKind.value === "service" ? keyScopes.value : [],
     },
   });
   if (error) {
@@ -47,6 +68,7 @@ async function createKey() {
   createdKey.value = data ?? null;
   keyName.value = "";
   keyEndpointIds.value = [];
+  keyScopes.value = [];
   await invalidate(queryKeys.apiKeys);
 }
 
@@ -127,6 +149,7 @@ async function deleteKey(row: ApiKeyRead) {
             <th>Prefix</th>
             <th>Kind</th>
             <th>Scope</th>
+            <th>May</th>
             <th>Active</th>
             <th>Last used</th>
             <th>Actions</th>
@@ -138,6 +161,7 @@ async function deleteKey(row: ApiKeyRead) {
             <td><code>{{ k.key_prefix }}</code></td>
             <td>{{ k.kind }}</td>
             <td :data-testid="`scope-cell-${k.name}`">{{ scopeText(k) }}</td>
+            <td :data-testid="`rights-cell-${k.name}`">{{ rightsText(k) }}</td>
             <td>
               <UBadge :color="k.is_active ? 'success' : 'neutral'" variant="subtle">
                 {{ k.is_active ? "active" : "inactive" }}
@@ -196,6 +220,25 @@ async function deleteKey(row: ApiKeyRead) {
           <strong>service</strong> keys can do that too, and additionally call the management API
           (everything this UI does) and the token introspection route, so they are for automation,
           CI, and upstream servers that verify forwarded bearers.
+        </p>
+      </div>
+      <div v-if="keyKind === 'service'" data-testid="key-scopes">
+        <label class="wf-label">Scopes</label>
+        <div class="space-y-1 text-sm">
+          <label v-for="sc in SCOPES" :key="sc.value" class="flex items-center gap-2">
+            <input
+              v-model="keyScopes"
+              type="checkbox"
+              :value="sc.value"
+              :data-testid="`key-scope-${sc.value}`"
+            />
+            <code>{{ sc.value }}</code>
+            <span class="text-muted">{{ sc.help }}</span>
+          </label>
+        </div>
+        <p class="wf-help">
+          Leave every box clear for a key that may do everything. With scopes chosen, the key may
+          call only what those scopes open; everything else answers 403.
         </p>
       </div>
       <div v-if="keyKind === 'endpoint'" data-testid="key-scope">

@@ -1,6 +1,6 @@
 [project]
 name = "bundlemcp-workspace"
-version = "0.4.2"
+version = "0.4.3"
 description = "bundlemcp workspace root (see packages/ and apps/)"
 requires-python = ">=3.14"
 license = "Apache-2.0"

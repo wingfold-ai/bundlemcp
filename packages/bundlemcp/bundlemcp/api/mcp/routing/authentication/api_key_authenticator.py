@@ -24,6 +24,7 @@ class ApiKeyAuthenticator:
         if key is None:
             return AuthenticationOutcome.nobody()
         holder = CallerIdentity.with_api_key(key.id)
-        if not key.reaches(view.endpoint.id):
+        # a scoped service key calls tools only with the mcp scope
+        if not key.calls_endpoints or not key.reaches(view.endpoint.id):
             return AuthenticationOutcome.not_entitled(holder)
         return AuthenticationOutcome.authenticated(holder)

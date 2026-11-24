@@ -97,11 +97,12 @@ class BootstrapRunner:
                         )
                     scope.append(str(endpoint.id))
                 value = api_key_value(entry, environ=self._environ, generate=keys.new_value)
-                keys.provision(entry.name, entry.kind, scope, value)
+                keys.provision(entry.name, entry.kind, scope, value, scopes=entry.scopes)
                 log.info(
                     "bootstrap.api_key_provisioned",
                     name=entry.name,
                     kind=entry.kind.value,
+                    scopes=[s.value for s in entry.scopes],
                     source="environment" if entry.value_from_env else "file",
                 )
         # a probe opens its own unit of work, so it must not

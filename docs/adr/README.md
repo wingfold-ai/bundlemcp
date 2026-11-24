@@ -82,3 +82,4 @@ Indexed from [arc42 §9](../arc42/09-architecture-decisions.md); process rules i
 | [0063](0063-discovery-serialized-per-server-by-a-transaction-lock.md) | Discovery is serialized per server by a transaction-scoped lock | accepted (amended by 0064) |
 | [0064](0064-discovery-writes-only-what-it-observed.md) | Discovery writes only what it observed, and a delete waits for it | accepted |
 | [0065](0065-operator-branded-auth-pages.md) | Operators brand the auth pages with templates and same-origin assets | accepted |
+| [0066](0066-scoped-service-keys.md) | Service keys can be limited to scopes, and every management route declares one | accepted |

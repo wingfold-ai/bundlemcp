@@ -1092,6 +1092,12 @@ export interface components {
              * @description Human-readable label for the key, shown in listings
              */
             name: string;
+            /**
+             * Scopes
+             * @description Limits a service key to these scopes: introspect, read, bundles:write, endpoints:write, upstreams:write, keys:manage, mcp. Empty gives a service key every right; an endpoint key takes none
+             * @default []
+             */
+            scopes?: components["schemas"]["ApiKeyScope"][];
         };
         /**
          * ApiKeyCreated
@@ -1142,6 +1148,11 @@ export interface components {
              * @description Human-readable label given at creation
              */
             name: string;
+            /**
+             * Scopes
+             * @description What a service key may do; empty means everything. Always empty for an endpoint key
+             */
+            scopes: components["schemas"]["ApiKeyScope"][];
         };
         /**
          * ApiKeyKind
@@ -1192,7 +1203,20 @@ export interface components {
              * @description Human-readable label given at creation
              */
             name: string;
+            /**
+             * Scopes
+             * @description What a service key may do; empty means everything. Always empty for an endpoint key
+             */
+            scopes: components["schemas"]["ApiKeyScope"][];
         };
+        /**
+         * ApiKeyScope
+         * @description What a scoped service key may do; a service key without scopes may do everything.
+         *
+         *     Each management route declares the one scope it needs, or ``FULL`` (ADR-0066).
+         * @enum {string}
+         */
+        ApiKeyScope: "introspect" | "read" | "bundles:write" | "endpoints:write" | "upstreams:write" | "keys:manage" | "mcp";
         /**
          * AuditKind
          * @description What an audit record is about: a tool call through an endpoint, or a management action.
@@ -1362,6 +1386,12 @@ export interface components {
              * @description Name of the key; it is matched to a stored key by this
              */
             name: string;
+            /**
+             * Scopes
+             * @description Limits a service key to these scopes: introspect, read, bundles:write, endpoints:write, upstreams:write, keys:manage, mcp. Empty gives a service key every right; an endpoint key takes none
+             * @default []
+             */
+            scopes?: components["schemas"]["ApiKeyScope"][];
             /**
              * Value From Env
              * @description Environment variable holding the key's value, a bmcp_sk_ token supplied out of band; the document never carries a value itself

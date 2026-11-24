@@ -22,5 +22,7 @@ class IntrospectionAuth:
         if key is None:
             basic = ClientCredentials.from_basic_header(authorization)
             key = await auth.resolve_api_key(basic.client_secret if basic else None)
-        if key is None or not key.is_service_key:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "service API key required")
+        if key is None or not key.may_introspect:
+            raise HTTPException(
+                status.HTTP_401_UNAUTHORIZED, "service API key with the introspect scope required"
+            )

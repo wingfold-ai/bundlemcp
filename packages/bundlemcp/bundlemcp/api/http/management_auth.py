@@ -4,7 +4,8 @@ Credential resolution is framework-free (``bundlemcp.application``); this module
 owns the transport concerns the edge decides — the CSRF origin check on
 cookie-authenticated mutations and the status policy: 401 when no valid session
 or key was presented, 403 when the caller is known but may not manage the
-gateway (a signed-in user who is not an admin, or an endpoint-kind key).
+gateway (a signed-in user who is not an admin, an endpoint-kind key, or a scoped service
+key without the scope the route needs).
 """
 
 from typing import Annotated
@@ -17,15 +18,23 @@ from bundlemcp.api.http.service_providers import CallerResolverProvider
 from bundlemcp.api.oauth.session_cookie import SESSION_COOKIE
 from bundlemcp.application.settings.settings import Settings
 from bundlemcp.domain.access.api_key import ApiKey
+from bundlemcp.domain.access.api_key_scope import FULL, RouteAccess
 from bundlemcp.domain.access.principal import Principal
 from bundlemcp.domain.access.principal_kind import PrincipalKind
 from bundlemcp.domain.access.user import User
 
 
 class ManagementAuth:
-    """Accept either an admin session cookie or a service-kind API key."""
+    """Accept an admin session cookie, or a service-kind API key that grants ``access``.
+
+    An unscoped service key grants every access; a scoped one only its scopes, and never
+    ``FULL``.
+    """
 
     SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+    def __init__(self, access: RouteAccess = FULL) -> None:
+        self.access = access
 
     async def __call__(
         self, request: Request, callers: CallerResolverProvider, settings: SettingsProvider
@@ -45,8 +54,18 @@ class ManagementAuth:
                 )
             case ApiKey() if caller.is_service_key:
                 bind_request_fields(auth_method="service_key", api_key_id=str(caller.id))
+                if not caller.grants(self.access):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"this key's scopes do not include {self.access!s} (MGMT-23)",
+                    )
                 return self._remember(
-                    request, Principal(kind=PrincipalKind.SERVICE, api_key_id=str(caller.id))
+                    request,
+                    Principal(
+                        kind=PrincipalKind.SERVICE,
+                        api_key_id=str(caller.id),
+                        scopes=tuple(str(s) for s in caller.scopes),
+                    ),
                 )
             case ApiKey():
                 raise HTTPException(
