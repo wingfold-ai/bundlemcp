@@ -136,6 +136,26 @@ def test_dep14_python_finding_fails():
     assert advisories.report(verdict)[0].startswith("DEP-14: urllib3 2.2.1 has PYSEC-2026-1995")
 
 
+def test_dep14_finding_in_a_standalone_lock_names_that_lock():
+    """DEP-14: a vulnerability in the lock of a project an image installs fails, naming that
+    lock."""
+    found = advisories.python_advisories(PIP_AUDIT_URLLIB3, "deploy/glama/bridge/uv.lock")
+    verdict = advisories.evaluate(found, allowlist(), TODAY)
+    assert [a.describe() for a in verdict.failing] == [
+        "urllib3 2.2.1 has PYSEC-2026-1995 (deploy/glama/bridge/uv.lock)"
+    ]
+
+
+def test_dep14_every_python_lock_is_audited():
+    """DEP-14: every uv.lock in the repository is the workspace lock or one the check audits."""
+    locks = {
+        str(path.parent.relative_to(ROOT))
+        for path in ROOT.rglob("uv.lock")
+        if not {".venv", "node_modules"} & set(path.relative_to(ROOT).parts)
+    }
+    assert locks == {".", *advisories.PYTHON_STANDALONE_PROJECTS}
+
+
 def test_dep14_clean_python_lock_passes():
     """DEP-14: a lock with no reported vulnerability passes."""
     verdict = advisories.evaluate(advisories.python_advisories(PIP_AUDIT_CLEAN), allowlist(), TODAY)

@@ -18,8 +18,10 @@ COPY packages/bundlemcp/pyproject.toml packages/bundlemcp/pyproject.toml
 RUN uv sync --locked --no-install-workspace --no-dev --all-packages
 COPY packages/ packages/
 RUN uv sync --locked --no-dev --all-packages --no-editable
-# The bridge needs the 1.x MCP SDK, the gateway the 2.x one, so it gets a venv of its own
-RUN uv venv /opt/bridge && uv pip install --python /opt/bridge/bin/python "mcp-proxy==0.15.0"
+# The bridge needs the 1.x MCP SDK, the gateway the 2.x one, so it is a project of its own,
+# installed from its own lock into its own venv
+COPY deploy/glama/bridge/pyproject.toml deploy/glama/bridge/uv.lock /bridge/
+RUN UV_PROJECT_ENVIRONMENT=/opt/bridge uv sync --locked --no-dev --project /bridge
 
 FROM python:3.15.2-slim-trixie@sha256:63bb298d2b7b88f176f51b5189f54ce6535c997682ea70885d2132f5d473a8a5
 # Debian pins each package within a release, so the trixie base already fixes the versions
