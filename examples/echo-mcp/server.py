@@ -44,6 +44,13 @@ if __name__ == "__main__":
         port=9000,
         path="/mcp",
         # fastmcp >= 3.4.3 rejects non-localhost Host headers unless allowed;
-        # the gateway reaches this container by its compose service name.
-        allowed_hosts=["echo-mcp", "echo-mcp:9000", "localhost:9100", "127.0.0.1:9100"],
+        # the gateway reaches this container by its compose service name, or on
+        # its own loopback in the single-container image (deploy/glama/).
+        allowed_hosts=[
+            "echo-mcp",
+            "echo-mcp:9000",
+            "localhost:9100",
+            "127.0.0.1:9100",
+            "127.0.0.1:9000",
+        ],
     )

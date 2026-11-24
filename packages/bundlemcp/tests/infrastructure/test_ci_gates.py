@@ -60,7 +60,13 @@ def test_dep10_every_workflow_installs_from_the_lock():
     """DEP-10: every uv sync in a workflow or a Dockerfile fails on a stale uv.lock."""
     sources = [
         *sorted((ROOT / ".github" / "workflows").glob("*.yml")),
-        *sorted({*ROOT.glob("apps/*/Dockerfile"), *ROOT.glob("examples/*/Dockerfile")}),
+        *sorted(
+            {
+                *ROOT.glob("apps/*/Dockerfile"),
+                *ROOT.glob("examples/*/Dockerfile"),
+                *ROOT.glob("deploy/*/Dockerfile"),
+            }
+        ),
     ]
     unlocked = [
         f"{path.relative_to(ROOT)}: {command}"

@@ -47,6 +47,7 @@ updates:
     directories:
       - /apps/gateway
       - /apps/web
+      - /deploy/glama
       - /examples/conformance-mcp
       - /examples/echo-mcp
       - /examples/identity-demo-mcp

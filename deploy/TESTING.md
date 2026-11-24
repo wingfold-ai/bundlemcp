@@ -19,6 +19,10 @@ Services: gateway :8000, web UI :3000, Keycloak :8080 (admin/admin), oauth-demo 
 oauth-demo and identity-demo, and exposes the endpoints `demo` (api_key), `claude` and `chatgpt` (oauth), and
 `identity` (oauth + api_key).
 
+`deploy/glama/` builds one image that runs the gateway, Postgres, Valkey and echo-mcp and speaks MCP over stdio, for
+registries such as Glama that evaluate a server in a single container: `docker run -i --rm` it after
+`docker build -f deploy/glama/Dockerfile -t bundlemcp-glama .`.
+
 ## Reach the stack from claude.ai, ChatGPT or Claude Desktop
 
 ```bash

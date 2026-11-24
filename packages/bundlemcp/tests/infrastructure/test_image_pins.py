@@ -53,7 +53,13 @@ def compose_floating(text: str) -> list[tuple[int, str]]:
 
 
 def dockerfiles() -> list[pathlib.Path]:
-    return sorted({*ROOT.glob("apps/*/Dockerfile"), *ROOT.glob("examples/*/Dockerfile")})
+    return sorted(
+        {
+            *ROOT.glob("apps/*/Dockerfile"),
+            *ROOT.glob("examples/*/Dockerfile"),
+            *ROOT.glob("deploy/*/Dockerfile"),
+        }
+    )
 
 
 def compose_files() -> list[pathlib.Path]:
