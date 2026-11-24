@@ -12,6 +12,7 @@ from bundlemcp.api.management.controllers.management_controller import Managemen
 from bundlemcp.api.mcp.protocol.sse import SSE_HEADERS, SSE_KEEPALIVE
 from bundlemcp.application.contracts.live_state.live_log_entry import LiveLogEntry
 from bundlemcp.application.management.live_log_filter import LiveLogFilter
+from bundlemcp.domain.access.api_key_scope import FULL
 
 # streams one replica serves at once; each holds a blocking read on the store
 MAX_STREAMS = 20
@@ -43,7 +44,7 @@ class LiveLogController(ManagementController):
         super().__init__()
         self._open_streams = 0  # per replica, so the cap is too
 
-    @route.get("")
+    @route.get("", access=FULL)
     async def recent_logs(
         self,
         service: LiveLogServiceProvider,
@@ -52,7 +53,7 @@ class LiveLogController(ManagementController):
     ) -> list[LiveLogEntry]:
         return await service.recent(wanted, limit=limit)
 
-    @route.get("/stream", response_class=StreamingResponse)
+    @route.get("/stream", response_class=StreamingResponse, access=FULL)
     async def stream_logs(
         self,
         service: LiveLogServiceProvider,

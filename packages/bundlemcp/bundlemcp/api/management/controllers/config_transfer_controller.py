@@ -12,6 +12,7 @@ from bundlemcp.api.management.controllers.management_controller import Managemen
 from bundlemcp.application.bootstrap.bootstrap_document import BootstrapDocument
 from bundlemcp.application.bootstrap.export_document import ExportDocument
 from bundlemcp.application.schemas import ImportReport
+from bundlemcp.domain.access.api_key_scope import FULL
 from bundlemcp.domain.access.principal_kind import PrincipalKind
 
 
@@ -19,7 +20,7 @@ class ConfigTransferController(ManagementController):
     prefix = ""
     tags = ("config-transfer",)
 
-    @route.get("/export", response_model_exclude_none=True)
+    @route.get("/export", response_model_exclude_none=True, access=FULL)
     async def export_config(
         self,
         service: ConfigExportServiceProvider,
@@ -35,7 +36,7 @@ class ConfigTransferController(ManagementController):
             )
         return await service.export(include_secrets=include_secrets, requested_by=principal)
 
-    @route.post("/import")
+    @route.post("/import", access=FULL)
     async def import_config(
         self,
         body: BootstrapDocument,

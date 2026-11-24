@@ -3,6 +3,7 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
+from bundlemcp.domain.access.api_key_scope import ApiKeyScope
 
 
 class BootstrapApiKey(BaseModel):
@@ -26,6 +27,12 @@ class BootstrapApiKey(BaseModel):
         default=[],
         description="Names of the endpoints an endpoint-kind key may call; empty means every "
         "endpoint. Each must be defined by the document or already stored",
+    )
+    scopes: list[ApiKeyScope] = Field(
+        default=[],
+        description="Limits a service key to these scopes: introspect, read, bundles:write, "
+        "endpoints:write, upstreams:write, keys:manage, mcp. Empty gives a service key every "
+        "right; an endpoint key takes none",
     )
     value_from_env: str | None = Field(
         default=None,
@@ -55,4 +62,6 @@ class BootstrapApiKey(BaseModel):
             raise ValueError(f"api key {self.name!r}: write_to goes with create_if_missing, only")
         if self.kind is ApiKeyKind.SERVICE and self.endpoints:
             raise ValueError(f"api key {self.name!r}: a service key has no endpoint scope")
+        if self.kind is not ApiKeyKind.SERVICE and self.scopes:
+            raise ValueError(f"api key {self.name!r}: only a service key takes scopes")
         return self

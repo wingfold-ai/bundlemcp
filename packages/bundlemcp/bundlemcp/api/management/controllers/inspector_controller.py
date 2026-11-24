@@ -19,6 +19,7 @@ from bundlemcp.application.schemas import (
     InspectorRequest,
     InspectorToolList,
 )
+from bundlemcp.domain.access.api_key_scope import FULL
 
 CALL_EVENTS = TypeAdapter(InspectorCallEvent)
 CALL_STREAM_DESCRIPTION = (
@@ -33,7 +34,7 @@ class InspectorController(ManagementController):
     prefix = "/inspector"
     tags = ("inspector",)
 
-    @route.post(":connect")
+    @route.post(":connect", access=FULL)
     async def connect(
         self,
         body: InspectorRequest,
@@ -43,7 +44,7 @@ class InspectorController(ManagementController):
     ) -> InspectorConnection:
         return await service.connect(body.target, principal, caller_ip)
 
-    @route.post(":ping")
+    @route.post(":ping", access=FULL)
     async def ping(
         self,
         body: InspectorRequest,
@@ -53,7 +54,7 @@ class InspectorController(ManagementController):
     ) -> InspectorPing:
         return await service.ping(body.target, principal, caller_ip)
 
-    @route.post(":list-tools")
+    @route.post(":list-tools", access=FULL)
     async def list_tools(
         self,
         body: InspectorRequest,
@@ -73,6 +74,7 @@ class InspectorController(ManagementController):
                 "content": {"text/event-stream": {}},
             }
         },
+        access=FULL,
     )
     async def call_tool(
         self,

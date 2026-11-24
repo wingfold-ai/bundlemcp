@@ -5,6 +5,7 @@ from pydantic import Field
 
 from bundlemcp.application.schemas.common.entity_read import EntityRead
 from bundlemcp.domain.access.api_key_kind import ApiKeyKind
+from bundlemcp.domain.access.api_key_scope import ApiKeyScope
 
 
 class ApiKeyRead(EntityRead):
@@ -20,6 +21,10 @@ class ApiKeyRead(EntityRead):
     )
     endpoint_ids: list[str] = Field(
         description="Endpoints this key may call; empty means every endpoint"
+    )
+    scopes: list[ApiKeyScope] = Field(
+        description="What a service key may do; empty means everything. Always empty for an "
+        "endpoint key"
     )
     is_active: bool = Field(description="Whether the key is currently accepted")
     last_used_at: datetime | None = Field(

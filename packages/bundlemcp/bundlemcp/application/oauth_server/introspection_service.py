@@ -56,10 +56,14 @@ class TokenIntrospectionService:
             # report them with the `api_key:<id>` subject so introspecting
             # upstreams can serve api_key callers too.
             key = await self._auth.resolve_api_key(token)
-            if key is None:
+            # a key that may not call tools never authenticates a caller, so it is never an
+            # active caller credential either
+            if key is None or not key.calls_endpoints:
                 return INACTIVE
             return IntrospectionResponse(
-                active=True, sub=f"{API_KEY_SUBJECT_PREFIX}{key.id}", token_use="api_key"  # noqa: S106
+                active=True,
+                sub=f"{API_KEY_SUBJECT_PREFIX}{key.id}",
+                token_use="api_key",  # noqa: S106
             )
         if not row.is_usable_at(self._clock.now()):
             return INACTIVE

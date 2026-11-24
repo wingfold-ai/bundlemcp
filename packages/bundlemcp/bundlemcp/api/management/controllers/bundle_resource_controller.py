@@ -7,6 +7,7 @@ from bundlemcp.api.http.route import route
 from bundlemcp.api.http.service_providers import BundleResourceServiceProvider
 from bundlemcp.api.management.controllers.management_controller import ManagementController
 from bundlemcp.application.schemas import BundleResourceRead, BundleResourceUpsert, Page
+from bundlemcp.domain.access.api_key_scope import ApiKeyScope
 
 
 class BundleResourceController(ManagementController):
@@ -14,19 +15,19 @@ class BundleResourceController(ManagementController):
     prefix = "/bundles/{bundle}/resources"
     tags = ("bundles",)
 
-    @route.get("")
+    @route.get("", access=ApiKeyScope.READ)
     async def list_resources(
         self, bundle: str, service: BundleResourceServiceProvider, page: PageProvider
     ) -> Page[BundleResourceRead]:
         return await service.list(bundle, offset=page.offset, limit=page.limit)
 
-    @route.get("/{name:path}")
+    @route.get("/{name:path}", access=ApiKeyScope.READ)
     async def get_resource(
         self, bundle: str, name: str, service: BundleResourceServiceProvider
     ) -> BundleResourceRead:
         return await service.get(bundle, name)
 
-    @route.put("/{name:path}")
+    @route.put("/{name:path}", access=ApiKeyScope.BUNDLES_WRITE)
     async def upsert_resource(
         self,
         bundle: str,
@@ -40,7 +41,9 @@ class BundleResourceController(ManagementController):
             )
         return await service.upsert(bundle, body)
 
-    @route.delete("/{name:path}", status_code=status.HTTP_204_NO_CONTENT)
+    @route.delete(
+        "/{name:path}", status_code=status.HTTP_204_NO_CONTENT, access=ApiKeyScope.BUNDLES_WRITE
+    )
     async def delete_resource(
         self, bundle: str, name: str, service: BundleResourceServiceProvider
     ) -> None:

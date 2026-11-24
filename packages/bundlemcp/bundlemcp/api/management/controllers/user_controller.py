@@ -9,32 +9,35 @@ from bundlemcp.api.http.route import route
 from bundlemcp.api.http.service_providers import UserServiceProvider
 from bundlemcp.api.management.controllers.management_controller import ManagementController
 from bundlemcp.application.schemas import ConsentRead, Page, UserRead
+from bundlemcp.domain.access.api_key_scope import FULL
 
 
 class UserController(ManagementController):
     prefix = "/users"
     tags = ("users",)
 
-    @route.get("")
+    @route.get("", access=FULL)
     async def list_users(self, service: UserServiceProvider, page: PageProvider) -> Page[UserRead]:
         return await service.list(offset=page.offset, limit=page.limit)
 
-    @route.post("/{user_id}:deactivate")
+    @route.post("/{user_id}:deactivate", access=FULL)
     async def deactivate_user(self, user_id: uuid.UUID, service: UserServiceProvider) -> UserRead:
         return await service.deactivate(user_id)
 
-    @route.post("/{user_id}:activate")
+    @route.post("/{user_id}:activate", access=FULL)
     async def activate_user(self, user_id: uuid.UUID, service: UserServiceProvider) -> UserRead:
         """Let a deactivated user sign in again; nothing revoked at deactivation comes back."""
         return await service.activate(user_id)
 
-    @route.get("/{user_id}/consents")
+    @route.get("/{user_id}/consents", access=FULL)
     async def list_consents(
         self, user_id: uuid.UUID, service: UserServiceProvider
     ) -> list[ConsentRead]:
         return await service.list_consents(user_id)
 
-    @route.delete("/{user_id}/consents/{consent_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @route.delete(
+        "/{user_id}/consents/{consent_id}", status_code=status.HTTP_204_NO_CONTENT, access=FULL
+    )
     async def revoke_consent(
         self, user_id: uuid.UUID, consent_id: uuid.UUID, service: UserServiceProvider
     ) -> None:

@@ -7,25 +7,26 @@ from bundlemcp.api.http.route import route
 from bundlemcp.api.http.service_providers import BundlePromptServiceProvider
 from bundlemcp.api.management.controllers.management_controller import ManagementController
 from bundlemcp.application.schemas import BundlePromptRead, BundlePromptUpsert, Page
+from bundlemcp.domain.access.api_key_scope import ApiKeyScope
 
 
 class BundlePromptController(ManagementController):
     prefix = "/bundles/{bundle}/prompts"
     tags = ("bundles",)
 
-    @route.get("")
+    @route.get("", access=ApiKeyScope.READ)
     async def list_prompts(
         self, bundle: str, service: BundlePromptServiceProvider, page: PageProvider
     ) -> Page[BundlePromptRead]:
         return await service.list(bundle, offset=page.offset, limit=page.limit)
 
-    @route.get("/{name}")
+    @route.get("/{name}", access=ApiKeyScope.READ)
     async def get_prompt(
         self, bundle: str, name: str, service: BundlePromptServiceProvider
     ) -> BundlePromptRead:
         return await service.get(bundle, name)
 
-    @route.put("/{name}")
+    @route.put("/{name}", access=ApiKeyScope.BUNDLES_WRITE)
     async def upsert_prompt(
         self, bundle: str, name: str, body: BundlePromptUpsert, service: BundlePromptServiceProvider
     ) -> BundlePromptRead:
@@ -35,7 +36,9 @@ class BundlePromptController(ManagementController):
             )
         return await service.upsert(bundle, body)
 
-    @route.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
+    @route.delete(
+        "/{name}", status_code=status.HTTP_204_NO_CONTENT, access=ApiKeyScope.BUNDLES_WRITE
+    )
     async def delete_prompt(
         self, bundle: str, name: str, service: BundlePromptServiceProvider
     ) -> None:
