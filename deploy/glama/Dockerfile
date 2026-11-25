@@ -6,6 +6,17 @@
 #   docker build -f deploy/glama/Dockerfile -t bundlemcp-glama .
 #   docker run -i --rm bundlemcp-glama
 # Demo values only; this is not a deployment.
+#
+# Glama does not build this file: it generates a Dockerfile of its own around a
+# clone of the repository, from the settings under Admin -> Dockerfile. These
+# settings make that image run the same entrypoint:
+#   Base image   debian:trixie-slim (Node.js and Python versions left at their defaults)
+#   Build steps  ["apt-get update && apt-get install -y --no-install-recommends postgresql valkey-server",
+#                 "uv sync --locked --no-dev --all-packages",
+#                 "UV_PROJECT_ENVIRONMENT=/opt/bridge uv sync --locked --no-dev --project deploy/glama/bridge",
+#                 "deploy/glama/prepare-db.sh"]
+#   CMD          ["mcp-proxy", "--", "deploy/glama/entrypoint.sh"]
+# The environment schema and the placeholder parameters stay empty.
 
 FROM ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d AS uv
 
@@ -29,24 +40,18 @@ FROM python:3.15.2-slim-trixie@sha256:63bb298d2b7b88f176f51b5189f54ce6535c997682
 RUN apt-get update \
     && apt-get install -y --no-install-recommends postgresql valkey-server \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --create-home bundlemcp \
-    && pg_ctlcluster "$(ls /usr/lib/postgresql)" main start \
-    && su postgres -c "psql -q -c \"CREATE ROLE bundlemcp LOGIN PASSWORD 'bundlemcp'\" -c 'CREATE DATABASE bundlemcp OWNER bundlemcp'" \
-    && pg_ctlcluster "$(ls /usr/lib/postgresql)" main stop
+    && useradd --system --uid 10001 --create-home bundlemcp
+# The files keep their repository paths, as in the clone Glama builds from, so
+# one entrypoint serves both images
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /opt/bridge /opt/bridge
-COPY packages/bundlemcp/alembic.ini ./alembic.ini
-COPY apps/gateway/main.py ./main.py
-COPY examples/echo-mcp/server.py ./echo/server.py
-COPY deploy/glama/bootstrap.yaml deploy/glama/entrypoint.sh ./glama/
-ENV PATH="/app/.venv/bin:$PATH" \
-    HOME=/home/bundlemcp \
-    BUNDLEMCP_DATABASE_URL=postgresql+asyncpg://bundlemcp:bundlemcp@127.0.0.1:5432/bundlemcp \
-    BUNDLEMCP_REDIS_URL=redis://127.0.0.1:6379/0 \
-    BUNDLEMCP_PUBLIC_URL=http://127.0.0.1:8000 \
-    BUNDLEMCP_BOOTSTRAP_FILE=/app/glama/bootstrap.yaml \
-    BUNDLEMCP_EGRESS_ALLOW_CIDRS='["127.0.0.0/8"]'
+COPY packages/bundlemcp/alembic.ini packages/bundlemcp/alembic.ini
+COPY apps/gateway/main.py apps/gateway/main.py
+COPY examples/echo-mcp/server.py examples/echo-mcp/server.py
+COPY deploy/glama/ deploy/glama/
+RUN deploy/glama/prepare-db.sh
+ENV HOME=/home/bundlemcp
 # Postgres must start as its own user and the gateway as bundlemcp, so the
 # entrypoint starts as root and drops privileges for each process
-ENTRYPOINT ["/app/glama/entrypoint.sh"]
+ENTRYPOINT ["/app/deploy/glama/entrypoint.sh"]
