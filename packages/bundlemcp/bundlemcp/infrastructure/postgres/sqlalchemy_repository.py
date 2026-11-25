@@ -91,6 +91,15 @@ class SqlAlchemyRepository[TEntity: BaseModel, TRow: SQLModel]:
         row = (await self._session.execute(statement)).scalar_one_or_none()
         return self._to_entity(row) if row is not None else None
 
+    async def first(
+        self, *criteria: ColumnElement[bool], order_by: Sequence[Any] = ()
+    ) -> TEntity | None:
+        """The first matching entity, for criteria that may match several rows."""
+        await self.flush_pending()
+        statement = select(self._row).where(*criteria).order_by(*order_by).limit(1)
+        row = (await self._session.execute(statement)).scalars().first()
+        return self._to_entity(row) if row is not None else None
+
     async def all(
         self, *criteria: ColumnElement[bool], order_by: Sequence[Any] = ()
     ) -> list[TEntity]:
