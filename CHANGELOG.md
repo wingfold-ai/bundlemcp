@@ -6,6 +6,20 @@ and versions follow [Semantic Versioning](https://semver.org/). A release that c
 alone whether a release changes the contract their hook implements; an entry that does not mention it leaves the
 protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) says how a release happens.
 
+## [0.4.5] - 2026-11-25
+
+### Fixed
+
+- Discovered tool annotations keep their MCP names (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
+  `openWorldHint`) instead of being stored and served as snake_case keys, so clients and the admin inspector see the
+  hints again, including destructive marking. ([#239](https://github.com/wingfold-ai/bundlemcp/pull/239))
+- The `write_as_read` endpoint profile no longer returns both snake_case and MCP-named annotation keys for a discovered
+  tool, and keeps `openWorldHint` under its MCP name. ([#239](https://github.com/wingfold-ai/bundlemcp/pull/239))
+- Annotation overrides that use the MCP names now replace the discovered values instead of appearing beside them.
+  ([#239](https://github.com/wingfold-ai/bundlemcp/pull/239))
+- Existing installs need no migration: the next discovery of each server rewrites its stored tools with the correct
+  annotation names. ([#239](https://github.com/wingfold-ai/bundlemcp/pull/239))
+
 ## [0.4.4] - 2026-11-25
 
 ### Fixed
