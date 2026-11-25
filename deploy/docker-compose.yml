@@ -206,7 +206,7 @@ services:
   # web app (deploy/proxy/Caddyfile). BUNDLEMCP_PUBLIC_URL must be the tunnel's
   # URL; deploy/stack.sh learns it from the quick tunnel or from NGROK_DOMAIN.
   proxy:
-    image: caddy:2-alpine@sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f
+    image: caddy:2-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     profiles: [tunnel, ngrok]
     restart: unless-stopped
     volumes:
@@ -222,7 +222,7 @@ services:
   # Cloudflare quick tunnel: no account, a random *.trycloudflare.com URL that
   # changes whenever this container restarts.
   tunnel:
-    image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
+    image: cloudflare/cloudflared:2026.11.1@sha256:e613aadbc2d9511785d2e67a86b0c8ac18dd63a3f9af0d06faf04cbfdcb35f2d
     profiles: [tunnel]
     restart: unless-stopped
     command: ["tunnel", "--no-autoupdate", "--url", "http://proxy:80"]
