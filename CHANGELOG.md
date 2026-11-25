@@ -10,15 +10,9 @@ protocol unchanged. [CONTRIBUTING.md](CONTRIBUTING.md#how-a-release-happens) say
 
 ### Fixed
 
-- Discovered tool annotations keep their MCP names (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
-  `openWorldHint`) instead of being stored and served as snake_case keys, so clients and the admin inspector see the
-  hints again, including destructive marking. ([#239](https://github.com/wingfold-ai/bundlemcp/pull/239))
-- The `write_as_read` endpoint profile no longer returns both snake_case and MCP-named annotation keys for a discovered
-  tool, and keeps `openWorldHint` under its MCP name. ([#239](https://github.com/wingfold-ai/bundlemcp/pull/239))
-- Annotation overrides that use the MCP names now replace the discovered values instead of appearing beside them.
-  ([#239](https://github.com/wingfold-ai/bundlemcp/pull/239))
-- Existing installs need no migration: the next discovery of each server rewrites its stored tools with the correct
-  annotation names. ([#239](https://github.com/wingfold-ai/bundlemcp/pull/239))
+- The gateway starts again when `BUNDLEMCP_INITIAL_SERVICE_KEY` is set and more than one service key is stored. Before,
+  every restart failed once a second service key, such as a scoped key provisioned from the bootstrap key file, existed.
+  ([#240](https://github.com/wingfold-ai/bundlemcp/pull/240))
 
 ## [0.4.3] - 2026-11-24
 
