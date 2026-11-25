@@ -74,7 +74,9 @@ class FastMcpUpstreamProbe:
                     description=tool.description,
                     input_schema=tool.input_schema or {},
                     annotations=(
-                        tool.annotations.model_dump(exclude_none=True) if tool.annotations else None
+                        tool.annotations.model_dump(by_alias=True, exclude_none=True)
+                        if tool.annotations
+                        else None
                     ),
                 )
                 for tool in listed
