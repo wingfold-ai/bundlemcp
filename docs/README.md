@@ -87,6 +87,12 @@ links to. A post with a field missing, a date not written `YYYY-MM-DD` or an unk
 RSS feed (`/blog/feed.xml`), the sitemap or `llms.txt`. `npm run dev` still shows it, marked as a draft. Delete the
 line to publish. A draft is public in the repository, so a post goes in as a draft only once it is close to done.
 
+Before a post goes in, check that it reads cold: the `progressive-read` workflow
+(`.claude/workflows/progressive-read.js`, run from Claude Code with the post's Markdown as `args.text`) gives every
+paragraph to a fresh agent that has read only the paragraphs before it, and reports where such a reader loses the
+thread. Fix the first failing paragraph, then run it again, since a changed paragraph changes what every later reader
+sees.
+
 Published posts are listed newest first on `/blog/`, in the feed and under `## Blog` in `llms.txt`;
 `tools/check_docs_blog.py` checks in CI that the three agree and that no draft was built.
 
