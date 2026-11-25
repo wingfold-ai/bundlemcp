@@ -15,7 +15,9 @@ class SqlAlchemyApiKeyRepository(SqlAlchemyRepository[ApiKey, ApiKeyRow]):
         return await self.one(ApiKeyRow.key_hash == key_hash)
 
     async def any_of_kind(self, kind: ApiKeyKind) -> ApiKey | None:
-        return await self.one(ApiKeyRow.kind == kind)
+        return await self.first(
+            ApiKeyRow.kind == kind, order_by=(ApiKeyRow.created_at, ApiKeyRow.id)
+        )
 
     async def page(self, *, offset: int, limit: int) -> PageSlice[ApiKey]:
         return await super().page(
