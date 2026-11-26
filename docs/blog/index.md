@@ -19,7 +19,10 @@ Posts on building and running it, newest first. Follow them with the [RSS feed](
 <p v-if="posts.length === 0">There are no posts yet.</p>
 <ul v-else class="blog-index">
   <li v-for="post in posts" :key="post.url">
-    <time :datetime="post.date">{{ formatPostDate(post.date) }}</time>
+    <span class="meta">
+      <span v-if="post.draft" class="draft">Draft</span>
+      <time :datetime="post.date">{{ formatPostDate(post.date) }}</time>
+    </span>
     <a class="title" :href="post.url">{{ post.title }}</a>
     <span class="description">{{ post.description }}</span>
   </li>

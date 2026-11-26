@@ -23,6 +23,7 @@ export interface Post {
   date: string;
   author: string;
   authorLink: string;
+  draft: boolean;
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -67,7 +68,15 @@ export function readPost(frontmatter: Record<string, unknown>, url: string, page
     problems.push(`author "${author}" is not one of ${Object.keys(AUTHORS).join(", ")}`);
   }
   if (problems.length) throw new Error(`Blog post ${page}: ${problems.join("; ")}`);
-  return { url, title, description, date: date!, author, authorLink: AUTHORS[author] };
+  return {
+    url,
+    title,
+    description,
+    date: date!,
+    author,
+    authorLink: AUTHORS[author],
+    draft: isDraft(frontmatter),
+  };
 }
 
 /**
@@ -85,12 +94,15 @@ export function draftSources(docsDir: string): string[] {
     .map((name) => `blog/${name}`);
 }
 
-/** The published posts, newest first; drafts are left out, a malformed post throws. */
-export function postsLoader() {
+/**
+ * The published posts, newest first; a malformed post throws. Drafts are left out
+ * unless `includeDrafts` is set, which only the dev server's blog index does.
+ */
+export function postsLoader({ includeDrafts = false }: { includeDrafts?: boolean } = {}) {
   return createContentLoader("blog/*.md", {
     transform(pages): Post[] {
       return pages
-        .filter((page) => page.url !== "/blog/" && !isDraft(page.frontmatter))
+        .filter((page) => page.url !== "/blog/" && (includeDrafts || !isDraft(page.frontmatter)))
         .map((page) => readPost(page.frontmatter, page.url, page.url))
         .sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title));
     },
