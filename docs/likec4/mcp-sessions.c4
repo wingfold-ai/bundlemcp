@@ -1,0 +1,145 @@
+// MCP sessions — diagrams for the blog post docs/blog/why-mcp-dropped-sessions.md.
+// Generic actors (a client, a server), not bundlemcp's own
+// containers, except in the last view. The steps live only in the dynamic
+// views: no model relationship is declared here, so none of these elements
+// leaks into the context or container views of model.c4.
+//
+// Colours follow the documentation palette of model.c4: brand teal for what
+// bundlemcp owns, slate for everything outside it. Shapes and solid versus
+// dashed lines tell the rest. Edge labels stay short: the embed draws them on
+// one line at 21px, so a long label is cut off.
+
+model {
+  sessClient = external 'MCP client' {
+    description 'Assistant, editor or agent'
+    style {
+      color outside
+    }
+  }
+  sessServer = external 'Server program' {
+    description 'One running copy'
+    style {
+      color outside
+    }
+
+    sessHandler = external 'Request handler' {
+      description 'Runs the tools'
+      style {
+        color outside
+      }
+    }
+    sessMemory = external 'Session memory' {
+      description 'Cleared when the program stops'
+      style {
+        shape storage
+        color outside
+      }
+    }
+  }
+  sessUpstream = external 'Restarted server' {
+    description 'Has forgotten every session'
+    style {
+      color outside
+    }
+  }
+  sessLegacyClient = external 'Session-based client' {
+    description 'Opens with initialize'
+    style {
+      color outside
+    }
+  }
+  sessGatewayStore = external 'Session storage' {
+    description 'Survives a gateway restart'
+    style {
+      shape storage
+      color brandDeep
+    }
+  }
+  sessStatelessServer = external 'Sessionless server' {
+    description 'Speaks 2026-07-28 only'
+    style {
+      color outside
+    }
+  }
+}
+
+views {
+  // A flow into a frame: the memory sits inside the program, which is the
+  // whole point of the next section
+  dynamic view sessionCheckIn {
+    title 'A session lives inside the server program'
+    description 'Initialize once, then send the session ID; the server looks it up in its own memory'
+
+    sessClient -> sessServer.sessHandler 'tools/call, ID 7f3a'
+    sessServer.sessHandler -> sessServer.sessMemory 'store, look up 7f3a'
+
+    include
+      sessClient with {
+        description 'Got session ID 7f3a from initialize'
+      },
+      sessServer, sessServer.sessHandler, sessServer.sessMemory
+    style * {
+      size sm
+      textSize xl
+    }
+    autoLayout TopBottom 110 60
+  }
+
+  // The one sequence chart: the order of the messages is what matters here
+  dynamic view sessionLost {
+    title 'After a restart: the 404 rule'
+    description 'The server came back with empty memory; a client that follows the spec loses one request'
+    variant sequence
+
+    sessClient -> sessUpstream 'tools/call, Mcp-Session-Id: 7f3a'
+    sessClient <- sessUpstream '404: unknown session' {
+      line solid
+    }
+    sessClient -> sessUpstream 'initialize again'
+    sessClient <- sessUpstream 'new Mcp-Session-Id: 9c2e'
+    sessClient -> sessUpstream 'tools/call, Mcp-Session-Id: 9c2e'
+    sessClient <- sessUpstream 'result' {
+      line solid
+    }
+
+    include
+      sessClient with {
+        description 'Follows the spec'
+      },
+      sessUpstream with {
+        description 'Has forgotten 7f3a'
+      }
+  }
+
+  // bundlemcp in brand colour between the two eras
+  dynamic view sessionTranslation {
+    title 'bundlemcp between the revisions'
+    description 'The gateway keeps the session a client needs, so the server behind it can drop sessions'
+
+    sessLegacyClient -> bundlemcp.gateway 'Mcp-Session-Id: 7f3a' {
+      color brand
+    }
+    bundlemcp.gateway -> sessGatewayStore 'keep 7f3a' {
+      color brand
+    }
+    bundlemcp.gateway -> sessStatelessServer 'call + _meta' {
+      color brand
+      line solid
+    }
+
+    include
+      sessLegacyClient,
+      bundlemcp.gateway with {
+        title 'bundlemcp'
+        technology 'MCP gateway'
+        description 'Translates between revisions'
+      },
+      sessGatewayStore,
+      sessStatelessServer
+    style * {
+      size sm
+      textSize xl
+    }
+    autoLayout TopBottom 90 80
+  }
+}
