@@ -52,8 +52,9 @@ ENV_EXEMPT = {
     "BUNDLEMCP_INTEGRATION",  # a pytest gate, read by tests/integration/conftest.py
     "BUNDLEMCP_OIDC_",  # a prefix fragment, quoted in the auth spec
 }
-# Prefixes that look like requirement IDs but are not.
-ID_EXEMPT_PREFIXES = {"ADR", "BSD", "MPL", "MIT", "RFC", "SHA", "UTF", "HTTP", "API", "CI"}
+# Prefixes that look like requirement IDs but are not. SEP numbers MCP's own
+# Specification Enhancement Proposals, which the blog cites.
+ID_EXEMPT_PREFIXES = {"ADR", "BSD", "MPL", "MIT", "RFC", "SEP", "SHA", "UTF", "HTTP", "API", "CI"}
 
 
 def settings_fields() -> set[str]:
